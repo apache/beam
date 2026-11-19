@@ -1099,9 +1099,16 @@ public class GcsUtilV2Test {
     StorageBatchResult<Blob> found = batchResult(mockBlob("testbucket", "found", 10L), null);
     StorageBatchResult<Blob> missing = batchResult(null, null);
     StorageBatchResult<Blob> forbidden = batchResult(null, new StorageException(403, "Forbidden"));
+    StorageBatchResult<Blob> transientError =
+        batchResult(null, new StorageException(503, "Service Unavailable"));
+    Blob recovered = mockBlob("testbucket", "transient", 20L);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("found"), any())).thenReturn(found);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("missing"), any())).thenReturn(missing);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("forbidden"), any())).thenReturn(forbidden);
+    when(batch.get(Mockito.eq("testbucket"), Mockito.eq("transient"), any()))
+        .thenReturn(transientError);
+    when(storage.get(Mockito.eq("testbucket"), Mockito.eq("transient"), any()))
+        .thenReturn(recovered);
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
     List<StorageObjectOrIOException> results =
@@ -1109,15 +1116,19 @@ public class GcsUtilV2Test {
             ImmutableList.of(
                 GcsPath.fromComponents("testbucket", "found"),
                 GcsPath.fromComponents("testbucket", "missing"),
-                GcsPath.fromComponents("testbucket", "forbidden")));
+                GcsPath.fromComponents("testbucket", "forbidden"),
+                GcsPath.fromComponents("testbucket", "transient")));
 
-    assertEquals(3, results.size());
+    assertEquals(4, results.size());
     assertEquals("found", results.get(0).storageObject().getName());
     assertEquals(BigInteger.valueOf(10), results.get(0).storageObject().getSize());
     assertTrue(results.get(1).ioException() instanceof FileNotFoundException);
     assertTrue(results.get(2).ioException() instanceof AccessDeniedException);
+    assertEquals("transient", results.get(3).storageObject().getName());
+    assertEquals(BigInteger.valueOf(20), results.get(3).storageObject().getSize());
     verify(storage).batch();
     verify(batch).submit();
+    verify(storage).get(Mockito.eq("testbucket"), Mockito.eq("transient"), any());
   }
 
   /** A java-storage client whose batched deletes in "testbucket" report {@code results}. */
@@ -1174,6 +1185,19 @@ public class GcsUtilV2Test {
         () ->
             withForbidden.remove(
                 ImmutableList.of(deleted.toString(), missing.toString(), forbidden.toString())));
+
+    GcsPath transientError = GcsPath.fromComponents("testbucket", "transient");
+    Storage retryStorage =
+        storageDeleting(
+            ImmutableMap.of(
+                "deleted",
+                batchResult(true, null),
+                "transient",
+                batchResult(null, new StorageException(503, "Service Unavailable"))));
+    when(retryStorage.delete(BlobId.of("testbucket", "transient"))).thenReturn(true);
+    gcsUtilWithV2Storage(retryStorage)
+        .remove(ImmutableList.of(deleted.toString(), transientError.toString()));
+    verify(retryStorage).delete(BlobId.of("testbucket", "transient"));
   }
 
   /**

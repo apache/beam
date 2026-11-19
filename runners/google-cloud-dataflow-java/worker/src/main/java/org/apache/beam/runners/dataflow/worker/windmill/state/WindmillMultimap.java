@@ -115,13 +115,28 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
   // Initiates a backend state read to fetch all entries if necessary.
   private Future<Iterable<Map.Entry<ByteString, Iterable<V>>>> necessaryEntriesFromStorageFuture(
       boolean omitValues) {
-    if (complete) {
-      // Since we're complete, even if there are entries in storage we don't need to read them.
+    if (complete || (omitValues && allKeysKnown)) {
+      // Since we're complete (or all keys are known when only keys are requested), even if there
+      // are entries in storage we don't need to read them.
       return Futures.immediateFuture(Collections.emptyList());
     } else {
       return reader.multimapFetchAllFuture(
           omitValues, stateKey.byteString(), stateFamily, valueCoder);
     }
+  }
+
+  private boolean isKeyValuesCached(Object structuralKey) {
+    if (complete) {
+      return true;
+    }
+    KeyState keyState = keyStateMap.get(structuralKey);
+    if (allKeysKnown && (keyState == null || keyState.existence != KeyExistence.KNOWN_EXIST)) {
+      return true;
+    }
+    return keyState != null
+        && (keyState.existence == KeyExistence.KNOWN_NONEXISTENT
+            || keyState.removedLocally
+            || keyState.valuesCached);
   }
 
   // Initiates a backend state read to fetch a single entry if necessary.
@@ -373,7 +388,9 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     @Override
     @SuppressWarnings("FutureReturnValueIgnored")
     public ReadableState<Iterable<V>> readLater() {
-      WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(key);
+      if (!isKeyValuesCached(structuralKey)) {
+        WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(key);
+      }
       return this;
     }
   }
@@ -693,10 +710,17 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
 
     @Override
     public ReadableState<Boolean> readLater() {
+      boolean readRequired = true;
+      KeyState keyState = keyStateMap.get(structuralKey);
+      if (keyState != null && keyState.existence != KeyExistence.UNKNOWN_EXISTENCE) {
+        readRequired = false;
+      }
       if (values == null) {
         values = WindmillMultimap.this.get(key);
       }
-      values.readLater();
+      if (readRequired) {
+        values.readLater();
+      }
       return this;
     }
   }
@@ -719,10 +743,19 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
 
     @Override
     public ReadableState<Boolean> readLater() {
+      boolean readRequired = true;
+      for (KeyState keyState : keyStateMap.values()) {
+        if (keyState.existence == KeyExistence.KNOWN_EXIST) {
+          readRequired = false;
+          break;
+        }
+      }
       if (keys == null) {
         keys = WindmillMultimap.this.keys();
       }
-      keys.readLater();
+      if (readRequired) {
+        keys.readLater();
+      }
       return this;
     }
   }

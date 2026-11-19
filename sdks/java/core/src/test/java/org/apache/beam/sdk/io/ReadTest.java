@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,6 +37,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -61,6 +64,8 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -68,6 +73,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -258,6 +264,59 @@ public class ReadTest implements Serializable {
     assertEquals(Collections.singletonList(5), recordedDesiredNumSplits);
   }
 
+  @Test
+  public void testUnboundedSdfProgressDoesNotTakeCheckpoint() throws Exception {
+    CheckpointCountingSource source = new CheckpointCountingSource();
+    Read.UnboundedSourceAsSDFWrapperFn<Long, CounterMark> wrapperFn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
+    wrapperFn.setUp();
+    RestrictionTracker<
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>,
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[]>
+        tracker =
+            wrapperFn.restrictionTracker(
+                wrapperFn.initialRestriction(source), PipelineOptionsFactory.create());
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[] out =
+        new Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue[1];
+    assertTrue(tracker.tryClaim(out));
+    assertTrue(tracker.tryClaim(out));
+
+    // a checkpoint ends the bundle of the elements read so far, so progress must not take one
+    ((HasProgress) tracker).getProgress();
+    assertEquals(0, source.checkpointMarkCalls.get());
+
+    assertNotNull(tracker.trySplit(0));
+    assertEquals(1, source.checkpointMarkCalls.get());
+  }
+
+  @Test
+  public void testUnboundedSdfProcessElementTakesSingleCheckpoint() throws Exception {
+    CheckpointCountingSource source = new CheckpointCountingSource(2);
+    Read.UnboundedSourceAsSDFWrapperFn<Long, CounterMark> wrapperFn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
+    wrapperFn.setUp();
+    RestrictionTracker<
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>,
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[]>
+        tracker =
+            wrapperFn.restrictionTracker(
+                wrapperFn.initialRestriction(source), PipelineOptionsFactory.create());
+    AtomicInteger finalizedCallbacks = new AtomicInteger();
+    DoFn.BundleFinalizer bundleFinalizer =
+        (callbackExpiry, callback) -> finalizedCallbacks.incrementAndGet();
+    TestOutputReceiver<ValueWithRecordId<Long>> receiver = new TestOutputReceiver<>();
+    WatermarkEstimators.Manual watermarkEstimator =
+        wrapperFn.newWatermarkEstimator(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    DoFn.ProcessContinuation continuation =
+        wrapperFn.processElement(tracker, watermarkEstimator, receiver, bundleFinalizer);
+
+    assertEquals(DoFn.ProcessContinuation.resume(), continuation);
+    assertEquals(1, source.checkpointMarkCalls.get());
+    assertEquals(1, finalizedCallbacks.get());
+  }
+
   private <T extends Serializable & Consumer<Instant>>
       Read.Unbounded<Long> newUnboundedReadInterceptingWatermark(
           long numElements, T interceptedWatermarkReceiver) {
@@ -342,6 +401,87 @@ public class ReadTest implements Serializable {
   }
 
   private static class SerializableBoundedSource extends CustomBoundedSource {}
+
+  /** A source whose readers count the checkpoints they take. */
+  private static class CheckpointCountingSource extends UnboundedSource<Long, CounterMark> {
+    private final AtomicInteger checkpointMarkCalls = new AtomicInteger();
+    private final long maxElements;
+
+    CheckpointCountingSource() {
+      this(Long.MAX_VALUE);
+    }
+
+    CheckpointCountingSource(long maxElements) {
+      this.maxElements = maxElements;
+    }
+
+    @Override
+    public List<? extends UnboundedSource<Long, CounterMark>> split(
+        int desiredNumSplits, PipelineOptions options) {
+      return ImmutableList.of(this);
+    }
+
+    @Override
+    public UnboundedReader<Long> createReader(
+        PipelineOptions options, @Nullable CounterMark checkpointMark) {
+      return new UnboundedReader<Long>() {
+        private long current;
+
+        @Override
+        public boolean start() {
+          return advance();
+        }
+
+        @Override
+        public boolean advance() {
+          if (current >= maxElements) {
+            return false;
+          }
+          current++;
+          return true;
+        }
+
+        @Override
+        public Long getCurrent() {
+          return current;
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() {
+          return BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public Instant getWatermark() {
+          return BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          checkpointMarkCalls.incrementAndGet();
+          return new CounterMark(current, BoundedWindow.TIMESTAMP_MIN_VALUE);
+        }
+
+        @Override
+        public UnboundedSource<Long, ?> getCurrentSource() {
+          return CheckpointCountingSource.this;
+        }
+      };
+    }
+
+    @Override
+    public Coder<Long> getOutputCoder() {
+      return VarLongCoder.of();
+    }
+
+    @Override
+    public Coder<CounterMark> getCheckpointMarkCoder() {
+      return new CountingSource.CounterMarkCoder();
+    }
+  }
 
   private static class ExpectCacheUnboundedSource
       extends UnboundedSource<Long, CountingSource.CounterMark> {

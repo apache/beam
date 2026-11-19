@@ -386,6 +386,13 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       _ = InvalidEmbeddingsManager()
 
+  def test_share_model_across_processes_uses_underlying_handler(self):
+    text_handler = base._TextEmbeddingHandler(
+        embeddings_manager=self.embedding_conig)
+    self.assertFalse(text_handler.share_model_across_processes())
+    text_handler._underlying.share_model_across_processes = lambda: True
+    self.assertTrue(text_handler.share_model_across_processes())
+
   def test_handler_with_incompatible_datatype(self):
     text_handler = base._TextEmbeddingHandler(
         embeddings_manager=self.embedding_conig)
@@ -762,6 +769,16 @@ class TestUtilFunctions(unittest.TestCase):
     expected_output = [{'a': 1.1, 'b': 2.2}, {'a': 3.3, 'b': 4.4}]
     self.assertEqual(
         base._dict_output_fn(columns, input_list, embeddings), expected_output)
+
+  def test_dict_output_fn_does_not_modify_input(self):
+    input_list = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]
+    columns = ['a']
+    embeddings = [1.1, 3.3]
+
+    output = base._dict_output_fn(columns, input_list, embeddings)
+
+    self.assertEqual(output, [{'a': 1.1, 'b': 2}, {'a': 3.3, 'b': 4}])
+    self.assertEqual(input_list, [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}])
 
   def test_dict_input_fn_on_list_inputs(self):
     input_list = [{'a': [1, 2, 10], 'b': 3}, {'a': [1], 'b': 5}]

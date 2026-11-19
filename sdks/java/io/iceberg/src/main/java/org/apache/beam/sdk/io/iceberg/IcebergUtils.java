@@ -34,14 +34,12 @@ import java.time.chrono.IsoChronology;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.ResolverStyle;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
@@ -55,8 +53,8 @@ import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.catalog.TableIdentifierParser;
@@ -65,11 +63,10 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.apache.iceberg.util.UUIDUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
-import org.joda.time.base.AbstractInstant;
 
 /** Utilities for converting between Beam and Iceberg types, made public for user's convenience. */
 public class IcebergUtils {
@@ -439,8 +436,10 @@ public class IcebergUtils {
         }
         break;
       case UUID:
-        Optional.ofNullable(value.getBytes(name))
-            .ifPresent(v -> rec.setField(name, UUID.nameUUIDFromBytes(v)));
+        Object uuid = value.getValue(name);
+        if (uuid != null) {
+          rec.setField(name, uuid instanceof UUID ? uuid : UUIDUtil.convert((byte[]) uuid));
+        }
         break;
       case FIXED:
         Optional.ofNullable(value.getBytes(name)).ifPresent(v -> rec.setField(name, v));
@@ -461,39 +460,72 @@ public class IcebergUtils {
                         copyRowIntoRecord(GenericRecord.create(field.type().asStructType()), row)));
         break;
       case LIST:
-        Iterable<@NonNull ?> icebergList = value.getIterable(name);
-        Type collectionType = ((Types.ListType) field.type()).elementType();
-
-        if (collectionType.isStructType() && icebergList != null) {
-          org.apache.iceberg.Schema innerSchema = collectionType.asStructType().asSchema();
-          ImmutableList.Builder<Record> builder = ImmutableList.builder();
-          for (Row v : (Iterable<Row>) icebergList) {
-            builder.add(beamRowToIcebergRecord(innerSchema, v));
-          }
-          icebergList = builder.build();
-        }
-        Optional.ofNullable(icebergList).ifPresent(list -> rec.setField(name, list));
-        break;
       case MAP:
-        Map<?, ?> icebergMap = value.getMap(name);
-        Type valueType = ((Types.MapType) field.type()).valueType();
-        // recurse on struct types
-        if (valueType.isStructType() && icebergMap != null) {
-          org.apache.iceberg.Schema innerSchema = valueType.asStructType().asSchema();
-
-          ImmutableMap.Builder<Object, Record> newMap = ImmutableMap.builder();
-          for (Map.Entry<?, ?> entry : icebergMap.entrySet()) {
-            Row row = checkStateNotNull(((Row) entry.getValue()));
-            newMap.put(checkStateNotNull(entry.getKey()), beamRowToIcebergRecord(innerSchema, row));
-          }
-          icebergMap = newMap.build();
-        }
-        Optional.ofNullable(icebergMap).ifPresent(v -> rec.setField(name, v));
+        Optional.ofNullable(toIcebergValue(field.type(), value.getValue(name)))
+            .ifPresent(v -> rec.setField(name, v));
         break;
       default:
-        // Do nothing for unsupported types
+        // no conversion for this type, so only a null can be written
+        if (value.getValue(name) != null) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Cannot write field '%s': Iceberg type %s is not supported.",
+                  name, field.type()));
+        }
         break;
     }
+  }
+
+  /** Converts a Beam value to the form Iceberg expects, recursing through lists and maps. */
+  private static @Nullable Object toIcebergValue(Type type, @Nullable Object beamValue) {
+    if (beamValue == null) {
+      checkState(!type.isStructType(), "Null struct elements are not supported.");
+      return null;
+    }
+    switch (type.typeId()) {
+      case TIMESTAMP:
+        Types.TimestampType ts = (Types.TimestampType) type.asPrimitiveType();
+        return getIcebergTimestampValue(beamValue, ts.shouldAdjustToUTC());
+      case UUID:
+        return beamValue instanceof UUID ? beamValue : UUIDUtil.convert((byte[]) beamValue);
+      case BINARY:
+        return ByteBuffer.wrap((byte[]) beamValue);
+      case STRUCT:
+        return beamRowToIcebergRecord(type.asStructType().asSchema(), (Row) beamValue);
+      case LIST:
+        Type elementType = type.asListType().elementType();
+        if (!needsConversion(elementType)) {
+          return beamValue;
+        }
+        List<@Nullable Object> icebergList = new ArrayList<>();
+        for (Object element : (Iterable<?>) beamValue) {
+          icebergList.add(toIcebergValue(elementType, element));
+        }
+        return icebergList;
+      case MAP:
+        Types.MapType mapType = type.asMapType();
+        if (!needsConversion(mapType.keyType()) && !needsConversion(mapType.valueType())) {
+          return beamValue;
+        }
+        Map<Object, @Nullable Object> icebergMap = new HashMap<>();
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) beamValue).entrySet()) {
+          icebergMap.put(
+              checkStateNotNull(toIcebergValue(mapType.keyType(), entry.getKey())),
+              toIcebergValue(mapType.valueType(), entry.getValue()));
+        }
+        return icebergMap;
+      default:
+        return beamValue;
+    }
+  }
+
+  /** Whether {@link #toIcebergValue} converts values of this type. */
+  private static boolean needsConversion(Type type) {
+    Type.TypeID id = type.typeId();
+    return type.isNestedType()
+        || id == Type.TypeID.TIMESTAMP
+        || id == Type.TypeID.UUID
+        || id == Type.TypeID.BINARY;
   }
 
   /**
@@ -517,11 +549,7 @@ public class IcebergUtils {
     // timestamptz
     if (shouldAdjustToUtc) {
       if (beamValue instanceof java.time.Instant) { // MicrosInstant
-        OffsetDateTime epoch = java.time.Instant.ofEpochSecond(0).atOffset(ZoneOffset.UTC);
-        java.time.Instant instant = (java.time.Instant) beamValue;
-        long nanosFromEpoch =
-            TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
-        return ChronoUnit.NANOS.addTo(epoch, nanosFromEpoch);
+        return ((java.time.Instant) beamValue).atOffset(ZoneOffset.UTC);
       } else if (beamValue instanceof LocalDateTime) { // SqlTypes.DATETIME
         return OffsetDateTime.of((LocalDateTime) beamValue, ZoneOffset.UTC);
       } else if (beamValue instanceof Instant) { // FieldType.DATETIME
@@ -543,9 +571,7 @@ public class IcebergUtils {
 
     // timestamp
     if (beamValue instanceof java.time.Instant) { // MicrosInstant
-      java.time.Instant instant = (java.time.Instant) beamValue;
-      return DateTimeUtil.timestampFromNanos(
-          TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano());
+      return LocalDateTime.ofInstant((java.time.Instant) beamValue, ZoneOffset.UTC);
     } else if (beamValue instanceof LocalDateTime) { // SqlType.DATETIME
       return beamValue;
     } else if (beamValue instanceof Instant) { // FieldType.DATETIME
@@ -610,7 +636,22 @@ public class IcebergUtils {
       throw new RuntimeException(
           String.format("Received null value for required field '%s'.", field.getName()));
     }
-    switch (field.getType().getTypeName()) {
+    values.add(toBeamValue(field.getName(), field.getType(), icebergValue));
+  }
+
+  /** Converts an Iceberg value to the form Beam expects, recursing through lists and maps. */
+  private static @Nullable Object toBeamValue(
+      String fieldName, Schema.FieldType type, @Nullable Object icebergValue) {
+    if (icebergValue == null) {
+      checkState(
+          !type.getTypeName().isCompositeType(),
+          "Null struct elements are not supported in field '%s'.",
+          fieldName);
+      checkArgument(
+          type.getNullable(), "Received null value for %s in field '%s'.", type, fieldName);
+      return null;
+    }
+    switch (type.getTypeName()) {
       case BYTE:
       case INT16:
       case INT32:
@@ -620,157 +661,108 @@ public class IcebergUtils {
       case DOUBLE: // Iceberg and Beam both use double
       case STRING: // Iceberg and Beam both use String
       case BOOLEAN: // Iceberg and Beam both use boolean
-        values.add(icebergValue);
-        break;
+        return icebergValue;
       case ARRAY:
-        checkState(
-            icebergValue instanceof List,
-            "Expected List type for field '%s' but received %s",
-            field.getName(),
-            icebergValue.getClass());
-        List<@NonNull ?> beamList = (List<@NonNull ?>) icebergValue;
-        Schema.FieldType collectionType =
-            checkStateNotNull(field.getType().getCollectionElementType());
-        // recurse on struct types
-        if (collectionType.getTypeName().isCompositeType()) {
-          Schema innerSchema = checkStateNotNull(collectionType.getRowSchema());
-          beamList =
-              beamList.stream()
-                  .map(v -> icebergRecordToBeamRow(innerSchema, (Record) v))
-                  .collect(Collectors.toList());
-        }
-        values.add(toBeamNestedValue(field.getType(), beamList, field.getName()));
-        break;
       case ITERABLE:
         checkState(
             icebergValue instanceof Iterable,
             "Expected Iterable type for field '%s' but received %s",
-            field.getName(),
+            fieldName,
             icebergValue.getClass());
-        Iterable<@NonNull ?> beamIterable = (Iterable<@NonNull ?>) icebergValue;
-        Schema.FieldType iterableCollectionType =
-            checkStateNotNull(field.getType().getCollectionElementType());
-        // recurse on struct types
-        if (iterableCollectionType.getTypeName().isCompositeType()) {
-          Schema innerSchema = checkStateNotNull(iterableCollectionType.getRowSchema());
-          ImmutableList.Builder<Row> builder = ImmutableList.builder();
-          for (Record v : (Iterable<@NonNull Record>) icebergValue) {
-            builder.add(icebergRecordToBeamRow(innerSchema, v));
-          }
-          beamIterable = builder.build();
+        Schema.FieldType elementType = checkStateNotNull(type.getCollectionElementType());
+        if (!needsConversion(elementType)) {
+          checkArgument(
+              elementType.getNullable() || !Iterables.contains((Iterable<?>) icebergValue, null),
+              "Received null value for %s in field '%s'.",
+              elementType,
+              fieldName);
+          return icebergValue;
         }
-        values.add(toBeamNestedValue(field.getType(), beamIterable, field.getName()));
-        break;
+        List<@Nullable Object> beamList = new ArrayList<>();
+        for (Object element : (Iterable<?>) icebergValue) {
+          beamList.add(toBeamValue(fieldName, elementType, element));
+        }
+        return beamList;
       case MAP:
         checkState(
             icebergValue instanceof Map,
             "Expected Map type for field '%s' but received %s",
-            field.getName(),
+            fieldName,
             icebergValue.getClass());
-        Map<?, ?> beamMap = (Map<?, ?>) icebergValue;
-        Schema.FieldType valueType = checkStateNotNull(field.getType().getMapValueType());
-        // recurse on struct types
-        if (valueType.getTypeName().isCompositeType()) {
-          Schema innerSchema = checkStateNotNull(valueType.getRowSchema());
-          ImmutableMap.Builder<Object, Row> newMap = ImmutableMap.builder();
-          for (Map.Entry<?, ?> entry : ((Map<?, ?>) icebergValue).entrySet()) {
-            Record rec = ((Record) entry.getValue());
-            newMap.put(
-                checkStateNotNull(entry.getKey()),
-                icebergRecordToBeamRow(innerSchema, checkStateNotNull(rec)));
-          }
-          beamMap = newMap.build();
+        Schema.FieldType keyType = checkStateNotNull(type.getMapKeyType());
+        Schema.FieldType valueType = checkStateNotNull(type.getMapValueType());
+        if (!needsConversion(keyType) && !needsConversion(valueType)) {
+          checkArgument(
+              valueType.getNullable()
+                  || !Iterables.contains(((Map<?, ?>) icebergValue).values(), null),
+              "Received null value for %s in field '%s'.",
+              valueType,
+              fieldName);
+          return icebergValue;
         }
-        values.add(toBeamNestedValue(field.getType(), beamMap, field.getName()));
-        break;
+        Map<Object, @Nullable Object> beamMap = new HashMap<>();
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) icebergValue).entrySet()) {
+          beamMap.put(
+              checkStateNotNull(toBeamValue(fieldName, keyType, entry.getKey())),
+              toBeamValue(fieldName, valueType, entry.getValue()));
+        }
+        return beamMap;
       case DATETIME:
         // Iceberg uses a long for micros.
         // Beam DATETIME uses joda's Instant, which only supports millis,
         // so we do lose some precision here
-        values.add(getJodaInstant(icebergValue));
-        break;
+        return getJodaInstant(icebergValue);
       case BYTES:
         // Beam uses byte[]. Iceberg represents `binary` as a ByteBuffer but `fixed` as a byte[].
-        values.add(
-            icebergValue instanceof byte[]
-                ? (byte[]) icebergValue
-                : ((ByteBuffer) icebergValue).array());
-        break;
+        if (icebergValue instanceof UUID) {
+          return UUIDUtil.convert((UUID) icebergValue);
+        } else if (icebergValue instanceof ByteBuffer) {
+          return ((ByteBuffer) icebergValue).array();
+        } else if (icebergValue instanceof byte[]) {
+          return (byte[]) icebergValue;
+        } else {
+          throw new UnsupportedOperationException(
+              "Unsupported Iceberg type for Beam type BYTES: " + icebergValue.getClass());
+        }
       case ROW:
         Schema nestedSchema =
             checkArgumentNotNull(
-                field.getType().getRowSchema(),
+                type.getRowSchema(),
                 "Corrupted schema: Row type did not have associated nested schema.");
         if (icebergValue instanceof Record) {
-          values.add(icebergRecordToBeamRow(nestedSchema, (Record) icebergValue));
+          return icebergRecordToBeamRow(nestedSchema, (Record) icebergValue);
         } else if (icebergValue instanceof StructLike) {
-          values.add(structToRow(nestedSchema, (StructLike) icebergValue));
+          return structToRow(nestedSchema, (StructLike) icebergValue);
         } else {
           throw new UnsupportedOperationException(
               "Unsupported row type: " + icebergValue.getClass());
         }
-        break;
       case LOGICAL_TYPE:
-        values.add(getLogicalTypeValue(icebergValue, field.getType()));
-        break;
-      default:
-        throw new UnsupportedOperationException(
-            "Unsupported Beam type: " + field.getType().getTypeName());
-    }
-  }
-
-  /**
-   * Copies a list or map, or one of its elements, with the checks {@link Row.Builder#build()} would
-   * make. A null fails where the Beam type is not nullable. {@code binary}, which Iceberg reads as
-   * a {@link ByteBuffer}, becomes byte[]. A DATETIME, logical type or row value that Beam can't
-   * store fails here.
-   */
-  private static @Nullable Object toBeamNestedValue(
-      Schema.FieldType type, @Nullable Object value, String fieldName) {
-    if (value == null) {
-      checkArgument(
-          type.getNullable(), "Received null value for %s in field '%s'.", type, fieldName);
-      return null;
-    }
-    switch (type.getTypeName()) {
-      case BYTES:
-        return value instanceof byte[] ? value : ((ByteBuffer) value).array();
-      case ARRAY:
-      case ITERABLE:
-        Schema.FieldType elementType = checkStateNotNull(type.getCollectionElementType());
-        List<@Nullable Object> list = new ArrayList<>();
-        for (@Nullable Object element : (Iterable<?>) value) {
-          list.add(toBeamNestedValue(elementType, element, fieldName));
-        }
-        return list;
-      case MAP:
-        Schema.FieldType keyType = checkStateNotNull(type.getMapKeyType());
-        Schema.FieldType valueType = checkStateNotNull(type.getMapValueType());
-        Map<@Nullable Object, @Nullable Object> map = new HashMap<>();
-        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-          map.put(
-              toBeamNestedValue(keyType, entry.getKey(), fieldName),
-              toBeamNestedValue(valueType, entry.getValue(), fieldName));
-        }
-        return map;
-      case DATETIME:
-        return ((AbstractInstant) value).toInstant();
-      case LOGICAL_TYPE:
-        // For logical types that we have mapped here, we can skip the round-trip check that
-        // Row.Builder performs, and instead do a class cast check.
-        // We still perform the round-trip for unknown logical types for safety.
+        Object logicalValue = getLogicalTypeValue(icebergValue, type);
+        // For the logical types Iceberg columns map to, a class check catches the values build()
+        // would reject, without its round trip through the base type, which builds a Row for
+        // every timestamp. Any other logical type gets that round trip.
         @SuppressWarnings("unchecked")
         Schema.LogicalType<Object, Object> logicalType =
             (Schema.LogicalType<Object, Object>) checkStateNotNull(type.getLogicalType());
         @Nullable Class<?> valueClass = LOGICAL_TYPE_VALUE_CLASSES.get(logicalType.getIdentifier());
         return valueClass != null
-            ? valueClass.cast(value)
-            : logicalType.toInputType(logicalType.toBaseType(value));
-      case ROW:
-        return (Row) value;
+            ? valueClass.cast(logicalValue)
+            : logicalType.toInputType(logicalType.toBaseType(logicalValue));
       default:
-        return value;
+        throw new UnsupportedOperationException("Unsupported Beam type: " + type.getTypeName());
     }
+  }
+
+  /** Whether {@link #toBeamValue} converts values of this type. */
+  private static boolean needsConversion(Schema.FieldType type) {
+    Schema.TypeName name = type.getTypeName();
+    return name.isCollectionType()
+        || name.isMapType()
+        || name.isCompositeType()
+        || name == Schema.TypeName.BYTES
+        || name == Schema.TypeName.DATETIME
+        || name == Schema.TypeName.LOGICAL_TYPE;
   }
 
   private static Instant getJodaInstant(Object icebergValue) {

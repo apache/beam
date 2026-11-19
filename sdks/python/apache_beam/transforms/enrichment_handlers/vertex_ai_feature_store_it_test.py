@@ -24,6 +24,7 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import cleanup_testcontainer_on_retry
 from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
@@ -85,6 +86,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         self.client = self.container.get_client()
         break
       except Exception as e:
+        cleanup_testcontainer_on_retry(getattr(self, 'container', None))
         if i == self.retries - 1:
           _LOGGER.error('Unable to start redis container for RRIO tests.')
           raise e

@@ -53,7 +53,6 @@ var unimplementedCoders = map[string]bool{
 
 var filteredCases = []struct{ filter, reason string }{
 	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
-	{"beam:logical_type:fixed_char:v1", "https://github.com/apache/beam/issues/39684: Support char/varchar, binary/varbinary."},
 	{"beam:logical_type:timestamp:v1", "https://github.com/apache/beam/issues/39684: Support timestamp."},
 }
 

@@ -20,8 +20,10 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.util.List;
+import java.util.Queue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -38,7 +40,8 @@ public interface MessageProducer {
       Solace.Record msg,
       Destination topicOrQueue,
       boolean useCorrelationKeyLatency,
-      DeliveryMode deliveryMode);
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue);
 
   /**
    * Publishes a batch of messages to the broker.
@@ -51,7 +54,8 @@ public interface MessageProducer {
       List<Solace.Record> records,
       boolean useCorrelationKeyLatency,
       SerializableFunction<Solace.Record, Destination> destinationFn,
-      DeliveryMode deliveryMode);
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue);
 
   /** Returns {@literal true} if the message producer is closed, {@literal false} otherwise. */
   boolean isClosed();

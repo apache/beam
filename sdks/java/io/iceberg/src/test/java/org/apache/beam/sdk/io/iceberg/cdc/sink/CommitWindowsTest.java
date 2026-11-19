@@ -212,6 +212,35 @@ public class CommitWindowsTest {
     p.run().waitUntilFinish();
   }
 
+  @Test
+  public void batchGroupThatSpillsToDiskStillSortsBySeq() {
+    // A 1 MB sort buffer holds about 8k of these records, so 20k force the on-disk sort.
+    int n = 20_000;
+    List<KV<DestinationShard, KV<byte[], CdcRecord>>> input = new ArrayList<>();
+    for (int i = 0; i < n; i++) {
+      long seq = (i * 7919L) % n; // every seq in [0, n), out of order
+      input.add(element("db.t", 0, 1, "r" + seq, seq, ValueKind.INSERT));
+    }
+    CdcWriteConfig smallBuffer =
+        CdcWriteConfig.builder().setSinkId("test-sink").setSorterMemoryMB(1).build();
+
+    CommitWindows.Result r =
+        p.apply(Create.of(input).withCoder(INPUT_CODER))
+            .apply(new CommitWindows(smallBuffer, /* triggeringFrequency= */ null, Duration.ZERO));
+
+    PAssert.that(r.getSortedGroups())
+        .satisfies(
+            groups -> {
+              List<Long> seqs = seqsOf(Iterables.getOnlyElement(groups));
+              assertThat(seqs.size(), equalTo(n));
+              for (int i = 0; i < n; i++) {
+                assertThat(seqs.get(i), equalTo((long) i));
+              }
+              return null;
+            });
+    p.run().waitUntilFinish();
+  }
+
   // ---------------------------------------------------------------------------------------------
   // 2. Shard separation: two shards -> two groups
   // ---------------------------------------------------------------------------------------------

@@ -49,6 +49,15 @@ class MonotonicWatermarkEstimatorTest(unittest.TestCase):
     watermark_estimator.observe_timestamp(Timestamp(10))
     self.assertEqual(watermark_estimator.current_watermark(), Timestamp(20))
 
+  def test_observe_timestamp_without_initial_state(self):
+    watermark_estimator = MonotonicWatermarkEstimator(None)
+    self.assertIsNone(watermark_estimator.current_watermark())
+    watermark_estimator.observe_timestamp(Timestamp(15))
+    self.assertEqual(watermark_estimator.current_watermark(), Timestamp(15))
+    self.assertEqual(watermark_estimator.get_estimator_state(), Timestamp(15))
+    watermark_estimator.observe_timestamp(Timestamp(10))
+    self.assertEqual(watermark_estimator.current_watermark(), Timestamp(15))
+
   def test_get_estimator_state(self):
     watermark_estimator = MonotonicWatermarkEstimator(Timestamp(10))
     self.assertEqual(watermark_estimator.get_estimator_state(), Timestamp(10))

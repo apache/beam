@@ -90,6 +90,7 @@ jobs:
           gradle-command: :sdks:python:test-suites:tox:py311:preCommitPyCoverage
       - uses: codecov/codecov-action@v7
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           flags: python
           directory: sdks/python
       - name: Archive Python Test Results

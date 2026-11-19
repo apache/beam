@@ -21,7 +21,7 @@ toDeleteList=( )
 
 
 generatedResources=("beam-loadtests-go-*-flink" "beam-loadtests-python-*-flink" \
-"beam-loadtests-py-*-flink" "beam-postcommit-python-chicago" \
+"beam-loadtests-py-*-flink" \
 "beam-precommit-flink-container" )
 
 function deleteFilteredClusters(){
