@@ -141,7 +141,7 @@ pub fn derive_timers(input: TokenStream) -> TokenStream {
 ///
 /// # Variant attributes
 ///
-/// - `#[output(id = "...")]` — the output tag; defaults to the field name.
+/// - `#[output(id = "...")]` — the output tag; defaults to the variant name in snake case.
 ///
 /// # Container attributes
 ///

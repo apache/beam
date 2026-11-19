@@ -30,7 +30,8 @@ use crate::attrs::{ContainerOpts, ident_name, parse_id, reject_duplicates};
 struct Output {
     variant: Ident,
     field: Ident,
-    tag: String,
+    field_name: String,
+    explicit_tag: Option<String>,
     ty: Type,
 }
 
@@ -45,15 +46,20 @@ impl Output {
                 ));
             }
         };
-        let default_tag = snake_case(&ident_name(&variant.ident));
-        let field = field_ident(&default_tag, variant.ident.span())?;
-        let tag = parse_id(&variant.attrs, "output", |_| false)?.unwrap_or(default_tag);
+        let field_name = snake_case(&ident_name(&variant.ident));
+        let field = field_ident(&field_name, variant.ident.span())?;
+        let explicit_tag = parse_id(&variant.attrs, "output", |_| false)?;
         Ok(Self {
             variant: variant.ident.clone(),
             field,
-            tag,
+            field_name,
+            explicit_tag,
             ty,
         })
+    }
+
+    fn tag(&self) -> &str {
+        self.explicit_tag.as_deref().unwrap_or(&self.field_name)
     }
 }
 
@@ -73,12 +79,23 @@ fn field_ident(name: &str, span: Span) -> syn::Result<Ident> {
     }
 }
 
-/// Converts a PascalCase identifier to snake_case.
+/// Converts a PascalCase identifier (including acronyms) to snake_case.
 fn snake_case(name: &str) -> String {
-    name.char_indices()
-        .flat_map(|(i, c)| {
-            let prefix = (i > 0 && c.is_uppercase()).then_some('_');
-            prefix.into_iter().chain(c.to_lowercase())
+    let chars: Vec<char> = name.chars().collect();
+    chars
+        .iter()
+        .enumerate()
+        .flat_map(|(i, &c)| {
+            let prev = i.checked_sub(1).map(|p| chars[p]);
+            let next = chars.get(i + 1).copied();
+            let boundary = c.is_uppercase()
+                && prev.is_some_and(|p| {
+                    p != '_'
+                        && (p.is_lowercase()
+                            || p.is_ascii_digit()
+                            || next.is_some_and(|n| n.is_lowercase()))
+                });
+            boundary.then_some('_').into_iter().chain(c.to_lowercase())
         })
         .collect()
 }
@@ -112,7 +129,11 @@ pub(crate) fn expand_outputs(input: &DeriveInput) -> syn::Result<TokenStream2> {
             "Outputs needs at least one variant",
         ));
     };
-    reject_duplicates(outputs.iter().map(|o| (&o.tag, &o.variant)), "output")?;
+    reject_duplicates(
+        outputs.iter().map(|o| (o.field_name.as_str(), &o.variant)),
+        "output field",
+    )?;
+    reject_duplicates(outputs.iter().map(|o| (o.tag(), &o.variant)), "output id")?;
 
     let vis = &input.vis;
     let unraw_name = name.unraw();
@@ -129,17 +150,17 @@ pub(crate) fn expand_outputs(input: &DeriveInput) -> syn::Result<TokenStream2> {
     }
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let docs = outputs.iter().map(|o| format!("The `{}` output.", o.tag));
+    let docs = outputs.iter().map(|o| format!("The `{}` output.", o.tag()));
     let fields = outputs.iter().map(|o| &o.field);
     let id_fields = outputs.iter().map(|o| &o.field);
-    let id_tags = outputs.iter().map(|o| &o.tag);
+    let id_tags = outputs.iter().map(Output::tag);
     let types = outputs.iter().map(|o| &o.ty);
     let declares = outputs.iter().map(|o| {
-        let (field, tag) = (&o.field, &o.tag);
+        let (field, tag) = (&o.field, o.tag());
         quote!(#field: outputs.declare(#tag))
     });
     let arms = outputs.iter().map(|o| {
-        let (variant, tag) = (&o.variant, &o.tag);
+        let (variant, tag) = (&o.variant, o.tag());
         quote!(Self::#variant(value) => emitter.push(::core::option::Option::Some(#tag), value))
     });
     let struct_doc = format!("The outputs of a transform that emits [`{unraw_name}`].");

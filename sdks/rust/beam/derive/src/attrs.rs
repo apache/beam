@@ -82,16 +82,16 @@ pub(crate) fn parse_id(
 
 /// Returns an error for the first id in `ids` that is not unique.
 pub(crate) fn reject_duplicates<'a>(
-    ids: impl IntoIterator<Item = (&'a String, &'a Ident)>,
+    ids: impl IntoIterator<Item = (&'a str, &'a Ident)>,
     what: &str,
 ) -> syn::Result<()> {
     let mut seen = HashSet::new();
     ids.into_iter()
-        .find(|(id, _)| !seen.insert(id.as_str()))
+        .find(|(id, _)| !seen.insert(*id))
         .map_or(Ok(()), |(id, ident)| {
             Err(syn::Error::new_spanned(
                 ident,
-                format!("the {what} id '{id}' is used twice"),
+                format!("the {what} '{id}' is used twice"),
             ))
         })
 }

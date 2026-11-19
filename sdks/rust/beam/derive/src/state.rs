@@ -61,7 +61,10 @@ pub(crate) fn expand_state(input: &DeriveInput) -> syn::Result<TokenStream2> {
             Ok((ident, id, field.ty.clone()))
         })
         .collect::<syn::Result<Vec<(Ident, String, Type)>>>()?;
-    reject_duplicates(cells.iter().map(|(ident, id, _)| (id, ident)), "state")?;
+    reject_duplicates(
+        cells.iter().map(|(ident, id, _)| (id.as_str(), ident)),
+        "state id",
+    )?;
 
     let specs = cells
         .iter()

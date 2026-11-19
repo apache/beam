@@ -116,7 +116,10 @@ pub(crate) fn expand_timers(input: &DeriveInput) -> syn::Result<TokenStream2> {
         .iter()
         .map(Family::parse)
         .collect::<syn::Result<Vec<_>>>()?;
-    reject_duplicates(families.iter().map(|f| (&f.id, &f.ident)), "timer family")?;
+    reject_duplicates(
+        families.iter().map(|f| (f.id.as_str(), &f.ident)),
+        "timer family id",
+    )?;
 
     let domain_token = |d: Domain| match d {
         Domain::Event => quote!(#krate::internals::TimeDomain::EventTime),
