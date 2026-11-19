@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.C
 import static org.apache.beam.vendor.calcite.v1_40_0.org.codehaus.commons.compiler.CompilerFactoryFactory.getDefaultCompilerFactory;
 
 import com.google.auto.service.AutoService;
+import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -37,13 +38,18 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumera
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.AvaticaFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteFactory;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.Driver;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitDef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.prepare.CalciteCatalogReader;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.prepare.CalcitePrepareImpl;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.CoreRules;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteException;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.Hook;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -105,6 +111,36 @@ public class JdbcDriver extends Driver {
   @Override
   protected AvaticaFactory createFactory() {
     return JdbcFactory.wrap((CalciteFactory) super.createFactory());
+  }
+
+  /**
+   * Prepares statements the way Calcite does, but runs {@link MetadataColumnResolver} on each one
+   * between parsing and validation, as {@link CalciteQueryPlanner} does for statements outside
+   * JDBC.
+   */
+  @Override
+  public CalcitePrepare createPrepare() {
+    return new CalcitePrepareImpl() {
+      @Override
+      public <T> CalciteSignature<T> prepareSql(
+          Context context, Query<T> query, Type elementType, long maxRowCount) {
+        MetadataColumnResolver metadataColumns =
+            new MetadataColumnResolver(
+                new CalciteCatalogReader(
+                    context.getRootSchema(),
+                    context.getDefaultSchemaPath(),
+                    context.getTypeFactory(),
+                    context.config()));
+        // Calcite runs PARSE_TREE hooks with the SQL text and the statement it parsed.
+        Consumer<Object[]> resolve = parsed -> metadataColumns.resolve((SqlNode) parsed[1]);
+        try (Hook.Closeable ignored = Hook.PARSE_TREE.addThread(resolve)) {
+          return super.prepareSql(context, query, elementType, maxRowCount);
+        } catch (RuntimeException e) {
+          @Nullable String hinted = metadataColumns.explain(e);
+          throw hinted == null ? e : new CalciteException(hinted, e);
+        }
+      }
+    };
   }
 
   @Override

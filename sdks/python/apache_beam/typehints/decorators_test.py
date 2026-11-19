@@ -21,8 +21,11 @@
 
 # ruff: noqa: UP006
 import functools
+import sys
 import typing
 import unittest
+
+from google.protobuf import descriptor_pb2  # pylint: disable=unused-import
 
 from apache_beam import Map
 from apache_beam.pvalue import TaggedOutput
@@ -348,6 +351,101 @@ class IOTypeHintsTest(unittest.TestCase):
 
     th = decorators.IOTypeHints.from_callable(fn)
     self.assertEqual(th.input_types, ((List[Any], ), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_string_annotation_naming_non_type_falls_back_to_any(
+      self):
+    # A protobuf enum is an EnumTypeWrapper instance, not a type. Resolving
+    # these annotations must not produce invalid Beam type hints (e.g.
+    # tensorflow_data_validation annotates parameters with
+    # Mapping[..., "schema_pb2.FeatureType"]).
+    def fn(
+        mapping: typing.Mapping[str,
+                                'descriptor_pb2.FieldDescriptorProto.Type'],
+        values: typing.List['descriptor_pb2.FieldDescriptorProto.Type'],
+        value: 'descriptor_pb2.FieldDescriptorProto.Type',
+        resolved: 'int') -> 'descriptor_pb2.FieldDescriptorProto.Type':
+      return value
+
+    th = decorators.IOTypeHints.from_callable(fn)
+    self.assertEqual(
+        th.input_types,
+        ((typehints.Mapping[str, Any], List[Any], Any, int), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_from_callable_future_annotation_naming_non_type_falls_back_to_any(
+      self):
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'from google.protobuf import descriptor_pb2\n'
+        'def fn(mapping: typing.Mapping[\n'
+        '           str, descriptor_pb2.FieldDescriptorProto.Type],\n'
+        '       value: int) -> int:\n'
+        '  return value\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((Any, int), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_map_with_string_annotation_naming_non_type(self):
+    def fn(
+        value: int,
+        mapping: typing.Mapping[str, 'descriptor_pb2.FieldDescriptorProto.Type']
+    ) -> int:
+      return value
+
+    # Previously raised a TypeError while computing the type hints.
+    th = Map(fn, {}).get_type_hints()
+    self.assertEqual(th.input_types, ((int, typehints.Mapping[str, Any]), {}))
+    self.assertEqual(th.output_types, ((int, ), {}))
+
+  def test_from_callable_future_annotation_unconvertible_falls_back_to_any(
+      self):
+    # collections.abc.Generator needs three arguments to convert to a Beam
+    # type hint; with one it falls back to Any instead of raising.
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'from collections.abc import Generator\n'
+        'def gen(x: int) -> Generator[int]:\n'
+        '  yield x\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['gen'])
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((Any, ), {}))
+
+  def test_from_callable_future_annotations_with_typevar_and_newtype(self):
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'T = typing.TypeVar("T")\n'
+        'UserId = typing.NewType("UserId", int)\n'
+        'def fn(xs: list[T], user: UserId) -> T:\n'
+        '  return xs[0]\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((List[TypeVariable('T')], Any), {}))
+    self.assertEqual(th.output_types, ((TypeVariable('T'), ), {}))
+
+  @unittest.skipIf(
+      sys.version_info < (3, 12), 'The type statement requires Python 3.12+')
+  def test_from_callable_future_annotations_with_type_alias(self):
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'type IntList = list[int]\n'
+        'def fn(xs: IntList) -> int:\n'
+        '  return xs[0]\n',
+        namespace)
+
+    th = decorators.IOTypeHints.from_callable(namespace['fn'])
+    self.assertEqual(th.input_types, ((List[int], ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
 
   def test_from_callable_partial_with_string_annotations(self):

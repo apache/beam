@@ -101,7 +101,7 @@ class DockerCommand {
       }
     }
     // TODO: Validate args?
-    return runShortCommand(
+    List<String> runCommand =
         ImmutableList.<String>builder()
             .add(dockerExecutable)
             .add("run")
@@ -109,7 +109,13 @@ class DockerCommand {
             .addAll(dockerOpts)
             .add(imageTag)
             .addAll(args)
-            .build());
+            .build();
+    try {
+      return runShortCommand(runCommand);
+    } catch (TimeoutException e) {
+      LOG.warn("Timed out starting docker container for image {}, retrying once", imageTag, e);
+      return runShortCommand(runCommand);
+    }
   }
 
   /**
