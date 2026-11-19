@@ -23,7 +23,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, Ident, Type};
 
-use crate::attrs::{ContainerOpts, parse_id, reject_duplicates};
+use crate::attrs::{ContainerOpts, ident_name, parse_id, reject_duplicates};
 
 /// Expands `#[derive(State)]`: one state cell per named field.
 pub(crate) fn expand_state(input: &DeriveInput) -> syn::Result<TokenStream2> {
@@ -57,7 +57,7 @@ pub(crate) fn expand_state(input: &DeriveInput) -> syn::Result<TokenStream2> {
                 .clone()
                 .ok_or_else(|| syn::Error::new_spanned(field, "expected a named field"))?;
             let id =
-                parse_id(&field.attrs, "state", |_| false)?.unwrap_or_else(|| ident.to_string());
+                parse_id(&field.attrs, "state", |_| false)?.unwrap_or_else(|| ident_name(&ident));
             Ok((ident, id, field.ty.clone()))
         })
         .collect::<syn::Result<Vec<(Ident, String, Type)>>>()?;

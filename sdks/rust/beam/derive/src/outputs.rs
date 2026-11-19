@@ -19,11 +19,12 @@
 
 //! `#[derive(Outputs)]`.
 
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
+use syn::ext::IdentExt;
 use syn::{Data, DeriveInput, Fields, Ident, Type};
 
-use crate::attrs::{ContainerOpts, parse_id, reject_duplicates};
+use crate::attrs::{ContainerOpts, ident_name, parse_id, reject_duplicates};
 
 /// One output: a variant of the enum.
 struct Output {
@@ -44,15 +45,31 @@ impl Output {
                 ));
             }
         };
-        let field = format_ident!("{}", snake_case(&variant.ident.to_string()));
-        let tag =
-            parse_id(&variant.attrs, "output", |_| false)?.unwrap_or_else(|| field.to_string());
+        let default_tag = snake_case(&ident_name(&variant.ident));
+        let field = field_ident(&default_tag, variant.ident.span())?;
+        let tag = parse_id(&variant.attrs, "output", |_| false)?.unwrap_or(default_tag);
         Ok(Self {
             variant: variant.ident.clone(),
             field,
             tag,
             ty,
         })
+    }
+}
+
+/// Builds a struct field identifier from `name`, escaping Rust keywords with `r#`.
+fn field_ident(name: &str, span: Span) -> syn::Result<Ident> {
+    if let Ok(mut ident) = syn::parse_str::<Ident>(name) {
+        ident.set_span(span);
+        Ok(ident)
+    } else if let Ok(mut ident) = syn::parse_str::<Ident>(&format!("r#{name}")) {
+        ident.set_span(span);
+        Ok(ident)
+    } else {
+        Err(syn::Error::new(
+            span,
+            format!("'{name}' cannot name a struct field; rename the variant"),
+        ))
     }
 }
 
@@ -98,7 +115,8 @@ pub(crate) fn expand_outputs(input: &DeriveInput) -> syn::Result<TokenStream2> {
     reject_duplicates(outputs.iter().map(|o| (&o.tag, &o.variant)), "output")?;
 
     let vis = &input.vis;
-    let collections = format_ident!("{name}PCollections");
+    let unraw_name = name.unraw();
+    let collections = format_ident!("{unraw_name}PCollections", span = name.span());
     let mut generics = input.generics.clone();
     {
         let where_clause = generics.make_where_clause();
@@ -124,7 +142,7 @@ pub(crate) fn expand_outputs(input: &DeriveInput) -> syn::Result<TokenStream2> {
         let (variant, tag) = (&o.variant, &o.tag);
         quote!(Self::#variant(value) => emitter.push(::core::option::Option::Some(#tag), value))
     });
-    let struct_doc = format!("The outputs of a transform that emits [`{name}`].");
+    let struct_doc = format!("The outputs of a transform that emits [`{unraw_name}`].");
     Ok(quote! {
         #[doc = #struct_doc]
         #vis struct #collections #impl_generics #where_clause {

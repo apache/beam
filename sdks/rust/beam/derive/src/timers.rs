@@ -23,7 +23,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, Ident};
 
-use crate::attrs::{ContainerOpts, parse_id, reject_duplicates};
+use crate::attrs::{ContainerOpts, ident_name, parse_id, reject_duplicates};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Domain {
@@ -81,7 +81,7 @@ impl Family {
         };
         Ok(Self {
             ident: variant.ident.clone(),
-            id: id.unwrap_or_else(|| variant.ident.to_string()),
+            id: id.unwrap_or_else(|| ident_name(&variant.ident)),
             domain,
             shape,
         })
@@ -91,6 +91,12 @@ impl Family {
 /// Expands `#[derive(Timers)]`: one timer family per variant.
 pub(crate) fn expand_timers(input: &DeriveInput) -> syn::Result<TokenStream2> {
     let opts = ContainerOpts::parse(input)?;
+    if opts.id.is_some() {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "Timers has no id; set the id of a family with #[timer(id = \"...\")]",
+        ));
+    }
     let krate = &opts.krate;
     let name = &input.ident;
     let Data::Enum(data) = &input.data else {

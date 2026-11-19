@@ -23,11 +23,17 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields};
 
-use crate::attrs::ContainerOpts;
+use crate::attrs::{ContainerOpts, ident_name};
 
 /// Expands `#[derive(BeamEnum)]`: variant names encode as `STRING`.
 pub(crate) fn expand_enum(input: &DeriveInput) -> syn::Result<TokenStream2> {
     let opts = ContainerOpts::parse(input)?;
+    if opts.id.is_some() {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "BeamEnum has no id; variants encode as their identifier strings",
+        ));
+    }
     let krate = &opts.krate;
     let name = &input.ident;
 
@@ -51,23 +57,26 @@ pub(crate) fn expand_enum(input: &DeriveInput) -> syn::Result<TokenStream2> {
             )),
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    if variants.is_empty() {
+        return Err(syn::Error::new_spanned(
+            name,
+            "BeamEnum needs at least one variant",
+        ));
+    }
 
     // `to_field_value` and `encode_field` share the arms, so they are collected.
+    let labels: Vec<String> = variants.iter().map(|ident| ident_name(ident)).collect();
     let (to_arms, from_arms): (Vec<_>, Vec<_>) = variants
         .iter()
-        .map(|ident| {
-            let label = ident.to_string();
+        .zip(&labels)
+        .map(|(ident, label)| {
             (
                 quote!(Self::#ident => #label),
                 quote!(#label => ::core::result::Result::Ok(Self::#ident)),
             )
         })
         .unzip();
-    let expected = variants
-        .iter()
-        .map(|ident| ident.to_string())
-        .collect::<Vec<_>>()
-        .join(", ");
+    let expected = labels.join(", ");
 
     Ok(quote! {
         impl #krate::schema::BeamField for #name {

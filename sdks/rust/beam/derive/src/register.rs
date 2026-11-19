@@ -22,6 +22,7 @@
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::DeriveInput;
+use syn::ext::IdentExt;
 
 use crate::attrs::ContainerOpts;
 
@@ -37,12 +38,13 @@ pub(crate) fn expand_register(input: &DeriveInput) -> syn::Result<TokenStream2> 
              remove the derive, and the type uses the rebuild path",
         ));
     }
+    let unraw_name = name.unraw();
     let id = match &opts.id {
         Some(id) => quote!(#id),
         None => quote!(::core::concat!(
             ::core::module_path!(),
             "::",
-            ::core::stringify!(#name)
+            ::core::stringify!(#unraw_name)
         )),
     };
     Ok(quote! {

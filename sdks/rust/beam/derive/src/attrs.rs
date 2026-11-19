@@ -21,7 +21,13 @@
 
 use std::collections::HashSet;
 
+use syn::ext::IdentExt;
 use syn::{Attribute, DeriveInput, Ident, LitStr, Path};
+
+/// Returns the identifier name without a leading `r#`.
+pub(crate) fn ident_name(ident: &Ident) -> String {
+    ident.unraw().to_string()
+}
 
 /// Options parsed from container-level `#[beam(...)]` attributes.
 pub(crate) struct ContainerOpts {

@@ -26,6 +26,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{GenericArgument, Ident, LitInt, LitStr, Path, PathArguments, Type};
 
+use crate::attrs::ident_name;
+
 /// Options parsed from field-level `#[beam(...)]` attributes.
 #[derive(Default)]
 struct FieldOpts {
@@ -54,6 +56,13 @@ impl FieldOpts {
                 }
                 Ok(())
             })?;
+        }
+
+        if opts.skip && (opts.rename.is_some() || opts.bytes || opts.encoding_position.is_some()) {
+            return Err(syn::Error::new_spanned(
+                field,
+                "#[beam(skip)] cannot be combined with rename, bytes, or encoding_position",
+            ));
         }
 
         Ok(opts)
@@ -89,7 +98,7 @@ impl SchemaField {
             reject_non_vec_u8(&ty)?;
         }
 
-        let beam_name = opts.rename.unwrap_or_else(|| ident.to_string());
+        let beam_name = opts.rename.unwrap_or_else(|| ident_name(&ident));
         let (
             field_type,
             matches_field_type,
