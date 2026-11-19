@@ -21,9 +21,13 @@ import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientCall;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.netty.NettyChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.netty.channel.epoll.EpollDomainSocketChannel;
@@ -34,6 +38,25 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 
 /** A Factory which creates {@link ManagedChannel} instances. */
 public class ManagedChannelFactory {
+  /**
+   * Default per-stream outbound byte threshold (100 MiB) before gRPC marks a stream as not ready.
+   * Should be larger than {@code BeamFnDataOutboundAggregator.DEFAULT_BUFFER_LIMIT_BYTES} (1 MB) so
+   * single-message flushes do not immediately trip {@code !isReady()} while the transport drains.
+   */
+  private static final int DEFAULT_ON_READY_THRESHOLD_BYTES = 100 * 1024 * 1024;
+
+  private static final ClientInterceptor DEFAULT_ON_READY_THRESHOLD_INTERCEPTOR =
+      new ClientInterceptor() {
+        @Override
+        public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+            MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+          if (callOptions.getOnReadyThreshold() == null) {
+            callOptions = callOptions.withOnReadyThreshold(DEFAULT_ON_READY_THRESHOLD_BYTES);
+          }
+          return next.newCall(method, callOptions);
+        }
+      };
+
   /**
    * Creates a {@link ManagedChannel} relying on the {@link ManagedChannelBuilder} to choose the
    * channel type.
@@ -94,6 +117,7 @@ public class ManagedChannelFactory {
             // anyway. See
             // https://github.com/grpc/proposal/blob/master/A6-client-retries.md#when-retries-are-valid
             .disableRetry()
+            .intercept(DEFAULT_ON_READY_THRESHOLD_INTERCEPTOR)
             .intercept(interceptors);
     if (directExecutor) {
       channelBuilder = channelBuilder.directExecutor();
@@ -102,17 +126,17 @@ public class ManagedChannelFactory {
   }
 
   /** The channel type. */
-  private enum Type {
+  protected enum Type {
     EPOLL,
     DEFAULT,
     IN_PROCESS,
   }
 
-  private final Type type;
-  private final List<ClientInterceptor> interceptors;
-  private final boolean directExecutor;
+  protected final Type type;
+  protected final List<ClientInterceptor> interceptors;
+  protected final boolean directExecutor;
 
-  private ManagedChannelFactory(
+  protected ManagedChannelFactory(
       Type type, List<ClientInterceptor> interceptors, boolean directExecutor) {
     this.type = type;
     this.interceptors = interceptors;
