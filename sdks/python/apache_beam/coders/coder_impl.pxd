@@ -159,7 +159,7 @@ cdef class AbstractComponentCoderImpl(StreamCoderImpl):
   @cython.locals(c=CoderImpl)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
 
-  @cython.locals(c=CoderImpl)
+  @cython.locals(c=CoderImpl, i=int, last=int, num_coders=int)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
 
 

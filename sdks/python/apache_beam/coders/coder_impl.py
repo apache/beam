@@ -1178,7 +1178,8 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
 
     """Estimates the encoded size of the given value, in bytes."""
     # TODO(ccy): This ignores sizes of observable components.
-    estimated_size, _ = (self.get_estimated_size_and_observables(value))
+    estimated_size, _ = (
+        self.get_estimated_size_and_observables(value, nested=nested))
     return estimated_size
 
   def get_estimated_size_and_observables(self, value, nested=False):
@@ -1188,13 +1189,16 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     values = self._extract_components(value)
     estimated_size = 0
     observables = []  # type: Observables
-    for i in range(0, len(self._coder_impls)):
+    num_coders = len(self._coder_impls)
+    last = num_coders - 1
+    for i in range(0, num_coders):
       c = self._coder_impls[i]  # type cast
       child_size, child_observables = (
           c.get_estimated_size_and_observables(
-              values[i], nested=nested or i + 1 < len(self._coder_impls)))
+              values[i], nested=nested or i < last))
       estimated_size += child_size
-      observables += child_observables
+      if child_observables:
+        observables += child_observables
     return estimated_size, observables
 
 
@@ -1217,10 +1221,10 @@ class AvroCoderImpl(SimpleCoderImpl):
 class TupleCoderImpl(AbstractComponentCoderImpl):
   """A coder for tuple objects."""
   def _extract_components(self, value):
-    return tuple(value)
+    return value if isinstance(value, (tuple, list)) else tuple(value)
 
   def _construct_from_components(self, components):
-    return tuple(components)
+    return components if type(components) is tuple else tuple(components)
 
 
 class _ConcatSequence(object):
@@ -1303,7 +1307,8 @@ class SequenceCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     # type: (Sequence, create_OutputStream, bool) -> None
     # Compatible with Java's IterableLikeCoder.
-    if hasattr(value, '__len__') and self._write_state is None:
+    if self._write_state is None and (type(value) is tuple or type(value)
+                                      is list or hasattr(value, '__len__')):
       out.write_bigendian_int32(len(value))
       for elem in value:
         self._elem_coder.encode_to_stream(elem, out, True)
