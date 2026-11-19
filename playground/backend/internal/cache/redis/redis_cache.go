@@ -177,7 +177,7 @@ func (rc *Cache) GetDefaultPrecompiledObject(ctx context.Context, sdk pb.Sdk) (*
 func (rc *Cache) SetSdkCatalog(ctx context.Context, sdks []*entity.SDKEntity) error {
 	sdksMarsh, err := json.Marshal(sdks)
 	if err != nil {
-		logger.Errorf("Redis Cache: set sdk catalog: error during marshal sdk catalog: %s, err: %s\n", sdks, err.Error())
+		logger.Errorf("Redis Cache: set sdk catalog: error during marshal sdk catalog: %v, err: %s\n", sdks, err.Error())
 		return err
 	}
 	err = rc.Set(ctx, cache.SdksCatalog, sdksMarsh, 0).Err()

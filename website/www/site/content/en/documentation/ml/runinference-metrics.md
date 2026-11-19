@@ -89,18 +89,19 @@ The following image shows a snapshot of different metrics in the Google Cloud co
 
 Some metrics commonly used for benchmarking are:
 
-* `num_inferences`: Represents the total number of elements passed to `run_inference()`.
+{{< table >}}
+| Metric | Type | Description |
+| ------ | ---- | ----------- |
+| `num_inferences` | Counter | The total number of elements passed to `run_inference()`. Elements in batches where inference failed aren't counted. |
+| `inference_request_batch_size` | Distribution | The number of elements in each batch of examples (created from `beam.BatchElements`) passed to `run_inference()`. |
+| `inference_request_batch_byte_size` | Distribution | The size of each batch of examples, in bytes, as computed by the model handler's `get_num_bytes()` method. |
+| `inference_batch_latency_micro_secs` | Distribution | The time taken to perform inference on each batch of examples, measured in microseconds. |
+| `load_model_latency_milli_secs` | Distribution | The time taken to load and initialize the model, measured in milliseconds. |
+| `model_byte_size` | Distribution | The memory consumed to load and initialize the model, in bytes. RunInference measures it as the increase in the worker process's peak memory usage while the model loads. On platforms where the Python `resource` module isn't available, such as Windows, this metric is always 0. |
+{{< /table >}}
 
-* `inference_batch_latency_micro_secs_MEAN`: Represents the average time taken to perform inference across all batches of examples, measured in microseconds.
-
-* `inference_request_batch_size_COUNT`: Represents the total number of samples across all batches of examples (created from `beam.BatchElements`) to be passed to `run_inference()`.
-
-* `inference_request_batch_byte_size_MEAN`: Represents the average size of all elements for all samples in all batches of examples (created from `beam.BatchElements`) to be passed to `run_inference()`. This metric is measured in bytes.
-
-* `model_byte_size_MEAN`: Represents the average memory consumed to load and initialize the model, measured in bytes.
-
-* `load_model_latency_milli_secs_MEAN`: Represents the average time taken to load and initialize the model, measured in milliseconds.
+For more information about counters and distributions, see [Types of metrics](/documentation/programming-guide/#types-of-metrics).
 
 You can also derive other relevant metrics, such as in the following example.
-* `Total time taken for inference` = `num_inferences x inference_batch_latency_micro_secs_MEAN`
+* `Total time taken for inference` = `inference_batch_latency_micro_secs_COUNT x inference_batch_latency_micro_secs_MEAN`
 
