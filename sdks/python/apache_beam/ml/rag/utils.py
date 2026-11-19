@@ -16,19 +16,13 @@
 #
 
 import logging
-import re
 import time
 import uuid
-from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Callable
 from typing import Optional
-
-from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.rag.types import Content
-from apache_beam.ml.rag.types import Embedding
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -86,37 +80,6 @@ class MilvusHelpers:
     # Milvus-compatible values dict format {dimension_index: value, ...}.
     indices, values = sparse_vector
     return {int(idx): float(val) for idx, val in zip(indices, values)}
-
-
-def parse_chunk_strings(chunk_str_list: list[str]) -> list[Chunk]:
-  parsed_chunks = []
-
-  # Define safe globals and disable built-in functions for safety.
-  safe_globals = {
-      'Chunk': Chunk,
-      'Content': Content,
-      'Embedding': Embedding,
-      'defaultdict': defaultdict,
-      'list': list,
-      '__builtins__': {}
-  }
-
-  for raw_str in chunk_str_list:
-    try:
-      # replace "<class 'list'>" with actual list reference.
-      cleaned_str = re.sub(
-          r"defaultdict\(<class 'list'>", "defaultdict(list", raw_str)
-
-      # Evaluate string in restricted environment.
-      chunk = eval(cleaned_str, safe_globals)  # pylint: disable=eval-used
-      if isinstance(chunk, Chunk):
-        parsed_chunks.append(chunk)
-      else:
-        raise ValueError("Parsed object is not a Chunk instance")
-    except Exception as e:
-      raise ValueError(f"Error parsing string:\n{raw_str}\n{e}")
-
-  return parsed_chunks
 
 
 def unpack_dataclass_with_kwargs(dataclass_instance):

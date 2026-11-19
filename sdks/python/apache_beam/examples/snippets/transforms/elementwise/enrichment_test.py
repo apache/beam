@@ -56,7 +56,7 @@ try:
   from apache_beam.ml.rag.test_utils import MilvusTestHelpers
   from apache_beam.ml.rag.test_utils import VectorDBContainerInfo
   from apache_beam.ml.rag.test_utils import MilvusTestHelpers
-  from apache_beam.ml.rag.utils import parse_chunk_strings
+  from apache_beam.ml.rag.test_utils import parse_chunk_strings
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError as e:
   raise unittest.SkipTest(f'Examples dependencies are not installed: {str(e)}')
