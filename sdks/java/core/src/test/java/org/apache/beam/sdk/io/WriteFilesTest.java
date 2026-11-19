@@ -666,7 +666,7 @@ public class WriteFilesTest {
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
-  public void testDirectWriteDisabledWithSideInputs() throws IOException {
+  public void testDirectWriteWithSideInputs() throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add("number: " + i);
@@ -701,7 +701,7 @@ public class WriteFilesTest {
     PipelineResult result = p.run();
 
     checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertEquals(0L, counterValue(result, "directWriteBundles"));
+    assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
   }
 
   @Test
