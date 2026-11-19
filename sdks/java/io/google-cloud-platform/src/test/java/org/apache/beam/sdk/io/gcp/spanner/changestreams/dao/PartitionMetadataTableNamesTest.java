@@ -34,6 +34,10 @@ public class PartitionMetadataTableNamesTest {
     assertFalse(names1.getTableName().contains("-"));
     assertFalse(names1.getWatermarkIndexName().contains("-"));
     assertFalse(names1.getCreatedAtIndexName().contains("-"));
+    assertTrue(names1.getWatermarkIndexName().startsWith("WatermarkIdx_Metadata_"));
+    assertTrue(names1.getCreatedAtIndexName().startsWith("CreatedAtIdx_Metadata_"));
+    assertEquals(
+        names1, PartitionMetadataTableNames.fromExistingTable(databaseId, names1.getTableName()));
 
     PartitionMetadataTableNames names2 = PartitionMetadataTableNames.generateRandom(databaseId);
     assertNotEquals(names1.getTableName(), names2.getTableName());
@@ -52,8 +56,8 @@ public class PartitionMetadataTableNamesTest {
 
     names = PartitionMetadataTableNames.generateRandom("d");
     assertTrue(names.getTableName().length() <= MAX_NAME_LENGTH);
-    assertTrue(names.getWatermarkIndexName().length() <= MAX_NAME_LENGTH);
-    assertTrue(names.getCreatedAtIndexName().length() <= MAX_NAME_LENGTH);
+    assertEquals("WatermarkIdx_" + names.getTableName(), names.getWatermarkIndexName());
+    assertEquals("CreatedAtIdx_" + names.getTableName(), names.getCreatedAtIndexName());
   }
 
   @Test
@@ -61,13 +65,34 @@ public class PartitionMetadataTableNamesTest {
     PartitionMetadataTableNames names1 =
         PartitionMetadataTableNames.fromExistingTable("databaseid", "mytable");
     assertEquals("mytable", names1.getTableName());
-    assertFalse(names1.getWatermarkIndexName().contains("-"));
-    assertFalse(names1.getCreatedAtIndexName().contains("-"));
+    assertEquals("WatermarkIdx_mytable", names1.getWatermarkIndexName());
+    assertEquals("CreatedAtIdx_mytable", names1.getCreatedAtIndexName());
 
     PartitionMetadataTableNames names2 =
         PartitionMetadataTableNames.fromExistingTable("databaseid", "mytable");
-    assertEquals("mytable", names2.getTableName());
-    assertNotEquals(names1.getWatermarkIndexName(), names2.getWatermarkIndexName());
-    assertNotEquals(names1.getCreatedAtIndexName(), names2.getCreatedAtIndexName());
+    assertEquals(names1, names2);
+
+    PartitionMetadataTableNames hyphenNames =
+        PartitionMetadataTableNames.fromExistingTable("databaseid", "my-table");
+    assertEquals("my-table", hyphenNames.getTableName());
+    assertEquals("WatermarkIdx_my_table", hyphenNames.getWatermarkIndexName());
+    assertEquals("CreatedAtIdx_my_table", hyphenNames.getCreatedAtIndexName());
+  }
+
+  @Test
+  public void testPartitionMetadataNamesFromExistingLongTableIsShorterThan64Characters() {
+    String longTable = "my_metadata_table_larger_than_maximum_length_1234567890_1234567890";
+
+    PartitionMetadataTableNames names1 =
+        PartitionMetadataTableNames.fromExistingTable("databaseid", longTable);
+    PartitionMetadataTableNames names2 =
+        PartitionMetadataTableNames.fromExistingTable("databaseid", longTable);
+
+    assertEquals(longTable, names1.getTableName());
+    assertEquals(MAX_NAME_LENGTH, names1.getWatermarkIndexName().length());
+    assertEquals(MAX_NAME_LENGTH, names1.getCreatedAtIndexName().length());
+    assertFalse(names1.getWatermarkIndexName().contains("-"));
+    assertFalse(names1.getCreatedAtIndexName().contains("-"));
+    assertEquals(names1, names2);
   }
 }

@@ -34,51 +34,45 @@ public class PartitionMetadataTableNames implements Serializable {
   /** PostgreSQL max table and index length is 63 bytes. */
   @VisibleForTesting static final int MAX_NAME_LENGTH = 63;
 
-  private static final String PARTITION_METADATA_TABLE_NAME_FORMAT = "Metadata_%s_%s";
-  private static final String WATERMARK_INDEX_NAME_FORMAT = "WatermarkIdx_%s_%s";
-  private static final String CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT = "CreatedAtIdx_%s_%s";
+  private static final String PARTITION_METADATA_TABLE_NAME_PREFIX = "Metadata_";
+  private static final String WATERMARK_INDEX_NAME_PREFIX = "WatermarkIdx_";
+  private static final String CREATED_AT_START_TIMESTAMP_INDEX_NAME_PREFIX = "CreatedAtIdx_";
 
   /**
-   * Generates a unique name for the partition metadata table and its indexes. The table name will
-   * be in the form of {@code "Metadata_<databaseId>_<uuid>"}. The watermark index will be in the
-   * form of {@code "WatermarkIdx_<databaseId>_<uuid>}. The createdAt / start timestamp index will
-   * be in the form of {@code "CreatedAtIdx_<databaseId>_<uuid>}.
+   * Generates a unique name for the partition metadata table using a random UUID and derives
+   * deterministic index names from the generated table name. The table name will be in the form of
+   * {@code "Metadata_<databaseId>_<uuid>"}. The watermark index will be in the form of {@code
+   * "WatermarkIdx_<tableName>"}. The createdAt / start timestamp index will be in the form of
+   * {@code "CreatedAtIdx_<tableName>"}.
    *
    * @param databaseId The database id where the table will be created
-   * @return the unique generated names of the partition metadata ddl
+   * @return the generated names of the partition metadata ddl
    */
   public static PartitionMetadataTableNames generateRandom(String databaseId) {
     UUID uuid = UUID.randomUUID();
-
-    String table = generateName(PARTITION_METADATA_TABLE_NAME_FORMAT, databaseId, uuid);
-    String watermarkIndex = generateName(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid);
-    String createdAtIndex =
-        generateName(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid);
-
-    return new PartitionMetadataTableNames(table, watermarkIndex, createdAtIndex);
+    String table = generateName(PARTITION_METADATA_TABLE_NAME_PREFIX + databaseId + "_" + uuid);
+    return fromExistingTable(databaseId, table);
   }
 
   /**
-   * Encapsulates a selected table name. Index names are generated, but will only be used if the
-   * given table does not exist. The watermark index will be in the form of {@code
-   * "WatermarkIdx_<databaseId>_<uuid>}. The createdAt / start timestamp index will be in the form
-   * of {@code "CreatedAtIdx_<databaseId>_<uuid>}.
+   * Encapsulates a selected table name and derives deterministic index names from {@code table}.
+   * Index names will only be used if the given table does not exist, and are deterministic so that
+   * {@code CREATE INDEX IF NOT EXISTS} is idempotent across retries and restarts. The watermark
+   * index will be in the form of {@code "WatermarkIdx_<tableName>"}. The createdAt / start
+   * timestamp index will be in the form of {@code "CreatedAtIdx_<tableName>"}.
    *
    * @param databaseId The database id for the table
    * @param table The table name to be used
-   * @return an instance with the table name and generated index names
+   * @return an instance with the table name and deterministic index names
    */
   public static PartitionMetadataTableNames fromExistingTable(String databaseId, String table) {
-    UUID uuid = UUID.randomUUID();
-
-    String watermarkIndex = generateName(WATERMARK_INDEX_NAME_FORMAT, databaseId, uuid);
-    String createdAtIndex =
-        generateName(CREATED_AT_START_TIMESTAMP_INDEX_NAME_FORMAT, databaseId, uuid);
+    String watermarkIndex = generateName(WATERMARK_INDEX_NAME_PREFIX + table);
+    String createdAtIndex = generateName(CREATED_AT_START_TIMESTAMP_INDEX_NAME_PREFIX + table);
     return new PartitionMetadataTableNames(table, watermarkIndex, createdAtIndex);
   }
 
-  private static String generateName(String template, String databaseId, UUID uuid) {
-    String name = String.format(template, databaseId, uuid).replaceAll("-", "_");
+  private static String generateName(String rawName) {
+    String name = rawName.replaceAll("-", "_");
     if (name.length() > MAX_NAME_LENGTH) {
       return name.substring(0, MAX_NAME_LENGTH);
     }
