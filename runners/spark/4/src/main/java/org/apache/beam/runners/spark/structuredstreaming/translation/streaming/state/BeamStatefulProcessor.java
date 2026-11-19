@@ -40,7 +40,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Encoders;
@@ -53,13 +52,14 @@ import org.apache.spark.sql.streaming.TTLConfig;
 import org.apache.spark.sql.streaming.TimeMode;
 import org.apache.spark.sql.streaming.TimerValues;
 import org.apache.spark.sql.streaming.ValueState;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import scala.collection.Iterator;
 
 /** Base stateful processor bridging Beam state and timers over Spark transformWithState. */
-public abstract class BeamStatefulProcessor<K, V, OutputT>
-    extends StatefulProcessor<byte[], WindowedValue<KV<K, V>>, WindowedValue<OutputT>> {
+public abstract class BeamStatefulProcessor<K, V, OutT extends @NonNull Object>
+    extends StatefulProcessor<byte[], WindowedValue<KV<K, V>>, OutT> {
 
   private static final String BEAM_STATE = "beamState";
   private static final String BEAM_TIMERS = "beamTimers";
@@ -73,21 +73,19 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
   private transient @Nullable MapState<String, byte[]> beamState;
   private transient @Nullable ValueState<byte[]> beamTimers;
   private transient @Nullable ValueState<Long> beamWatermark;
-  private transient @Nullable List<WindowedValue<OutputT>> currentOutputs;
+  private transient @Nullable List<OutT> currentOutputs;
 
   private transient @Nullable WindowedValueMultiReceiver outputReceiver;
 
-  protected WindowedValueMultiReceiver outputReceiver() {
+  protected final void appendOutput(OutT output) {
+    checkStateNotNull(currentOutputs, "currentOutputs not initialized").add(output);
+  }
+
+  protected abstract WindowedValueMultiReceiver createOutputReceiver();
+
+  protected final WindowedValueMultiReceiver outputReceiver() {
     if (outputReceiver == null) {
-      outputReceiver =
-          new WindowedValueMultiReceiver() {
-            @Override
-            public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-              @SuppressWarnings("unchecked")
-              WindowedValue<OutputT> out = (WindowedValue<OutputT>) output;
-              checkStateNotNull(currentOutputs, "currentOutputs not initialized").add(out);
-            }
-          };
+      outputReceiver = createOutputReceiver();
     }
     return outputReceiver;
   }
@@ -139,10 +137,10 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
   }
 
   @Override
-  public Iterator<WindowedValue<OutputT>> handleInputRows(
+  public Iterator<OutT> handleInputRows(
       byte[] keyBytes, Iterator<WindowedValue<KV<K, V>>> rows, TimerValues timerValues) {
     K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
-    List<WindowedValue<OutputT>> outputs = new ArrayList<>();
+    List<OutT> outputs = new ArrayList<>();
     this.currentOutputs = outputs;
     SparkTimerInternals timerInternals = timerInternals(timerValues);
     SparkStateInternals<K> state = stateInternals(key);
@@ -158,10 +156,10 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
   }
 
   @Override
-  public Iterator<WindowedValue<OutputT>> handleExpiredTimer(
+  public Iterator<OutT> handleExpiredTimer(
       byte[] keyBytes, TimerValues timerValues, ExpiredTimerInfo expiredTimerInfo) {
     K key = CoderHelpers.fromByteArray(keyBytes, inputCoder.getKeyCoder());
-    List<WindowedValue<OutputT>> outputs = new ArrayList<>();
+    List<OutT> outputs = new ArrayList<>();
     this.currentOutputs = outputs;
     SparkTimerInternals timerInternals = timerInternals(timerValues);
     SparkStateInternals<K> state = stateInternals(key);
@@ -203,7 +201,7 @@ public abstract class BeamStatefulProcessor<K, V, OutputT>
    * do not share the mutable {@link StatefulProcessorHandle} on the base class while still sharing
    * the driver-registered {@code MetricsAccumulator}.
    */
-  public abstract BeamStatefulProcessor<K, V, OutputT> copy();
+  public abstract BeamStatefulProcessor<K, V, OutT> copy();
 
   private void restoreTimers(SparkTimerInternals timerInternals) {
     ValueState<byte[]> timersState = checkStateNotNull(beamTimers);

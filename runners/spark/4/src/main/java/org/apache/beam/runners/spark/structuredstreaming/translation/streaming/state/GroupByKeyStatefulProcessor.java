@@ -51,7 +51,7 @@ import scala.collection.Iterator;
 
 /** Runs a {@link GroupAlsoByWindowViaWindowSetNewDoFn} in {@code transformWithState}. */
 public class GroupByKeyStatefulProcessor<K, V>
-    extends BeamStatefulProcessor<K, V, KV<K, Iterable<V>>> {
+    extends BeamStatefulProcessor<K, V, WindowedValue<KV<K, Iterable<V>>>> {
 
   private final Supplier<PipelineOptions> optionsSupplier;
   private final TupleTag<KV<K, Iterable<V>>> mainTag = new TupleTag<>("output");
@@ -70,6 +70,16 @@ public class GroupByKeyStatefulProcessor<K, V>
   @Override
   public GroupByKeyStatefulProcessor<K, V> copy() {
     return new GroupByKeyStatefulProcessor<>(inputCoder, windowingStrategy, optionsSupplier);
+  }
+
+  @Override
+  protected WindowedValueMultiReceiver createOutputReceiver() {
+    return new WindowedValueMultiReceiver() {
+      @Override
+      public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+        appendOutput((WindowedValue<KV<K, Iterable<V>>>) output);
+      }
+    };
   }
 
   @Override

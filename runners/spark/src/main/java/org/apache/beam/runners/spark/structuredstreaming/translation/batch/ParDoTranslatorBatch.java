@@ -40,6 +40,7 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTra
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -72,7 +73,8 @@ import scala.Tuple2;
  * <p>TODO:
  * <li>Add support for SplittableDoFn
  */
-class ParDoTranslatorBatch<InputT, OutputT>
+@Internal
+public class ParDoTranslatorBatch<InputT, OutputT>
     extends TransformTranslator<
         PCollection<? extends InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>> {
 
@@ -218,7 +220,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
    * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
    * mainTag} is consumed.
    */
-  static Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
+  public static Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
       Map<TupleTag<?>, PCollection<?>> outputs,
       TupleTag<?> mainTag,
       TupleTagList otherTags,
@@ -242,7 +244,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     }
   }
 
-  static Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {
+  public static Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {
     Map<String, Integer> index = Maps.newHashMapWithExpectedSize(tags.size());
     for (TupleTag<?> tag : tags) {
       index.put(tag.getId(), index.size());
@@ -252,7 +254,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
 
   /** List of encoders indexed by column index, as assigned by {@code tagIdColIdx}. */
   @SuppressWarnings("rawtypes") // generic array creation
-  static List<Encoder<WindowedValue<Object>>> createEncoders(
+  public static List<Encoder<WindowedValue<Object>>> createEncoders(
       Map<TupleTag<?>, PCollection<?>> outputs,
       Map<String, Integer> tagIdColIdx,
       TransformTranslator<?, ?, ?>.Context ctx) {

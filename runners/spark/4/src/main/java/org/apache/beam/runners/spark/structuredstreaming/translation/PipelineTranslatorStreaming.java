@@ -130,14 +130,6 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       checkNoProcessingTimeTimers(parDo.getFn(), signature);
 
       if (signature.usesState() || signature.usesTimers()) {
-        if (!parDo.getAdditionalOutputTags().getAll().isEmpty()) {
-          // BeamStatefulProcessor merges all output tags into the main output.
-          throw new UnsupportedOperationException(
-              "Stateful ParDo with additional outputs ("
-                  + signature.fnClass().getName()
-                  + ")"
-                  + NOT_SUPPORTED);
-        }
         return STATEFUL_PAR_DO;
       }
     }
