@@ -1167,7 +1167,7 @@ class YamlTFRecordTest(unittest.TestCase):
                 f'''
                 type: WriteToTFRecord
                 config:
-                  file_path_prefix: "{prefix}"
+                  file_path_prefix: {json.dumps(prefix)}
                   file_name_suffix: ".tfrecord"
                   num_shards: 1
                 '''))
@@ -1178,7 +1178,7 @@ class YamlTFRecordTest(unittest.TestCase):
             f'''
             type: ReadFromTFRecord
             config:
-              file_pattern: "{prefix}*.tfrecord"
+              file_pattern: {json.dumps(f'{prefix}*.tfrecord')}
             ''')
         assert_that(
             result,
