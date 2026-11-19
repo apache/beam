@@ -202,7 +202,7 @@ public class BundleLifterTest {
   }
 
   @Test
-  public void testUnkeyedThresholdIsEvaluatedPerBundle() throws Exception {
+  public void testUnkeyedThresholdIsEvaluatedPerWindow() throws Exception {
     IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow w2 = new IntervalWindow(new Instant(10), new Instant(20));
     DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
@@ -214,9 +214,9 @@ public class BundleLifterTest {
     tester.processWindowedElement(4, new Instant(12), w2);
     tester.finishBundle();
 
-    // Without a key function the whole bundle counts toward the threshold.
-    assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(1, 2, 3, 4));
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), empty());
+    // Even without a key function, each window is evaluated separately and only has 2 elements.
+    assertThat(tester.peekOutputElements(INTEGER_LARGE), empty());
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(1, 2, 3, 4));
   }
 
   @Test
@@ -265,24 +265,43 @@ public class BundleLifterTest {
     for (int i = 0; i < 9; i++) {
       tester.processElement(i);
     }
-    // Keys 0-4 were evicted; keys 5-8 are still buffered.
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2, 3, 4));
+    // 5 keys were evicted; 4 keys are still buffered.
+    List<Integer> evicted = new ArrayList<>(tester.peekOutputElements(INTEGER_SMALL));
+    assertThat(evicted, hasSize(5));
+    int evictedKey = evicted.get(0);
+    int bufferedKey = -1;
+    for (int i = 0; i < 9; i++) {
+      if (!evicted.contains(i)) {
+        bufferedKey = i;
+        break;
+      }
+    }
 
     // A new key and an evicted key are no longer tracked, so they go straight to the small output.
     tester.processElement(100);
-    tester.processElement(0);
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2, 3, 4, 100, 0));
+    tester.processElement(evictedKey);
+    List<Integer> expectedSmall = new ArrayList<>(evicted);
+    expectedSmall.add(100);
+    expectedSmall.add(evictedKey);
+    assertThat(
+        tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(expectedSmall.toArray()));
 
     // A key that is still buffered can still reach the threshold.
-    tester.processElement(5);
-    tester.processElement(5);
-    tester.processElement(5);
-    assertThat(tester.peekOutputElements(INTEGER_LARGE), contains(5, 5, 5, 5));
+    tester.processElement(bufferedKey);
+    tester.processElement(bufferedKey);
+    tester.processElement(bufferedKey);
+    assertThat(
+        tester.peekOutputElements(INTEGER_LARGE),
+        contains(bufferedKey, bufferedKey, bufferedKey, bufferedKey));
     tester.finishBundle();
 
+    for (int i = 0; i < 9; i++) {
+      if (!evicted.contains(i) && i != bufferedKey) {
+        expectedSmall.add(i);
+      }
+    }
     assertThat(
-        tester.peekOutputElements(INTEGER_SMALL),
-        containsInAnyOrder(0, 1, 2, 3, 4, 100, 0, 6, 7, 8));
+        tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(expectedSmall.toArray()));
   }
 
   @Test
@@ -296,8 +315,9 @@ public class BundleLifterTest {
     for (int i = 0; i < 5; i++) {
       tester.processElement(i);
     }
-    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2));
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), hasSize(3));
     tester.finishBundle();
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(0, 1, 2, 3, 4));
   }
 
   @Test
@@ -377,12 +397,16 @@ public class BundleLifterTest {
 
     DoFnTester<Integer, Void> large = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1));
     large.startBundle();
-    large.processWindowedElement(1, new Instant(5), w1);
+    large.processWindowedElement(1, new Instant(3), w1);
     large.processWindowedElement(2, new Instant(15), w2);
+    large.processWindowedElement(3, new Instant(5), w1);
     large.finishBundle();
     assertThat(
         describe(large.getMutableOutput(INTEGER_LARGE)),
-        contains("1@" + new Instant(5) + " in " + w1, "2@" + new Instant(15) + " in " + w2));
+        contains("1@" + new Instant(3) + " in " + w1, "3@" + new Instant(5) + " in " + w1));
+    assertThat(
+        describe(large.getMutableOutput(INTEGER_SMALL)),
+        contains("2@" + new Instant(15) + " in " + w2));
 
     DoFnTester<Integer, Void> small = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
     small.startBundle();
@@ -391,7 +415,80 @@ public class BundleLifterTest {
     small.finishBundle();
     assertThat(
         describe(small.getMutableOutput(INTEGER_SMALL)),
-        contains("1@" + new Instant(5) + " in " + w1, "2@" + new Instant(15) + " in " + w2));
+        containsInAnyOrder(
+            "1@" + new Instant(5) + " in " + w1, "2@" + new Instant(15) + " in " + w2));
+  }
+
+  @Test
+  public void testPreservesPaneInfoInFinishBundle() throws Exception {
+    IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
+    org.apache.beam.sdk.transforms.windowing.PaneInfo earlyPane =
+        org.apache.beam.sdk.transforms.windowing.PaneInfo.createPane(
+            true, false, org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing.EARLY, 0, 0);
+
+    BundleLiftDoFn<Integer> fn = doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1);
+    fn.setup();
+    fn.startBundle();
+    fn.processElement(
+        1,
+        new Instant(5),
+        w1,
+        earlyPane,
+        new org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver() {
+          @Override
+          public <T> org.apache.beam.sdk.transforms.DoFn.OutputReceiver<T> get(TupleTag<T> tag) {
+            throw new AssertionError("Should not emit before finishBundle");
+          }
+
+          @Override
+          public <T>
+              org.apache.beam.sdk.transforms.DoFn.OutputReceiver<org.apache.beam.sdk.values.Row>
+                  getRowReceiver(TupleTag<T> tag) {
+            throw new AssertionError("Should not emit before finishBundle");
+          }
+        });
+
+    List<org.apache.beam.sdk.transforms.windowing.PaneInfo> emittedPanes = new ArrayList<>();
+    fn.finishBundle(
+        ((org.apache.beam.sdk.transforms.DoFn<Integer, Void>) fn).new FinishBundleContext() {
+          @Override
+          public org.apache.beam.sdk.options.PipelineOptions getPipelineOptions() {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public void output(
+              Void output,
+              Instant timestamp,
+              org.apache.beam.sdk.transforms.windowing.BoundedWindow window) {
+            throw new AssertionError("Expected outputWindowedValue");
+          }
+
+          @Override
+          public <T> void output(
+              TupleTag<T> tag,
+              T output,
+              Instant timestamp,
+              org.apache.beam.sdk.transforms.windowing.BoundedWindow window) {
+            throw new AssertionError("Expected outputWindowedValue");
+          }
+
+          @Override
+          public <T> void outputWindowedValue(
+              TupleTag<T> tag,
+              T output,
+              Instant timestamp,
+              java.util.Collection<? extends org.apache.beam.sdk.transforms.windowing.BoundedWindow>
+                  windows,
+              org.apache.beam.sdk.transforms.windowing.PaneInfo paneInfo) {
+            assertEquals(INTEGER_SMALL, tag);
+            assertEquals(1, output);
+            assertEquals(new Instant(5), timestamp);
+            assertThat(windows, contains(w1));
+            emittedPanes.add(paneInfo);
+          }
+        });
+    assertThat(emittedPanes, contains(earlyPane));
   }
 
   private static List<String> describe(List<ValueInSingleWindow<Integer>> outputs) {

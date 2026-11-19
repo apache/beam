@@ -23,9 +23,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,9 +59,9 @@ import org.slf4j.LoggerFactory;
  * to the large tag directly without buffering. Elements of keys that never reach the threshold are
  * emitted to the small tag at the end of the bundle.
  *
- * <p>Without a key function, all elements of a bundle share a single key, so the threshold applies
- * to the whole bundle. With {@link #withKeyFn}, the key is the element's window, pane and the value
- * returned by the key function; elements for which it returns {@code null} share their own key.
+ * <p>Without a key function, elements are grouped by window and pane. With {@link #withKeyFn}, the
+ * key is the element's window, pane and the value returned by the key function; elements for which
+ * it returns {@code null} share their own key within that window and pane.
  *
  * <p>To bound memory, at most {@link #withMaxBufferedBytes maxBufferedBytes} (twice the threshold
  * by default) is buffered in total. When that is exceeded, the keys with the fewest buffered bytes
@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  * is reached, the remaining buffered elements are emitted to the small tag, and for the rest of the
  * bundle elements of keys that are not lifted are emitted to the small tag immediately.
  *
- * <p>Every element keeps its own timestamp and window.
+ * <p>Every element keeps its own timestamp, window and pane.
  *
  * <p>For internal use only; no backwards-compatibility guarantees.
  *
@@ -90,13 +90,13 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
   final TupleTag<T> smallBatchTag;
   final TupleTag<T> largeBatchTag;
+  // Once a key reaches this threshold all elements for the key are output to largeBatchTag.
   final long threshold;
   final long maxBufferedBytes;
   final int maxLiftedKeys;
   final SerializableFunction<T, Integer> elementSizer;
   final @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn;
 
-  /** The default memory cap: twice the threshold. */
   static long defaultMaxBufferedBytes(long threshold) {
     return threshold > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : 2 * threshold;
   }
@@ -115,6 +115,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
     final TupleTag<T> smallBatchTag;
     final TupleTag<T> largeBatchTag;
+    // Once a key reaches this threshold all elements for the key are output to largeBatchTag.
     final long threshold;
     final long maxBufferedBytes;
     final int maxLiftedKeys;
@@ -122,9 +123,11 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     final @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn;
 
     // Per-bundle state, allocated once in setup and cleared at the start of each bundle.
-    private transient @MonotonicNonNull Map<Object, KeyBuffer<T>> buffers;
-    private transient @MonotonicNonNull Set<Object> liftedKeys;
-    // Reset in startBundle; not transient so SpotBugs doesn't flag them as unrestored state.
+    private transient @MonotonicNonNull Map<WindowedKey, KeyBuffer<T>> buffers;
+    // Keys which have been emitted to the largeBatchTag and for which future elements should also
+    // be routed to the largeBatchTag.
+    private transient @MonotonicNonNull Set<WindowedKey> liftedKeys;
+    // Reset in startBundle.
     private long bufferedBytes;
     // Set once the memory cap is exceeded or the lifted key limit is reached in this bundle: keys
     // that are neither buffered nor lifted are no longer tracked and go to the small output
@@ -150,7 +153,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
     @Setup
     public void setup() {
-      buffers = new LinkedHashMap<>();
+      buffers = new HashMap<>();
       liftedKeys = new HashSet<>();
     }
 
@@ -169,18 +172,13 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         BoundedWindow window,
         PaneInfo pane,
         MultiOutputReceiver receiver) {
-      Map<Object, KeyBuffer<T>> buffers =
+      Map<WindowedKey, KeyBuffer<T>> buffers =
           checkStateNotNull(this.buffers, "Buffers should be set by setup.");
-      Set<Object> liftedKeys =
+      Set<WindowedKey> liftedKeys =
           checkStateNotNull(this.liftedKeys, "Lifted keys should be set by setup.");
 
-      Object key;
-      if (keyFn == null) {
-        key = UNKEYED;
-      } else {
-        @Nullable Object userKey = keyFn.apply(element);
-        key = new WindowedKey(window, pane, userKey == null ? UNKEYED : userKey);
-      }
+      @Nullable Object userKey = keyFn == null ? null : keyFn.apply(element);
+      WindowedKey key = new WindowedKey(window, pane, userKey == null ? UNKEYED : userKey);
 
       if (liftedKeys.contains(key)) {
         // This key already reached the threshold in this bundle; stream it through.
@@ -242,7 +240,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) {
-      Map<Object, KeyBuffer<T>> buffers =
+      Map<WindowedKey, KeyBuffer<T>> buffers =
           checkStateNotNull(this.buffers, "Buffers should be set by setup.");
       Iterator<KeyBuffer<T>> it = buffers.values().iterator();
       while (it.hasNext()) {
@@ -253,11 +251,9 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
             buffer.elements.size(),
             buffer.sizeBytes,
             smallBatchTag.getId());
-        // FinishBundleContext.output has no PaneInfo overload, and MultiOutputReceiver from
-        // @ProcessElement cannot be retained across bundle lifecycle methods (FnApiDoFnRunner
-        // clears currentElement after each processElement).
         for (BufferedElement<T> e : buffer.elements) {
-          context.output(smallBatchTag, e.value, e.timestamp, e.window);
+          context.outputWindowedValue(
+              smallBatchTag, e.value, e.timestamp, Collections.singletonList(e.window), e.pane);
         }
         buffer.elements.clear();
       }
@@ -281,11 +277,12 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
      * remains buffered (keeping at least one key so it can still reach {@code threshold}), so each
      * call frees a large chunk and the sort's cost stays amortized.
      */
-    private void evictSmallestKeys(Map<Object, KeyBuffer<T>> buffers, OutputReceiver<T> small) {
+    private void evictSmallestKeys(
+        Map<WindowedKey, KeyBuffer<T>> buffers, OutputReceiver<T> small) {
       long target = maxBufferedBytes / 2;
-      List<Map.Entry<Object, KeyBuffer<T>>> bySize = new ArrayList<>(buffers.entrySet());
+      List<Map.Entry<WindowedKey, KeyBuffer<T>>> bySize = new ArrayList<>(buffers.entrySet());
       bySize.sort(Comparator.comparingLong(entry -> entry.getValue().sizeBytes));
-      for (Map.Entry<Object, KeyBuffer<T>> entry : bySize) {
+      for (Map.Entry<WindowedKey, KeyBuffer<T>> entry : bySize) {
         if (bufferedBytes <= target || buffers.size() <= 1) {
           break;
         }
@@ -428,21 +425,21 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
   /** Routes by element count: each element counts as one toward the threshold. */
   public static <T> BundleLifter<T> of(
-      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, long threshold) {
-    return of(smallBatchTag, largeBatchTag, threshold, x -> 1);
+      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, long elementCountThreshold) {
+    return of(smallBatchTag, largeBatchTag, elementCountThreshold, x -> 1);
   }
 
   /** Routes by the sizes returned by {@code elementSizer}. */
   public static <T> BundleLifter<T> of(
       TupleTag<T> smallBatchTag,
       TupleTag<T> largeBatchTag,
-      long threshold,
+      long sizeThreshold,
       SerializableFunction<T, Integer> elementSizer) {
     return new BundleLifter<>(
         smallBatchTag,
         largeBatchTag,
-        threshold,
-        defaultMaxBufferedBytes(threshold),
+        sizeThreshold,
+        defaultMaxBufferedBytes(sizeThreshold),
         Integer.MAX_VALUE,
         elementSizer,
         null);
@@ -450,13 +447,14 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
 
   /** Routes by each element's encoded size under {@code coder}. */
   public static <T> BundleLifter<T> of(
-      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, long threshold, Coder<T> coder) {
-    return of(smallBatchTag, largeBatchTag, threshold, new CoderSizer<>(coder));
+      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, long sizeThreshold, Coder<T> coder) {
+    return of(smallBatchTag, largeBatchTag, sizeThreshold, new CoderSizer<>(coder));
   }
 
   /**
-   * Returns a copy that evaluates the threshold separately for each window, pane and key returned
-   * by {@code keyFn}. Elements for which {@code keyFn} returns {@code null} share their own key.
+   * Returns a copy that further groups elements within each window and pane by the key returned by
+   * {@code keyFn}. Elements for which {@code keyFn} returns {@code null} share their own key within
+   * that window and pane.
    */
   public BundleLifter<T> withKeyFn(SerializableFunction<T, ? extends @Nullable Object> keyFn) {
     return new BundleLifter<>(

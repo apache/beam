@@ -136,6 +136,43 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract <T> void output(
         TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
+
+    /**
+     * Adds the given element to the main output {@code PCollection} at the given timestamp, in the
+     * given windows, and with the given {@link PaneInfo}.
+     *
+     * <p>Once passed to {@code outputWindowedValue} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the {@link
+     * FinishBundle} method.
+     */
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      throw new UnsupportedOperationException(
+          String.format("%s does not support outputWindowedValue", getClass().getSimpleName()));
+    }
+
+    /**
+     * Adds the given element to the output {@code PCollection} with the given tag at the given
+     * timestamp, in the given windows, and with the given {@link PaneInfo}.
+     *
+     * <p>Once passed to {@code outputWindowedValue} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the {@link
+     * FinishBundle} method.
+     */
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      throw new UnsupportedOperationException(
+          String.format("%s does not support outputWindowedValue", getClass().getSimpleName()));
+    }
   }
 
   /**

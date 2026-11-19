@@ -1642,18 +1642,38 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void output(OutputT output, Instant timestamp, BoundedWindow window) {
-        outputTo(
-            mainOutputConsumer, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputWindowedValue(
+            output, timestamp, Collections.singletonList(window), PaneInfo.NO_FIRING);
       }
 
       @Override
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+        outputWindowedValue(
+            tag, output, timestamp, Collections.singletonList(window), PaneInfo.NO_FIRING);
+      }
+
+      @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        outputTo(mainOutputConsumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      }
+
+      @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
         if (consumer == null) {
           throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
         }
-        outputTo(consumer, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
       }
     }
 

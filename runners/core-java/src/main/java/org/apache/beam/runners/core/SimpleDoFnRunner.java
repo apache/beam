@@ -358,7 +358,28 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
       @Override
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-        outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputWindowedValue(
+            tag, output, timestamp, Collections.singletonList(window), PaneInfo.NO_FIRING);
+      }
+
+      @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        SimpleDoFnRunner.this.outputWindowedValue(
+            tag, WindowedValues.of(output, timestamp, windows, paneInfo));
       }
     }
 
