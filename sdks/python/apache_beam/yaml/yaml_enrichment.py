@@ -24,9 +24,12 @@ from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform
 
 try:
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.file import FileEnrichmentHandler
 except ImportError:
   Enrichment = None  # type: ignore
+
+try:
+  from apache_beam.transforms.enrichment_handlers.file import FileEnrichmentHandler
+except ImportError:
   FileEnrichmentHandler = None  # type: ignore
 
 try:

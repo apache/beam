@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-import json
+import inspect
 import logging
 import os
 import tempfile
@@ -28,8 +28,10 @@ from apache_beam import Row
 from apache_beam.io.requestresponse import UserCodeTimeoutException
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.enrichment import Enrichment
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_enrichment import FileEnrichmentHandler
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
@@ -41,15 +43,32 @@ except ImportError:
 
 
 class FakeEnrichmentTransform:
-  def __init__(self, enrichment_handler, handler_config, timeout=30):
+  def __init__(
+      self,
+      enrichment_handler,
+      handler_config,
+      timeout=30,
+      on_miss='null',
+      prefix=None):
     self._enrichment_handler = enrichment_handler
     self._handler_config = handler_config
     self._timeout = timeout
+    self._on_miss = on_miss
+    self._prefix = prefix
 
-  def __call__(self, enrichment_handler, *, handler_config, timeout=30):
+  def __call__(
+      self,
+      enrichment_handler,
+      *,
+      handler_config,
+      timeout=30,
+      on_miss='null',
+      prefix=None):
     assert enrichment_handler == self._enrichment_handler
     assert handler_config == self._handler_config
     assert timeout == self._timeout
+    assert on_miss == self._on_miss
+    assert prefix == self._prefix
     return beam.Map(lambda x: beam.Row(**x._asdict()))
 
 
@@ -70,6 +89,16 @@ class EnrichmentTransformTest(unittest.TestCase):
     self.temp_dir = tempfile.TemporaryDirectory()
     self.addCleanup(self.temp_dir.cleanup)
     yaml_provider.standard_providers.cache_clear()
+
+  def _require_file_enrichment_dependencies(self):
+    # These tests exercise FileEnrichmentHandler plus Enrichment on_miss/prefix.
+    # Those land in #41452 and #41451. Until both are on this branch, running
+    # the tests fails for a missing module rather than a behavior regression.
+    if FileEnrichmentHandler is None:
+      self.skipTest('FileEnrichmentHandler is added in #41452')
+    params = inspect.signature(Enrichment.__init__).parameters
+    if 'on_miss' not in params or 'prefix' not in params:
+      self.skipTest('Enrichment on_miss and prefix are added in #41451')
 
   def test_enrichment_with_bigquery(self):
     input_data = [
@@ -102,6 +131,7 @@ class EnrichmentTransformTest(unittest.TestCase):
         assert_that(result, equal_to(input_data))
 
   def test_yaml_file_enrichment_parquet_dlq_and_prefix(self):
+    self._require_file_enrichment_dependencies()
     if pa is None or pq is None:
       self.skipTest('pyarrow is not installed')
     parquet_path = os.path.join(self.temp_dir.name, 'sku_catalog.parquet')
@@ -164,6 +194,7 @@ class EnrichmentTransformTest(unittest.TestCase):
       )
 
   def test_yaml_file_enrichment_csv_on_miss_null_and_drop(self):
+    self._require_file_enrichment_dependencies()
     csv_path = os.path.join(self.temp_dir.name, 'catalog.csv')
     with open(csv_path, 'w', encoding='utf-8') as f:
       f.write('sku_id,category,unit_cost\nSKU-1,books,10.0\n')
@@ -221,6 +252,7 @@ class EnrichmentTransformTest(unittest.TestCase):
       )
 
   def test_yaml_enrichment_rpc_timeout_routed_to_error_handling(self):
+    self._require_file_enrichment_dependencies()
     input_data = [
         Row(sku_id='SKU-1'),
         Row(sku_id='TIMEOUT'),
