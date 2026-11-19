@@ -42,7 +42,7 @@ class JavaJarServerTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls._old_fork_support = os.environ.get('GRPC_ENABLE_FORK_SUPPORT')
-    os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'false'
+    os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'true'
     super().setUpClass()
 
   # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
