@@ -22,7 +22,9 @@
 import concurrent.futures
 import copy
 import inspect
+import itertools
 import logging
+import numbers
 import random
 import sys
 import time
@@ -3651,9 +3653,11 @@ class GroupBy(PTransform):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
       return self._key_fields[0][1]
     else:
-      key_type = self._key_type
-      key_exprs = [expr for _, expr in self._key_fields]
-      return lambda element: key_type(*(expr(element) for expr in key_exprs))
+      field_names = tuple(name for name, _ in self._key_fields)
+      key_exprs = tuple(expr for _, expr in self._key_fields)
+      return lambda element: tuple.__new__(
+          _dynamic_named_tuple('Key', field_names),
+          (expr(element) for expr in key_exprs))
 
   def _key_type_hint(self, input_type):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
@@ -3670,6 +3674,7 @@ class GroupBy(PTransform):
 
   def expand(self, pcoll):
     input_type = pcoll.element_type or typing.Any
+    key_func = self._key_func()
     # Map(lambda) produces a label formatted like this, but it cannot be
     # changed without breaking update compat. Here, we pin to the transform
     # name used in the 2.68 release to avoid breaking changes when the line
@@ -3677,7 +3682,7 @@ class GroupBy(PTransform):
     return (
         pcoll
         | "Map(<lambda at core.py:3503>)" >>
-        Map(lambda x: (self._key_func()(x), x)).with_output_types(
+        Map(lambda x: (key_func(x), x)).with_output_types(
             typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
@@ -3745,8 +3750,9 @@ class _GroupAndAggregate(PTransform):
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
         | "MapTuple(<lambda at core.py:3565>)" >> MapTuple(
-            lambda key, value: _dynamic_named_tuple('Result', result_fields)
-            (*(key + value))))
+            lambda key, value: tuple.__new__(
+                _dynamic_named_tuple('Result', result_fields), itertools.chain(
+                    key, value))))
 
 
 class Select(PTransform):
@@ -3829,19 +3835,20 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
-      import numbers
-      if isinstance(partition,
-                    bool) or not isinstance(partition, numbers.Integral):
-        raise ValueError(
-            f"PartitionFn yielded a '{type(partition).__name__}' "
-            "when it should only yield integers")
-      if not 0 <= int(partition) < n:
+      if type(partition) is not int:
+        if isinstance(partition,
+                      bool) or not isinstance(partition, numbers.Integral):
+          raise ValueError(
+              f"PartitionFn yielded a '{type(partition).__name__}' "
+              "when it should only yield integers")
+        partition = int(partition)
+      if not 0 <= partition < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
       # Each input is directed into the output that corresponds to the
       # selected partition.
-      yield pvalue.TaggedOutput(str(partition), element)
+      return [pvalue.TaggedOutput(str(partition), element)]
 
   def make_fn(self, fn, has_side_inputs):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
