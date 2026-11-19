@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -2328,13 +2329,22 @@ public class DoFnOperatorTest {
   /**
    * Ensures that the output watermark does not pass the output timestamp of an event-time timer
    * which has fired but is still buffered because of {@code @RequiresStableInput}.
+   *
+   * <p>Uses bundles with several elements and lets elements arrive between checkpoints, so that the
+   * stable-input buffer holds data elements and a fired timer at the same time. A single key is
+   * used on purpose: this test is about the watermark hold only.
    */
   @Test
   public void testExactlyOnceBufferingOutputWatermarkHoldsForBufferedTimers() throws Exception {
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(true);
-    options.setMaxBundleSize(1L);
-    options.setCheckpointingInterval(1L);
+    // Large enough that bundles are finished by time or by checkpoints, not by element count.
+    options.setMaxBundleSize(10L);
+    options.setMaxBundleTimeMills(1000L);
+    // Only needs to be positive for @RequiresStableInput. The test harness does not trigger
+    // checkpoints by itself; they are triggered manually via snapshot() and
+    // notifyCheckpointComplete() below.
+    options.setCheckpointingInterval(100L);
     options.setCheckpointingMode("EXACTLY_ONCE");
     options.setNumConcurrentCheckpoints(1);
 
@@ -2347,6 +2357,7 @@ public class DoFnOperatorTest {
         WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE);
 
     final String timerId = "timer";
+    final Instant timerTimestamp = new Instant(50);
     DoFn<KV<String, String>, KV<String, String>> doFn =
         new DoFn<KV<String, String>, KV<String, String>>() {
           @TimerId(timerId)
@@ -2355,21 +2366,27 @@ public class DoFnOperatorTest {
           @ProcessElement
           // Use RequiresStableInput to force buffering elements and fired timers
           @RequiresStableInput
-          public void processElement(@TimerId(timerId) Timer timer) {
-            timer.set(new Instant(50));
+          public void processElement(
+              @Element KV<String, String> element,
+              @Timestamp Instant timestamp,
+              OutputReceiver<KV<String, String>> out,
+              @TimerId(timerId) Timer timer) {
+            out.output(element);
+            // Only elements before the timer timestamp (re)set the per-key timer.
+            if (timestamp.isBefore(timerTimestamp)) {
+              timer.set(timerTimestamp);
+            }
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(KV.of("key", "timer"));
+          public void onTimer(@Key String key, OutputReceiver<KV<String, String>> out) {
+            out.output(KV.of(key, "timer"));
           }
         };
 
     DoFnOperator.MultiOutputOutputManagerFactory<KV<String, String>> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory<>(
-            outputTag,
-            WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE),
-            new SerializablePipelineOptions(options));
+            outputTag, windowedValueCoder, new SerializablePipelineOptions(options));
 
     DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
         new DoFnOperator<>(
@@ -2397,64 +2414,120 @@ public class DoFnOperatorTest {
 
     testHarness.open();
 
-    // The element is buffered until the checkpoint completes; then it is processed and sets the
-    // event-time timer.
-    testHarness.processElement(
-        new StreamRecord<>(
-            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "a"), new Instant(10))));
+    // Stage 1: several elements in one bundle, buffered until checkpoint 1 completes.
+    testHarness.processElement(kvRecord("a", 10));
+    testHarness.processElement(kvRecord("b", 15));
+    testHarness.processElement(kvRecord("c", 20));
+    testHarness.processWatermark(new Watermark(30));
+    assertThat(
+        "Elements are buffered; nothing may be emitted yet",
+        testHarness.getOutput(),
+        emptyIterable());
+
     testHarness.snapshot(1L, 0L);
+
+    // Stage 2: elements arriving between checkpoint 1 and checkpoint 2 go to a new buffer.
+    testHarness.processElement(kvRecord("d", 35));
+    testHarness.processElement(kvRecord("e", 40));
+
+    // Releases a, b, c, which set the event-time timer @50. d@35 is still buffered.
     doFnOperator.notifyCheckpointComplete(1L);
-
-    // The watermark fires the timer, but the timer is buffered until the next checkpoint completes.
-    // Firing the timer starts a bundle, so no watermark is emitted yet.
-    testHarness.processWatermark(new Watermark(100));
-
-    // Advancing processing time finishes the bundle and then advances the output watermark, which
-    // must be held at the output timestamp of the buffered timer.
+    testHarness.processWatermark(new Watermark(45));
+    // Finish the bundle by time, which then advances the output watermark.
     testHarness.setProcessingTime(10_000L);
+    assertThat(
+        "Buffered element d@35 must hold the output watermark",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(35L));
+    assertWatermarksHeldAndNoLateOutput(testHarness.getOutput(), timerTimestamp.getMillis());
+
+    // Releases d and e. Only the pending timer @50 holds the output watermark now.
+    testHarness.snapshot(2L, 0L);
+    doFnOperator.notifyCheckpointComplete(2L);
+    assertThat(
+        "Input watermark 45 is below the pending timer @50",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(45L));
+    assertWatermarksHeldAndNoLateOutput(testHarness.getOutput(), timerTimestamp.getMillis());
+
+    // Stage 3: new elements and the fired timer end up in the same buffer and the same bundle.
+    testHarness.processElement(kvRecord("f", 60));
+    testHarness.processElement(kvRecord("g", 70));
+    // The effective input watermark is 60 (held by buffered f@60), which fires the timer @50.
+    // The fired timer is buffered until the next checkpoint completes.
+    testHarness.processWatermark(new Watermark(100));
     testHarness.setProcessingTime(20_000L);
     assertThat(
         "The fired timer @50 is still buffered; output watermark must be held at 50",
         doFnOperator.getCurrentOutputWatermark(),
-        is(50L));
+        is(timerTimestamp.getMillis()));
+    assertWatermarksHeldAndNoLateOutput(testHarness.getOutput(), timerTimestamp.getMillis());
 
-    testHarness.snapshot(2L, 0L);
-    doFnOperator.notifyCheckpointComplete(2L);
+    testHarness.snapshot(3L, 0L);
+    doFnOperator.notifyCheckpointComplete(3L);
     assertThat(
-        "The buffered timer has been processed; output watermark must advance to input watermark",
+        "All buffered data has been processed; output watermark must advance to input watermark",
         doFnOperator.getCurrentOutputWatermark(),
         is(100L));
+    assertWatermarksHeldAndNoLateOutput(testHarness.getOutput(), Long.MAX_VALUE);
 
-    boolean timerOutputSeen = false;
+    List<Long> watermarks = new ArrayList<>();
+    List<WindowedValue<KV<String, String>>> records = new ArrayList<>();
     for (Object record : testHarness.getOutput()) {
       if (record instanceof Watermark) {
-        assertThat(
-            "Watermark " + record + " was emitted before the buffered timer output @50",
-            ((Watermark) record).getTimestamp(),
-            lessThanOrEqualTo(50L));
-      } else if (record instanceof StreamRecord) {
+        watermarks.add(((Watermark) record).getTimestamp());
+      } else {
         @SuppressWarnings("unchecked")
         WindowedValue<KV<String, String>> value =
             ((StreamRecord<WindowedValue<KV<String, String>>>) record).getValue();
-        if (KV.of("key", "timer").equals(value.getValue())) {
-          assertThat(value.getTimestamp(), is(new Instant(50)));
-          timerOutputSeen = true;
-          break;
-        }
+        records.add(value);
       }
     }
-    assertTrue("Timer output not found in " + testHarness.getOutput(), timerOutputSeen);
-
+    assertThat(watermarks, contains(35L, 45L, 50L, 100L));
     assertThat(
-        testHarness.getOutput(),
-        contains(
-            new Watermark(50),
-            new StreamRecord<>(
-                WindowedValues.timestampedValueInGlobalWindow(
-                    KV.of("key", "timer"), new Instant(50))),
-            new Watermark(100)));
+        records,
+        containsInAnyOrder(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "a"), new Instant(10)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "b"), new Instant(15)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "c"), new Instant(20)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "d"), new Instant(35)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "e"), new Instant(40)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "f"), new Instant(60)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "g"), new Instant(70)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("key", "timer"), timerTimestamp)));
 
     testHarness.close();
+  }
+
+  private static StreamRecord<WindowedValue<KV<String, String>>> kvRecord(
+      String value, long timestamp) {
+    return new StreamRecord<>(
+        WindowedValues.timestampedValueInGlobalWindow(KV.of("key", value), new Instant(timestamp)));
+  }
+
+  /**
+   * Asserts that no emitted watermark exceeds {@code maxWatermark} and that no record was emitted
+   * with a timestamp behind a previously emitted watermark.
+   */
+  private static void assertWatermarksHeldAndNoLateOutput(
+      Iterable<Object> output, long maxWatermark) {
+    long lastWatermark = Long.MIN_VALUE;
+    for (Object record : output) {
+      if (record instanceof Watermark) {
+        lastWatermark = ((Watermark) record).getTimestamp();
+        assertThat(
+            "Watermark " + record + " passed a held timestamp in " + output,
+            lastWatermark,
+            lessThanOrEqualTo(maxWatermark));
+      } else {
+        long timestamp =
+            ((WindowedValue<?>) ((StreamRecord<?>) record).getValue()).getTimestamp().getMillis();
+        assertThat(
+            "Record " + record + " is behind an earlier watermark in " + output,
+            timestamp,
+            greaterThanOrEqualTo(lastWatermark));
+      }
+    }
   }
 
   @Test(expected = IllegalStateException.class)
