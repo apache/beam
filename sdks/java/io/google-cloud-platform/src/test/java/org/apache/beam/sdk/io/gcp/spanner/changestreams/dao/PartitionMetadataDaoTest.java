@@ -33,6 +33,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.ReadContext;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
@@ -578,5 +579,47 @@ public class PartitionMetadataDaoTest {
             .asMap()
             .get(PartitionMetadataAdminDao.COLUMN_STATE)
             .getString());
+  }
+
+  @Test
+  public void testGetUnfinishedPartitionsGoogleSql() {
+    ReadContext readContext = mock(ReadContext.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUse()).thenReturn(readContext);
+    when(readContext.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+
+    assertEquals(resultSet, partitionMetadataDao.getUnfinishedPartitions());
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readContext).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "@{FORCE_INDEX=_BASE_TABLE} SELECT * FROM "
+            + METADATA_TABLE_NAME
+            + " WHERE State != @state",
+        captured.getSql());
+    assertEquals(State.FINISHED.name(), captured.getParameters().get("state").getString());
+  }
+
+  @Test
+  public void testGetUnfinishedPartitionsPostgres() {
+    ReadContext readContext = mock(ReadContext.class);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(databaseClient.singleUse()).thenReturn(readContext);
+    when(readContext.executeQuery(any(Statement.class), any())).thenReturn(resultSet);
+
+    PartitionMetadataDao pgDao =
+        new PartitionMetadataDao(METADATA_TABLE_NAME, databaseClient, Dialect.POSTGRESQL);
+    assertEquals(resultSet, pgDao.getUnfinishedPartitions());
+
+    ArgumentCaptor<Statement> statementCaptor = ArgumentCaptor.forClass(Statement.class);
+    verify(readContext).executeQuery(statementCaptor.capture(), any());
+    Statement captured = statementCaptor.getValue();
+    assertEquals(
+        "/*@ force_index=_base_table */ SELECT * FROM \""
+            + METADATA_TABLE_NAME
+            + "\" WHERE \"State\" != $1",
+        captured.getSql());
+    assertEquals(State.FINISHED.name(), captured.getParameters().get("p1").getString());
   }
 }

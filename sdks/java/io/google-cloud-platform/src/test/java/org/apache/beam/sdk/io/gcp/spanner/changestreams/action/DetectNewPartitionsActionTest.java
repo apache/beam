@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Struct;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,11 +39,13 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -258,12 +261,65 @@ public class DetectNewPartitionsActionTest {
   @Test
   public void testTerminatesWhenAllPartitionsAreFinished() {
     final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final ResultSet resultSet = mock(ResultSet.class);
     when(restriction.getFrom()).thenReturn(from);
     when(cache.getUnfinishedMinWatermark()).thenReturn(null);
+    when(dao.getUnfinishedPartitions()).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(false);
 
     final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
 
     assertEquals(ProcessContinuation.stop(), continuation);
+    verify(dao).getUnfinishedPartitions();
+    verify(resultSet).close();
+    verify(watermarkEstimator, never()).setWatermark(any());
+    verify(receiver, never()).outputWithTimestamp(any(), any());
+  }
+
+  @Test
+  public void testTerminatesAndLogsWhenUnfinishedPartitionsRemain() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    final ResultSet resultSet = mock(ResultSet.class);
+    final Struct row = mock(Struct.class);
+    final PartitionMetadata unfinished =
+        PartitionMetadata.newBuilder()
+            .setPartitionToken("token1")
+            .setParentTokens(Sets.newHashSet("parent0"))
+            .setStartTimestamp(Timestamp.ofTimeMicroseconds(10L))
+            .setEndTimestamp(Timestamp.ofTimeMicroseconds(100L))
+            .setHeartbeatMillis(1000L)
+            .setState(State.RUNNING)
+            .setWatermark(Timestamp.ofTimeMicroseconds(20L))
+            .setCreatedAt(Timestamp.ofTimeMicroseconds(10L))
+            .build();
+    when(restriction.getFrom()).thenReturn(from);
+    when(cache.getUnfinishedMinWatermark()).thenReturn(null);
+    when(dao.getUnfinishedPartitions()).thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true, false);
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(row);
+    when(mapper.from(row)).thenReturn(unfinished);
+
+    final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
+
+    assertEquals(ProcessContinuation.stop(), continuation);
+    verify(dao).getUnfinishedPartitions();
+    verify(mapper).from(row);
+    verify(resultSet).close();
+    verify(watermarkEstimator, never()).setWatermark(any());
+    verify(receiver, never()).outputWithTimestamp(any(), any());
+  }
+
+  @Test
+  public void testTerminatesStillSucceedsWhenUnfinishedPartitionsQueryFails() {
+    final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
+    when(restriction.getFrom()).thenReturn(from);
+    when(cache.getUnfinishedMinWatermark()).thenReturn(null);
+    when(dao.getUnfinishedPartitions()).thenThrow(new RuntimeException("diagnostic query failed"));
+
+    final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
+
+    assertEquals(ProcessContinuation.stop(), continuation);
+    verify(dao).getUnfinishedPartitions();
     verify(watermarkEstimator, never()).setWatermark(any());
     verify(receiver, never()).outputWithTimestamp(any(), any());
   }
