@@ -205,7 +205,6 @@ class _WriteMilvusFn(DoFn):
     write_config: Configuration for write operations including batch size
       and collection details.
   """
-
   def __init__(
       self,
       connection_params: MilvusConnectionParameters,
@@ -264,9 +263,8 @@ class _WriteMilvusFn(DoFn):
       return
 
     if self._sink is None:
-      self._sink = _MilvusSink(
-          self._connection_params,
-          self._write_config).__enter__()
+      self._sink = _MilvusSink(self._connection_params,
+                               self._write_config).__enter__()
 
     self._sink.write(self.batch)
     self.batch = []

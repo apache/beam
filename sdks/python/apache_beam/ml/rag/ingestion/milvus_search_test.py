@@ -158,7 +158,6 @@ class TestMilvusSinkClientReuse(unittest.TestCase):
 
 class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
   """Tests for the Milvus DoFn client lifecycle."""
-
   def setUp(self):
     self.connection_params = MilvusConnectionParameters(
         uri="http://localhost:19530")
@@ -168,17 +167,15 @@ class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
         write_config=WriteConfig(write_batch_size=2))
 
   def _create_write_fn(self):
-    write_fn = _WriteMilvusFn(
-        self.connection_params,
-        self.write_config)
+    write_fn = _WriteMilvusFn(self.connection_params, self.write_config)
     write_fn.setup()
     return write_fn
 
   def test_multiple_batches_reuse_one_client(self):
     write_fn = self._create_write_fn()
 
-    with mock.patch.object(
-        milvus_search_module, 'MilvusClient') as mock_client_cls:
+    with mock.patch.object(milvus_search_module,
+                           'MilvusClient') as mock_client_cls:
       try:
         for record_id in range(4):
           list(write_fn.process({"id": record_id}))
@@ -186,8 +183,7 @@ class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
         write_fn.finish_bundle()
 
         self.assertEqual(mock_client_cls.call_count, 1)
-        self.assertEqual(
-            mock_client_cls.return_value.upsert.call_count, 2)
+        self.assertEqual(mock_client_cls.return_value.upsert.call_count, 2)
 
         calls = mock_client_cls.return_value.upsert.call_args_list
         self.assertEqual(len(calls[0].kwargs["data"]), 2)
@@ -197,16 +193,15 @@ class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
       finally:
         write_fn.teardown()
 
-      self.assertEqual(
-          mock_client_cls.return_value.close.call_count, 1)
+      self.assertEqual(mock_client_cls.return_value.close.call_count, 1)
 
     self.assertIsNone(write_fn._sink)
 
   def test_finish_bundle_flushes_partial_batch(self):
     write_fn = self._create_write_fn()
 
-    with mock.patch.object(
-        milvus_search_module, 'MilvusClient') as mock_client_cls:
+    with mock.patch.object(milvus_search_module,
+                           'MilvusClient') as mock_client_cls:
       try:
         list(write_fn.process({"id": 1}))
 
@@ -215,8 +210,7 @@ class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
         write_fn.finish_bundle()
 
         self.assertEqual(mock_client_cls.call_count, 1)
-        self.assertEqual(
-            mock_client_cls.return_value.upsert.call_count, 1)
+        self.assertEqual(mock_client_cls.return_value.upsert.call_count, 1)
 
         written_data = (
             mock_client_cls.return_value.upsert.call_args.kwargs["data"])
@@ -226,16 +220,15 @@ class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
       finally:
         write_fn.teardown()
 
-      self.assertEqual(
-          mock_client_cls.return_value.close.call_count, 1)
+      self.assertEqual(mock_client_cls.return_value.close.call_count, 1)
 
     self.assertIsNone(write_fn._sink)
 
   def test_empty_bundle_does_not_create_client(self):
     write_fn = self._create_write_fn()
 
-    with mock.patch.object(
-        milvus_search_module, 'MilvusClient') as mock_client_cls:
+    with mock.patch.object(milvus_search_module,
+                           'MilvusClient') as mock_client_cls:
       try:
         write_fn.finish_bundle()
 
@@ -245,15 +238,12 @@ class TestMilvusWriteFnClientLifecycle(unittest.TestCase):
       finally:
         write_fn.teardown()
 
-      self.assertEqual(
-          mock_client_cls.return_value.close.call_count, 0)
+      self.assertEqual(mock_client_cls.return_value.close.call_count, 0)
 
     self.assertIsNone(write_fn._sink)
 
   def test_teardown_without_setup_does_not_raise(self):
-    write_fn = _WriteMilvusFn(
-        self.connection_params,
-        self.write_config)
+    write_fn = _WriteMilvusFn(self.connection_params, self.write_config)
 
     write_fn.teardown()
     self.assertIsNone(write_fn._sink)
