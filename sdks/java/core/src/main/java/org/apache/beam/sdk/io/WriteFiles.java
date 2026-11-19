@@ -626,11 +626,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       if (input.isBounded() == IsBounded.BOUNDED && !fixedSharding) {
         disabledReasons.add("the input is bounded without a fixed number of shards");
       }
+      // BundleLifter's keyFn is a plain SerializableFunction without a DoFn ProcessContext, so it
+      // cannot populate DynamicDestinations' side-input accessor before calling getDestination.
       if (!getSideInputs().isEmpty()) {
         disabledReasons.add("dynamic destinations use side inputs");
       }
-      // Merging windows are only final after the GroupByKey, so direct writes would use
-      // unmerged windows.
+      // WriteFiles allows merging windows when a fixed shard count is set (merged by
+      // GroupIntoShards's GroupByKey), whereas direct writes run before any GroupByKey and would
+      // use unmerged windows.
       if (input.getWindowingStrategy().needsMerge()) {
         disabledReasons.add("the windowing strategy uses merging windows");
       }
@@ -1493,13 +1496,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         if (stampFiringPane) {
           // Stamp every file with this firing's pane so files from different firings of the
           // same window get distinct final names.
-          result.add(
-              new FileResult<>(
-                  e.getTempFilename(),
-                  UNKNOWN_SHARDNUM,
-                  e.getWindow(),
-                  c.pane(),
-                  e.getDestination()));
+          result.add(e.withPane(c.pane()).withShard(UNKNOWN_SHARDNUM));
         } else {
           result.add(e);
         }

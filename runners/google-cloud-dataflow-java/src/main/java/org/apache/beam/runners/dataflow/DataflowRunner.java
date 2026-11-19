@@ -82,6 +82,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -150,6 +151,7 @@ import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.util.construction.UnconsumedReads;
+import org.apache.beam.sdk.util.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -2642,7 +2644,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // We pick 10 as a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
-
     DataflowPipelineWorkerPoolOptions options;
 
     StreamingShardedWriteFactory(PipelineOptions options) {
@@ -2672,15 +2673,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         numShards = DEFAULT_NUM_SHARDS;
       }
 
-      // Keep every option of the original transform and only set the shard count.
-      WriteFiles<UserT, DestinationT, OutputT> original = transform.getTransform();
-      if (original.getWithAutoSharding()) {
+      try {
+        List<PCollectionView<?>> sideInputs =
+            WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
+        FileBasedSink sink = WriteFilesTranslation.getSink(transform);
+        WriteFiles<UserT, DestinationT, OutputT> replacement =
+            WriteFiles.to(sink).withSideInputs(sideInputs);
+        if (WriteFilesTranslation.isWindowedWrites(transform)) {
+          replacement = replacement.withWindowedWrites();
+        }
+
+        if (WriteFilesTranslation.isAutoSharded(transform)) {
+          replacement = replacement.withAutoSharding();
+          return PTransformReplacement.of(
+              PTransformReplacements.getSingletonMainInput(transform), replacement);
+        }
+
         return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform), original);
+            PTransformReplacements.getSingletonMainInput(transform),
+            replacement.withNumShards(numShards));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          original.withNumShards(numShards));
     }
 
     @Override

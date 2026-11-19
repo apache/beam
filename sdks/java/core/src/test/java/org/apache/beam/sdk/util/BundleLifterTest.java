@@ -29,10 +29,12 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.BundleLifter.BundleLiftDoFn;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,10 +48,49 @@ public class BundleLifterTest {
   private static final TupleTag<String> STRING_SMALL = new TupleTag<String>() {};
   private static final TupleTag<String> STRING_LARGE = new TupleTag<String>() {};
 
+  private static <T> BundleLiftDoFn<T> doFn(
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      long threshold,
+      SerializableFunction<T, Integer> elementSizer) {
+    return doFn(smallBatchTag, largeBatchTag, threshold, elementSizer, null);
+  }
+
+  private static <T> BundleLiftDoFn<T> doFn(
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      long threshold,
+      SerializableFunction<T, Integer> elementSizer,
+      @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
+    return doFn(
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        BundleLifter.defaultMaxBufferedBytes(threshold),
+        elementSizer,
+        keyFn);
+  }
+
+  private static <T> BundleLiftDoFn<T> doFn(
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      long threshold,
+      long maxBufferedBytes,
+      SerializableFunction<T, Integer> elementSizer,
+      @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
+    return new BundleLiftDoFn<>(
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        Integer.MAX_VALUE,
+        elementSizer,
+        keyFn);
+  }
+
   @Test
   public void testSmallBundle() throws Exception {
-    DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
+    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
 
     tester.startBundle();
     tester.processElement(1);
@@ -62,8 +103,7 @@ public class BundleLifterTest {
 
   @Test
   public void testLargeBundle() throws Exception {
-    DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
+    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
 
     tester.startBundle();
     tester.processElement(1);
@@ -78,7 +118,7 @@ public class BundleLifterTest {
   @Test
   public void testSmallBundleWithSizer() throws Exception {
     DoFnTester<String, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
+        DoFnTester.of(doFn(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
 
     tester.startBundle();
     tester.processElement("123");
@@ -93,7 +133,7 @@ public class BundleLifterTest {
   @Test
   public void testLargeBundleWithSizer() throws Exception {
     DoFnTester<String, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
+        DoFnTester.of(doFn(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
 
     tester.startBundle();
     tester.processElement("123");
@@ -109,8 +149,7 @@ public class BundleLifterTest {
 
   @Test
   public void testStreamsElementsThroughOnceThresholdIsReached() throws Exception {
-    DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1));
+    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1));
 
     tester.startBundle();
     tester.processElement(1);
@@ -130,7 +169,7 @@ public class BundleLifterTest {
   @Test
   public void testKeyedThresholdIsEvaluatedPerKey() throws Exception {
     DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> x % 2));
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> x % 2));
 
     tester.startBundle();
     for (int i = 0; i < 5; i++) {
@@ -148,7 +187,7 @@ public class BundleLifterTest {
     IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow w2 = new IntervalWindow(new Instant(10), new Instant(20));
     DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> "key"));
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> "key"));
 
     tester.startBundle();
     tester.processWindowedElement(1, new Instant(1), w1);
@@ -166,8 +205,7 @@ public class BundleLifterTest {
   public void testUnkeyedThresholdIsEvaluatedPerBundle() throws Exception {
     IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow w2 = new IntervalWindow(new Instant(10), new Instant(20));
-    DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
+    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
 
     tester.startBundle();
     tester.processWindowedElement(1, new Instant(1), w1);
@@ -184,9 +222,7 @@ public class BundleLifterTest {
   @Test
   public void testNullKeysShareTheirOwnKey() throws Exception {
     DoFnTester<Integer, Void> tester =
-        DoFnTester.of(
-            new BundleLiftDoFn<>(
-                INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1, x -> x < 0 ? null : "key"));
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1, x -> x < 0 ? null : "key"));
 
     tester.startBundle();
     tester.processElement(-1);
@@ -203,7 +239,7 @@ public class BundleLifterTest {
   public void testMemoryCapEvictsSmallestKey() throws Exception {
     // Threshold 4 caps total buffered bytes at 8.
     DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
 
     tester.startBundle();
     for (int i = 0; i < 9; i++) {
@@ -223,7 +259,7 @@ public class BundleLifterTest {
   public void testUntrackedKeysGoToSmallOutputAfterEviction() throws Exception {
     // Threshold 4 caps total buffered bytes at 8.
     DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
 
     tester.startBundle();
     for (int i = 0; i < 9; i++) {
@@ -254,7 +290,7 @@ public class BundleLifterTest {
     // Threshold 4 with a cap of 4: the 5th distinct key exceeds the cap, and keys are evicted
     // until at most half of it (2) remains buffered.
     DoFnTester<Integer, Void> tester =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
 
     tester.startBundle();
     for (int i = 0; i < 5; i++) {
@@ -319,8 +355,7 @@ public class BundleLifterTest {
     IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow w2 = new IntervalWindow(new Instant(10), new Instant(20));
 
-    DoFnTester<Integer, Void> large =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1));
+    DoFnTester<Integer, Void> large = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1));
     large.startBundle();
     large.processWindowedElement(1, new Instant(5), w1);
     large.processWindowedElement(2, new Instant(15), w2);
@@ -329,8 +364,7 @@ public class BundleLifterTest {
         describe(large.getMutableOutput(INTEGER_LARGE)),
         contains("1@" + new Instant(5) + " in " + w1, "2@" + new Instant(15) + " in " + w2));
 
-    DoFnTester<Integer, Void> small =
-        DoFnTester.of(new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
+    DoFnTester<Integer, Void> small = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1));
     small.startBundle();
     small.processWindowedElement(1, new Instant(5), w1);
     small.processWindowedElement(2, new Instant(15), w2);

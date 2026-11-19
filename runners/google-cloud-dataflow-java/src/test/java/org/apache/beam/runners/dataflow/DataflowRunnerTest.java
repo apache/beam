@@ -2189,42 +2189,7 @@ public class DataflowRunnerTest implements Serializable {
 
     assertNull(replacement.getNumShardsProvider());
     assertNull(replacement.getComputeNumShards());
-    assertNull(replacement.getDirectWriteByteThreshold());
     assertTrue(replacement.getWithAutoSharding());
-  }
-
-  @Test
-  public void testStreamingWriteKeepsOriginalOptions() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-
-    TestPipeline p = TestPipeline.fromOptions(options);
-    StreamingShardedWriteFactory<Object, Void, Object> factory =
-        new StreamingShardedWriteFactory<>(p.getOptions());
-    WriteFiles<Object, Void, Object> original =
-        WriteFiles.to(new TestSink(tmpFolder.toString()))
-            .withRunnerDeterminedSharding()
-            .withWindowedWrites()
-            .withDirectWriteByteThreshold(1000L);
-    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
-    AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
-        originalApplication =
-            AppliedPTransform.of(
-                "writefiles",
-                PValues.expandInput(objs),
-                Collections.emptyMap(),
-                original,
-                ResourceHints.create(),
-                p);
-
-    WriteFiles<Object, Void, Object> replacement =
-        (WriteFiles<Object, Void, Object>)
-            factory.getReplacementTransform(originalApplication).getTransform();
-
-    assertTrue(replacement.getWindowedWrites());
-    assertEquals(Long.valueOf(1000L), replacement.getDirectWriteByteThreshold());
-    assertEquals(
-        StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS,
-        replacement.getNumShardsProvider().get().intValue());
   }
 
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {

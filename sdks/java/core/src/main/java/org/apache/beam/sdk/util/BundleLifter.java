@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,46 +135,6 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         TupleTag<T> smallBatchTag,
         TupleTag<T> largeBatchTag,
         long threshold,
-        SerializableFunction<T, Integer> elementSizer) {
-      this(smallBatchTag, largeBatchTag, threshold, elementSizer, null);
-    }
-
-    BundleLiftDoFn(
-        TupleTag<T> smallBatchTag,
-        TupleTag<T> largeBatchTag,
-        long threshold,
-        SerializableFunction<T, Integer> elementSizer,
-        @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
-      this(
-          smallBatchTag,
-          largeBatchTag,
-          threshold,
-          defaultMaxBufferedBytes(threshold),
-          elementSizer,
-          keyFn);
-    }
-
-    BundleLiftDoFn(
-        TupleTag<T> smallBatchTag,
-        TupleTag<T> largeBatchTag,
-        long threshold,
-        long maxBufferedBytes,
-        SerializableFunction<T, Integer> elementSizer,
-        @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
-      this(
-          smallBatchTag,
-          largeBatchTag,
-          threshold,
-          maxBufferedBytes,
-          Integer.MAX_VALUE,
-          elementSizer,
-          keyFn);
-    }
-
-    BundleLiftDoFn(
-        TupleTag<T> smallBatchTag,
-        TupleTag<T> largeBatchTag,
-        long threshold,
         long maxBufferedBytes,
         int maxLiftedKeys,
         SerializableFunction<T, Integer> elementSizer,
@@ -251,14 +212,18 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
             buffer.elements.size(),
             largeBatchTag.getId());
         emit(buffer, receiver.get(largeBatchTag));
+        buffer.elements.clear();
         if (liftedKeys.size() >= maxLiftedKeys) {
           // No other key can be lifted in this bundle; release the remaining buffers.
           keysFinalized = true;
           OutputReceiver<T> small = receiver.get(smallBatchTag);
-          for (KeyBuffer<T> other : buffers.values()) {
+          Iterator<KeyBuffer<T>> it = buffers.values().iterator();
+          while (it.hasNext()) {
+            KeyBuffer<T> other = it.next();
+            it.remove();
             emit(other, small);
+            other.elements.clear();
           }
-          buffers.clear();
           bufferedBytes = 0L;
         }
         return;
@@ -275,17 +240,23 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
     public void finishBundle(FinishBundleContext context) {
       Map<Object, KeyBuffer<T>> buffers =
           checkStateNotNull(this.buffers, "Buffers should be set by setup.");
-      for (KeyBuffer<T> buffer : buffers.values()) {
+      Iterator<KeyBuffer<T>> it = buffers.values().iterator();
+      while (it.hasNext()) {
+        KeyBuffer<T> buffer = it.next();
+        it.remove();
         LOG.debug(
             "Emitting {} elements of {} estimated bytes to tag: '{}'",
             buffer.elements.size(),
             buffer.sizeBytes,
             smallBatchTag.getId());
+        // FinishBundleContext.output has no PaneInfo overload, and MultiOutputReceiver from
+        // @ProcessElement cannot be retained across bundle lifecycle methods (FnApiDoFnRunner
+        // clears currentElement after each processElement).
         for (BufferedElement<T> e : buffer.elements) {
           context.output(smallBatchTag, e.value, e.timestamp, e.window);
         }
+        buffer.elements.clear();
       }
-      buffers.clear();
       checkStateNotNull(this.liftedKeys).clear();
       bufferedBytes = 0L;
       keysFinalized = false;
@@ -317,6 +288,7 @@ public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple
         buffers.remove(entry.getKey());
         bufferedBytes -= buffer.sizeBytes;
         emit(buffer, small);
+        buffer.elements.clear();
       }
     }
 

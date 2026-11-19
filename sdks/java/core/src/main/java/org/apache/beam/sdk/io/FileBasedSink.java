@@ -1138,6 +1138,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return paneInfo;
     }
 
+    public FileResult<DestinationT> withPane(PaneInfo paneInfo) {
+      return new FileResult<>(tempFilename, shard, window, paneInfo, destination);
+    }
+
     public DestinationT getDestination() {
       return destination;
     }
