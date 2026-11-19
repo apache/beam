@@ -177,7 +177,41 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       checkArgument(!getTableId().isEmpty(), "Bigtable table ID must not be empty.");
       checkArgument(!getInstanceId().isEmpty(), "Bigtable instance ID must not be empty.");
       checkArgument(!getProjectId().isEmpty(), "Bigtable project ID must not be empty.");
+      @Nullable String existingPipelineOptions = getExistingPipelineOptions();
+      checkArgument(
+        existingPipelineOptions == null
+          || "FAIL_IF_EXISTS".equals(existingPipelineOptions)
+          || "RESUME_OR_NEW".equals(existingPipelineOptions)
+          || "RESUME_OR_FAIL".equals(existingPipelineOptions),
+        "Invalid existing_pipeline_options: %s. "
+          + "Supported values: FAIL_IF_EXISTS, RESUME_OR_NEW, RESUME_OR_FAIL.",
+        existingPipelineOptions);
     }
+
+    @SchemaFieldDescription(
+      "Behavior when metadata for the same change stream name already exists. "
+        + "Supported values: FAIL_IF_EXISTS, RESUME_OR_NEW, RESUME_OR_FAIL. "
+        + "Defaults to FAIL_IF_EXISTS. Resuming may produce duplicate records.")
+    public abstract @Nullable String getExistingPipelineOptions();
+
+    @SchemaFieldDescription("Google Cloud project ID for the metadata table.")
+    public abstract @Nullable String getMetadataTableProjectId();
+
+    @SchemaFieldDescription("Bigtable instance ID for the metadata table.")
+    public abstract @Nullable String getMetadataTableInstanceId();
+
+    @SchemaFieldDescription("Bigtable table ID used to store change stream metadata.")
+    public abstract @Nullable String getMetadataTableTableId();
+
+    @SchemaFieldDescription(
+      "App profile for the metadata table. Must use single-cluster routing "
+        + "with single-row transactions enabled.")
+    public abstract @Nullable String getMetadataTableAppProfileId();
+
+    @SchemaFieldDescription(
+      "Whether to create or update the metadata table before starting the pipeline. "
+        + "Defaults to true. If false, a metadata table with the required schema must exist.")
+    public abstract @Nullable Boolean getCreateOrUpdateMetadataTable();
 
     @SchemaFieldDescription("Google Cloud project ID containing the Bigtable instance.")
     public abstract String getProjectId();
@@ -206,12 +240,30 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     public static Builder builder() {
       return new AutoValue_BigtableChangeStreamReadSchemaTransformProvider_BigtableChangeStreamReadConfiguration
               .Builder()
-          .setFlatten(true);
+          .setFlatten(false);
     }
 
     /** Builder for {@link BigtableChangeStreamReadConfiguration}. */
     @AutoValue.Builder
     public abstract static class Builder {
+
+      public abstract Builder setExistingPipelineOptions(
+        @Nullable String existingPipelineOptions);
+
+      public abstract Builder setMetadataTableProjectId(
+        @Nullable String metadataTableProjectId);
+
+      public abstract Builder setMetadataTableInstanceId(
+        @Nullable String metadataTableInstanceId);
+
+      public abstract Builder setMetadataTableTableId(
+        @Nullable String metadataTableTableId);
+
+      public abstract Builder setMetadataTableAppProfileId(
+        @Nullable String metadataTableAppProfileId);
+
+      public abstract Builder setCreateOrUpdateMetadataTable(
+        @Nullable Boolean createOrUpdateMetadataTable);
 
       public abstract Builder setProjectId(String projectId);
 
@@ -267,6 +319,49 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       @Nullable String changeStreamName = configuration.getChangeStreamName();
       if (changeStreamName != null) {
         readChangeStream = readChangeStream.withChangeStreamName(changeStreamName);
+      }
+
+      @Nullable String existingPipelineOptions =
+        configuration.getExistingPipelineOptions();
+      if (existingPipelineOptions != null) {
+        readChangeStream =
+          readChangeStream.withExistingPipelineOptions(
+            BigtableIO.ExistingPipelineOptions.valueOf(existingPipelineOptions));
+      }
+
+      @Nullable String metadataTableProjectId =
+        configuration.getMetadataTableProjectId();
+      if (metadataTableProjectId != null) {
+        readChangeStream =
+          readChangeStream.withMetadataTableProjectId(metadataTableProjectId);
+      }
+
+      @Nullable String metadataTableInstanceId =
+        configuration.getMetadataTableInstanceId();
+      if (metadataTableInstanceId != null) {
+        readChangeStream =
+          readChangeStream.withMetadataTableInstanceId(metadataTableInstanceId);
+      }
+
+      @Nullable String metadataTableTableId =
+        configuration.getMetadataTableTableId();
+      if (metadataTableTableId != null) {
+        readChangeStream =
+          readChangeStream.withMetadataTableTableId(metadataTableTableId);
+      }
+
+      @Nullable String metadataTableAppProfileId =
+        configuration.getMetadataTableAppProfileId();
+      if (metadataTableAppProfileId != null) {
+        readChangeStream =
+          readChangeStream.withMetadataTableAppProfileId(metadataTableAppProfileId);
+      }
+
+      @Nullable Boolean createOrUpdateMetadataTable =
+        configuration.getCreateOrUpdateMetadataTable();
+      if (createOrUpdateMetadataTable != null) {
+        readChangeStream =
+          readChangeStream.withCreateOrUpdateMetadataTable(createOrUpdateMetadataTable);
       }
 
       PCollection<KV<ByteString, ChangeStreamMutation>> mutations =

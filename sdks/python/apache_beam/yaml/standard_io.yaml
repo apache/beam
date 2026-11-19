@@ -669,6 +669,12 @@
         app_profile: 'app_profile_id'
         start_at: 'start_at_timestamp'
         change_stream: 'change_stream_name'
+        existing_pipeline_options: 'existing_pipeline_options'
+        metadata_table_project: 'metadata_table_project_id'
+        metadata_table_instance: 'metadata_table_instance_id'
+        metadata_table: 'metadata_table_table_id'
+        metadata_table_app_profile: 'metadata_table_app_profile_id'
+        create_or_update_metadata_table: 'create_or_update_metadata_table'
         flatten: 'flatten'
     underlying_provider:
       type: beamJar
