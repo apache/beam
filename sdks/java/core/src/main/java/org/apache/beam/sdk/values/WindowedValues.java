@@ -73,17 +73,24 @@ public class WindowedValues {
     return new Builder<>();
   }
 
-  /** Create a Builder that takes element metadata from the provideed delegate. */
+  /** Create a Builder that takes element metadata from the provided delegate. */
   public static <T> Builder<T> builder(WindowedValue<T> template) {
+    return builder(template, template.getValue());
+  }
+
+  /**
+   * Create a Builder that takes element metadata from the provided delegate with a new element
+   * value.
+   */
+  public static <T> Builder<T> builder(WindowedValue<?> template, T value) {
     return new Builder<T>()
-        .setValue(template.getValue())
+        .setValue(value)
         .setTimestamp(template.getTimestamp())
         .setWindows(template.getWindows())
         .setPaneInfo(template.getPaneInfo())
         .setRecordOffset(template.getRecordOffset())
         .setRecordId(template.getRecordId())
         .setCausedByDrain(template.causedByDrain())
-        .setOpenTelemetryContext(template.getOpenTelemetryContext())
         .setValueKind(template.getValueKind());
   }
 
@@ -136,7 +143,7 @@ public class WindowedValues {
 
     @Override
     public Builder<T> setWindow(BoundedWindow window) {
-      return setWindows(Collections.singleton(window));
+      return setWindows(Collections.singletonList(window));
     }
 
     @Override
@@ -321,10 +328,14 @@ public class WindowedValues {
     checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
     checkArgument(valueKind != null, "WindowedValue requires ValueKind, but it was null");
     if (windows.size() == 1) {
+      BoundedWindow window =
+          windows instanceof List
+              ? ((List<? extends BoundedWindow>) windows).get(0)
+              : windows.iterator().next();
       return of(
           value,
           timestamp,
-          windows.iterator().next(),
+          window,
           paneInfo,
           currentRecordId,
           currentRecordOffset,
@@ -346,6 +357,67 @@ public class WindowedValues {
   }
 
   /**
+   * Returns a {@code WindowedValue} copying metadata from {@code template} with a new {@code value}
+   * and capturing the current OpenTelemetry {@link Context}.
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(WindowedValue<?> template, T value) {
+    return ofWithCurrentContext(template, value, template.getTimestamp());
+  }
+
+  /**
+   * Returns a {@code WindowedValue} copying metadata from {@code template} with a new {@code value}
+   * and {@code timestamp}, capturing the current OpenTelemetry {@link Context}.
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      WindowedValue<?> template, T value, Instant timestamp) {
+    if (template instanceof SingleWindowedValue) {
+      return of(
+          value,
+          timestamp,
+          ((SingleWindowedValue) template).getWindow(),
+          template.getPaneInfo(),
+          template.getRecordId(),
+          template.getRecordOffset(),
+          template.causedByDrain(),
+          Context.current(),
+          template.getValueKind());
+    }
+    return of(
+        value,
+        timestamp,
+        template.getWindows(),
+        template.getPaneInfo(),
+        template.getRecordId(),
+        template.getRecordOffset(),
+        template.causedByDrain(),
+        Context.current(),
+        template.getValueKind());
+  }
+
+  /**
+   * Returns a {@code WindowedValue} copying non-windowed metadata from {@code template} with the
+   * specified {@code value}, {@code timestamp}, {@code windows}, and {@code paneInfo}, capturing
+   * the current OpenTelemetry {@link Context}.
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      WindowedValue<?> template,
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo) {
+    return of(
+        value,
+        timestamp,
+        windows,
+        paneInfo,
+        template.getRecordId(),
+        template.getRecordOffset(),
+        template.causedByDrain(),
+        Context.current(),
+        template.getValueKind());
+  }
+
+  /**
    * @deprecated for use only in compatibility with old broken code
    */
   @Deprecated
@@ -358,10 +430,14 @@ public class WindowedValues {
       @Nullable Context openTelemetryContext,
       ValueKind valueKind) {
     if (windows.size() == 1) {
+      BoundedWindow window =
+          windows instanceof List
+              ? ((List<? extends BoundedWindow>) windows).get(0)
+              : windows.iterator().next();
       return of(
           value,
           timestamp,
-          windows.iterator().next(),
+          window,
           paneInfo,
           null,
           null,
@@ -849,6 +925,7 @@ public class WindowedValues {
       implements SingleWindowedValue {
 
     private final BoundedWindow window;
+    private transient @MonotonicNonNull Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInSingleWindow(
         T value,
@@ -888,7 +965,12 @@ public class WindowedValues {
 
     @Override
     public Collection<? extends BoundedWindow> getWindows() {
-      return Collections.singletonList(window);
+      Collection<? extends BoundedWindow> result = windows;
+      if (result == null) {
+        result = Collections.singletonList(window);
+        windows = result;
+      }
+      return result;
     }
 
     @Override

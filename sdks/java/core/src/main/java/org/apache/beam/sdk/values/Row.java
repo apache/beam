@@ -42,12 +42,12 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUtils;
+import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
 import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -682,11 +682,19 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValue(String fieldName, Object value) {
+      if (FieldAccessDescriptorParser.isSimpleIdentifier(fieldName) && schema.hasField(fieldName)) {
+        fieldOverrides.addDirectOverride(schema.indexOf(fieldName), value);
+        return this;
+      }
       return withFieldValue(FieldAccessDescriptor.withFieldNames(fieldName), value);
     }
 
     /** Set a field value using the field id. */
     public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
+      if (fieldId != null && fieldId >= 0 && fieldId < schema.getFieldCount()) {
+        fieldOverrides.addDirectOverride(fieldId, value);
+        return this;
+      }
       return withFieldValue(FieldAccessDescriptor.withFieldIds(fieldId), value);
     }
 
@@ -704,12 +712,16 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValues(Map<String, Object> values) {
-      values.entrySet().stream()
-          .forEach(
-              e ->
-                  fieldOverrides.addOverride(
-                      FieldAccessDescriptor.withFieldNames(e.getKey()).resolve(getSchema()),
-                      new FieldOverride(e.getValue())));
+      for (Map.Entry<String, Object> e : values.entrySet()) {
+        String key = e.getKey();
+        if (FieldAccessDescriptorParser.isSimpleIdentifier(key) && schema.hasField(key)) {
+          fieldOverrides.addDirectOverride(schema.indexOf(key), e.getValue());
+        } else {
+          fieldOverrides.addOverride(
+              FieldAccessDescriptor.withFieldNames(key).resolve(getSchema()),
+              new FieldOverride(e.getValue()));
+        }
+      }
       return this;
     }
 
@@ -724,6 +736,9 @@ public abstract class Row implements Serializable {
     }
 
     public Row build() {
+      if (!fieldOverrides.hasNestedOverrides()) {
+        return RowUtils.captureRowValues(schema, sourceRow, fieldOverrides);
+      }
       Row row =
           (Row)
               new RowFieldMatcher()
@@ -738,11 +753,18 @@ public abstract class Row implements Serializable {
 
   /** Builder for {@link Row}. */
   public static class Builder {
-    private List<Object> values = Lists.newArrayList();
+    private @Nullable List<Object> values;
     private final Schema schema;
 
     Builder(Schema schema) {
       this.schema = schema;
+    }
+
+    private List<Object> ensureValues() {
+      if (this.values == null) {
+        this.values = new ArrayList<>(schema.getFieldCount());
+      }
+      return this.values;
     }
 
     /** Return the schema for the row being built. */
@@ -755,20 +777,20 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValue(String fieldName, Object value) {
-      checkState(values.isEmpty());
+      checkState(values == null || values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValue(fieldName, value);
     }
 
     /** Set a field value using the field id. */
     public FieldValueBuilder withFieldValue(Integer fieldId, Object value) {
-      checkState(values.isEmpty());
+      checkState(values == null || values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValue(fieldId, value);
     }
 
     /** Set a field value using a FieldAccessDescriptor. */
     public FieldValueBuilder withFieldValue(
         FieldAccessDescriptor fieldAccessDescriptor, Object value) {
-      checkState(values.isEmpty());
+      checkState(values == null || values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValue(fieldAccessDescriptor, value);
     }
 
@@ -777,7 +799,7 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValues(Map<String, Object> values) {
-      checkState(this.values.isEmpty());
+      checkState(this.values == null || this.values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValues(values);
     }
 
@@ -788,21 +810,22 @@ public abstract class Row implements Serializable {
     // withFieldValues.
 
     public Builder addValue(@Nullable Object value) {
-      this.values.add(value);
+      ensureValues().add(value);
       return this;
     }
 
     public Builder addValues(List<@Nullable Object> values) {
-      this.values.addAll(values);
+      ensureValues().addAll(values);
       return this;
     }
 
     public Builder addValues(Object... values) {
-      return addValues(Arrays.asList(values));
+      Collections.addAll(ensureValues(), values);
+      return this;
     }
 
     public <T> Builder addArray(Collection<T> values) {
-      this.values.add(values);
+      ensureValues().add(values);
       return this;
     }
 
@@ -812,7 +835,7 @@ public abstract class Row implements Serializable {
     }
 
     public <T> Builder addIterable(Iterable<T> values) {
-      this.values.add(values);
+      ensureValues().add(values);
       return this;
     }
 
@@ -824,7 +847,7 @@ public abstract class Row implements Serializable {
     // used internal to Beam.
     @Internal
     public Row attachValues(List<@Nullable Object> attachedValues) {
-      checkState(this.values.isEmpty());
+      checkState(this.values == null || this.values.isEmpty());
       return new RowWithStorage(schema, attachedValues);
     }
 
@@ -833,7 +856,7 @@ public abstract class Row implements Serializable {
     }
 
     public int nextFieldId() {
-      return values.size();
+      return values == null ? 0 : values.size();
     }
 
     @Internal
@@ -848,7 +871,11 @@ public abstract class Row implements Serializable {
     public Row build() {
       checkNotNull(schema);
 
-      if (!values.isEmpty() && values.size() != schema.getFieldCount()) {
+      if (values == null || values.isEmpty()) {
+        return new RowWithStorage(schema, Collections.emptyList());
+      }
+
+      if (values.size() != schema.getFieldCount()) {
         throw new IllegalArgumentException(
             "Row expected "
                 + schema.getFieldCount()
@@ -862,19 +889,7 @@ public abstract class Row implements Serializable {
                 + " fields.");
       }
 
-      if (!values.isEmpty()) {
-        FieldOverrides fieldOverrides = new FieldOverrides(schema, this.values);
-        if (!fieldOverrides.isEmpty()) {
-          return (Row)
-              new RowFieldMatcher()
-                  .match(
-                      new CapturingRowCases(schema, fieldOverrides),
-                      FieldType.row(schema),
-                      new RowPosition(FieldAccessDescriptor.create()),
-                      null);
-        }
-      }
-      return new RowWithStorage(schema, Collections.emptyList());
+      return RowUtils.captureRowValues(schema, values);
     }
   }
 

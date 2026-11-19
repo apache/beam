@@ -41,6 +41,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
@@ -50,6 +51,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 
 /**
  * An implementation of a multimap user state that utilizes the Beam Fn State API to fetch, clear
@@ -384,8 +386,10 @@ public class MultimapUserState<K, V> {
         "Multimap user state is no longer usable because it is closed for %s",
         keysStateRequest.getStateKey());
     Object keyStructuralValue = mapKeyCoder.structuralValue(key);
-    pendingAdds.putIfAbsent(keyStructuralValue, KV.of(key, new ArrayList<>()));
-    pendingAdds.get(keyStructuralValue).getValue().add(value);
+    pendingAdds
+        .computeIfAbsent(keyStructuralValue, unused -> KV.of(key, new ArrayList<>()))
+        .getValue()
+        .add(value);
   }
 
   /*
@@ -419,12 +423,6 @@ public class MultimapUserState<K, V> {
       return;
     }
 
-    startStateApiWrites();
-    updateCache();
-  }
-
-  @SuppressWarnings("FutureReturnValueIgnored")
-  private void startStateApiWrites() {
     // Clear currently persisted key-values
     if (isCleared) {
       beamFnStateClient.handle(
@@ -437,44 +435,88 @@ public class MultimapUserState<K, V> {
       }
     }
 
-    // Persist pending key-values
+    List<K> pendingAddsKeys = new ArrayList<>(pendingAdds.size());
+    long pendingAddsKeysBytes = 0;
+    List<EncodedPendingAdd<K, V>> encodedPendingAdds =
+        pendingAdds.isEmpty() ? Collections.emptyList() : new ArrayList<>(pendingAdds.size());
+
+    // Persist pending key-values and record encoded byte sizes for cache weighting
     if (!pendingAdds.isEmpty()) {
-      for (KV<K, List<V>> entry : pendingAdds.values()) {
-        StateRequest request = createUserStateRequest(entry.getKey());
+      for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
+        K key = entry.getValue().getKey();
+        List<V> values = entry.getValue().getValue();
+        pendingAddsKeys.add(key);
+        StateRequest request = createUserStateRequest(key);
+        pendingAddsKeysBytes =
+            LongMath.saturatedAdd(
+                pendingAddsKeysBytes,
+                request.getStateKey().getMultimapUserState().getMapKey().size());
+        ByteString encodedValues = encodeValues(values);
         beamFnStateClient.handle(
-            request.toBuilder()
-                .setAppend(
-                    StateAppendRequest.newBuilder().setData(encodeValues(entry.getValue()))));
+            request.toBuilder().setAppend(StateAppendRequest.newBuilder().setData(encodedValues)));
+        encodedPendingAdds.add(
+            new EncodedPendingAdd<>(entry.getKey(), key, values, request, encodedValues.size()));
       }
+    }
+
+    updateCache(pendingAddsKeys, pendingAddsKeysBytes, encodedPendingAdds);
+  }
+
+  private static final class EncodedPendingAdd<K, V> {
+    final Object structuralKey;
+    final K key;
+    final List<V> values;
+    final StateRequest request;
+    final long encodedValuesBytes;
+
+    EncodedPendingAdd(
+        Object structuralKey,
+        K key,
+        List<V> values,
+        StateRequest request,
+        long encodedValuesBytes) {
+      this.structuralKey = structuralKey;
+      this.key = key;
+      this.values = values;
+      this.request = request;
+      this.encodedValuesBytes = encodedValuesBytes;
     }
   }
 
-  private void updateCache() {
-    List<K> pendingAddsKeys = new ArrayList<>(pendingAdds.size());
-    for (KV<K, List<V>> entry : pendingAdds.values()) {
-      pendingAddsKeys.add(entry.getKey());
-    }
+  private void updateCache(
+      List<K> pendingAddsKeys,
+      long pendingAddsKeysBytes,
+      List<EncodedPendingAdd<K, V>> encodedPendingAdds) {
+    WeightedList<K> weightedPendingAddsKeys =
+        WeightedList.of(
+            pendingAddsKeys,
+            LongMath.saturatedAdd(
+                pendingAddsKeysBytes, pendingAddsKeys.size() * Caches.REFERENCE_SIZE));
 
     if (isCleared) {
       // This will clear all keys and values since values is a sub-cache of keys. Note this
       // takes ownership of pendingAddKeys. This object is no longer used after it has been closed.
-      persistedKeys.clearAndAppend(pendingAddsKeys);
+      persistedKeys.clearAndAppend(weightedPendingAddsKeys);
 
       // Since the map was cleared we can add all the values that are pending since we know
       // that they must have been cleared.
-      for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
+      for (EncodedPendingAdd<K, V> encoded : encodedPendingAdds) {
         CachingStateIterable<V> iterable =
-            getPersistedValues(entry.getKey(), entry.getValue().getKey());
+            getPersistedValues(encoded.structuralKey, encoded.key, encoded.request);
         // Note this takes ownership of the list but this object is no longer used after it has
         // been closed.
-        iterable.clearAndAppend(entry.getValue().getValue());
+        iterable.clearAndAppend(
+            WeightedList.of(
+                encoded.values,
+                LongMath.saturatedAdd(
+                    encoded.encodedValuesBytes, encoded.values.size() * Caches.REFERENCE_SIZE)));
       }
     } else {
       // The cast to Set<Object> is necessary since the checker framework would like to further
       // limit the type to Set<@KeyFor("this.pendingRemoves") Object> which is incompatible with
       // the API being remove(Set<Object>). We don't want to limit the API for remove either.
       persistedKeys.remove((Set<Object>) pendingRemoves.keySet());
-      persistedKeys.append(pendingAddsKeys);
+      persistedKeys.append(weightedPendingAddsKeys);
 
       // For each removed key, we want to update the internal cache to clear its set of values
       for (Map.Entry<Object, K> entry : pendingRemoves.entrySet()) {
@@ -483,12 +525,19 @@ public class MultimapUserState<K, V> {
       }
 
       // For each added key, try to update the internal cache with the set of values.
-      for (Map.Entry<Object, KV<K, List<V>>> entry : pendingAdds.entrySet()) {
-        KV<K, CachingStateIterable<V>> value = persistedValues.get(entry.getKey());
+      for (EncodedPendingAdd<K, V> encoded : encodedPendingAdds) {
+        KV<K, CachingStateIterable<V>> value = persistedValues.get(encoded.structuralKey);
         // We don't do anything for keys that haven't been loaded since we have no knowledge whether
         // the key is empty or not.
         if (value != null) {
-          value.getValue().append(entry.getValue().getValue());
+          value
+              .getValue()
+              .append(
+                  WeightedList.of(
+                      encoded.values,
+                      LongMath.saturatedAdd(
+                          encoded.encodedValuesBytes,
+                          encoded.values.size() * Caches.REFERENCE_SIZE)));
         }
       }
     }
@@ -543,6 +592,25 @@ public class MultimapUserState<K, V> {
                       request,
                       valueCoder));
             })
+        .getValue();
+  }
+
+  private CachingStateIterable<V> getPersistedValues(
+      Object structuralKey, K key, StateRequest prebuiltRequest) {
+    return persistedValues
+        .computeIfAbsent(
+            structuralKey,
+            unused ->
+                KV.of(
+                    key,
+                    StateFetchingIterators.readAllAndDecodeStartingFrom(
+                        Caches.subCache(
+                            cache,
+                            "ValuesForKey",
+                            prebuiltRequest.getStateKey().getMultimapUserState().getMapKey()),
+                        beamFnStateClient,
+                        prebuiltRequest,
+                        valueCoder)))
         .getValue();
   }
 }

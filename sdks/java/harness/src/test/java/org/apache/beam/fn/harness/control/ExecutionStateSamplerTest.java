@@ -898,4 +898,43 @@ public class ExecutionStateSamplerTest {
     assertThat(sampler.getUserSpecifiedLullTimeMsForRestart(), equalTo(0L));
     assertThat(sampler.getUserSpecifiedTimeoutForRestart(), equalTo(false));
   }
+
+  @Test
+  public void testRepeatedResetAndReuse() {
+    MillisProvider clock = mock(MillisProvider.class);
+    when(clock.getMillis()).thenReturn(100L, 200L, 300L, 400L);
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(
+            PipelineOptionsFactory.create(), clock, mockOnTimeoutExceededCallback);
+    ExecutionStateTracker tracker = sampler.create();
+    ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+
+    // Repeated reset before start should be a safe no-op.
+    tracker.reset();
+    tracker.reset();
+    assertNull(tracker.getStatus());
+
+    // First bundle lifecycle + redundant reset calls (as done by ProcessBundleHandler).
+    tracker.start("bundle1");
+    state.activate();
+    assertEquals("ptransformId", tracker.getCurrentThreadsPTransformId());
+    state.deactivate();
+    Map<String, ByteString> finalData = new HashMap<>();
+    tracker.updateFinalMonitoringData(finalData);
+    tracker.reset();
+    tracker.reset();
+    tracker.reset();
+    assertNull(tracker.getStatus());
+    assertNull(tracker.getCurrentThreadsPTransformId());
+
+    // Second bundle lifecycle on the same tracker should work identically.
+    tracker.start("bundle2");
+    state.activate();
+    assertEquals("ptransformId", tracker.getCurrentThreadsPTransformId());
+    state.deactivate();
+    tracker.reset();
+    assertNull(tracker.getStatus());
+
+    sampler.stop();
+  }
 }

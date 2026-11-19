@@ -128,4 +128,40 @@ public class LengthPrefixCoderTest {
     assertArrayEquals(userEncoded, reencodedBytes);
     assertEquals(22L, userDecoded);
   }
+
+  @Test
+  public void testStringUtf8CoderFastPath() throws Exception {
+    LengthPrefixCoder<String> stringCoder = LengthPrefixCoder.of(StringUtf8Coder.of());
+    List<String> values = Arrays.asList("", "hello", "unicode-\u00e9-\u2603-\ud83d\ude00");
+    for (String value : values) {
+      CoderProperties.coderDecodeEncodeEqual(stringCoder, value);
+      byte[] encoded = CoderUtils.encodeToByteArray(stringCoder, value);
+      byte[] nestedExpected =
+          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), value, Coder.Context.NESTED);
+      assertArrayEquals(nestedExpected, encoded);
+    }
+  }
+
+  @Test
+  public void testNestedLengthPrefixCoderReentrancy() throws Exception {
+    LengthPrefixCoder<org.apache.beam.sdk.values.KV<String, Long>> nestedCoder =
+        LengthPrefixCoder.of(
+            KvCoder.of(
+                LengthPrefixCoder.of(StringUtf8Coder.of()),
+                LengthPrefixCoder.of(BigEndianLongCoder.of())));
+    org.apache.beam.sdk.values.KV<String, Long> value =
+        org.apache.beam.sdk.values.KV.of("reentrant-key", 123456789L);
+    CoderProperties.coderDecodeEncodeEqual(nestedCoder, value);
+  }
+
+  @Test
+  public void testLargePayloadExceedingPoolCap() throws Exception {
+    LengthPrefixCoder<org.apache.beam.sdk.values.KV<byte[], Long>> coder =
+        LengthPrefixCoder.of(KvCoder.of(ByteArrayCoder.of(), BigEndianLongCoder.of()));
+    byte[] large = new byte[128 * 1024];
+    Arrays.fill(large, (byte) 0x5a);
+    CoderProperties.coderDecodeEncodeEqual(coder, org.apache.beam.sdk.values.KV.of(large, 42L));
+    CoderProperties.coderDecodeEncodeEqual(
+        coder, org.apache.beam.sdk.values.KV.of(new byte[] {1, 2, 3}, 7L));
+  }
 }

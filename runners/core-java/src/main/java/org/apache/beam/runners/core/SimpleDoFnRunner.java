@@ -488,7 +488,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, builderSupplier.buildWithTimestamp(output, timestamp));
     }
 
     @Override
@@ -498,17 +499,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      builderSupplier
-          .builder(output)
-          .setTimestamp(timestamp)
-          .setWindows(windows)
-          .setPaneInfo(paneInfo)
-          .setReceiver(
-              wv -> {
-                checkTimestamp(elem.getTimestamp(), wv.getTimestamp());
-                SimpleDoFnRunner.this.outputWindowedValue(tag, wv);
-              })
-          .output();
+      checkTimestamp(elem.getTimestamp(), timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValues.ofWithCurrentContext(elem, output, timestamp, windows, paneInfo));
     }
 
     @Override
