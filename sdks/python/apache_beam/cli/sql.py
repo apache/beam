@@ -235,7 +235,13 @@ def run(
   cmd = [java_bin, '-cp', jar_path, _MAIN_CLASS, *sqlline_args]
   if debug:
     print('+ ' + ' '.join(_sanitize_log_token(c) for c in cmd), file=sys.stderr)
-  return subprocess.run(cmd, check=False).returncode
+  with subprocess.Popen(cmd) as proc:
+    while True:
+      try:
+        rc = proc.wait()
+        return 128 - rc if rc < 0 else rc
+      except KeyboardInterrupt:
+        pass
 
 
 def _resolve_version(version):
@@ -646,7 +652,11 @@ def _build_shaded_jar(
           work_dir, 'target', 'beam-sql-shell-runner-1.0.jar')
       if proc.returncode != 0 or not _is_valid_jar(built_jar):
         if 'Could not find artifact org.apache.beam:' in details:
-          last_ln = _sanitize_log_token(details.splitlines()[-1])
+          match_ln = next((
+              ln for ln in reversed(details.splitlines())
+              if 'Could not find artifact org.apache.beam:' in ln),
+                          details.splitlines()[-1])
+          last_ln = _sanitize_log_token(match_ln)
           raise SqlError(
               f'Maven could not resolve a Beam {_sanitize_log_token(version)} '
               f'artifact:\n  {last_ln}\n'

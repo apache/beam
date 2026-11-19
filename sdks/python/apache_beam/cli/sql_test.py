@@ -59,19 +59,22 @@ class SqlShellTest(unittest.TestCase):
     ]:
       jar_path = os.path.join(cache_dir, expected_name)
       _write_dummy_jar(jar_path)
-      calls = []
+      popen_calls = []
 
-      def fake_hit(cmd, **_kw):
-        calls.append(cmd)
-        return (
-            _proc(0, stderr='openjdk version "17.0.9"')
-            if cmd[-1] == '-version' else _proc(0))
+      def fake_popen(cmd, **_kw):
+        popen_calls.append(cmd)
+        proc = mock.MagicMock()
+        proc.__enter__.return_value = proc
+        proc.wait.side_effect = [KeyboardInterrupt(), 0]
+        return proc
 
       err_dbg = io.StringIO()
       with (
           mock.patch.dict(os.environ, {}, clear=True),
           mock.patch('shutil.which', return_value='/usr/bin/java'),
-          mock.patch('subprocess.run', side_effect=fake_hit),
+          mock.patch('subprocess.run',
+                     return_value=_proc(0, stderr='openjdk version "17.0.9"')),
+          mock.patch('subprocess.Popen', side_effect=fake_popen),
           contextlib.redirect_stderr(err_dbg),
       ):
         rc = sql.run(
@@ -84,7 +87,7 @@ class SqlShellTest(unittest.TestCase):
       self.assertEqual(rc, 0)
       self.assertIn('+ /usr/bin/java', err_dbg.getvalue())
       self.assertEqual(
-          calls[-1],
+          popen_calls[-1],
           ['/usr/bin/java', '-cp', jar_path, sql._MAIN_CLASS, '-e', 'SELECT 1'])
 
     # Cache miss builds shaded JAR via MavenWrapperMain; corrupt JAR rebuilds.
@@ -109,6 +112,10 @@ class SqlShellTest(unittest.TestCase):
                 'beam-sql-shell-runner-1.0.jar'))
       return _proc(0)
 
+    sigint_proc = mock.MagicMock()
+    sigint_proc.__enter__.return_value = sigint_proc
+    sigint_proc.wait.return_value = -2
+
     with (
         mock.patch.dict(os.environ, {}, clear=True),
         mock.patch('shutil.which', return_value='/opt/jdk21/bin/java'),
@@ -116,6 +123,7 @@ class SqlShellTest(unittest.TestCase):
                           '_download_https',
                           side_effect=lambda _u, d, **_k: _write_dummy_jar(d)),
         mock.patch('subprocess.run', side_effect=fake_build),
+        mock.patch('subprocess.Popen', return_value=sigint_proc),
         contextlib.redirect_stderr(io.StringIO()),
     ):
       self.assertEqual(
@@ -124,7 +132,7 @@ class SqlShellTest(unittest.TestCase):
               runner='dataflow',
               ios=['csv'],
               beam_home=self.beam_home),
-          0)
+          130)
     self.assertEqual(len(wrapper_cmds), 1)
     self.assertTrue(zipfile.is_zipfile(corrupt_jar))
     ET.fromstring(pom_captured[0])
@@ -369,13 +377,22 @@ class SqlShellTest(unittest.TestCase):
     wrapper_jar = os.path.join(
         self.beam_home, 'maven-wrapper', '.mvn', 'wrapper', 'maven-wrapper.jar')
     _write_dummy_jar(wrapper_jar)
+    mvn_missing = (
+        '[ERROR] Could not find artifact '
+        'org.apache.beam:beam-sdks-java-io-x:2.75.0\n'
+        '[ERROR] To see the full stack trace, re-run with -e.\n'
+        '[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN')
     for err_line, pattern, code in [
-        ('[ERROR] Could not find artifact org.apache.beam:beam-sdks-java-io-x:2.75.0',
-         'Maven could not resolve', 2),
-        ('\x1b[31m[ERROR] compiler crash\x1b[0m', 'Maven build for Beam SQL JAR', 1),
+        (mvn_missing, r'Maven could not resolve[\s\S]*beam-sdks-java-io-x', 2),
+        (
+            '\x1b[31m[ERROR] compiler crash\x1b[0m',
+            'Maven build for Beam SQL JAR',
+            1),
     ]:
-      with mock.patch('subprocess.run', return_value=_proc(1, stderr=err_line)), \
-           contextlib.redirect_stderr(io.StringIO()):
+      with (
+          mock.patch('subprocess.run', return_value=_proc(1, stderr=err_line)),
+          contextlib.redirect_stderr(io.StringIO()),
+      ):
         with self.assertRaisesRegex(SqlError, pattern) as c_mv:
           sql._build_shaded_jar(
               wrapper_jar,
