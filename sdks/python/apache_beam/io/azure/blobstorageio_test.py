@@ -21,10 +21,13 @@
 
 import logging
 import unittest
+from unittest import mock
 
 # Protect against environments where azure library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  from azure.core.exceptions import HttpResponseError
+  from azure.core.exceptions import ResourceNotFoundError
   from apache_beam.io.azure import blobstorageio
 except ImportError:
   blobstorageio = None  # type: ignore[assignment]
@@ -84,6 +87,43 @@ class TestAZFSPathParser(unittest.TestCase):
   def test_bad_azfs_path_blob_optional(self):
     for path in self.BAD_AZFS_PATHS:
       self.assertRaises(ValueError, blobstorageio.parse_azfs_path, path, True)
+
+
+@unittest.skipIf(
+    blobstorageio is None or not blobstorageio.AZURE_DEPS_INSTALLED,
+    'Azure dependencies are not installed')
+class TestBlobStorageExists(unittest.TestCase):
+  def setUp(self):
+    self.client = mock.Mock()
+    self.blob = self.client.get_blob_client.return_value
+    self.io = blobstorageio.BlobStorageIO(client=self.client)
+    self.path = "azfs://storageaccount/container/new-output.txt"
+
+  def test_existing_blob(self):
+    self.assertTrue(self.io.exists(self.path))
+    self.client.get_blob_client.assert_called_once_with(
+        "container", "new-output.txt")
+
+  def test_missing_blob_returns_false_after_error_translation(self):
+    error = ResourceNotFoundError("The specified blob does not exist.")
+    error.status_code = 404
+    self.blob.get_blob_properties.side_effect = error
+    self.assertFalse(self.io.exists(self.path))
+
+  def test_authorization_failure_is_not_reported_as_missing(self):
+    error = HttpResponseError("AuthorizationPermissionMismatch")
+    error.status_code = 403
+    self.blob.get_blob_properties.side_effect = error
+    with self.assertRaises(HttpResponseError) as caught:
+      self.io.exists(self.path)
+    self.assertIs(caught.exception, error)
+
+  def test_other_translated_errors_are_not_reported_as_missing(self):
+    error = blobstorageio.BlobStorageError("unexpected status", 500)
+    with mock.patch.object(self.io, "_blob_properties", side_effect=error), \
+        self.assertRaises(blobstorageio.BlobStorageError) as caught:
+      self.io.exists(self.path)
+    self.assertIs(caught.exception, error)
 
 
 if __name__ == '__main__':

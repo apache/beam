@@ -336,8 +336,8 @@ class BlobStorageIO(object):
     try:
       self._blob_properties(path)
       return True
-    except ResourceNotFoundError as e:
-      if e.status_code == 404:
+    except BlobStorageError as e:
+      if e.code == 404:
         # HTTP 404 indicates that the file did not exist.
         return False
       else:
