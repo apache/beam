@@ -487,7 +487,7 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDirectWriteBoundedWithFixedSharding() throws IOException {
+  public void testDirectWriteDisabledForBoundedWithFixedSharding() throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add("number: " + i);
@@ -497,8 +497,8 @@ public class WriteFilesTest {
     p.apply(Create.of(elements)).apply(write);
     PipelineResult result = p.run();
 
-    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
+    checkFileContents(getBaseOutputFilename(), elements, Optional.of(3), true, null);
+    assertEquals(0L, counterValue(result, "directWriteBundles"));
   }
 
   @Test
