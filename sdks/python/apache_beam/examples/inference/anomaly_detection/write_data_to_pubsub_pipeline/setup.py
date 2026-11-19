@@ -29,8 +29,8 @@ import setuptools
 from setuptools import find_packages
 
 REQUIREMENTS = [
-    "apache-beam[gcp]==2.41.0",
-    "datasets==2.4.0",
+    "apache-beam[gcp]>=2.72.0",
+    "datasets==5.0.1",
 ]
 
 setuptools.setup(

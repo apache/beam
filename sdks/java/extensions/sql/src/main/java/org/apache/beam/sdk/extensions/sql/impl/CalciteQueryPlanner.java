@@ -199,7 +199,21 @@ public class CalciteQueryPlanner implements QueryPlanner {
     try {
       SqlNode parsed = planner.parse(sqlStatement);
       TableResolutionUtils.setupCustomTableResolution(connection, parsed);
-      SqlNode validated = planner.validate(parsed);
+      MetadataColumnResolver metadataColumns =
+          new MetadataColumnResolver(
+              new CalciteCatalogReader(
+                  CalciteSchema.from(connection.getRootSchema()),
+                  ImmutableList.of(connection.getCurrentSchemaPlus().getName()),
+                  connection.getTypeFactory(),
+                  connection.config()));
+      metadataColumns.resolve(parsed);
+      SqlNode validated;
+      try {
+        validated = planner.validate(parsed);
+      } catch (ValidationException e) {
+        String hinted = metadataColumns.explain(e);
+        throw hinted == null ? e : new ValidationException(hinted, e);
+      }
       LOG.info("SQL:\n{}", validated);
 
       // root of original logical plan

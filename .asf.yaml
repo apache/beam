@@ -50,6 +50,7 @@ github:
 
   protected_branches:
     master: {}
+    release-2.78.0-postrelease: {}
     release-2.78: {}
     release-2.77.0-postrelease: {}
     release-2.77: {}

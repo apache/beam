@@ -342,7 +342,6 @@ task integrationTestBigQuery(type: Test, dependsOn: processTestResources) {
   outputs.upToDateWhen { false }
   include '**/bigquery/**/*IT.class'
   exclude '**/BigQueryIOIcebergManagedTableIT.class'
-  exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageWriteIT.class'
@@ -354,6 +353,11 @@ task integrationTestBigQuery(type: Test, dependsOn: processTestResources) {
   testClassesDirs = sourceSets.test.output.classesDirs
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // Larger reads run in the Dataflow integration and performance suites.
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1G'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1T'
+    }
   }
 }
 
