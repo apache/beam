@@ -17,6 +17,7 @@
 
 """``PTransform`` for reading from and writing to Web APIs."""
 import abc
+import collections
 import concurrent.futures
 import contextlib
 import enum
@@ -41,6 +42,7 @@ from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.util import BatchElements
 from apache_beam.utils import retry
+from apache_beam.utils import windowed_value
 
 try:
   import redis
@@ -336,6 +338,93 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
         _CallDoFn(self._caller, self._timeout, self._repeater, self._throttler))
 
 
+class _WindowedRequest:
+  """Internal wrapper preserving per-element windowing metadata across batching."""
+  def __init__(
+      self,
+      request: Any,
+      timestamp: Any,
+      windows: tuple[Any, ...],
+      pane_info: Any = windowed_value.PANE_INFO_UNKNOWN):
+    self.request = request
+    self.timestamp = timestamp
+    self.windows = windows
+    self.pane_info = pane_info
+
+
+class _AttachWindowMetadataDoFn(beam.DoFn):
+  """Captures per-element timestamp, window, and pane_info before batching."""
+  def process(
+      self,
+      element,
+      timestamp=beam.DoFn.TimestampParam,
+      window=beam.DoFn.WindowParam,
+      pane_info=beam.DoFn.PaneInfoParam):
+    yield _WindowedRequest(element, timestamp, (window, ), pane_info)
+
+
+def _adapt_batching_kwargs(
+    batching_kwargs: Mapping[str, Any]) -> dict[str, Any]:
+  adapted = dict(batching_kwargs)
+  for fn_key in ('element_size_fn', 'length_fn', 'key_fn'):
+    if fn_key in adapted and adapted[fn_key] is not None:
+      orig_fn = adapted[fn_key]
+      adapted[fn_key] = (
+          lambda el, _fn=orig_fn: _fn(
+              el.request if isinstance(el, _WindowedRequest) else el))
+  return adapted
+
+
+def _reattach_window_metadata(
+    windowed_requests: list[_WindowedRequest],
+    raw_responses: Any) -> list[_WindowedRequest]:
+  if not isinstance(raw_responses, collections.abc.Iterable) or isinstance(
+      raw_responses, (bytes, str, beam.Row)):
+    w0 = windowed_requests[0]
+    return [
+        _WindowedRequest(raw_responses, w0.timestamp, w0.windows, w0.pane_info)
+    ]
+
+  resp_list = list(raw_responses)
+  by_id: dict[int, collections.deque[_WindowedRequest]] = (
+      collections.defaultdict(collections.deque))
+  for w in windowed_requests:
+    by_id[id(w.request)].append(w)
+  remaining: list[_WindowedRequest] = list(windowed_requests)
+
+  wrapped: list[_WindowedRequest] = []
+  for idx, resp_item in enumerate(resp_list):
+    matched_w: Optional[_WindowedRequest] = None
+    if isinstance(resp_item, tuple) and len(resp_item) == 2:
+      req_candidate = resp_item[0]
+      cand_id = id(req_candidate)
+      if cand_id in by_id and by_id[cand_id]:
+        matched_w = by_id[cand_id].popleft()
+        for r_idx, rem_w in enumerate(remaining):
+          if rem_w is matched_w:
+            remaining.pop(r_idx)
+            break
+      else:
+        for r_idx, rem_w in enumerate(remaining):
+          if rem_w.request == req_candidate:
+            matched_w = remaining.pop(r_idx)
+            rem_id = id(matched_w.request)
+            if rem_id in by_id and matched_w in by_id[rem_id]:
+              by_id[rem_id].remove(matched_w)
+            break
+    if matched_w is None:
+      matched_w = (
+          windowed_requests[idx]
+          if idx < len(windowed_requests) else windowed_requests[-1])
+    wrapped.append(
+        _WindowedRequest(
+            resp_item,
+            matched_w.timestamp,
+            matched_w.windows,
+            matched_w.pane_info))
+  return wrapped
+
+
 class _CallDoFn(beam.DoFn):
   def setup(self):
     self._caller.__enter__()
@@ -370,14 +459,30 @@ class _CallDoFn(beam.DoFn):
     if is_throttled_request:
       self._metrics_collector.throttled_requests.inc(1)
 
+    is_windowed_batch = (
+        isinstance(request, list) and len(request) > 0 and
+        isinstance(request[0], _WindowedRequest))
+    caller_request: Any = ([w.request
+                            for w in request] if is_windowed_batch else request)
+
     try:
       req_time = time.time()
       response = self._repeater.repeat(
-          self._caller, request, self._timeout, self._metrics_collector)
+          self._caller, caller_request, self._timeout, self._metrics_collector)
       self._metrics_collector.responses.inc(1)
       if self._throttler is not None:
         self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
-      yield response
+      if is_windowed_batch:
+        windowed_batch: list[_WindowedRequest] = request  # type: ignore[assignment]
+        wrapped_response = _reattach_window_metadata(windowed_batch, response)
+        min_ts = min(w.timestamp for w in windowed_batch)
+        yield windowed_value.WindowedValue(
+            wrapped_response,
+            min_ts,
+            windowed_batch[0].windows,
+            windowed_batch[0].pane_info)
+      else:
+        yield response
     except Exception as e:
       raise e
 
@@ -738,10 +843,17 @@ class RedisCache(Cache):
 
 
 class FlattenBatch(beam.DoFn):
-  """Flatten a batched PCollection."""
+  """Flatten a batched PCollection, restoring per-element windowing metadata."""
   def process(self, elements, *args, **kwargs):
     for element in elements:
-      yield element
+      if isinstance(element, _WindowedRequest):
+        yield windowed_value.WindowedValue(
+            element.request,
+            element.timestamp,
+            element.windows,
+            element.pane_info)
+      else:
+        yield element
 
 
 class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
@@ -813,7 +925,10 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
 
     # Batch elements if batching is enabled.
     if self._batching_kwargs:
-      inputs = inputs | BatchElements(**self._batching_kwargs)
+      inputs = (
+          inputs
+          | "AttachWindowMetadata" >> beam.ParDo(_AttachWindowMetadataDoFn())
+          | BatchElements(**_adapt_batching_kwargs(self._batching_kwargs)))
 
     if isinstance(self._throttler, DefaultThrottler):
       # DefaultThrottler applies throttling in the DoFn of
