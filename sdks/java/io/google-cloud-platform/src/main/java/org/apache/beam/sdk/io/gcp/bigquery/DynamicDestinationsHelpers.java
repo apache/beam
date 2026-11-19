@@ -47,6 +47,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -184,6 +185,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public @Nullable TableReference getCloneSource(DestinationT destination) {
+      return inner.getCloneSource(destination);
+    }
+
+    @Override
     public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
       return inner.getTableConstraints(destination);
     }
@@ -235,6 +241,40 @@ class DynamicDestinationsHelpers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
+    }
+  }
+
+  /** Returns the same clone source for every table. */
+  static class ConstantCloneSourceDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final ValueProvider<String> jsonCloneSource;
+    private transient @Nullable TableReference cloneSource;
+
+    ConstantCloneSourceDestinations(
+        DynamicDestinations<T, DestinationT> inner, ValueProvider<String> jsonCloneSource) {
+      super(inner);
+      Preconditions.checkArgumentNotNull(jsonCloneSource, "jsonCloneSource cannot be null");
+      this.jsonCloneSource = jsonCloneSource;
+    }
+
+    @Override
+    public TableReference getCloneSource(DestinationT destination) {
+      @Nullable TableReference cloneSource = this.cloneSource;
+      if (cloneSource == null) {
+        String jsonCloneSource = this.jsonCloneSource.get();
+        checkArgument(jsonCloneSource != null, "jsonCloneSource cannot be null");
+        cloneSource = BigQueryHelpers.fromJsonString(jsonCloneSource, TableReference.class);
+        this.cloneSource = cloneSource;
+      }
+      return cloneSource.clone();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("jsonCloneSource", jsonCloneSource)
+          .toString();
     }
   }
 
@@ -433,6 +473,32 @@ class DynamicDestinationsHelpers {
     return new MatchTableDynamicDestinations<>(inner, bqServices);
   }
 
+  static <T, DestinationT>
+      DynamicDestinations<T, DestinationT> cloneSourceSchemaDynamicDestinations(
+          DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+    return new CloneSourceSchemaDestinations<>(inner, bqServices);
+  }
+
+  /** Uses the clone source schema for temporary load tables when no schema was supplied. */
+  static class CloneSourceSchemaDestinations<T, DestinationT>
+      extends MatchTableDynamicDestinations<T, DestinationT> {
+    private CloneSourceSchemaDestinations(
+        DynamicDestinations<T, DestinationT> inner, BigQueryServices bqServices) {
+      super(inner, bqServices);
+    }
+
+    @Override
+    public @Nullable TableSchema getSchema(DestinationT destination) {
+      @Nullable TableSchema schema = inner.getSchema(destination);
+      return schema != null ? schema : getCloneSourceSchema(destination);
+    }
+
+    @Override
+    public TableDestination getTable(DestinationT destination) {
+      return inner.getTable(destination);
+    }
+  }
+
   static class MatchTableDynamicDestinations<T, DestinationT>
       extends DelegatingDynamicDestinations<T, DestinationT> {
     private final BigQueryServices bqServices;
@@ -444,6 +510,11 @@ class DynamicDestinationsHelpers {
     }
 
     private @Nullable Table getBigQueryTable(TableReference tableReference) {
+      return getBigQueryTable(tableReference, null);
+    }
+
+    private @Nullable Table getBigQueryTable(
+        TableReference tableReference, @Nullable String defaultProjectId) {
       BackOff backoff =
           BackOffAdapter.toGcpBackOff(
               FluentBackoff.DEFAULT
@@ -459,16 +530,12 @@ class DynamicDestinationsHelpers {
               throw new IllegalStateException("pipeline options cannot be null");
             }
             BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-            if (tableReference.getProjectId() == null) {
-              tableReference.setProjectId(
-                  bqOptions.getBigQueryProject() == null
-                      ? bqOptions.getProject()
-                      : bqOptions.getBigQueryProject());
-            }
+            TableReference tableReferenceToFetch =
+                withDefaultProject(bqOptions, tableReference, defaultProjectId);
             try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
-              return datasetService.getTable(tableReference);
+              return datasetService.getTable(tableReferenceToFetch);
             } catch (InterruptedException | IOException e) {
-              LOG.info("Failed to get BigQuery table {}", tableReference);
+              LOG.info("Failed to get BigQuery table {}", tableReferenceToFetch);
             }
           } catch (Exception e) {
             throw new RuntimeException(e);
@@ -478,6 +545,35 @@ class DynamicDestinationsHelpers {
         throw new RuntimeException(e);
       }
       return null;
+    }
+
+    private static TableReference withDefaultProject(
+        BigQueryOptions options, TableReference tableReference, @Nullable String defaultProjectId) {
+      TableReference updated = tableReference.clone();
+      if (Strings.isNullOrEmpty(updated.getProjectId())) {
+        if (defaultProjectId != null && !defaultProjectId.isEmpty()) {
+          updated.setProjectId(defaultProjectId);
+        } else {
+          @Nullable String projectId = options.getBigQueryProject();
+          if (projectId == null || projectId.isEmpty()) {
+            projectId = options.getProject();
+          }
+          if (projectId != null && !projectId.isEmpty()) {
+            updated.setProjectId(projectId);
+          }
+        }
+      }
+      return updated;
+    }
+
+    @Nullable TableSchema getCloneSourceSchema(DestinationT destination) {
+      @Nullable TableReference cloneSource = super.getCloneSource(destination);
+      if (cloneSource == null) {
+        return null;
+      }
+      TableReference destinationRef = super.getTable(destination).getTableReference();
+      @Nullable Table sourceTable = getBigQueryTable(cloneSource, destinationRef.getProjectId());
+      return sourceTable == null ? null : sourceTable.getSchema();
     }
 
     /** Identical to {@link BackOffUtils#next} but without checked IOException. */
@@ -494,16 +590,25 @@ class DynamicDestinationsHelpers {
     @Override
     public TableDestination getTable(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
-      Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+      TableReference tableReference = wrappedDestination.getTableReference();
+      @Nullable String destinationProjectId = tableReference.getProjectId();
+      Table existingTable = getBigQueryTable(tableReference);
+      Table tableToMatch = existingTable;
+      if (tableToMatch == null) {
+        @Nullable TableReference cloneSource = super.getCloneSource(destination);
+        if (cloneSource != null) {
+          tableToMatch = getBigQueryTable(cloneSource, destinationProjectId);
+        }
+      }
 
-      if (existingTable == null) {
+      if (tableToMatch == null) {
         return wrappedDestination;
       } else {
         return new TableDestination(
             wrappedDestination.getTableSpec(),
-            existingTable.getDescription(),
-            existingTable.getTimePartitioning(),
-            existingTable.getClustering());
+            tableToMatch.getDescription(),
+            tableToMatch.getTimePartitioning(),
+            tableToMatch.getClustering());
       }
     }
 
@@ -514,10 +619,15 @@ class DynamicDestinationsHelpers {
     @Override
     public @Nullable TableSchema getSchema(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
-      @Nullable Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+      TableReference tableReference = wrappedDestination.getTableReference();
+      @Nullable Table existingTable = getBigQueryTable(tableReference);
       if (existingTable == null
           || existingTable.getSchema() == null
           || existingTable.getSchema().isEmpty()) {
+        @Nullable TableSchema cloneSchema = getCloneSourceSchema(destination);
+        if (cloneSchema != null && !cloneSchema.isEmpty()) {
+          return cloneSchema;
+        }
         return super.getSchema(destination);
       } else {
         return existingTable.getSchema();

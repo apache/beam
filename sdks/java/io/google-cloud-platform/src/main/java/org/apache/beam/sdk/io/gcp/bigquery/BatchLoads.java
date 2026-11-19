@@ -434,7 +434,7 @@ class BatchLoads<DestinationT, ElementT>
                             zeroLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
-                            CreateDisposition.CREATE_NEVER,
+                            createDisposition,
                             maxRetryJobs,
                             kmsKey,
                             schemaUpdateOptions,
@@ -540,7 +540,7 @@ class BatchLoads<DestinationT, ElementT>
                             zeroLoadJobIdPrefixView,
                             loadJobProjectId,
                             WriteDisposition.WRITE_APPEND,
-                            CreateDisposition.CREATE_NEVER,
+                            createDisposition,
                             maxRetryJobs,
                             kmsKey,
                             schemaUpdateOptions,
@@ -816,6 +816,14 @@ class BatchLoads<DestinationT, ElementT>
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
+    // Temp tables need the clone source schema even when schema update options prevent matching
+    // the final destination's schema.
+    DynamicDestinations<?, DestinationT> tempTableDestinations =
+        schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty()
+            ? DynamicDestinationsHelpers.cloneSourceSchemaDynamicDestinations(
+                dynamicDestinations, bigQueryServices)
+            : destinationsWithMatching;
+
     Coder<KV<ShardedKey<DestinationT>, WritePartition.Result>> partitionsCoder =
         KvCoder.of(
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
@@ -839,7 +847,7 @@ class BatchLoads<DestinationT, ElementT>
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED,
                 sideInputs,
-                destinationsWithMatching,
+                tempTableDestinations,
                 loadJobProjectId,
                 maxRetryJobs,
                 ignoreUnknownValues,
