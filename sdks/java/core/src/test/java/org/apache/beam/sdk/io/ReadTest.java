@@ -73,6 +73,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -289,6 +290,33 @@ public class ReadTest implements Serializable {
     assertEquals(1, source.checkpointMarkCalls.get());
   }
 
+  @Test
+  public void testUnboundedSdfProcessElementTakesSingleCheckpoint() throws Exception {
+    CheckpointCountingSource source = new CheckpointCountingSource(2);
+    Read.UnboundedSourceAsSDFWrapperFn<Long, CounterMark> wrapperFn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
+    wrapperFn.setUp();
+    RestrictionTracker<
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>,
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[]>
+        tracker =
+            wrapperFn.restrictionTracker(
+                wrapperFn.initialRestriction(source), PipelineOptionsFactory.create());
+    AtomicInteger finalizedCallbacks = new AtomicInteger();
+    DoFn.BundleFinalizer bundleFinalizer =
+        (callbackExpiry, callback) -> finalizedCallbacks.incrementAndGet();
+    TestOutputReceiver<ValueWithRecordId<Long>> receiver = new TestOutputReceiver<>();
+    WatermarkEstimators.Manual watermarkEstimator =
+        wrapperFn.newWatermarkEstimator(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    DoFn.ProcessContinuation continuation =
+        wrapperFn.processElement(tracker, watermarkEstimator, receiver, bundleFinalizer);
+
+    assertEquals(DoFn.ProcessContinuation.resume(), continuation);
+    assertEquals(1, source.checkpointMarkCalls.get());
+    assertEquals(1, finalizedCallbacks.get());
+  }
+
   private <T extends Serializable & Consumer<Instant>>
       Read.Unbounded<Long> newUnboundedReadInterceptingWatermark(
           long numElements, T interceptedWatermarkReceiver) {
@@ -377,6 +405,15 @@ public class ReadTest implements Serializable {
   /** A source whose readers count the checkpoints they take. */
   private static class CheckpointCountingSource extends UnboundedSource<Long, CounterMark> {
     private final AtomicInteger checkpointMarkCalls = new AtomicInteger();
+    private final long maxElements;
+
+    CheckpointCountingSource() {
+      this(Long.MAX_VALUE);
+    }
+
+    CheckpointCountingSource(long maxElements) {
+      this.maxElements = maxElements;
+    }
 
     @Override
     public List<? extends UnboundedSource<Long, CounterMark>> split(
@@ -397,6 +434,9 @@ public class ReadTest implements Serializable {
 
         @Override
         public boolean advance() {
+          if (current >= maxElements) {
+            return false;
+          }
           current++;
           return true;
         }

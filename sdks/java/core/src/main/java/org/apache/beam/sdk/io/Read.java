@@ -617,7 +617,7 @@ public class Read {
       CheckpointT checkpoint = currentRestriction.getCheckpoint();
       if (checkpoint != null
           && !isInitialRestriction
-          && !(tracker.currentRestriction().getCheckpoint() instanceof NoopCheckpointMark)) {
+          && !(checkpoint instanceof NoopCheckpointMark)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardMinutes(DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS)),
             checkpoint::finalizeCheckpoint);
