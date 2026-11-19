@@ -454,6 +454,35 @@ class TestPubSubSource(unittest.TestCase):
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  def test_display_data_max_read_time_seconds(self):
+    source = _PubSubSource(
+        'projects/fakeprj/topics/a_topic', max_read_time_seconds=60)
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),
+        DisplayDataItemMatcher('with_attributes', False),
+        DisplayDataItemMatcher('max_read_time_seconds', 60),
+    ]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_invalid_max_read_time_seconds(self):
+    with self.assertRaisesRegex(ValueError,
+                                'max_read_time_seconds must be positive'):
+      ReadFromPubSub('projects/fakeprj/topics/a_topic', max_read_time_seconds=0)
+    with self.assertRaisesRegex(ValueError,
+                                'max_read_time_seconds must be positive'):
+      ReadFromPubSub(
+          'projects/fakeprj/topics/a_topic', max_read_time_seconds=-10)
+
+  def test_is_bounded(self):
+    unbounded_source = _PubSubSource('projects/fakeprj/topics/a_topic')
+    self.assertFalse(unbounded_source.is_bounded())
+
+    bounded_source = _PubSubSource(
+        'projects/fakeprj/topics/a_topic', max_read_time_seconds=30)
+    self.assertTrue(bounded_source.is_bounded())
+
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
@@ -506,6 +535,7 @@ class TestReadFromPubSub(unittest.TestCase):
   def setUp(self):
     _PubSubReadEvaluator._subscription_cache.clear()
     _PubSubReadEvaluator._subscriber_client_cache.clear()
+    _PubSubReadEvaluator._start_times.clear()
 
   def test_subscriber_client_is_reused_for_transform(self, mock_pubsub):
     class Transform(object):
@@ -958,6 +988,162 @@ class TestReadFromPubSub(unittest.TestCase):
       self.assertSetEqual(
           Lineage.query(p.result.metrics(), Lineage.SOURCE),
           set([f"pubsub:{test_case}:fakeprj.topic_or_sub"]))
+
+  def test_read_bounded_batch_mode_topic_success(self, mock_pubsub):
+    data = b'bounded_data'
+    publish_time_secs = 1520861821
+    publish_time_nanos = 234567000
+    ack_id = 'ack_id_1'
+    pull_response = test_utils.create_pull_response([
+        test_utils.PullResponseMessage(
+            data, {}, publish_time_secs, publish_time_nanos, ack_id)
+    ])
+    empty_response = test_utils.create_pull_response([])
+    client = mock_pubsub.return_value
+    client.subscription_path.return_value = (
+        'projects/fakeprj/subscriptions/beam_temp_sub')
+    client.topic_path.return_value = 'projects/fakeprj/topics/a_topic'
+    client.pull.side_effect = (
+        lambda **kwargs: pull_response
+        if client.pull.call_count == 1 else empty_response)
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      pcoll = p | ReadFromPubSub(
+          topic='projects/fakeprj/topics/a_topic', max_read_time_seconds=1)
+      self.assertTrue(pcoll.is_bounded)
+      assert_that(pcoll, equal_to([data]))
+
+    client.create_subscription.assert_called_once_with(
+        name='projects/fakeprj/subscriptions/beam_temp_sub',
+        topic='projects/fakeprj/topics/a_topic')
+    client.acknowledge.assert_called_once_with(
+        subscription='projects/fakeprj/subscriptions/beam_temp_sub',
+        ack_ids=[ack_id])
+    client.delete_subscription.assert_called_once_with(
+        subscription='projects/fakeprj/subscriptions/beam_temp_sub')
+    client.close.assert_called_once_with()
+
+  def test_read_bounded_batch_mode_subscription_with_attributes(
+      self, mock_pubsub):
+    data = b'bounded_msg'
+    attributes = {'key': 'value', 'time': '2018-03-12T13:37:01.234567Z'}
+    publish_time_secs = 1337000000
+    publish_time_nanos = 133700000
+    ack_id = 'ack_id_sub'
+    pull_response = test_utils.create_pull_response([
+        test_utils.PullResponseMessage(
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+    ])
+    empty_response = test_utils.create_pull_response([])
+    client = mock_pubsub.return_value
+    client.subscription_path.return_value = (
+        'projects/fakeprj/subscriptions/existing_sub')
+    client.pull.side_effect = (
+        lambda **kwargs: pull_response
+        if client.pull.call_count == 1 else empty_response)
+
+    expected_elements = [
+        TestWindowedValue(
+            PubsubMessage(data, attributes),
+            timestamp.Timestamp.from_rfc3339(attributes['time']),
+            [window.GlobalWindow()]),
+    ]
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      pcoll = p | ReadFromPubSub(
+          subscription='projects/fakeprj/subscriptions/existing_sub',
+          with_attributes=True,
+          timestamp_attribute='time',
+          max_read_time_seconds=1)
+      self.assertTrue(pcoll.is_bounded)
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
+
+    client.create_subscription.assert_not_called()
+    client.delete_subscription.assert_not_called()
+    client.acknowledge.assert_called_once_with(
+        subscription='projects/fakeprj/subscriptions/existing_sub',
+        ack_ids=[ack_id])
+
+  def test_read_bounded_deadline_exceeded(self, mock_pubsub):
+    class DeadlineExceeded(Exception):
+      pass
+
+    client = mock_pubsub.return_value
+    client.subscription_path.return_value = (
+        'projects/fakeprj/subscriptions/existing_sub')
+    client.pull.side_effect = DeadlineExceeded(' deadline exceeded ')
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      pcoll = p | ReadFromPubSub(
+          subscription='projects/fakeprj/subscriptions/existing_sub',
+          max_read_time_seconds=1)
+      assert_that(pcoll, equal_to([]))
+
+    client.acknowledge.assert_not_called()
+
+  def test_read_bounded_id_label_unsupported(self, unused_mock_pubsub):
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = False
+    with self.assertRaisesRegex(NotImplementedError,
+                                r'id_label is not supported'):
+      with TestPipeline(options=options) as p:
+        _ = p | ReadFromPubSub(
+            topic='projects/fakeprj/topics/a_topic',
+            id_label='a_label',
+            max_read_time_seconds=10)
+
+  def test_evaluator_max_read_time_seconds_timeout_and_completion(
+      self, mock_pubsub):
+    from apache_beam.runners.direct.watermark_manager import WatermarkManager
+
+    class DeadlineExceeded(Exception):
+      pass
+
+    mock_pubsub.subscription_path.return_value = (
+        'projects/fakeprj/subscriptions/a_sub')
+    client = mock_pubsub.return_value
+    client.pull.side_effect = DeadlineExceeded('deadline exceeded')
+
+    source = _PubSubSource(
+        subscription='projects/fakeprj/subscriptions/a_sub',
+        max_read_time_seconds=10)
+    applied_ptransform = mock.MagicMock()
+    applied_ptransform.transform._source = source
+    applied_ptransform.inputs = [mock.MagicMock()]
+    evaluation_context = mock.MagicMock()
+    evaluation_context.pipeline_options.view_as.return_value.project = 'fakeprj'
+
+    with mock.patch('apache_beam.runners.direct.transform_evaluator.time.time'
+                    ) as (mock_time):
+      # Initialize at t=100; first pull at t=104 (6s remaining) -> not yet done
+      mock_time.return_value = 100.0
+      evaluator = _PubSubReadEvaluator(
+          evaluation_context, applied_ptransform, None, [])
+      mock_time.return_value = 104.0
+      result = evaluator.finish_bundle()
+
+      client.pull.assert_called_once_with(
+          subscription='projects/fakeprj/subscriptions/a_sub',
+          max_messages=10,
+          timeout=6.0)
+      self.assertEqual(len(result.unprocessed_bundles), 1)
+
+      # Next bundle at t=111 (11s elapsed >= 10s) -> completes with +inf
+      client.pull.reset_mock()
+      mock_time.return_value = 111.0
+      result_done = evaluator.finish_bundle()
+
+      client.pull.assert_not_called()
+      self.assertEqual(result_done.unprocessed_bundles, [])
+      self.assertEqual(
+          result_done.keyed_watermark_holds,
+          {None: WatermarkManager.WATERMARK_POS_INF})
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')

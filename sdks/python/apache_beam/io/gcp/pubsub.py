@@ -32,6 +32,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 # pytype: skip-file
 import logging
+import random
 import re
 import time
 from typing import Any
@@ -43,13 +44,16 @@ from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.metrics.metric import Lineage
+from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.timestamp import Timestamp
 
 try:
   from google.cloud import pubsub
@@ -170,8 +174,8 @@ class PubsubMessage(object):
     if not for_publish:
       if self.message_id:
         message_id = self.message_id
-        if self.publish_time:
-          publish_time = self.publish_time
+      if self.publish_time:
+        publish_time = self.publish_time
 
     if len(self.ordering_key) > 1024:
       raise ValueError(
@@ -218,7 +222,8 @@ class ReadFromPubSub(PTransform):
       subscription: Optional[str] = None,
       id_label: Optional[str] = None,
       with_attributes: bool = False,
-      timestamp_attribute: Optional[str] = None) -> None:
+      timestamp_attribute: Optional[str] = None,
+      max_read_time_seconds: Optional[int] = None) -> None:
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -250,19 +255,38 @@ class ReadFromPubSub(PTransform):
           ``2015-10-29T23:41:41.123Z``. The sub-second component of the
           timestamp is optional, and digits beyond the first three (i.e., time
           units smaller than milliseconds) may be ignored.
+      max_read_time_seconds: Maximum time in seconds to read from Pub/Sub.
+        Default is forever.
     """
     super().__init__()
+    if max_read_time_seconds is not None and max_read_time_seconds <= 0:
+      raise ValueError('max_read_time_seconds must be positive.')
+    self.max_read_time_seconds = max_read_time_seconds
     self.with_attributes = with_attributes
     self._source = _PubSubSource(
         topic=topic,
         subscription=subscription,
         id_label=id_label,
         with_attributes=self.with_attributes,
-        timestamp_attribute=timestamp_attribute)
+        timestamp_attribute=timestamp_attribute,
+        max_read_time_seconds=self.max_read_time_seconds)
 
   def expand(self, pvalue):
-    # TODO(BEAM-27443): Apply a proper transform rather than Read.
-    pcoll = pvalue.pipeline | Read(self._source)
+    if self.max_read_time_seconds is not None:
+      sub_project = None
+      if pvalue.pipeline and pvalue.pipeline.options:
+        from apache_beam.options.pipeline_options import GoogleCloudOptions
+        sub_project = pvalue.pipeline.options.view_as(
+            GoogleCloudOptions).project
+      if not sub_project:
+        sub_project = self._source.project
+      pcoll = (
+          pvalue.pipeline
+          | Create([None])
+          | ParDo(_PubSubBoundedReadDoFn(self._source, sub_project)))
+    else:
+      # TODO(BEAM-27443): Apply a proper transform rather than Read.
+      pcoll = pvalue.pipeline | Read(self._source)
     # explicit element_type required after native read, otherwise coder error
     pcoll.element_type = bytes
     return self.expand_continued(pcoll)
@@ -523,7 +547,8 @@ class _PubSubSource(iobase.SourceBase):
       subscription: Optional[str] = None,
       id_label: Optional[str] = None,
       with_attributes: bool = False,
-      timestamp_attribute: Optional[str] = None):
+      timestamp_attribute: Optional[str] = None,
+      max_read_time_seconds: Optional[int] = None):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -532,6 +557,7 @@ class _PubSubSource(iobase.SourceBase):
     self.id_label = id_label
     self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
+    self.max_read_time_seconds = max_read_time_seconds
 
     # Perform some validation on the topic and subscription.
     if not (topic or subscription):
@@ -557,13 +583,155 @@ class _PubSubSource(iobase.SourceBase):
         'timestamp_attribute': DisplayDataItem(
             self.timestamp_attribute,
             label='Timestamp Attribute').drop_if_none(),
+        'max_read_time_seconds': DisplayDataItem(
+            self.max_read_time_seconds,
+            label='Max Read Time Seconds').drop_if_none(),
     }
 
   def default_output_coder(self):
     return self.coder
 
   def is_bounded(self):
-    return False
+    return self.max_read_time_seconds is not None
+
+
+def _parse_pubsub_message(
+    message: Any,
+    timestamp_attribute: Optional[str] = None
+) -> tuple[Timestamp, 'PubsubMessage']:
+  parsed_message = PubsubMessage._from_message(message)
+  if (timestamp_attribute and timestamp_attribute in parsed_message.attributes):
+    rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
+    try:
+      timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
+    except ValueError:
+      try:
+        timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
+      except ValueError as e:
+        raise ValueError('Bad timestamp value: %s' % e)
+    if timestamp.precision() > Timestamp.MICROS_PRECISION:
+      # Element timestamps are limited to microsecond resolution, so
+      # ignore sub-microsecond digits, as the Dataflow service does.
+      timestamp = timestamp.to_precision(
+          Timestamp.MICROS_PRECISION, allow_lossy_conversion=True)
+  else:
+    if message.publish_time is None:
+      raise ValueError('No publish time present in message: %s' % message)
+    try:
+      timestamp = Timestamp.from_utc_datetime(message.publish_time)
+    except ValueError as e:
+      raise ValueError('Bad timestamp value for message %s: %s', message, e)
+
+  return timestamp, parsed_message
+
+
+class _PubSubBoundedReadDoFn(DoFn):
+  """DoFn for bounded reading from Cloud Pub/Sub up to max_read_time_seconds."""
+  MAX_MESSAGES_PER_PULL = 100
+  DEFAULT_PULL_TIMEOUT_SECS = 30
+
+  def __init__(
+      self, source: _PubSubSource, sub_project: Optional[str] = None) -> None:
+    if source.id_label:
+      raise NotImplementedError(
+          'id_label is not supported for bounded PubSub reads')
+    self._source = source
+    self.project = source.project
+    self.topic_name = source.topic_name
+    self.subscription_name = source.subscription_name
+    self.sub_project = sub_project or source.project
+    self.with_attributes = source.with_attributes
+    self.timestamp_attribute = source.timestamp_attribute
+    self.max_read_time_seconds = source.max_read_time_seconds
+    self._sub_client = None
+
+  def display_data(self):
+    return self._source.display_data()
+
+  def setup(self):
+    from google.cloud import pubsub
+    self._sub_client = pubsub.SubscriberClient()
+
+  def process(self, unused_element):
+    if self._sub_client is None:
+      from google.cloud import pubsub
+      self._sub_client = pubsub.SubscriberClient()
+
+    temp_sub_name = None
+    if self.subscription_name:
+      sub_name = self._sub_client.subscription_path(
+          self.project, self.subscription_name)
+    else:
+      sub_name = self._sub_client.subscription_path(
+          self.sub_project,
+          'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+      topic_name = self._sub_client.topic_path(self.project, self.topic_name)
+      self._sub_client.create_subscription(name=sub_name, topic=topic_name)
+      temp_sub_name = sub_name
+
+    try:
+      start_time = time.time()
+      while True:
+        elapsed = time.time() - start_time
+        remaining = self.max_read_time_seconds - elapsed
+        if remaining <= 0:
+          break
+        timeout = min(self.DEFAULT_PULL_TIMEOUT_SECS, remaining)
+        try:
+          response = self._sub_client.pull(
+              subscription=sub_name,
+              max_messages=self.MAX_MESSAGES_PER_PULL,
+              timeout=timeout)
+          results = [
+              _parse_pubsub_message(rm.message, self.timestamp_attribute)
+              for rm in response.received_messages
+          ]
+          ack_ids = [rm.ack_id for rm in response.received_messages]
+          if ack_ids:
+            self._sub_client.acknowledge(subscription=sub_name, ack_ids=ack_ids)
+        except Exception as e:
+          try:
+            from google.api_core import exceptions
+            if isinstance(e, exceptions.DeadlineExceeded) or type(
+                e).__name__ == 'DeadlineExceeded':
+              results = []
+            else:
+              raise
+          except ImportError:
+            if type(e).__name__ == 'DeadlineExceeded':
+              results = []
+            else:
+              raise
+
+        for msg_timestamp, parsed_message in results:
+          if self.with_attributes:
+            payload = parsed_message._to_proto_str(for_publish=False)
+          else:
+            payload = parsed_message.data
+          yield window.TimestampedValue(payload, msg_timestamp)
+
+        if not results:
+          remaining = self.max_read_time_seconds - (time.time() - start_time)
+          if remaining > 0:
+            time.sleep(min(0.1, remaining))
+    finally:
+      if temp_sub_name:
+        try:
+          self._sub_client.delete_subscription(subscription=temp_sub_name)
+        except Exception:
+          logging.warning(
+              'Failed to delete temporary Pub/Sub subscription %s',
+              temp_sub_name,
+              exc_info=True)
+
+  def teardown(self):
+    if self._sub_client is not None:
+      try:
+        self._sub_client.close()
+      except Exception:
+        logging.warning(
+            'Failed to close Pub/Sub subscriber client', exc_info=True)
+      self._sub_client = None
 
 
 class _PubSubWriteDoFn(DoFn):
