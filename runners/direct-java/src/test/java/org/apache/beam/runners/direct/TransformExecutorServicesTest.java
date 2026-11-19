@@ -17,11 +17,17 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.Before;
 import org.junit.Rule;
@@ -139,5 +145,40 @@ public class TransformExecutorServicesTest {
     serial.shutdown();
     serial.complete(first);
     verify(second, never()).run();
+  }
+
+  @Test
+  public void parallelShutdownSkipsWorkThatHasNotStarted() throws Exception {
+    assertShutdownSkipsWorkThatHasNotStarted(TransformExecutorServices::parallel);
+  }
+
+  @Test
+  public void serialShutdownSkipsWorkThatHasNotStarted() throws Exception {
+    assertShutdownSkipsWorkThatHasNotStarted(TransformExecutorServices::serial);
+  }
+
+  /**
+   * Schedules work while the only thread of the {@link ExecutorService} is busy, so that the work
+   * is still waiting for the thread when the {@link TransformExecutorService} is shut down. The
+   * work must not run.
+   */
+  private static void assertShutdownSkipsWorkThatHasNotStarted(
+      Function<ExecutorService, TransformExecutorService> createService) throws Exception {
+    @SuppressWarnings("unchecked")
+    DirectTransformExecutor<Object> work = mock(DirectTransformExecutor.class);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      CountDownLatch release = new CountDownLatch(1);
+      Future<?> busy = executor.submit(() -> release.await(1, TimeUnit.MINUTES));
+      TransformExecutorService service = createService.apply(executor);
+      service.schedule(work);
+      service.shutdown();
+      release.countDown();
+      busy.get(1, TimeUnit.MINUTES);
+    } finally {
+      executor.shutdown();
+    }
+    assertTrue(executor.awaitTermination(1, TimeUnit.MINUTES));
+    verify(work, never()).run();
   }
 }
