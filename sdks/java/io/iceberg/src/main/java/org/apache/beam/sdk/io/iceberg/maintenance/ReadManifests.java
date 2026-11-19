@@ -121,8 +121,8 @@ public class ReadManifests
         throws IOException {
       String tableIdentifier = descriptor.getTableIdentifier();
       Table table = TableCache.get(catalogConfig, tableIdentifier);
-      checkFormatVersion(table, tableIdentifier);
       Map<Integer, PartitionSpec> specs = resolveSpecs(table, descriptor);
+      checkFormatVersion(table, tableIdentifier);
 
       long entries = 0;
       try (CloseableIterable<? extends ContentFile<?>> files =
