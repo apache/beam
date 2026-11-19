@@ -292,6 +292,9 @@ cdef class RowCoderImpl(StreamCoderImpl):
   cdef list field_names
   cdef list field_nullable
   cdef object constructor
+  cdef bint _constructor_is_tuple
+  cdef object _attr_getter
+  cdef object _field0_name
   cdef list encoding_positions
   cdef list encoding_positions_argsort
   cdef bint encoding_positions_are_trivial
