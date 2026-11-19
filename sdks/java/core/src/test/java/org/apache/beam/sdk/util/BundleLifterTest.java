@@ -300,6 +300,26 @@ public class BundleLifterTest {
     tester.finishBundle();
   }
 
+  @Test
+  public void testEvictionKeepsLargestKeyWhenCapEqualsThreshold() throws Exception {
+    // Threshold 4 with a cap of 4 (target = 2): key 0 has 3 elements (> target) when key 1 (2
+    // elements) exceeds the cap. Key 1 is evicted, while key 0 stays buffered and can still lift.
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
+
+    tester.startBundle();
+    tester.processElement(0);
+    tester.processElement(0);
+    tester.processElement(0);
+    tester.processElement(1);
+    tester.processElement(1);
+    assertThat(tester.peekOutputElements(INTEGER_SMALL), contains(1, 1));
+
+    tester.processElement(0);
+    assertThat(tester.peekOutputElements(INTEGER_LARGE), contains(0, 0, 0, 0));
+    tester.finishBundle();
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void testMaxBufferedBytesBelowThresholdIsRejected() {
     BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxBufferedBytes(5L);
