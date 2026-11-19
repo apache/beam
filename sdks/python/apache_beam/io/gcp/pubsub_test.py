@@ -90,6 +90,16 @@ class TestPubsubMessage(unittest.TestCase):
     self.assertEqual(m_converted.data, data)
     self.assertEqual(m_converted.attributes, attributes)
 
+    m_str = PubsubMessage('hello', attributes)
+    m_str_converted = PubsubMessage._from_proto_str(m_str._to_proto_str())
+    self.assertEqual(m_str_converted.data, b'hello')
+    self.assertEqual(m_str_converted.attributes, attributes)
+
+    m_none = PubsubMessage(None, attributes)
+    m_none_converted = PubsubMessage._from_proto_str(m_none._to_proto_str())
+    self.assertEqual(m_none_converted.data, b'')
+    self.assertEqual(m_none_converted.attributes, attributes)
+
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   def test_payload_publish_invalid(self):
     with self.assertRaisesRegex(ValueError, r'data field.*10MB'):
@@ -980,6 +990,7 @@ class TestWriteToPubSub(unittest.TestCase):
     # Check that the call was made with the topic and some data
     call_args = mock_pubsub.return_value.publish.call_args
     self.assertEqual(len(call_args[0]), 2)  # topic and data
+    self.assertEqual(call_args[0][1], b'data')
 
   def test_write_messages_deprecated(self, mock_pubsub):
     data = 'data'
@@ -997,6 +1008,7 @@ class TestWriteToPubSub(unittest.TestCase):
     # Check that the call was made with the topic and some data
     call_args = mock_pubsub.return_value.publish.call_args
     self.assertEqual(len(call_args[0]), 2)  # topic and data
+    self.assertEqual(call_args[0][1], b'data')
 
   def test_write_messages_with_attributes_success(self, mock_pubsub):
     data = b'data'
@@ -1016,6 +1028,7 @@ class TestWriteToPubSub(unittest.TestCase):
     # Check that the call was made with the topic and some data
     call_args = mock_pubsub.return_value.publish.call_args
     self.assertEqual(len(call_args[0]), 2)  # topic and data
+    self.assertEqual(call_args[0][1], b'data')
 
   def test_write_messages_batch_mode_success(self, mock_pubsub):
     """Test WriteToPubSub works in batch mode (non-streaming)."""
@@ -1037,6 +1050,44 @@ class TestWriteToPubSub(unittest.TestCase):
     # Check that the call was made with the topic and some data
     call_args = mock_pubsub.return_value.publish.call_args
     self.assertEqual(len(call_args[0]), 2)  # topic and data
+    self.assertEqual(call_args[0][1], b'data')
+
+  def test_write_string_messages_utf8_batch_and_streaming(self, mock_pubsub):
+    """Test WriteToPubSub UTF-8 encodes non-base64 and non-ASCII strings."""
+    payloads = ['hello', 'äter']
+    for streaming in (False, True):
+      mock_pubsub.reset_mock()
+      options = PipelineOptions([])
+      options.view_as(StandardOptions).streaming = streaming
+      with TestPipeline(options=options) as p:
+        _ = (
+            p
+            | Create(payloads)
+            | WriteToPubSub(
+                'projects/fakeprj/topics/a_topic', with_attributes=False))
+
+      published_data = [
+          c.args[1] for c in mock_pubsub.return_value.publish.call_args_list
+      ]
+      self.assertCountEqual(published_data, [b'hello', 'äter'.encode('utf-8')])
+
+  def test_write_messages_with_str_data_and_attributes_batch_mode(
+      self, mock_pubsub):
+    """Test PubsubMessage with str data is UTF-8 encoded when published."""
+    payloads = [PubsubMessage('hello', {'key': 'value'})]
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = False
+    with TestPipeline(options=options) as p:
+      _ = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic', with_attributes=True))
+
+    mock_pubsub.return_value.publish.assert_called_once()
+    call_args = mock_pubsub.return_value.publish.call_args
+    self.assertEqual(call_args.args[1], b'hello')
+    self.assertEqual(call_args.kwargs, {'key': 'value'})
 
   def test_write_messages_with_attributes_batch_mode_success(self, mock_pubsub):
     """Test WriteToPubSub with attributes works in batch mode."""
@@ -1059,6 +1110,7 @@ class TestWriteToPubSub(unittest.TestCase):
     # Check that the call was made with the topic and some data
     call_args = mock_pubsub.return_value.publish.call_args
     self.assertEqual(len(call_args[0]), 2)  # topic and data
+    self.assertEqual(call_args[0][1], b'data')
 
   def test_write_messages_with_attributes_error(self, mock_pubsub):
     data = 'data'

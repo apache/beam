@@ -150,7 +150,10 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
       containing the payload of this object.
     """
-    if len(self.data) > (10_000_000):
+    data = self.data
+    if isinstance(data, str):
+      data = data.encode('utf-8')
+    if data is not None and len(data) > (10_000_000):
       raise ValueError('A pubsub message data field must not exceed 10MB')
 
     if self.attributes:
@@ -178,7 +181,7 @@ class PubsubMessage(object):
           'A pubsub message ordering key must not exceed 1024 bytes.')
 
     msg = pubsub.types.PubsubMessage(
-        data=self.data,
+        data=data,
         attributes=self.attributes,
         message_id=message_id,
         publish_time=publish_time,
@@ -399,8 +402,8 @@ class WriteToPubSub(PTransform):
           "projects/<project>/topics/<topic>".
       with_attributes:
         True - input elements will be :class:`~PubsubMessage` objects.
-        False - input elements will be of type ``bytes`` (message
-        data only).
+        False - input elements will be of type ``bytes`` or ``str`` (UTF-8
+        encoded; message data only).
       id_label: If set, will set an attribute for each Cloud Pub/Sub message
         with the given name and a unique value. This attribute can then be used
         in a ReadFromPubSub PTransform to deduplicate messages.
@@ -430,6 +433,8 @@ class WriteToPubSub(PTransform):
 
   @staticmethod
   def bytes_to_proto_str(element: Union[bytes, str]) -> bytes:
+    if isinstance(element, str):
+      element = element.encode('utf-8')
     msg = PubsubMessage(element, {})
     return msg._to_proto_str(for_publish=True)
 
