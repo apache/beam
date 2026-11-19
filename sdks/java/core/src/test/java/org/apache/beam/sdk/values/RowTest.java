@@ -896,4 +896,90 @@ public class RowTest {
     assertEquals(expectedCamelCaseInnerRow, row.toCamelCase().getRow("myRowField"));
     assertEquals(expectedCamelCaseRow, row.toCamelCase());
   }
+
+  @Test
+  public void testLogicalTypeBytesEqualsAndHashCode() {
+    Schema.LogicalType<ByteBuffer, byte[]> wrappedBytesType =
+        new Schema.LogicalType<ByteBuffer, byte[]>() {
+          @Override
+          public String getIdentifier() {
+            return "wrapped_bytes";
+          }
+
+          @Override
+          public FieldType getArgumentType() {
+            return FieldType.STRING;
+          }
+
+          @Override
+          public String getArgument() {
+            return "";
+          }
+
+          @Override
+          public FieldType getBaseType() {
+            return FieldType.BYTES;
+          }
+
+          @Override
+          public byte[] toBaseType(ByteBuffer input) {
+            byte[] bytes = new byte[input.remaining()];
+            input.duplicate().get(bytes);
+            return bytes;
+          }
+
+          @Override
+          public ByteBuffer toInputType(byte[] base) {
+            return ByteBuffer.wrap(base);
+          }
+        };
+
+    Schema schema = Schema.builder().addLogicalTypeField("f_bytes", wrappedBytesType).build();
+    Row row1 = Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+    Row row2 = Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+
+    assertEquals(row1, row2);
+    assertEquals(row1.hashCode(), row2.hashCode());
+  }
+
+  @Test
+  public void testRejectsMismatchedNestedRowSchema() {
+    Schema expectedNestedSchema = Schema.builder().addStringField("f_str").build();
+    Schema wrongNestedSchema = Schema.builder().addInt32Field("f_int").build();
+    Schema parentSchema = Schema.builder().addRowField("nested", expectedNestedSchema).build();
+
+    Row wrongNestedRow = Row.withSchema(wrongNestedSchema).addValue(42).build();
+    thrown.expect(IllegalArgumentException.class);
+    Row.withSchema(parentSchema).addValue(wrongNestedRow).build();
+  }
+
+  @Test
+  public void testRejectsMismatchedRowInArraySchema() {
+    Schema expectedNestedSchema = Schema.builder().addStringField("f_str").build();
+    Schema wrongNestedSchema = Schema.builder().addInt32Field("f_int").build();
+    Schema parentSchema =
+        Schema.builder().addArrayField("items", FieldType.row(expectedNestedSchema)).build();
+
+    Row wrongNestedRow = Row.withSchema(wrongNestedSchema).addValue(42).build();
+    thrown.expect(IllegalArgumentException.class);
+    Row.withSchema(parentSchema).addArray(ImmutableList.of(wrongNestedRow)).build();
+  }
+
+  @Test
+  public void testSlicedAndReadOnlyByteBufferEquality() {
+    byte[] expected = new byte[] {2, 3, 4};
+    ByteBuffer sliced = ByteBuffer.wrap(new byte[] {99, 2, 3, 4, 99}, 1, 3).slice();
+    ByteBuffer readOnly = ByteBuffer.wrap(expected).asReadOnlyBuffer();
+
+    Schema schema = Schema.of(Schema.Field.of("bytes", Schema.FieldType.BYTES));
+
+    Row rowFromBytes = Row.withSchema(schema).addValue(expected).build();
+    Row rowFromSlice = Row.withSchema(schema).addValue(sliced).build();
+    Row rowFromReadOnly = Row.withSchema(schema).withFieldValue("bytes", readOnly).build();
+
+    assertEquals(rowFromBytes, rowFromSlice);
+    assertEquals(rowFromBytes, rowFromReadOnly);
+    assertTrue(Arrays.equals(expected, rowFromSlice.getBytes(0)));
+    assertTrue(Arrays.equals(expected, rowFromReadOnly.getBytes(0)));
+  }
 }

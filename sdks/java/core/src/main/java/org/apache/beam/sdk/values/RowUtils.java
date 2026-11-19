@@ -173,11 +173,7 @@ class RowUtils {
           processedValue = cases.processByte(rowPosition, (Byte) value, this);
           break;
         case BYTES:
-          processedValue =
-              cases.processBytes(
-                  rowPosition,
-                  (byte[]) (value instanceof ByteBuffer ? ((ByteBuffer) value).array() : value),
-                  this);
+          processedValue = cases.processBytes(rowPosition, toByteArray(value), this);
           break;
         case INT16:
           processedValue = cases.processInt16(rowPosition, (Short) value, this);
@@ -423,6 +419,12 @@ class RowUtils {
         }
         retValue = new RowWithStorage(schema, values);
       }
+      if (retValue != null && !schema.equals(retValue.getSchema())) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Expected schema %s for field %s, but got %s",
+                schema, rowPosition.descriptor, retValue.getSchema()));
+      }
       return retValue;
     }
 
@@ -605,7 +607,26 @@ class RowUtils {
     @Override
     public byte[] processBytes(RowPosition rowPosition, byte[] value, RowFieldMatcher matcher) {
       Object retValue = overrideOrReturn(rowPosition, value);
-      return (retValue instanceof ByteBuffer) ? ((ByteBuffer) retValue).array() : (byte[]) retValue;
+      return toByteArray(retValue);
     }
+  }
+
+  static byte @Nullable [] toByteArray(@Nullable Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof ByteBuffer) {
+      ByteBuffer buf = (ByteBuffer) value;
+      if (buf.hasArray()
+          && buf.arrayOffset() == 0
+          && buf.position() == 0
+          && buf.limit() == buf.capacity()) {
+        return buf.array();
+      }
+      byte[] bytes = new byte[buf.remaining()];
+      buf.duplicate().get(bytes);
+      return bytes;
+    }
+    return (byte[]) value;
   }
 }
