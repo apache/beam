@@ -35,6 +35,7 @@ import com.google.spanner.v1.TypeCode;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
@@ -54,12 +55,16 @@ public class StructUtilsTest {
 
   @Test
   public void testStructToBeamRow() {
+    String uuid1 = "f529d18f-33c7-420f-a959-28b51b32a936";
+    String uuid2 = "00000000-0000-0000-0000-000000000000";
     Schema schema =
         getSchemaTemplate()
             .addDateTimeField("f_date")
             .addDecimalField("f_decimal")
+            .addStringField("f_uuid")
             .addArrayField("f_boolean_array", Schema.FieldType.BOOLEAN)
             .addArrayField("f_string_array", Schema.FieldType.STRING)
+            .addArrayField("f_uuid_array", Schema.FieldType.STRING)
             .addArrayField("f_float_array", Schema.FieldType.FLOAT)
             .addArrayField("f_double_array", Schema.FieldType.DOUBLE)
             .addArrayField("f_decimal_array", Schema.FieldType.DECIMAL)
@@ -71,8 +76,10 @@ public class StructUtilsTest {
         getRowTemplate(schema)
             .withFieldValue("f_date", DateTime.parse("2077-10-24"))
             .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
+            .withFieldValue("f_uuid", uuid1)
             .withFieldValue("f_boolean_array", ImmutableList.of(false, true))
             .withFieldValue("f_string_array", ImmutableList.of("donald_duck", "micky_mouse"))
+            .withFieldValue("f_uuid_array", ImmutableList.of(uuid1, uuid2))
             .withFieldValue("f_float_array", ImmutableList.of(3.0f, 4.0f))
             .withFieldValue("f_double_array", ImmutableList.of(1., 2.))
             .withFieldValue(
@@ -92,10 +99,14 @@ public class StructUtilsTest {
             .to(Date.fromYearMonthDay(2077, 10, 24))
             .set("f_decimal")
             .to(BigDecimal.valueOf(Long.MIN_VALUE))
+            .set("f_uuid")
+            .to(UUID.fromString(uuid1))
             .set("f_boolean_array")
             .toBoolArray(ImmutableList.of(false, true))
             .set("f_string_array")
             .toStringArray(ImmutableList.of("donald_duck", "micky_mouse"))
+            .set("f_uuid_array")
+            .toUuidArray(ImmutableList.of(UUID.fromString(uuid1), UUID.fromString(uuid2)))
             .set("f_float_array")
             .toFloat32Array(ImmutableList.of(3.0f, 4.0f))
             .set("f_double_array")
@@ -337,6 +348,7 @@ public class StructUtilsTest {
         .addFields(getFieldForTypeCode("f_float32", TypeCode.FLOAT32))
         .addFields(getFieldForTypeCode("f_float64", TypeCode.FLOAT64))
         .addFields(getFieldForTypeCode("f_string", TypeCode.STRING))
+        .addFields(getFieldForTypeCode("f_uuid", TypeCode.UUID))
         .addFields(getFieldForTypeCode("f_bytes", TypeCode.BYTES))
         .addFields(getFieldForTypeCode("f_timestamp", TypeCode.TIMESTAMP))
         .addFields(getFieldForTypeCode("f_date", TypeCode.DATE))
@@ -359,6 +371,7 @@ public class StructUtilsTest {
         Schema.Field.nullable("f_float32", Schema.FieldType.FLOAT),
         Schema.Field.nullable("f_float64", Schema.FieldType.DOUBLE),
         Schema.Field.nullable("f_string", Schema.FieldType.STRING),
+        Schema.Field.nullable("f_uuid", Schema.FieldType.STRING),
         Schema.Field.nullable("f_bytes", Schema.FieldType.BYTES),
         Schema.Field.nullable("f_timestamp", Schema.FieldType.DATETIME),
         Schema.Field.nullable("f_date", Schema.FieldType.DATETIME),
