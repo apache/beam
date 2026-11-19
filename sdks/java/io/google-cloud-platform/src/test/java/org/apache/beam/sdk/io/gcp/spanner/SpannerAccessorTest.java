@@ -18,15 +18,21 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.google.api.gax.grpc.testing.LocalChannelProvider;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.spanner.v1.DirectedReadOptions;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import java.util.Arrays;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,6 +40,18 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class SpannerAccessorTest {
+
+  private static SpannerOptions buildSpannerOptionsWithoutEnv(SpannerConfig config) {
+    return SpannerAccessor.buildSpannerOptions(config, GlobalOpenTelemetry.get(), key -> null);
+  }
+
+  private static SpannerOptions buildSpannerOptionsWithEmulatorEnv(
+      SpannerConfig config, @Nullable String emulatorHost) {
+    return SpannerAccessor.buildSpannerOptions(
+        config,
+        GlobalOpenTelemetry.get(),
+        key -> SpannerAccessor.SPANNER_EMULATOR_HOST_ENV_VAR.equals(key) ? emulatorHost : null);
+  }
 
   private FakeServiceFactory serviceFactory;
 
@@ -154,13 +172,11 @@ public class SpannerAccessorTest {
             .setCredentials(StaticValueProvider.of(testCredential))
             .build();
 
-    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
+    SpannerOptions options = buildSpannerOptionsWithoutEnv(config1);
     assertEquals("project", options.getProjectId());
     assertEquals("test-role", options.getDatabaseRole());
     assertEquals(testCredential, options.getCredentials());
   }
-
-  private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
 
   @Test
   public void testBuildSpannerOptionsWithNoHost() {
@@ -172,9 +188,9 @@ public class SpannerAccessorTest {
             .setDatabaseId(StaticValueProvider.of("test1"))
             .build();
 
-    assertEquals(DEFAULT_HOST, config1.getHostValue());
-    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
-    assertEquals(DEFAULT_HOST, options.getHost());
+    assertEquals(SpannerConfig.DEFAULT_HOST, config1.getHostValue());
+    SpannerOptions options = buildSpannerOptionsWithoutEnv(config1);
+    assertEquals(SpannerConfig.DEFAULT_HOST, options.getHost());
   }
 
   @Test
@@ -188,9 +204,9 @@ public class SpannerAccessorTest {
             .setDatabaseId(StaticValueProvider.of("test1"))
             .build();
 
-    assertEquals(DEFAULT_HOST, config1.getHostValue());
-    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
-    assertEquals(DEFAULT_HOST, options.getHost());
+    assertEquals(SpannerConfig.DEFAULT_HOST, config1.getHostValue());
+    SpannerOptions options = buildSpannerOptionsWithoutEnv(config1);
+    assertEquals(SpannerConfig.DEFAULT_HOST, options.getHost());
   }
 
   @Test
@@ -204,9 +220,9 @@ public class SpannerAccessorTest {
             .setDatabaseId(StaticValueProvider.of("test1"))
             .build();
 
-    assertEquals(DEFAULT_HOST, config1.getHostValue());
-    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
-    assertEquals(DEFAULT_HOST, options.getHost());
+    assertEquals(SpannerConfig.DEFAULT_HOST, config1.getHostValue());
+    SpannerOptions options = buildSpannerOptionsWithoutEnv(config1);
+    assertEquals(SpannerConfig.DEFAULT_HOST, options.getHost());
   }
 
   @Test
@@ -220,9 +236,9 @@ public class SpannerAccessorTest {
             .setDatabaseId(StaticValueProvider.of("test1"))
             .build();
 
-    assertEquals(DEFAULT_HOST, config1.getHostValue());
-    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
-    assertEquals(DEFAULT_HOST, options.getHost());
+    assertEquals(SpannerConfig.DEFAULT_HOST, config1.getHostValue());
+    SpannerOptions options = buildSpannerOptionsWithoutEnv(config1);
+    assertEquals(SpannerConfig.DEFAULT_HOST, options.getHost());
   }
 
   @Test
@@ -238,8 +254,177 @@ public class SpannerAccessorTest {
             .build();
 
     assertEquals(host, config1.getHostValue());
-    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
+    SpannerOptions options = buildSpannerOptionsWithoutEnv(config1);
     assertEquals(host, options.getHost());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsUsesEnvEmulatorHostWhenDefaultHost() {
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1");
+
+    SpannerOptions optionsWithoutScheme =
+        buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+    assertEquals("http://localhost:9010", optionsWithoutScheme.getHost());
+    assertEquals(NoCredentials.getInstance(), optionsWithoutScheme.getCredentials());
+
+    SpannerOptions optionsWithScheme =
+        buildSpannerOptionsWithEmulatorEnv(config, "http://localhost:9010");
+    assertEquals("http://localhost:9010", optionsWithScheme.getHost());
+    assertEquals(NoCredentials.getInstance(), optionsWithScheme.getCredentials());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsUsesEnvEmulatorHostWhenNullOrEmptyHost() {
+    SpannerConfig nullProviderConfig =
+        SpannerConfig.create().toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setHost(null)
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .build();
+    SpannerConfig nullValueConfig =
+        nullProviderConfig.toBuilder().setHost(StaticValueProvider.of(null)).build();
+    SpannerConfig emptyValueConfig =
+        nullProviderConfig.toBuilder().setHost(StaticValueProvider.of("")).build();
+
+    for (SpannerConfig config :
+        new SpannerConfig[] {nullProviderConfig, nullValueConfig, emptyValueConfig}) {
+      SpannerOptions options = buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+      assertEquals("http://localhost:9010", options.getHost());
+      assertEquals(NoCredentials.getInstance(), options.getCredentials());
+    }
+  }
+
+  @Test
+  public void testBuildSpannerOptionsIgnoresEmptyEnvEmulatorHost() {
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1");
+
+    SpannerOptions options = buildSpannerOptionsWithEmulatorEnv(config, "");
+    assertEquals(SpannerConfig.DEFAULT_HOST, options.getHost());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsExplicitEmulatorHostOverridesEnvEmulatorHost() {
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1")
+            .withEmulatorHost(StaticValueProvider.of("localhost:9999"));
+
+    SpannerOptions options = buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+    assertEquals("http://localhost:9999", options.getHost());
+    assertEquals(NoCredentials.getInstance(), options.getCredentials());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsNullOrEmptyConfigEmulatorHostFallsBack() {
+    TestCredential testCredential = new TestCredential();
+
+    for (StaticValueProvider<String> emptyEmulatorProvider :
+        Arrays.asList(StaticValueProvider.<String>of(null), StaticValueProvider.of(""))) {
+      SpannerConfig config =
+          SpannerConfig.create()
+              .withServiceFactory(serviceFactory)
+              .withProjectId("project")
+              .withInstanceId("test1")
+              .withDatabaseId("test1")
+              .withCredentials(testCredential)
+              .withEmulatorHost(emptyEmulatorProvider);
+
+      SpannerOptions optionsWithEnv = buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+      assertEquals("http://localhost:9010", optionsWithEnv.getHost());
+      assertEquals(NoCredentials.getInstance(), optionsWithEnv.getCredentials());
+
+      SpannerOptions optionsWithoutEnv = buildSpannerOptionsWithoutEnv(config);
+      assertEquals(SpannerConfig.DEFAULT_HOST, optionsWithoutEnv.getHost());
+      assertEquals(testCredential, optionsWithoutEnv.getCredentials());
+    }
+  }
+
+  @Test
+  public void testBuildSpannerOptionsCustomHostOverridesEnvEmulatorHost() {
+    TestCredential testCredential = new TestCredential();
+    String customHost = "https://alternative-host.example.org";
+
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1")
+            .withCredentials(testCredential)
+            .withHost(StaticValueProvider.of(customHost));
+
+    SpannerOptions options = buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+    assertEquals(customHost, options.getHost());
+    assertEquals(testCredential, options.getCredentials());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsExperimentalHostOverridesEnvEmulatorHost() {
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withDatabaseId("test1")
+            .withExperimentalHost("https://localhost:8080");
+
+    SpannerOptions options = buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+    assertEquals("https://localhost:8080", options.getHost());
+    assertEquals(NoCredentials.getInstance(), options.getCredentials());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsEnvEmulatorHostWithCredentialsAndLocalChannelProvider() {
+    TestCredential testCredential = new TestCredential();
+
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1")
+            .withCredentials(testCredential)
+            .withIsLocalChannelProvider(StaticValueProvider.of(true));
+
+    SpannerOptions options = buildSpannerOptionsWithEmulatorEnv(config, "localhost:9010");
+    assertEquals("http://localhost:9010", options.getHost());
+    assertEquals(NoCredentials.getInstance(), options.getCredentials());
+    assertTrue(options.getChannelProvider() instanceof LocalChannelProvider);
+  }
+
+  @Test
+  public void testBuildSpannerOptionsDefaultEnvLookup() {
+    SpannerConfig config =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1");
+
+    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config);
+    String envEmulatorHost = System.getenv(SpannerAccessor.SPANNER_EMULATOR_HOST_ENV_VAR);
+    if (envEmulatorHost != null && !envEmulatorHost.isEmpty()) {
+      String expectedHost =
+          envEmulatorHost.startsWith("http") ? envEmulatorHost : "http://" + envEmulatorHost;
+      assertEquals(expectedHost, options.getHost());
+      assertEquals(NoCredentials.getInstance(), options.getCredentials());
+    } else {
+      assertEquals(SpannerConfig.DEFAULT_HOST, options.getHost());
+    }
   }
 
   @Test
