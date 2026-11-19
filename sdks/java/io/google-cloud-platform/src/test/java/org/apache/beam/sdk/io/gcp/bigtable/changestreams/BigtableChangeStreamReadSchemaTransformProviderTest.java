@@ -375,17 +375,17 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
   @Test
   public void testConfigurationWithMetadataOptions() {
     BigtableChangeStreamReadConfiguration configuration =
-      BigtableChangeStreamReadConfiguration.builder()
-        .setProjectId("project")
-        .setInstanceId("instance")
-        .setTableId("table")
-        .setExistingPipelineOptions("RESUME_OR_NEW")
-        .setMetadataTableProjectId("metadata-project")
-        .setMetadataTableInstanceId("metadata-instance")
-        .setMetadataTableTableId("metadata-table")
-        .setMetadataTableAppProfileId("metadata-profile")
-        .setCreateOrUpdateMetadataTable(false)
-        .build();
+        BigtableChangeStreamReadConfiguration.builder()
+            .setProjectId("project")
+            .setInstanceId("instance")
+            .setTableId("table")
+            .setExistingPipelineOptions("RESUME_OR_NEW")
+            .setMetadataTableProjectId("metadata-project")
+            .setMetadataTableInstanceId("metadata-instance")
+            .setMetadataTableTableId("metadata-table")
+            .setMetadataTableAppProfileId("metadata-profile")
+            .setCreateOrUpdateMetadataTable(false)
+            .build();
 
     configuration.validate();
 
@@ -401,12 +401,12 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
   public void testConfigurationRejectsInvalidExistingPipelineOptions() {
     for (String option : ImmutableList.of("INVALID", "SKIP_CLEANUP")) {
       BigtableChangeStreamReadConfiguration configuration =
-        BigtableChangeStreamReadConfiguration.builder()
-          .setProjectId("project")
-          .setInstanceId("instance")
-          .setTableId("table")
-          .setExistingPipelineOptions(option)
-          .build();
+          BigtableChangeStreamReadConfiguration.builder()
+              .setProjectId("project")
+              .setInstanceId("instance")
+              .setTableId("table")
+              .setExistingPipelineOptions(option)
+              .build();
 
       assertThrows(IllegalArgumentException.class, configuration::validate);
     }
@@ -420,20 +420,20 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     Schema schema = provider.configurationSchema();
 
     assertEquals(
-      Set.of(
-        "project_id",
-        "instance_id",
-        "table_id",
-        "app_profile_id",
-        "start_at_timestamp",
-        "change_stream_name",
-        "existing_pipeline_options",
-        "metadata_table_project_id",
-        "metadata_table_instance_id",
-        "metadata_table_table_id",
-        "metadata_table_app_profile_id",
-        "create_or_update_metadata_table",
-        "flatten"),
+        Set.of(
+            "project_id",
+            "instance_id",
+            "table_id",
+            "app_profile_id",
+            "start_at_timestamp",
+            "change_stream_name",
+            "existing_pipeline_options",
+            "metadata_table_project_id",
+            "metadata_table_instance_id",
+            "metadata_table_table_id",
+            "metadata_table_app_profile_id",
+            "create_or_update_metadata_table",
+            "flatten"),
         new HashSet<>(schema.getFieldNames()));
   }
 }
