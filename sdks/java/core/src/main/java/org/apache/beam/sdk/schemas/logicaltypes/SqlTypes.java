@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.variant.Variant;
 import org.apache.beam.sdk.values.Row;
 
 /** Beam {@link org.apache.beam.sdk.schemas.Schema.LogicalType}s corresponding to SQL data types. */
@@ -44,4 +45,7 @@ public class SqlTypes {
 
   /** Beam LogicalType corresponding to UUID type. */
   public static final LogicalType<UUID, Row> UUID = new UuidLogicalType();
+
+  /** Semi-structured data, see {@link VariantLogicalType}. */
+  public static final LogicalType<Variant, Row> VARIANT = new VariantLogicalType();
 }
