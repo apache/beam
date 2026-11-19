@@ -292,7 +292,7 @@ public class BatchDeleteFiles
     for (@Nullable Throwable cause = e;
         !interrupted && cause != null && seen.add(cause);
         cause = cause.getCause()) {
-      interrupted = cause instanceof InterruptedException;
+      interrupted = cause instanceof InterruptedException || cause instanceof java.io.InterruptedIOException;
     }
     if (interrupted) {
       Thread.currentThread().interrupt();
