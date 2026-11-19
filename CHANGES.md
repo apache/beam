@@ -134,6 +134,7 @@
 
 [comment]: # "dependency upgrades (e.g. major version) and migrations that may introduce breaking change"
 * (Python) Upgraded the `vllm` extra to vLLM 0.32.0, which requires `openai>=2.25.0`, `transformers>=5.16.1`, and `torch==2.13.0` ([#41005](https://github.com/apache/beam/issues/41005)).
+* (Python) Python SDK container images (including ML images) and the Python expansion service image are now based on Debian 13 (trixie) instead of Debian 12 (bookworm). Custom images that extend `apache/beam_python3.X_sdk` and install system packages may need updates for packages renamed in trixie (for example, versioned libraries). Native extensions built from source now use GCC 14. To stay on bookworm, build a custom image from `python:3.X-bookworm` and copy `/opt/apache/beam` from the Beam SDK image (see [custom containers](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image)) ([#41458](https://github.com/apache/beam/issues/41458)).
 
 ### API changes
 
@@ -149,6 +150,7 @@
 
 ## Bugfixes
 
+* (Java) Fixed Dataflow's streaming `WriteFiles` sharding override dropping options configured on the transform (such as `maxNumWritersPerBundle`, `evictWritersWhenFull`, `skipIfEmpty`, `shardingFunction`, and `badRecordErrorHandler`) when a fixed shard count is not set ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
 * (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
 * (YAML) Fixed SQL-backed Join generating invalid SQL syntax (missing ON clause or forward-referenced tables) when joining 3+ inputs ([#41052](https://github.com/apache/beam/issues/41052)).
@@ -170,6 +172,7 @@
 * (Python) Dataflow runner: artifacts from different environments that share a name but have different content (for example each environment's `requirements.txt` in a Beam YAML pipeline with a `pythonPackage` provider) are now staged to distinct objects in the staging location instead of overwriting each other, which made workers fail the staged-file integrity check ([#40699](https://github.com/apache/beam/issues/40699)).
 * (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
+* (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
 * (Python) Fixed `decorators.get_type_hints()` ignoring class `@with_output_types` and `default_type_hints()` on `WithTypeHints` / `CombineFn` instances ([#41374](https://github.com/apache/beam/issues/41374)).
 * (Python/YAML) Fixed Beam YAML `Combine` instantiating zero-arg `CombineFn` classes when `config` is omitted and inferring concrete output schema types for builtin (`count`, `mean`, `group`, `concat`) and custom `CombineFn`s instead of `Any` (preserving `Any` when `--update_compatibility_version` is prior to `2.79.0`) ([#41350](https://github.com/apache/beam/issues/41350)).
 
