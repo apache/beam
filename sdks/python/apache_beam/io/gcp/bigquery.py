@@ -2184,7 +2184,8 @@ class WriteToBigQuery(PTransform):
       expansion_service=None,
       big_lake_configuration=None,
       type_overrides=None,
-      schema_update_options=None):
+      schema_update_options=None,
+      bigquery_job_labels=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2285,6 +2286,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         These can be 'timePartitioning', 'clustering', etc. They are passed
         directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+      bigquery_job_labels (dict): Labels for jobs created by FILE_LOADS.
+        Applies to load, copy, and schema update jobs alongside Beam metadata.
+        Other methods do not create BigQuery jobs and cannot use job labels.
       schema_update_options (list): Allows the schema of the destination
         table to be updated as a side effect of the load job. Each item may be
         a :class:`BigQuerySchemaUpdateOption` member or its string value.
@@ -2408,6 +2412,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
+    self.bigquery_job_labels = bigquery_job_labels or {}
     self.schema_update_options = BigQuerySchemaUpdateOption.validate(
         schema_update_options)
     self.table_side_inputs = table_side_inputs or ()
@@ -2467,6 +2472,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
     experiments = p.options.view_as(DebugOptions).experiments or []
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
+
+    if (self.bigquery_job_labels and
+        method_to_use != WriteToBigQuery.Method.FILE_LOADS):
+      raise ValueError(
+          'bigquery_job_labels requires FILE_LOADS because other write methods '
+          'do not create BigQuery jobs.')
 
     if (self.schema_update_options is not None and
         method_to_use != WriteToBigQuery.Method.FILE_LOADS):
@@ -2577,7 +2588,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               self._additional_bq_parameters_for_file_loads()),
           validate=self._validate,
           is_streaming_pipeline=is_streaming_pipeline,
-          load_job_project_id=self.load_job_project_id)
+          load_job_project_id=self.load_job_project_id,
+          bigquery_job_labels=self.bigquery_job_labels)
 
       return WriteResult(
           method=WriteToBigQuery.Method.FILE_LOADS,
@@ -2654,6 +2666,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'insert_retry_strategy': self.insert_retry_strategy,
         'additional_bq_parameters': self.additional_bq_parameters,
         'schema_update_options': self.schema_update_options,
+        'bigquery_job_labels': self.bigquery_job_labels,
         'table_side_inputs': table_side_inputs,
         'schema_side_inputs': schema_side_inputs,
         'triggering_frequency': self.triggering_frequency,

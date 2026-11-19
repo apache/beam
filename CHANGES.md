@@ -101,6 +101,8 @@
 
 ### New Feature
 
+* Added `bigquery_job_labels` to Python `WriteToBigQuery` for load, copy, and schema update jobs created by `FILE_LOADS` ([#22531](https://github.com/apache/beam/issues/22531)).
+
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Added an experimental `beam` command. `beam run FILE.yaml` runs a Beam YAML pipeline like `python -m apache_beam.yaml.main --yaml_pipeline_file=FILE.yaml`, with documented exit codes, and Ctrl-C cancels the pipeline. `beam pipe --from SOURCE --to SINK` reads and writes CSV, JSON, Parquet or Avro files, and `--dry-run` prints the equivalent pipeline to save and run with `beam run` ([#40891](https://github.com/apache/beam/issues/40891)).
 * (Python) Added support for Protobuf 7.x ([#40580](https://github.com/apache/beam/issues/40580)).
