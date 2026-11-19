@@ -2258,7 +2258,7 @@ public class BigtableIO {
 
     /** Used only for integration tests. Unsafe to use in production. */
     @VisibleForTesting
-    public ReadChangeStream withEndTime(Instant endTime) {
+    ReadChangeStream withEndTime(Instant endTime) {
       return toBuilder().setEndTime(endTime).build();
     }
 

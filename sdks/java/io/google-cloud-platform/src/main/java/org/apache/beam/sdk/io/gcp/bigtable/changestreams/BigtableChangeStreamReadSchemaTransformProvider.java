@@ -198,10 +198,6 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     public abstract @Nullable String getChangeStreamName();
 
     @SchemaFieldDescription(
-        "Timestamp at which to stop reading the change stream. Intended for integration testing.")
-    public abstract @Nullable String getEndAtTimestamp();
-
-    @SchemaFieldDescription(
         "If true, outputs one row per change stream entry with its zero-based entry index. "
             + "This mode does not preserve row-level atomicity or guarantee entry ordering. "
             + "If false or omitted, outputs one row per mutation with ordered nested entries.")
@@ -228,8 +224,6 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       public abstract Builder setStartAtTimestamp(String startAtTimestamp);
 
       public abstract Builder setChangeStreamName(String changeStreamName);
-
-      public abstract Builder setEndAtTimestamp(@Nullable String endAtTimestamp);
 
       public abstract Builder setFlatten(@Nullable Boolean flatten);
 
@@ -268,11 +262,6 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       @Nullable String startAtTimestamp = configuration.getStartAtTimestamp();
       if (startAtTimestamp != null) {
         readChangeStream = readChangeStream.withStartTime(Instant.parse(startAtTimestamp));
-      }
-
-      @Nullable String endAtTimestamp = configuration.getEndAtTimestamp();
-      if (endAtTimestamp != null) {
-        readChangeStream = readChangeStream.withEndTime(Instant.parse(endAtTimestamp));
       }
 
       @Nullable String changeStreamName = configuration.getChangeStreamName();
