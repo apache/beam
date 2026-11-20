@@ -89,6 +89,16 @@ def fake_inference_fn(
 class TFRunInferenceTest(unittest.TestCase):
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
+    # Other ML test modules (e.g. tensorflow_transform) may set
+    # TF_USE_LEGACY_KERAS=1 during pytest collection after tf.keras was already
+    # initialized in the worker process, which would cause spawned child
+    # processes to load a different Keras backend than the one used to save
+    # test models in this process.
+    keras_module = getattr(tf.keras.Model, '__module__', '')
+    if keras_module.startswith('tf_keras'):
+      os.environ['TF_USE_LEGACY_KERAS'] = '1'
+    elif keras_module.startswith('keras'):
+      os.environ['TF_USE_LEGACY_KERAS'] = '0'
 
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
