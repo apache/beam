@@ -47,7 +47,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+        uses: $/.github/actions/setup-environment-action
         with:
           python-version: "3.11"
           # The script does not use tox.
@@ -55,7 +55,7 @@ jobs:
       - name: Install script dependencies
         run: pip install packaging pyyaml pytest
       - name: Install gh cli
-        uses: ./.github/actions/setup-gh-cli-linux
+        uses: $/.github/actions/setup-gh-cli-linux
       - name: Check for an open pull request from this workflow
         id: existing_pr
         env:
