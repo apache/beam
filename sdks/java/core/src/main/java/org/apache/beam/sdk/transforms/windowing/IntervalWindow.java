@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UTFDataFormatException;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
@@ -27,9 +29,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
 
@@ -75,7 +77,7 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
   @Override
   public Instant maxTimestamp() {
     // end not inclusive
-    return end.minus(Duration.millis(1));
+    return new Instant(Math.subtractExact(end.getMillis(), 1L));
   }
 
   /** Returns whether this window contains the given window. */
@@ -163,14 +165,24 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
     public void encode(IntervalWindow window, OutputStream outStream)
         throws IOException, CoderException {
       instantCoder.encode(window.end, outStream);
-      durationCoder.encode(new Duration(window.start, window.end), outStream);
+      VarInt.encode(
+          Math.subtractExact(window.end.getMillis(), window.start.getMillis()), outStream);
     }
 
     @Override
     public IntervalWindow decode(InputStream inStream) throws IOException, CoderException {
       Instant end = instantCoder.decode(inStream);
-      ReadableDuration duration = durationCoder.decode(inStream);
-      return new IntervalWindow(end.minus(duration), end);
+      long durationMillis;
+      try {
+        durationMillis = VarInt.decodeLong(inStream);
+      } catch (EOFException | UTFDataFormatException exn) {
+        throw new CoderException(exn);
+      }
+      Instant start =
+          durationMillis == 0L
+              ? end
+              : new Instant(Math.subtractExact(end.getMillis(), durationMillis));
+      return new IntervalWindow(start, end);
     }
 
     @Override
@@ -193,7 +205,8 @@ public class IntervalWindow extends BoundedWindow implements Comparable<Interval
     public void registerByteSizeObserver(IntervalWindow value, ElementByteSizeObserver observer)
         throws Exception {
       instantCoder.registerByteSizeObserver(value.end, observer);
-      durationCoder.registerByteSizeObserver(new Duration(value.start, value.end), observer);
+      observer.update(
+          VarInt.getLength(Math.subtractExact(value.end.getMillis(), value.start.getMillis())));
     }
 
     @Override
