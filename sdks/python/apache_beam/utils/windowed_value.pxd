@@ -20,6 +20,9 @@ from libc.stdint cimport int64_t
 
 
 cdef type Timestamp
+cdef int64_t _MIN_TIMESTAMP_MICROS
+cdef int64_t _MAX_TIMESTAMP_MICROS
+cdef int64_t _MAX_INT64_SECONDS
 
 
 cdef list _BYTE_TO_PANE_INFO
