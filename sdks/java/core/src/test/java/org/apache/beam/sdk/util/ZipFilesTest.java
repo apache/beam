@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CharSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
@@ -218,6 +219,44 @@ public class ZipFilesTest {
     } catch (IOException e) {
       // This is the expected exception - we passed the test.
     }
+  }
+
+  @Test
+  public void testUnzipRejectsZipSlipTraversalEntries() throws IOException {
+    File targetDirectory = tmpFolder.newFolder("target");
+    File siblingDirectory = tmpFolder.newFolder("target_sibling");
+    for (String maliciousEntry :
+        Arrays.asList(
+            "../escaped.txt", "nested/../../escaped.txt", "../target_sibling/escaped.txt")) {
+      File maliciousZip = createZipFileHandle();
+      try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(maliciousZip))) {
+        zos.putNextEntry(new ZipEntry(maliciousEntry));
+        zos.write("payload".getBytes(StandardCharsets.UTF_8));
+        zos.closeEntry();
+      }
+      try {
+        ZipFiles.unzipFile(maliciousZip, targetDirectory);
+        fail("Expected IOException for Zip Slip entry: " + maliciousEntry);
+      } catch (IOException expected) {
+        // Expected rejection of path traversal outside targetDirectory.
+      }
+      assertFalse(new File(tmpFolder.getRoot(), "escaped.txt").exists());
+      assertFalse(new File(siblingDirectory, "escaped.txt").exists());
+    }
+  }
+
+  @Test
+  public void testUnzipAllowsDoubleDotsWithinFilename() throws IOException {
+    File targetDirectory = tmpFolder.newFolder("dotsTarget");
+    try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFile))) {
+      zos.putNextEntry(new ZipEntry("foo..bar.txt"));
+      zos.write("safe".getBytes(StandardCharsets.UTF_8));
+      zos.closeEntry();
+    }
+    ZipFiles.unzipFile(zipFile, targetDirectory);
+    File extracted = new File(targetDirectory, "foo..bar.txt");
+    assertTrue(extracted.isFile());
+    assertEquals("safe", Files.asCharSource(extracted, StandardCharsets.UTF_8).read());
   }
 
   /**

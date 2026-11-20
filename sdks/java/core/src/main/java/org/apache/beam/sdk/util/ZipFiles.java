@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.zip.ZipEntry;
@@ -122,10 +123,14 @@ public final class ZipFiles {
         targetDirectory.isDirectory(),
         "%s is not a valid directory",
         targetDirectory.getAbsolutePath());
+    Path canonicalTargetDir = targetDirectory.getCanonicalFile().toPath();
     try (ZipFile zipFileObj = new ZipFile(zipFile)) {
       for (ZipEntry entry : entries(zipFileObj)) {
-        checkName(entry.getName());
         File targetFile = new File(targetDirectory, entry.getName());
+        if (!targetFile.getCanonicalFile().toPath().startsWith(canonicalTargetDir)) {
+          throw new IOException(
+              "Cannot unzip file containing an entry outside target directory: " + entry.getName());
+        }
         if (entry.isDirectory()) {
           if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
             throw new IOException("Failed to create directory: " + targetFile.getAbsolutePath());
@@ -138,31 +143,6 @@ public final class ZipFiles {
           // Write the file to the destination.
           asByteSource(zipFileObj, entry).copyTo(Files.asByteSink(targetFile));
         }
-      }
-    }
-  }
-
-  /**
-   * Checks that the given entry name is legal for unzipping: if it contains ".." as a name element,
-   * it could cause the entry to be unzipped outside the directory we're unzipping to.
-   *
-   * @throws IOException if the name is illegal
-   */
-  private static void checkName(String name) throws IOException {
-    // First just check whether the entry name string contains "..".
-    // This should weed out the vast majority of entries, which will not
-    // contain "..".
-    if (name.contains("..")) {
-      // If the string does contain "..", break it down into its actual name
-      // elements to ensure it actually contains ".." as a name, not just a
-      // name like "foo..bar" or even "foo..", which should be fine.
-      File file = new File(name);
-      while (file != null) {
-        if ("..".equals(file.getName())) {
-          throw new IOException(
-              "Cannot unzip file containing an entry with " + "\"..\" in the name: " + name);
-        }
-        file = file.getParentFile();
       }
     }
   }
