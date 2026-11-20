@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/dustin/go-humanize"
 )
@@ -96,6 +97,62 @@ func NewHints(hs ...Hint) Hints {
 		hints.h[h.URN()] = h
 	}
 	return hints
+}
+
+// ParseHints parses hints in the "<urn>=<value>" format accepted by the
+// --resource_hints flag, such as "min_ram=12GB" or
+// "beam:resources:accelerator:v1=runner_specific". Standard hints may be named
+// by their short name or their URN, and other "beam:resources:" URNs are kept
+// with the value as their payload. In case of duplicate hint URNs, the last
+// value specified will be used.
+//
+// A hint without a value, or with an unknown name, will cause ParseHints to panic.
+func ParseHints(hints []string) Hints {
+	hs := make([]Hint, 0, len(hints))
+	for _, hint := range hints {
+		name, val, ok := strings.Cut(hint, "=")
+		if !ok {
+			panic(fmt.Sprintf("unparsable resource hint: %q", hint))
+		}
+		var h Hint
+		switch name {
+		case "min_ram", "beam:resources:min_ram_bytes:v1":
+			h = ParseMinRAM(val)
+		case "accelerator", "beam:resources:accelerator:v1":
+			h = Accelerator(val)
+		case "cpu_count", "beam:resources:cpu_count:v1":
+			h = ParseCPUCount(val)
+		case "max_active_bundles_per_worker", "beam:resources:max_active_bundles_per_worker:v1":
+			h = ParseMaxActiveBundlesPerWorker(val)
+		default:
+			if strings.HasPrefix(name, "beam:resources:") {
+				h = stringHint{urn: name, value: val}
+			} else {
+				panic(fmt.Sprintf("unknown resource hint: %v", hint))
+			}
+		}
+		hs = append(hs, h)
+	}
+	return NewHints(hs...)
+}
+
+// stringHint is a backup implementation of hint for new standard hints.
+type stringHint struct {
+	urn, value string
+}
+
+func (h stringHint) URN() string {
+	return h.urn
+}
+
+func (h stringHint) Payload() []byte {
+	// Go strings are utf8, and if the string is ascii,
+	// byte conversion handles that directly.
+	return []byte(h.value)
+}
+
+func (h stringHint) MergeWithOuter(outer Hint) Hint {
+	return h
 }
 
 // OptionStrings returns the hints formatted as "name=value" strings, in the format
