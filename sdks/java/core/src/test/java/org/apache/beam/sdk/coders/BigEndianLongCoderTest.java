@@ -97,4 +97,37 @@ public class BigEndianLongCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Long.class)));
   }
+
+  @Test
+  public void testDecodeChunkedInputStreamAndEof() throws Exception {
+    for (Long value : TEST_VALUES) {
+      byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, value);
+      java.io.InputStream oneByteAtATime =
+          new java.io.ByteArrayInputStream(encoded) {
+            @Override
+            public synchronized int read(byte[] b, int off, int len) {
+              return super.read(b, off, Math.min(1, len));
+            }
+          };
+      assertThat(TEST_CODER.decode(oneByteAtATime), equalTo(value));
+    }
+
+    // Empty stream hits EOF on the first read (readSoFar < 0).
+    org.junit.Assert.assertThrows(
+        CoderException.class,
+        () -> TEST_CODER.decode(new java.io.ByteArrayInputStream(new byte[0])));
+
+    // Truncated stream (3 bytes) hits EOF inside BitConverters.readRemaining.
+    byte[] truncated = new byte[] {1, 2, 3};
+    org.junit.Assert.assertThrows(
+        CoderException.class,
+        () ->
+            TEST_CODER.decode(
+                new java.io.ByteArrayInputStream(truncated) {
+                  @Override
+                  public synchronized int read(byte[] b, int off, int len) {
+                    return super.read(b, off, Math.min(1, len));
+                  }
+                }));
+  }
 }

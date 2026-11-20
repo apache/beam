@@ -21,12 +21,17 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 class BitConverters {
+  @SuppressWarnings("type.argument") // byte[] guaranteed to be non-null
+  private static final ThreadLocal<byte @NonNull []> SCRATCH_BUFFER =
+      ThreadLocal.withInitial(() -> new byte[8]);
+
   private BitConverters() {}
 
   static long readBigEndianLong(InputStream in) throws IOException {
-    byte[] buf = new byte[8];
+    byte[] buf = SCRATCH_BUFFER.get();
     int n = in.read(buf, 0, 8);
     if (n != 8) {
       readRemaining(in, buf, n);
@@ -80,14 +85,16 @@ class BitConverters {
   }
 
   static void writeBigEndianLong(long value, OutputStream out) throws IOException {
-    out.write((int) (value >>> 56) & 0xFF);
-    out.write((int) (value >>> 48) & 0xFF);
-    out.write((int) (value >>> 40) & 0xFF);
-    out.write((int) (value >>> 32) & 0xFF);
-    out.write((int) (value >>> 24) & 0xFF);
-    out.write((int) (value >>> 16) & 0xFF);
-    out.write((int) (value >>> 8) & 0xFF);
-    out.write((int) value & 0xFF);
+    byte[] buf = SCRATCH_BUFFER.get();
+    buf[0] = (byte) (value >>> 56);
+    buf[1] = (byte) (value >>> 48);
+    buf[2] = (byte) (value >>> 40);
+    buf[3] = (byte) (value >>> 32);
+    buf[4] = (byte) (value >>> 24);
+    buf[5] = (byte) (value >>> 16);
+    buf[6] = (byte) (value >>> 8);
+    buf[7] = (byte) value;
+    out.write(buf, 0, 8);
   }
 
   static void writeBigEndianInt(int value, OutputStream out) throws IOException {

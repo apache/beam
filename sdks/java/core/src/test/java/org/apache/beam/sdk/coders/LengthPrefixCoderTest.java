@@ -164,4 +164,65 @@ public class LengthPrefixCoderTest {
     CoderProperties.coderDecodeEncodeEqual(
         coder, org.apache.beam.sdk.values.KV.of(new byte[] {1, 2, 3}, 7L));
   }
+
+  @Test
+  public void testPooledBufferResetAfterInnerEncodeException() throws Exception {
+    Coder<String> failOnceCoder =
+        new CustomCoder<String>() {
+          @Override
+          public void encode(String value, java.io.OutputStream outStream)
+              throws java.io.IOException {
+            outStream.write("stale-prefix-".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            if ("fail".equals(value)) {
+              throw new CoderException("simulated inner failure");
+            }
+            outStream.write(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+          }
+
+          @Override
+          public String decode(java.io.InputStream inStream) throws java.io.IOException {
+            return new String(
+                org.apache.beam.sdk.util.StreamUtils.getBytesWithoutClosing(inStream),
+                java.nio.charset.StandardCharsets.UTF_8);
+          }
+        };
+    LengthPrefixCoder<String> coder = LengthPrefixCoder.of(failOnceCoder);
+
+    org.junit.Assert.assertThrows(
+        CoderException.class, () -> CoderUtils.encodeToByteArray(coder, "fail"));
+
+    // Next encode reuses the pooled buffer; stale bytes from the failed encode must not leak.
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, "ok");
+    assertEquals("stale-prefix-ok", CoderUtils.decodeFromByteArray(coder, encoded));
+  }
+
+  @Test
+  public void testFastPathConcatenatedElementsAndNullInputs() throws Exception {
+    LengthPrefixCoder<byte[]> bytesCoder = LengthPrefixCoder.of(ByteArrayCoder.of());
+    java.io.ByteArrayOutputStream bytesOut = new java.io.ByteArrayOutputStream();
+    bytesCoder.encode(new byte[] {1, 2}, bytesOut);
+    bytesCoder.encode(new byte[0], bytesOut);
+    bytesCoder.encode(new byte[] {3, 4, 5}, bytesOut);
+    java.io.ByteArrayInputStream bytesIn = new java.io.ByteArrayInputStream(bytesOut.toByteArray());
+    assertArrayEquals(new byte[] {1, 2}, bytesCoder.decode(bytesIn));
+    assertArrayEquals(new byte[0], bytesCoder.decode(bytesIn));
+    assertArrayEquals(new byte[] {3, 4, 5}, bytesCoder.decode(bytesIn));
+    assertEquals(0, bytesIn.available());
+
+    LengthPrefixCoder<String> stringCoder = LengthPrefixCoder.of(StringUtf8Coder.of());
+    java.io.ByteArrayOutputStream strOut = new java.io.ByteArrayOutputStream();
+    stringCoder.encode("alpha", strOut);
+    stringCoder.encode("", strOut);
+    stringCoder.encode("gamma-\u00e9", strOut);
+    java.io.ByteArrayInputStream strIn = new java.io.ByteArrayInputStream(strOut.toByteArray());
+    assertEquals("alpha", stringCoder.decode(strIn));
+    assertEquals("", stringCoder.decode(strIn));
+    assertEquals("gamma-\u00e9", stringCoder.decode(strIn));
+    assertEquals(0, strIn.available());
+
+    org.junit.Assert.assertThrows(
+        CoderException.class, () -> CoderUtils.encodeToByteArray(bytesCoder, null));
+    org.junit.Assert.assertThrows(
+        CoderException.class, () -> CoderUtils.encodeToByteArray(stringCoder, null));
+  }
 }

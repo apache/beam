@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
@@ -72,21 +73,23 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   }
 
   private static final class ReusableByteArrayOutputStream extends OutputStream {
+    private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
     private byte[] buf = new byte[256];
     private int count;
     @Nullable ReusableByteArrayOutputStream next;
 
     private void ensureCapacity(int minCapacity) {
+      if (minCapacity < 0) {
+        throw new OutOfMemoryError();
+      }
       if (minCapacity - buf.length > 0) {
         int newCapacity = buf.length << 1;
         if (newCapacity - minCapacity < 0) {
           newCapacity = minCapacity;
         }
-        if (newCapacity < 0) {
-          if (minCapacity < 0) {
-            throw new OutOfMemoryError();
-          }
-          newCapacity = Integer.MAX_VALUE - 8;
+        if (newCapacity - MAX_ARRAY_SIZE > 0) {
+          newCapacity = (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE : MAX_ARRAY_SIZE;
         }
         buf = Arrays.copyOf(buf, newCapacity);
       }
@@ -101,6 +104,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
     @Override
     public void write(byte[] b, int off, int len) {
+      Objects.requireNonNull(b);
       if (off < 0 || len < 0 || off > b.length - len) {
         throw new IndexOutOfBoundsException();
       }

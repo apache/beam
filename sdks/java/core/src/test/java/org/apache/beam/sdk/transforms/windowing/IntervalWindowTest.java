@@ -106,4 +106,16 @@ public class IntervalWindowTest {
       assertThat(observer.getSumAndReset(), equalTo(observer2.getSumAndReset()));
     }
   }
+
+  @Test
+  public void testDecodeTruncatedDurationThrowsCoderException() throws Exception {
+    IntervalWindow window =
+        new IntervalWindow(Instant.parse("2015-04-01T00:00:00Z"), Duration.standardMinutes(1));
+    byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, window);
+    // Keep only the 8-byte Instant end timestamp, dropping the VarInt duration.
+    byte[] truncated = java.util.Arrays.copyOf(encoded, 8);
+    org.junit.Assert.assertThrows(
+        org.apache.beam.sdk.coders.CoderException.class,
+        () -> CoderUtils.decodeFromByteArray(TEST_CODER, truncated));
+  }
 }

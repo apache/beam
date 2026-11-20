@@ -113,4 +113,20 @@ public class InstantCoderTest {
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Instant.class)));
   }
+
+  @Test
+  public void testDecodeReturnsCanonicalBoundSingletons() throws Exception {
+    byte[] minBytes =
+        CoderUtils.encodeToByteArray(
+            TEST_CODER, org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MIN_VALUE);
+    byte[] maxBytes =
+        CoderUtils.encodeToByteArray(
+            TEST_CODER, org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MAX_VALUE);
+    Assert.assertSame(
+        org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MIN_VALUE,
+        CoderUtils.decodeFromByteArray(TEST_CODER, minBytes));
+    Assert.assertSame(
+        org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MAX_VALUE,
+        CoderUtils.decodeFromByteArray(TEST_CODER, maxBytes));
+  }
 }

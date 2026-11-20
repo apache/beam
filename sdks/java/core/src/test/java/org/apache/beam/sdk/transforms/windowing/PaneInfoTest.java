@@ -131,4 +131,15 @@ public class PaneInfoTest {
         0x1,
         PaneInfo.createPane(true, false, Timing.EARLY, 1, -1, true).getEncodedByte());
   }
+
+  @Test
+  public void testWithElementMetadataIdentityWhenUnchanged() {
+    PaneInfo withoutMeta = PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 1, false);
+    assertSame(withoutMeta, withoutMeta.withElementMetadata(false));
+
+    PaneInfo withMeta = withoutMeta.withElementMetadata(true);
+    org.junit.Assert.assertNotSame(withoutMeta, withMeta);
+    org.junit.Assert.assertTrue(withMeta.isElementMetadata());
+    assertSame(withMeta, withMeta.withElementMetadata(true));
+  }
 }

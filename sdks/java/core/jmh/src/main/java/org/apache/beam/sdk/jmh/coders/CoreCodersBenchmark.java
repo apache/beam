@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.jmh.coders;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
+import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -32,6 +35,9 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
+import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -47,25 +53,31 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Microbenchmarks for {@link LengthPrefixCoder}, {@link BigEndianLongCoder}, and {@link
- * WindowedValues} coders.
+ * Microbenchmarks for {@link LengthPrefixCoder}, {@link BigEndianLongCoder}, {@link InstantCoder},
+ * and {@link WindowedValues} coders.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class CoreCodersBenchmark {
 
-  /** Reusable blackhole OutputStream that performs zero allocations. */
-  private static final class CountingOutputStream extends OutputStream {
-    long count;
+  /** Reusable unsynchronized byte[] sink that copies written bytes without reallocating. */
+  private static final class ResettableByteSink extends OutputStream {
+    final byte[] buf = new byte[1024];
+    int pos;
+
+    void reset() {
+      pos = 0;
+    }
 
     @Override
     public void write(int b) {
-      count++;
+      buf[pos++] = (byte) b;
     }
 
     @Override
     public void write(byte[] b, int off, int len) {
-      count += len;
+      System.arraycopy(b, off, buf, pos, len);
+      pos += len;
     }
   }
 
@@ -77,6 +89,30 @@ public class CoreCodersBenchmark {
 
     void resetToStart() {
       this.pos = 0;
+    }
+  }
+
+  /** Pass-through FilterInputStream to force megamorphic InputStream dispatch. */
+  private static final class PassthroughInputStream extends FilterInputStream {
+    PassthroughInputStream(InputStream in) {
+      super(in);
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+      return in.read(b, off, len);
+    }
+  }
+
+  /** Pass-through FilterOutputStream to force megamorphic OutputStream dispatch. */
+  private static final class PassthroughOutputStream extends FilterOutputStream {
+    PassthroughOutputStream(OutputStream out) {
+      super(out);
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      out.write(b, off, len);
     }
   }
 
@@ -97,7 +133,15 @@ public class CoreCodersBenchmark {
     final Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
 
-    final CountingOutputStream out = new CountingOutputStream();
+    final ResettableByteSink sink = new ResettableByteSink();
+    final ByteArrayOutputStream syncBaos = new ByteArrayOutputStream(1024);
+    final ExposedByteArrayOutputStream exposedBaos = new ExposedByteArrayOutputStream();
+    final ByteStringOutputStream byteStringOut = new ByteStringOutputStream(1024);
+    final ResettableByteSink passthroughBackingSink = new ResettableByteSink();
+    final PassthroughOutputStream passthroughOut =
+        new PassthroughOutputStream(passthroughBackingSink);
+    OutputStream[] polyOuts;
+    int polyOutIdx;
 
     byte[] byteArrayValue;
     String stringValue;
@@ -114,11 +158,17 @@ public class CoreCodersBenchmark {
     ResettableByteArrayInputStream encodedInstant;
     ResettableByteArrayInputStream encodedWindowedValue;
 
+    byte[] encodedLongBytes;
+    InputStream[] polyLongIns;
+    ResettableByteArrayInputStream[] polyLongBackings;
+    int polyInIdx;
+
     @Setup
     public void setUp() throws IOException {
-      Random rng = new Random(42);
       byteArrayValue = new byte[256];
-      rng.nextBytes(byteArrayValue);
+      for (int i = 0; i < byteArrayValue.length; i++) {
+        byteArrayValue[i] = (byte) (i * 31 + 17);
+      }
       stringValue = "apache-beam-performance-benchmark-key-0123456789-abcdef-utf8-\u00e9\u00fc";
       kvValue = KV.of(stringValue, 123456789012345L);
       nestedKvValue = KV.of(stringValue, byteArrayValue);
@@ -137,6 +187,64 @@ public class CoreCodersBenchmark {
       encodedLong = encodeToStream(longCoder, longValue);
       encodedInstant = encodeToStream(instantCoder, instantValue);
       encodedWindowedValue = encodeToStream(windowedValueCoder, windowedValue);
+
+      ByteArrayOutputStream longBaos = new ByteArrayOutputStream();
+      longCoder.encode(longValue, longBaos);
+      encodedLongBytes = longBaos.toByteArray();
+
+      // Four distinct concrete InputStream types so BitConverters.readBigEndianLong is megamorphic.
+      ResettableByteArrayInputStream backing0 =
+          new ResettableByteArrayInputStream(encodedLongBytes);
+      ResettableByteArrayInputStream backing1 =
+          new ResettableByteArrayInputStream(encodedLongBytes);
+      ExposedByteArrayInputStream exposedIn = new ExposedByteArrayInputStream(encodedLongBytes);
+      ResettableByteArrayInputStream backing3 =
+          new ResettableByteArrayInputStream(encodedLongBytes);
+      polyLongBackings = new ResettableByteArrayInputStream[] {backing0, backing1, null, backing3};
+      polyLongIns =
+          new InputStream[] {
+            backing0,
+            new PassthroughInputStream(backing1),
+            exposedIn,
+            new BufferedInputStream(backing3, 64) {
+              @Override
+              public synchronized void reset() {
+                pos = 0;
+                count = 0;
+              }
+            }
+          };
+
+      // Four distinct concrete OutputStream types (including synchronized BAOS/ExposedBAOS and
+      // ByteStringOutputStream) so BitConverters.writeBigEndianLong is megamorphic.
+      polyOuts = new OutputStream[] {syncBaos, exposedBaos, byteStringOut, passthroughOut};
+    }
+
+    InputStream nextPolyLongInput() throws IOException {
+      int idx = polyInIdx++ & 3;
+      if (idx == 0 || idx == 1) {
+        polyLongBackings[idx].resetToStart();
+      } else if (idx == 2) {
+        ((ExposedByteArrayInputStream) polyLongIns[2]).reset();
+      } else {
+        polyLongBackings[3].resetToStart();
+        polyLongIns[3].reset();
+      }
+      return polyLongIns[idx];
+    }
+
+    OutputStream nextPolyOutput() {
+      int idx = polyOutIdx++ & 3;
+      if (idx == 0) {
+        syncBaos.reset();
+      } else if (idx == 1) {
+        exposedBaos.reset();
+      } else if (idx == 2) {
+        byteStringOut.reset();
+      } else {
+        passthroughBackingSink.reset();
+      }
+      return polyOuts[idx];
     }
 
     private static <T> ResettableByteArrayInputStream encodeToStream(Coder<T> coder, T value)
@@ -148,10 +256,10 @@ public class CoreCodersBenchmark {
   }
 
   @Benchmark
-  public long lengthPrefixByteArrayEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.lpByteArrayCoder.encode(s.byteArrayValue, s.out);
-    return s.out.count;
+  public int lengthPrefixByteArrayEncode(CoderState s) throws IOException {
+    s.sink.reset();
+    s.lpByteArrayCoder.encode(s.byteArrayValue, s.sink);
+    return s.sink.pos;
   }
 
   @Benchmark
@@ -161,10 +269,10 @@ public class CoreCodersBenchmark {
   }
 
   @Benchmark
-  public long lengthPrefixStringEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.lpStringCoder.encode(s.stringValue, s.out);
-    return s.out.count;
+  public int lengthPrefixStringEncode(CoderState s) throws IOException {
+    s.sink.reset();
+    s.lpStringCoder.encode(s.stringValue, s.sink);
+    return s.sink.pos;
   }
 
   @Benchmark
@@ -174,10 +282,10 @@ public class CoreCodersBenchmark {
   }
 
   @Benchmark
-  public long lengthPrefixKvEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.lpKvCoder.encode(s.kvValue, s.out);
-    return s.out.count;
+  public int lengthPrefixKvEncode(CoderState s) throws IOException {
+    s.sink.reset();
+    s.lpKvCoder.encode(s.kvValue, s.sink);
+    return s.sink.pos;
   }
 
   @Benchmark
@@ -187,17 +295,24 @@ public class CoreCodersBenchmark {
   }
 
   @Benchmark
-  public long lengthPrefixNestedEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.lpNestedCoder.encode(s.nestedKvValue, s.out);
-    return s.out.count;
+  public int lengthPrefixNestedEncode(CoderState s) throws IOException {
+    s.sink.reset();
+    s.lpNestedCoder.encode(s.nestedKvValue, s.sink);
+    return s.sink.pos;
   }
 
   @Benchmark
-  public long bigEndianLongEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.longCoder.encode(s.longValue, s.out);
-    return s.out.count;
+  public int bigEndianLongEncode(CoderState s) throws IOException {
+    s.byteStringOut.reset();
+    s.longCoder.encode(s.longValue, s.byteStringOut);
+    return s.byteStringOut.size();
+  }
+
+  @Benchmark
+  public void bigEndianLongEncodePolymorphic(CoderState s, Blackhole bh) throws IOException {
+    OutputStream out = s.nextPolyOutput();
+    s.longCoder.encode(s.longValue, out);
+    bh.consume(out);
   }
 
   @Benchmark
@@ -207,10 +322,15 @@ public class CoreCodersBenchmark {
   }
 
   @Benchmark
-  public long instantEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.instantCoder.encode(s.instantValue, s.out);
-    return s.out.count;
+  public Long bigEndianLongDecodePolymorphic(CoderState s) throws IOException {
+    return s.longCoder.decode(s.nextPolyLongInput());
+  }
+
+  @Benchmark
+  public int instantEncode(CoderState s) throws IOException {
+    s.byteStringOut.reset();
+    s.instantCoder.encode(s.instantValue, s.byteStringOut);
+    return s.byteStringOut.size();
   }
 
   @Benchmark
@@ -220,10 +340,10 @@ public class CoreCodersBenchmark {
   }
 
   @Benchmark
-  public long windowedValueEncode(CoderState s) throws IOException {
-    s.out.count = 0;
-    s.windowedValueCoder.encode(s.windowedValue, s.out);
-    return s.out.count;
+  public int windowedValueEncode(CoderState s) throws IOException {
+    s.sink.reset();
+    s.windowedValueCoder.encode(s.windowedValue, s.sink);
+    return s.sink.pos;
   }
 
   @Benchmark
