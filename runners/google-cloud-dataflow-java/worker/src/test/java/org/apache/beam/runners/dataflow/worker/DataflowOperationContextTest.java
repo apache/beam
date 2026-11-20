@@ -174,6 +174,36 @@ public class DataflowOperationContextTest {
       assertThat(stateTracker.getCurrentState(), sameInstance(processState));
       verify(profileScope, times(6)).activate(); // start, process, finish, abort, finish, process
     }
+
+    @Test
+    public void enterProcessReentrancyRestoresState() throws IOException {
+      Closeable start = operationContext.enterStart();
+      Closeable outerProcess = operationContext.enterProcess();
+      assertThat(stateTracker.getCurrentState(), sameInstance(processState));
+
+      Closeable nestedAbort = operationContext.enterAbort();
+      assertThat(stateTracker.getCurrentState(), sameInstance(abortState));
+
+      Closeable innerProcess = operationContext.enterProcess();
+      assertThat(innerProcess, Matchers.not(sameInstance(outerProcess)));
+      assertThat(stateTracker.getCurrentState(), sameInstance(processState));
+
+      innerProcess.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(abortState));
+
+      nestedAbort.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(processState));
+
+      outerProcess.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(startState));
+
+      Closeable reusedProcess = operationContext.enterProcess();
+      assertThat(reusedProcess, sameInstance(outerProcess));
+      reusedProcess.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(startState));
+
+      start.close();
+    }
   }
 
   /** Tests for the lull logging in {@link DataflowOperationContext}. */
