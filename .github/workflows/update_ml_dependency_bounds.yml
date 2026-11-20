@@ -1,0 +1,108 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file distributed
+# with this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow raises the exclusive upper bounds of ML dependencies in
+# setup.py and tox.ini when PyPI has a newer stable release, and opens a pull
+# request with the result. It never merges the pull request. It does not
+# regenerate the container requirements; see update_python_dependencies.yml.
+# If an open pull request from this workflow already exists, the run is
+# skipped so that reviewer changes on its branch are not overwritten. Close
+# that pull request to get a new run.
+
+name: Update ML Dependency Bounds
+
+on:
+  schedule:
+  - cron: "0 0 1 * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  update_ml_dependency_bounds:
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    name: Update ML Dependency Bounds
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: "3.11"
+          # The script does not use tox.
+          tox-cache: false
+      - name: Install script dependencies
+        run: pip install packaging pyyaml pytest
+      - name: Install gh cli
+        uses: ./.github/actions/setup-gh-cli-linux
+      - name: Check for an open pull request from this workflow
+        id: existing_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existingPr=$(gh pr list --state open --limit 100 \
+            --json number,title,isCrossRepository \
+            --jq '[.[] | select((.title | startswith("Update ML dependency bounds")) and (.isCrossRepository | not))] | .[0].number // empty')
+          echo "number=$existingPr" >> "$GITHUB_OUTPUT"
+          if [ -n "$existingPr" ]; then
+            message="Open pull request #$existingPr from this workflow exists. Skipping this run. Close that pull request to get a new run."
+            echo "$message"
+            echo "$message" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Test the update script
+        if: steps.existing_pr.outputs.number == ''
+        run: python -m pytest scripts/tools/update_ml_dependency_bounds_test.py
+      - name: Update ML dependency bounds
+        if: steps.existing_pr.outputs.number == ''
+        run: |
+          set -o pipefail
+          python scripts/tools/update_ml_dependency_bounds.py \
+            --pr-body-file "$RUNNER_TEMP/pr_body.md" | tee "$RUNNER_TEMP/report.txt"
+          # Written on every run, including runs that change nothing, so the
+          # holds are visible to reviewers.
+          {
+            echo "## ML dependency bounds"
+            echo '```'
+            cat "$RUNNER_TEMP/report.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit changes and create PR
+        if: steps.existing_pr.outputs.number == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes on the files"
+            exit 0
+          fi
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email actions@"$RUNNER_NAME".local
+          gh auth setup-git
+          branchName=update_ml_dependency_bounds_$(date +%s)
+          git checkout -b "$branchName"
+          git add -A
+          git commit -m "Update ML dependency bounds" --quiet
+          git push origin "$branchName" --quiet
+          GITHUB_PR_URL=$(gh pr create --title "Update ML dependency bounds" --label "python" --body-file "$RUNNER_TEMP/pr_body.md" --base master)
+          echo "Link of the new PR  $GITHUB_PR_URL"
