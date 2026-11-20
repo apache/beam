@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 import org.junit.Test;
 
@@ -25,5 +29,27 @@ public class FieldAccessDescriptorParserTest {
   @Test
   public void testSmoke() {
     FieldAccessDescriptorParser.parse("a.b[][*].c.*");
+  }
+
+  @Test
+  public void testIsSimpleIdentifier() {
+    assertTrue(FieldAccessDescriptorParser.isSimpleIdentifier("a"));
+    assertTrue(FieldAccessDescriptorParser.isSimpleIdentifier("foo_bar"));
+    assertTrue(FieldAccessDescriptorParser.isSimpleIdentifier("$field123"));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier(null));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier(""));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier("*"));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier("a.b"));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier("a[]"));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier("a b"));
+    assertFalse(FieldAccessDescriptorParser.isSimpleIdentifier("a-b"));
+  }
+
+  @Test
+  public void testSimpleIdentifierAndWildcardParse() {
+    assertEquals(
+        FieldAccessDescriptor.withFieldNames("simple_field"),
+        FieldAccessDescriptorParser.parse("simple_field"));
+    assertEquals(FieldAccessDescriptor.withAllFields(), FieldAccessDescriptorParser.parse("*"));
   }
 }
