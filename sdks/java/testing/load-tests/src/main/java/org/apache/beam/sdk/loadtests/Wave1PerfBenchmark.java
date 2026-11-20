@@ -34,12 +34,15 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.io.synthetic.SyntheticUnboundedSource;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -153,6 +156,12 @@ public class Wave1PerfBenchmark {
 
     void setParDoChainDepth(Integer depth);
 
+    @Description("Fixed window size in seconds when running with --streaming=true")
+    @Default.Integer(30)
+    Integer getStreamingWindowSec();
+
+    void setStreamingWindowSec(Integer streamingWindowSec);
+
     @Description("Whether to block waiting for pipeline completion")
     @Default.Boolean(false)
     Boolean getWaitUntilFinish();
@@ -170,18 +179,30 @@ public class Wave1PerfBenchmark {
             options.getNumRecords(), options.getInitialBundles());
     SyntheticSourceOptions sourceOptions = fromJsonString(sourceJson, SyntheticSourceOptions.class);
 
+    boolean isStreaming = options.as(StreamingOptions.class).isStreaming();
     PCollection<KV<byte[], byte[]>> input =
-        pipeline.apply("ReadSyntheticInput", Read.from(new SyntheticBoundedSource(sourceOptions)));
+        pipeline.apply(
+            "ReadSyntheticInput",
+            isStreaming
+                ? Read.from(new SyntheticUnboundedSource(sourceOptions))
+                : Read.from(new SyntheticBoundedSource(sourceOptions)));
 
     String workload = options.getWorkload();
     if ("etl".equalsIgnoreCase(workload)) {
-      buildEtlPipeline(input, options.getNumShuffleKeys(), options.getShuffleMod());
+      buildEtlPipeline(
+          input,
+          options.getNumShuffleKeys(),
+          options.getShuffleMod(),
+          isStreaming,
+          options.getStreamingWindowSec());
     } else if ("core".equalsIgnoreCase(workload)) {
       buildCorePipeline(
           input,
           options.getNumShuffleKeys(),
           options.getShuffleMod(),
-          options.getParDoChainDepth());
+          options.getParDoChainDepth(),
+          isStreaming,
+          options.getStreamingWindowSec());
     } else {
       throw new IllegalArgumentException("Unsupported workload: " + workload);
     }
@@ -198,10 +219,16 @@ public class Wave1PerfBenchmark {
   }
 
   private static void buildEtlPipeline(
-      PCollection<KV<byte[], byte[]>> input, int numShuffleKeys, int shuffleMod) {
+      PCollection<KV<byte[], byte[]>> input,
+      int numShuffleKeys,
+      int shuffleMod,
+      boolean isStreaming,
+      int streamingWindowSec) {
+    Duration windowDuration =
+        isStreaming ? Duration.standardSeconds(streamingWindowSec) : Duration.standardMinutes(1);
     PCollection<Row> parsedRows =
         input
-            .apply("ParseEventRow", ParDo.of(new ParseEventRowFn()))
+            .apply("ParseEventRow", ParDo.of(new ParseEventRowFn(isStreaming)))
             .setCoder(RowCoder.of(EVENT_SCHEMA));
 
     PCollectionTuple routed =
@@ -219,7 +246,7 @@ public class Wave1PerfBenchmark {
         routed
             .get(MAIN_ROW_TAG)
             .setCoder(RowCoder.of(EVENT_SCHEMA))
-            .apply("WindowFixed1m", Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+            .apply("WindowFixed1m", Window.into(FixedWindows.of(windowDuration)))
             .apply("ValidateRowPass", ParDo.of(new PassThroughRowFn()))
             .setCoder(RowCoder.of(EVENT_SCHEMA));
 
@@ -239,14 +266,18 @@ public class Wave1PerfBenchmark {
       PCollection<KV<byte[], byte[]>> input,
       int numShuffleKeys,
       int shuffleMod,
-      int parDoChainDepth) {
+      int parDoChainDepth,
+      boolean isStreaming,
+      int streamingWindowSec) {
+    Duration windowDuration =
+        isStreaming ? Duration.standardSeconds(streamingWindowSec) : Duration.standardMinutes(1);
     PCollection<KV<byte[], KV<String, Long>>> current =
         input
             .apply(
                 "AssignTimestampsAndExtractKV",
-                ParDo.of(new RawToShuffleKvFn(numShuffleKeys, shuffleMod)))
+                ParDo.of(new RawToShuffleKvFn(numShuffleKeys, shuffleMod, isStreaming)))
             .setCoder(SHUFFLE_KV_CODER)
-            .apply("WindowFixed1m", Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+            .apply("WindowFixed1m", Window.into(FixedWindows.of(windowDuration)));
 
     for (int step = 0; step < parDoChainDepth; step++) {
       PCollectionTuple tuple =
@@ -291,12 +322,25 @@ public class Wave1PerfBenchmark {
   }
 
   private static final class ParseEventRowFn extends DoFn<KV<byte[], byte[]>, Row> {
+    private final boolean isStreaming;
+    private final Counter inputCounter = Metrics.counter("wave1_perf", "input_records");
+    private final Distribution sourceTimeMs = Metrics.distribution("wave1_perf", "source_time_ms");
+    private long localCount;
+
+    ParseEventRowFn(boolean isStreaming) {
+      this.isStreaming = isStreaming;
+    }
+
+    @StartBundle
+    public void startBundle() {
+      localCount = 0;
+    }
+
     @ProcessElement
     public void processElement(@Element KV<byte[], byte[]> elem, OutputReceiver<Row> out) {
+      localCount++;
       long hash = bytesToLong(elem.getKey());
       long absHash = hash == Long.MIN_VALUE ? 0L : Math.abs(hash);
-      int windowIdx = (int) (absHash % NUM_WINDOWS);
-      long tsMs = BASE_TIMESTAMP_MS + (windowIdx * 60_000L) + (absHash % 59_000L);
 
       Row row =
           Row.withSchema(EVENT_SCHEMA)
@@ -313,7 +357,21 @@ public class Wave1PerfBenchmark {
               .withFieldValue("payload", Arrays.copyOf(elem.getValue(), 24))
               .build();
 
-      out.outputWithTimestamp(row, new Instant(tsMs));
+      if (isStreaming) {
+        out.output(row);
+      } else {
+        int windowIdx = (int) (absHash % NUM_WINDOWS);
+        long tsMs = BASE_TIMESTAMP_MS + (windowIdx * 60_000L) + (absHash % 59_000L);
+        out.outputWithTimestamp(row, new Instant(tsMs));
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle() {
+      if (localCount > 0) {
+        inputCounter.inc(localCount);
+        sourceTimeMs.update(System.currentTimeMillis());
+      }
     }
   }
 
@@ -408,29 +466,53 @@ public class Wave1PerfBenchmark {
       extends DoFn<KV<byte[], byte[]>, KV<byte[], KV<String, Long>>> {
     private final int numShuffleKeys;
     private final int shuffleMod;
+    private final boolean isStreaming;
+    private final Counter inputCounter = Metrics.counter("wave1_perf", "input_records");
+    private final Distribution sourceTimeMs = Metrics.distribution("wave1_perf", "source_time_ms");
+    private long localCount;
 
-    RawToShuffleKvFn(int numShuffleKeys, int shuffleMod) {
+    RawToShuffleKvFn(int numShuffleKeys, int shuffleMod, boolean isStreaming) {
       this.numShuffleKeys = numShuffleKeys;
       this.shuffleMod = Math.max(1, shuffleMod);
+      this.isStreaming = isStreaming;
+    }
+
+    @StartBundle
+    public void startBundle() {
+      localCount = 0;
     }
 
     @ProcessElement
     public void processElement(
         @Element KV<byte[], byte[]> elem, OutputReceiver<KV<byte[], KV<String, Long>>> out) {
+      localCount++;
       long hash = bytesToLong(elem.getKey());
       long absHash = hash == Long.MIN_VALUE ? 0L : Math.abs(hash);
       if (shuffleMod > 1 && (absHash % shuffleMod) != 0) {
         return;
       }
-      int windowIdx = (int) (absHash % NUM_WINDOWS);
-      long tsMs = BASE_TIMESTAMP_MS + (windowIdx * 60_000L) + (absHash % 59_000L);
       byte[] key = makeGroupKey(absHash, numShuffleKeys);
       String label =
           REGIONS[(int) (absHash % REGIONS.length)]
               + ":"
               + EVENT_TYPES[(int) ((absHash >>> 4) % EVENT_TYPES.length)];
       long amount = (absHash % 100_000L) + 1L;
-      out.outputWithTimestamp(KV.of(key, KV.of(label, amount)), new Instant(tsMs));
+      KV<byte[], KV<String, Long>> outVal = KV.of(key, KV.of(label, amount));
+      if (isStreaming) {
+        out.output(outVal);
+      } else {
+        int windowIdx = (int) (absHash % NUM_WINDOWS);
+        long tsMs = BASE_TIMESTAMP_MS + (windowIdx * 60_000L) + (absHash % 59_000L);
+        out.outputWithTimestamp(outVal, new Instant(tsMs));
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle() {
+      if (localCount > 0) {
+        inputCounter.inc(localCount);
+        sourceTimeMs.update(System.currentTimeMillis());
+      }
     }
   }
 
@@ -493,6 +575,7 @@ public class Wave1PerfBenchmark {
   private static final class CountRowSinkFn extends DoFn<Row, Void> {
     private final Counter rowCounter;
     private final Counter checksumCounter;
+    private final Distribution sinkTimeMs;
     private final String valueFieldName;
     private long localRows;
     private long localChecksum;
@@ -500,6 +583,7 @@ public class Wave1PerfBenchmark {
     CountRowSinkFn(String name, String valueFieldName) {
       this.rowCounter = Metrics.counter("wave1_perf", name + "_count");
       this.checksumCounter = Metrics.counter("wave1_perf", name + "_checksum");
+      this.sinkTimeMs = Metrics.distribution("wave1_perf", name + "_time_ms");
       this.valueFieldName = valueFieldName;
     }
 
@@ -517,20 +601,25 @@ public class Wave1PerfBenchmark {
 
     @FinishBundle
     public void finishBundle() {
-      rowCounter.inc(localRows);
-      checksumCounter.inc(localChecksum);
+      if (localRows > 0) {
+        rowCounter.inc(localRows);
+        checksumCounter.inc(localChecksum);
+        sinkTimeMs.update(System.currentTimeMillis());
+      }
     }
   }
 
   private static final class CountKvSinkFn extends DoFn<KV<byte[], KV<String, Long>>, Void> {
     private final Counter kvCounter;
     private final Counter sumCounter;
+    private final Distribution sinkTimeMs;
     private long localCount;
     private long localSum;
 
     CountKvSinkFn(String name) {
       this.kvCounter = Metrics.counter("wave1_perf", name + "_count");
       this.sumCounter = Metrics.counter("wave1_perf", name + "_sum");
+      this.sinkTimeMs = Metrics.distribution("wave1_perf", name + "_time_ms");
     }
 
     @StartBundle
@@ -547,8 +636,11 @@ public class Wave1PerfBenchmark {
 
     @FinishBundle
     public void finishBundle() {
-      kvCounter.inc(localCount);
-      sumCounter.inc(localSum);
+      if (localCount > 0) {
+        kvCounter.inc(localCount);
+        sumCounter.inc(localSum);
+        sinkTimeMs.update(System.currentTimeMillis());
+      }
     }
   }
 }

@@ -109,29 +109,111 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
           "Input to GroupAlsoByWindowsDoFn must be a Collection or Reiterable");
     }
 
-    // This ListMultimap is a map of window maxTimestamps to the list of active
-    // windows with that maxTimestamp.
-    ListMultimap<Instant, BoundedWindow> windows = ArrayListMultimap.create();
+    // Inline single-window slot avoids allocating ArrayListMultimap and its key iterator for
+    // GlobalWindows and FixedWindows (where at most one window is active at a time).
+    BoundedWindow singleActiveWindow = null;
+    long singleActiveMaxTsMillis = 0L;
+    ListMultimap<Instant, BoundedWindow> windows = null;
 
     while (iterator.hasNext()) {
       WindowedValue<V> e = iterator.peek();
-      for (BoundedWindow window : e.getWindows()) {
-        // If this window is not already in the active set, emit a new WindowReiterable
-        // corresponding to this window, starting at this element in the input Reiterable.
-        if (!windows.containsEntry(window.maxTimestamp(), window)) {
-          // This window was produced by strategy.getWindowFn()
+      long elemTsMillis = e.getTimestamp().getMillis();
+      // Since elements arrive in non-decreasing timestamp order, a single active window whose
+      // maxTimestamp is already before elemTsMillis has expired and cannot match this or any
+      // subsequent element; clear it now so non-overlapping windows (e.g. FixedWindows) never
+      // promote to ArrayListMultimap.
+      if (windows == null && singleActiveWindow != null && singleActiveMaxTsMillis < elemTsMillis) {
+        singleActiveWindow = null;
+      }
+      if (e instanceof WindowedValues.SingleWindowedValue) {
+        BoundedWindow window = ((WindowedValues.SingleWindowedValue) e).getWindow();
+        boolean alreadyActive;
+        long windowMaxTsMillis;
+        if (windows == null) {
+          alreadyActive = singleActiveWindow != null && singleActiveWindow.equals(window);
+          if (!alreadyActive) {
+            windowMaxTsMillis = maxTimestampMillis(window);
+            if (singleActiveWindow == null) {
+              singleActiveWindow = window;
+              singleActiveMaxTsMillis = windowMaxTsMillis;
+            } else {
+              windows = ArrayListMultimap.create();
+              windows.put(new Instant(singleActiveMaxTsMillis), singleActiveWindow);
+              windows.put(new Instant(windowMaxTsMillis), window);
+              singleActiveWindow = null;
+            }
+          } else {
+            windowMaxTsMillis = singleActiveMaxTsMillis;
+          }
+        } else {
+          Instant maxTs = window.maxTimestamp();
+          windowMaxTsMillis = maxTs.getMillis();
+          alreadyActive = windows.containsEntry(maxTs, window);
+          if (!alreadyActive) {
+            windows.put(maxTs, window);
+          }
+        }
+        if (!alreadyActive) {
           @SuppressWarnings("unchecked")
           W typedWindow = (W) window;
-          // Iterating through the WindowReiterable may advance iterator as an optimization
-          // for as long as it detects that there are no new windows.
-          windows.put(window.maxTimestamp(), window);
           output.output(
               WindowedValues.of(
-                  KV.of(key, (Iterable<V>) new WindowReiterable<V>(iterator, window)),
+                  KV.of(
+                      key,
+                      (Iterable<V>) new WindowReiterable<V>(iterator, window, windowMaxTsMillis)),
                   strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
                   window,
                   PaneInfo.ON_TIME_AND_ONLY_FIRING));
         }
+      } else {
+        for (BoundedWindow window : e.getWindows()) {
+          // If this window is not already in the active set, emit a new WindowReiterable
+          // corresponding to this window, starting at this element in the input Reiterable.
+          boolean alreadyActive;
+          long windowMaxTsMillis;
+          if (windows == null) {
+            alreadyActive = singleActiveWindow != null && singleActiveWindow.equals(window);
+            if (!alreadyActive) {
+              windowMaxTsMillis = maxTimestampMillis(window);
+              if (singleActiveWindow == null) {
+                singleActiveWindow = window;
+                singleActiveMaxTsMillis = windowMaxTsMillis;
+              } else {
+                windows = ArrayListMultimap.create();
+                windows.put(new Instant(singleActiveMaxTsMillis), singleActiveWindow);
+                windows.put(new Instant(windowMaxTsMillis), window);
+                singleActiveWindow = null;
+              }
+            } else {
+              windowMaxTsMillis = singleActiveMaxTsMillis;
+            }
+          } else {
+            Instant maxTs = window.maxTimestamp();
+            windowMaxTsMillis = maxTs.getMillis();
+            alreadyActive = windows.containsEntry(maxTs, window);
+            if (!alreadyActive) {
+              windows.put(maxTs, window);
+            }
+          }
+          if (!alreadyActive) {
+            // This window was produced by strategy.getWindowFn()
+            @SuppressWarnings("unchecked")
+            W typedWindow = (W) window;
+            // Iterating through the WindowReiterable may advance iterator as an optimization
+            // for as long as it detects that there are no new windows.
+            output.output(
+                WindowedValues.of(
+                    KV.of(
+                        key,
+                        (Iterable<V>) new WindowReiterable<V>(iterator, window, windowMaxTsMillis)),
+                    strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
+                    window,
+                    PaneInfo.ON_TIME_AND_ONLY_FIRING));
+          }
+        }
+      }
+      if (!iterator.hasNext()) {
+        break;
       }
       // Copy the iterator in case the next DoFn cached its version of the iterator instead
       // of immediately iterating through it.
@@ -142,11 +224,25 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       }
 
       // Remove all windows with maxTimestamp behind the current timestamp.
-      Iterator<Instant> windowIterator = windows.keys().iterator();
-      while (windowIterator.hasNext() && windowIterator.next().isBefore(e.getTimestamp())) {
-        windowIterator.remove();
+      if (windows == null) {
+        if (singleActiveWindow != null && singleActiveMaxTsMillis < elemTsMillis) {
+          singleActiveWindow = null;
+        }
+      } else {
+        Iterator<Instant> windowIterator = windows.keys().iterator();
+        while (windowIterator.hasNext() && windowIterator.next().isBefore(e.getTimestamp())) {
+          windowIterator.remove();
+        }
       }
     }
+  }
+
+  private static long maxTimestampMillis(BoundedWindow window) {
+    if (window instanceof org.apache.beam.sdk.transforms.windowing.IntervalWindow) {
+      return ((org.apache.beam.sdk.transforms.windowing.IntervalWindow) window).end().getMillis()
+          - 1L;
+    }
+    return window.maxTimestamp().getMillis();
   }
 
   /**
@@ -156,12 +252,16 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   private static class WindowReiterable<V>
       extends ElementByteSizeObservableIterable<V, WindowReiterator<V>> implements Reiterable<V> {
     private PeekingReiterator<WindowedValue<V>> baseIterator;
-    private BoundedWindow window;
+    private final BoundedWindow window;
+    private final long windowMaxTimestampMillis;
 
     public WindowReiterable(
-        PeekingReiterator<WindowedValue<V>> baseIterator, BoundedWindow window) {
+        PeekingReiterator<WindowedValue<V>> baseIterator,
+        BoundedWindow window,
+        long windowMaxTimestampMillis) {
       this.baseIterator = baseIterator;
       this.window = window;
+      this.windowMaxTimestampMillis = windowMaxTimestampMillis;
     }
 
     @Override
@@ -175,7 +275,8 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       // so that the WindowReiterator can advance the baseIterator.  We have to
       // make a copy afterwards so that future calls to iterator() will start
       // at the right spot.
-      WindowReiterator<V> result = new WindowReiterator<V>(baseIterator, window);
+      WindowReiterator<V> result =
+          new WindowReiterator<V>(baseIterator, window, windowMaxTimestampMillis, false, false);
       baseIterator = baseIterator.copy();
       return result;
     }
@@ -192,32 +293,46 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   private static class WindowReiterator<V> extends ElementByteSizeObservableIterator<V>
       implements Reiterator<V> {
     private PeekingReiterator<WindowedValue<V>> iterator;
-    private BoundedWindow window;
+    private final BoundedWindow window;
+    private final long windowMaxTimestampMillis;
+    private boolean positioned;
+    private boolean hasValid;
 
-    public WindowReiterator(PeekingReiterator<WindowedValue<V>> iterator, BoundedWindow window) {
+    private WindowReiterator(
+        PeekingReiterator<WindowedValue<V>> iterator,
+        BoundedWindow window,
+        long windowMaxTimestampMillis,
+        boolean positioned,
+        boolean hasValid) {
       this.iterator = iterator;
       this.window = window;
+      this.windowMaxTimestampMillis = windowMaxTimestampMillis;
+      this.positioned = positioned;
+      this.hasValid = hasValid;
     }
 
     @Override
     public Reiterator<V> copy() {
-      return new WindowReiterator<V>(iterator.copy(), window);
+      return new WindowReiterator<V>(
+          iterator.copy(), window, windowMaxTimestampMillis, positioned, hasValid);
     }
 
     @Override
     public boolean hasNext() {
-      skipToValidElement();
-      return (iterator.hasNext() && iterator.peek().getWindows().contains(window));
+      if (!positioned) {
+        hasValid = skipToValidElement();
+        positioned = true;
+      }
+      return hasValid;
     }
 
     @Override
     public V next() {
-      skipToValidElement();
-      WindowedValue<V> next = iterator.next();
-      if (!next.getWindows().contains(window)) {
+      if (!hasNext()) {
         throw new NoSuchElementException("No next item in window");
       }
-      return next.getValue();
+      positioned = false;
+      return iterator.next().getValue();
     }
 
     @Override
@@ -229,27 +344,42 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
      * Moves the underlying iterator forward until it either points to the next element in the
      * correct window, or is past the end of the window.
      */
-    private void skipToValidElement() {
+    @SuppressWarnings("ReferenceEquality")
+    private boolean skipToValidElement() {
       while (iterator.hasNext()) {
         WindowedValue<V> peek = iterator.peek();
-        if (peek.getTimestamp().isAfter(window.maxTimestamp())) {
+        if (peek.getTimestamp().getMillis() > windowMaxTimestampMillis) {
           // We are past the end of this window, so there can't be any more
           // elements in this iterator.
-          break;
+          return false;
         }
-        if (!(peek.getWindows().size() == 1 && peek.getWindows().contains(window))) {
-          // We have reached new windows; we need to copy the iterator so we don't
-          // keep advancing the outer loop in processElement.
+        if (peek instanceof WindowedValues.SingleWindowedValue) {
+          BoundedWindow peekWindow = ((WindowedValues.SingleWindowedValue) peek).getWindow();
+          if (peekWindow == window || window.equals(peekWindow)) {
+            return true;
+          }
+          // We have reached a new window; copy the iterator so we don't keep advancing
+          // the outer loop in processElement.
           iterator = iterator.copy();
-        }
-        if (!peek.getWindows().contains(window)) {
-          // The next element is not in the right window: skip it.
           iterator.next();
         } else {
-          // The next element is in the right window.
-          break;
+          Collection<? extends BoundedWindow> peekWindows = peek.getWindows();
+          boolean contains = peekWindows.contains(window);
+          if (!(peekWindows.size() == 1 && contains)) {
+            // We have reached new windows; we need to copy the iterator so we don't
+            // keep advancing the outer loop in processElement.
+            iterator = iterator.copy();
+          }
+          if (!contains) {
+            // The next element is not in the right window: skip it.
+            iterator.next();
+          } else {
+            // The next element is in the right window.
+            return true;
+          }
         }
       }
+      return false;
     }
   }
 

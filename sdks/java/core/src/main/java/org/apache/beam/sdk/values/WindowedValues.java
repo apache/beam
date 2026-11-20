@@ -25,11 +25,13 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import io.opentelemetry.context.Context;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,6 +51,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -207,7 +210,7 @@ public class WindowedValues {
     public @Nullable Context getOpenTelemetryContext() {
       // builder may have different context set at the beginning of parDo
       // when building WindowedValue we should take current context from storage.
-      return Context.current();
+      return currentOpenTelemetryContextOrNull();
     }
 
     @Override
@@ -356,6 +359,11 @@ public class WindowedValues {
     }
   }
 
+  private static @Nullable Context currentOpenTelemetryContextOrNull() {
+    Context current = Context.current();
+    return current == Context.root() ? null : current;
+  }
+
   /**
    * Returns a {@code WindowedValue} copying metadata from {@code template} with a new {@code value}
    * and capturing the current OpenTelemetry {@link Context}.
@@ -370,6 +378,7 @@ public class WindowedValues {
    */
   public static <T> WindowedValue<T> ofWithCurrentContext(
       WindowedValue<?> template, T value, Instant timestamp) {
+    Context otelContext = currentOpenTelemetryContextOrNull();
     if (template instanceof SingleWindowedValue) {
       return of(
           value,
@@ -379,7 +388,7 @@ public class WindowedValues {
           template.getRecordId(),
           template.getRecordOffset(),
           template.causedByDrain(),
-          Context.current(),
+          otelContext,
           template.getValueKind());
     }
     return of(
@@ -390,7 +399,7 @@ public class WindowedValues {
         template.getRecordId(),
         template.getRecordOffset(),
         template.causedByDrain(),
-        Context.current(),
+        otelContext,
         template.getValueKind());
   }
 
@@ -413,7 +422,7 @@ public class WindowedValues {
         template.getRecordId(),
         template.getRecordOffset(),
         template.causedByDrain(),
-        Context.current(),
+        currentOpenTelemetryContextOrNull(),
         template.getValueKind());
   }
 
@@ -1196,6 +1205,39 @@ public class WindowedValues {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
+    private static final byte[] SINGLE_WINDOW_COUNT_BYTES = new byte[] {0, 0, 0, 1};
+
+    private static int readBigEndianInt(InputStream in) throws IOException {
+      int b1 = in.read();
+      int b2 = in.read();
+      int b3 = in.read();
+      int b4 = in.read();
+      if ((b1 | b2 | b3 | b4) < 0) {
+        throw new EOFException();
+      }
+      return ((b1 & 0xFF) << 24) | ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
+    }
+
+    private Collection<? extends BoundedWindow> decodeUnknownSizeWindows(InputStream inStream)
+        throws IOException {
+      List<BoundedWindow> elements = new ArrayList<>();
+      long count = VarInt.decodeLong(inStream);
+      while (count > 0L) {
+        elements.add(windowCoder.decode(inStream));
+        --count;
+        if (count == 0L) {
+          count = VarInt.decodeLong(inStream);
+        }
+      }
+      if (count == 0L) {
+        return elements;
+      }
+      throw new IllegalStateException(
+          String.format(
+              "Collection does not support non zero terminator values. Received stream with terminator %s.",
+              count));
+    }
+
     @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
         throws CoderException, IOException {
@@ -1206,7 +1248,14 @@ public class WindowedValues {
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
-      windowsCoder.encode(windowedElem.getWindows(), outStream);
+      if (windowedElem instanceof SingleWindowedValue) {
+        outStream.write(SINGLE_WINDOW_COUNT_BYTES, 0, 4);
+        @SuppressWarnings("unchecked")
+        Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
+        typedWindowCoder.encode(((SingleWindowedValue) windowedElem).getWindow(), outStream);
+      } else {
+        windowsCoder.encode(windowedElem.getWindows(), outStream);
+      }
       boolean metadataSupported = isMetadataSupported();
       PaneInfoCoder.INSTANCE.encode(
           windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
@@ -1241,7 +1290,22 @@ public class WindowedValues {
     public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
-      Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
+      int numWindows = readBigEndianInt(inStream);
+      @Nullable BoundedWindow singleWindow = null;
+      @Nullable Collection<? extends BoundedWindow> windows = null;
+      if (numWindows == 1) {
+        singleWindow = windowCoder.decode(inStream);
+      } else if (numWindows == 0) {
+        windows = Collections.emptyList();
+      } else if (numWindows > 1) {
+        List<BoundedWindow> windowList = new ArrayList<>(numWindows);
+        for (int i = 0; i < numWindows; i++) {
+          windowList.add(windowCoder.decode(inStream));
+        }
+        windows = windowList;
+      } else {
+        windows = decodeUnknownSizeWindows(inStream);
+      }
       PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
       CausedByDrain causedByDrain = CausedByDrain.NORMAL;
       io.opentelemetry.context.Context openTelemetryContext = null;
@@ -1258,10 +1322,28 @@ public class WindowedValues {
       }
       T value = valueCoder.decode(inStream, context);
 
+      if (singleWindow != null) {
+        return WindowedValues.of(
+            value,
+            timestamp,
+            singleWindow,
+            paneInfo,
+            null,
+            null,
+            causedByDrain,
+            openTelemetryContext,
+            valueKind);
+      }
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
       return WindowedValues.createWithoutValidation(
-          value, timestamp, windows, paneInfo, causedByDrain, openTelemetryContext, valueKind);
+          value,
+          timestamp,
+          checkStateNotNull(windows),
+          paneInfo,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
     }
 
     @Override
@@ -1276,7 +1358,15 @@ public class WindowedValues {
     public void registerByteSizeObserver(WindowedValue<T> value, ElementByteSizeObserver observer)
         throws Exception {
       InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
-      windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
+      if (value instanceof SingleWindowedValue) {
+        observer.update(4L);
+        @SuppressWarnings("unchecked")
+        Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
+        typedWindowCoder.registerByteSizeObserver(
+            ((SingleWindowedValue) value).getWindow(), observer);
+      } else {
+        windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
+      }
       PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPaneInfo(), observer);
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }

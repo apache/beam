@@ -797,6 +797,151 @@ public class SimpleDoFnRunnerTest {
     }
   }
 
+  @Test
+  public void testReentrantProcessElementPreservesOuterContext() {
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    List<String> observed = new ArrayList<>();
+    DoFn<String, String> echoDoFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String elem, OutputReceiver<String> out) {
+            out.output("before:" + elem);
+            out.output("after:" + elem);
+          }
+        };
+
+    final DoFnRunner<String, String>[] runnerRef = new DoFnRunner[1];
+    WindowedValueMultiReceiver reentrantOutputManager =
+        new WindowedValueMultiReceiver() {
+          @Override
+          public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
+            String value = (String) output.getValue();
+            observed.add(value);
+            if ("before:outer".equals(value)) {
+              runnerRef[0].processElement(WindowedValues.valueInGlobalWindow("inner"));
+            }
+          }
+        };
+
+    runnerRef[0] =
+        new SimpleDoFnRunner<>(
+            null,
+            echoDoFn,
+            NullSideInputReader.empty(),
+            reentrantOutputManager,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.globalDefault(),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    runnerRef[0].startBundle();
+    runnerRef[0].processElement(WindowedValues.valueInGlobalWindow("outer"));
+    runnerRef[0].finishBundle();
+
+    assertThat(observed, contains("before:outer", "before:inner", "after:inner", "after:outer"));
+  }
+
+  @Test
+  public void testMultiOutputReceiverSmallLargeAndNonIdenticalTag() {
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    List<TupleTag<?>> tenExtraTags = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      tenExtraTags.add(new TupleTag<String>("side-" + i));
+    }
+    TupleTag<String> side0 = (TupleTag<String>) tenExtraTags.get(0);
+    TupleTag<String> side9 = (TupleTag<String>) tenExtraTags.get(9);
+    TupleTag<String> side0EqualCopy = new TupleTag<>("side-0");
+    TupleTag<String> mainEqualCopy = new TupleTag<>("main");
+
+    DoFn<String, String> multiDoFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String elem, MultiOutputReceiver out) {
+            out.get(mainTag).output(elem + ":main");
+            out.get(mainEqualCopy).output(elem + ":mainCopy");
+            out.get(side0).output(elem + ":side0");
+            out.get(side0EqualCopy).output(elem + ":side0Copy");
+            if (tenExtraTags.size() > 9) {
+              out.get(side9).output(elem + ":side9");
+            }
+          }
+        };
+
+    // Exercise both <=8 array path (1 extra tag) and >8 map path (10 extra tags).
+    ListOutputManager largeManager = new ListOutputManager();
+    DoFnRunner<String, String> largeRunner =
+        new SimpleDoFnRunner<>(
+            null,
+            multiDoFn,
+            NullSideInputReader.empty(),
+            largeManager,
+            mainTag,
+            tenExtraTags,
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.globalDefault(),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    largeRunner.startBundle();
+    largeRunner.processElement(WindowedValues.valueInGlobalWindow("x"));
+    largeRunner.finishBundle();
+
+    assertThat(
+        largeManager.outputs.get(mainTag),
+        contains(
+            WindowedValues.valueInGlobalWindow("x:main"),
+            WindowedValues.valueInGlobalWindow("x:mainCopy")));
+    assertThat(
+        largeManager.outputs.get(side0),
+        contains(
+            WindowedValues.valueInGlobalWindow("x:side0"),
+            WindowedValues.valueInGlobalWindow("x:side0Copy")));
+    assertThat(
+        largeManager.outputs.get(side9), contains(WindowedValues.valueInGlobalWindow("x:side9")));
+
+    // Exercise <=8 array path with 2 extra tags.
+    ListOutputManager smallManager = new ListOutputManager();
+    DoFn<String, String> smallMultiDoFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String elem, MultiOutputReceiver out) {
+            out.get(mainTag).output(elem + ":main");
+            out.get(side0).output(elem + ":side0");
+            out.get(side0EqualCopy).output(elem + ":side0Copy");
+          }
+        };
+    DoFnRunner<String, String> smallRunner =
+        new SimpleDoFnRunner<>(
+            null,
+            smallMultiDoFn,
+            NullSideInputReader.empty(),
+            smallManager,
+            mainTag,
+            Collections.singletonList(side0),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.globalDefault(),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    smallRunner.startBundle();
+    smallRunner.processElement(WindowedValues.valueInGlobalWindow("y"));
+    smallRunner.finishBundle();
+
+    assertThat(
+        smallManager.outputs.get(mainTag), contains(WindowedValues.valueInGlobalWindow("y:main")));
+    assertThat(
+        smallManager.outputs.get(side0),
+        contains(
+            WindowedValues.valueInGlobalWindow("y:side0"),
+            WindowedValues.valueInGlobalWindow("y:side0Copy")));
+  }
+
   private static class ListOutputManager implements WindowedValueMultiReceiver {
     private final ListMultimap<TupleTag<?>, WindowedValue<?>> outputs = ArrayListMultimap.create();
 

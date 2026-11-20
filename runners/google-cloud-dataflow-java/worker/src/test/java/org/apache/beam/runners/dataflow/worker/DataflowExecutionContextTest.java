@@ -28,11 +28,17 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
@@ -231,6 +237,164 @@ public class DataflowExecutionContextTest {
     Map<String, IntSummaryStatistics> gotProcessingTimes = tracker.getProcessingTimesByStepCopy();
     Assert.assertEquals(0, gotProcessingTimes.size());
     Assert.assertEquals(0, gotProcessingTimes.keySet().size());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+  }
+
+  @Test
+  public void testStreamingOperationContextFastPathReusesScopeAndTracksStats() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+
+    BatchModeExecutionContext execContext =
+        BatchModeExecutionContext.forTesting(options, "testStreamingStage");
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        (DataflowExecutionContext.DataflowExecutionStateTracker)
+            execContext.getExecutionStateTracker();
+    DataflowOperationContext op1 =
+        execContext.createOperationContext(NameContext.create("S01", "s1", "s1", "UserStep1"));
+    DataflowOperationContext op2 =
+        execContext.createOperationContext(NameContext.create("S01", "s2", "s2", "UserStep2"));
+
+    // Pre-registered steps should not appear until an element finishes.
+    Assert.assertTrue(tracker.getProcessingTimesByStepCopy().isEmpty());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+
+    Closeable firstScopeOp1;
+    try (Closeable c1 = op1.enterProcess()) {
+      firstScopeOp1 = c1;
+      Optional<ActiveMessageMetadata> active1 = tracker.getActiveMessageMetadata();
+      assertTrue(active1.isPresent());
+      Assert.assertEquals("UserStep1", active1.get().userStepName());
+
+      Thread.sleep(5);
+      assertTrue(active1.get().stopwatch().elapsed(TimeUnit.MILLISECONDS) >= 1);
+
+      try (Closeable c2 = op2.enterProcess()) {
+        // Entering op2 completed op1 and switched active metadata to op2.
+        Optional<ActiveMessageMetadata> active2 = tracker.getActiveMessageMetadata();
+        assertTrue(active2.isPresent());
+        Assert.assertEquals("UserStep2", active2.get().userStepName());
+        Map<String, IntSummaryStatistics> midStats = tracker.getProcessingTimesByStepCopy();
+        Assert.assertEquals(1, midStats.size());
+        Assert.assertEquals(1L, midStats.get("UserStep1").getCount());
+        assertTrue(midStats.get("UserStep1").getMax() >= 1);
+      }
+      assertFalse(tracker.getActiveMessageMetadata().isPresent());
+    }
+
+    // Second element reuses op1's Closeable scope and records 0 ms min alongside prior >=1 ms max.
+    try (Closeable c1Again = op1.enterProcess()) {
+      Assert.assertSame(firstScopeOp1, c1Again);
+      // Verify re-entrant enterProcess falls back to a distinct Closeable safely.
+      try (Closeable reentrant = op1.enterProcess()) {
+        Assert.assertNotSame(c1Again, reentrant);
+      }
+    }
+
+    Map<String, IntSummaryStatistics> finalStats = tracker.getProcessingTimesByStepCopy();
+    Assert.assertEquals(
+        new HashSet<>(Arrays.asList("UserStep1", "UserStep2")), finalStats.keySet());
+    Assert.assertEquals(3L, finalStats.get("UserStep1").getCount());
+    Assert.assertEquals(0, finalStats.get("UserStep1").getMin());
+    assertTrue(finalStats.get("UserStep1").getMax() >= 1);
+    Assert.assertEquals(1L, finalStats.get("UserStep2").getCount());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+
+    // Reset clears stats and active state while keeping pre-registered operation contexts working.
+    tracker.reset();
+    Assert.assertTrue(tracker.getProcessingTimesByStepCopy().isEmpty());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+
+    try (Closeable afterReset = op1.enterProcess()) {
+      Assert.assertSame(firstScopeOp1, afterReset);
+    }
+    Map<String, IntSummaryStatistics> postResetStats = tracker.getProcessingTimesByStepCopy();
+    Assert.assertEquals(1, postResetStats.size());
+    Assert.assertEquals(1L, postResetStats.get("UserStep1").getCount());
+  }
+
+  @Test
+  public void testStreamingTrackerConcurrentReadsAreConsistent() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+
+    BatchModeExecutionContext execContext =
+        BatchModeExecutionContext.forTesting(options, "testConcurrentStage");
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        (DataflowExecutionContext.DataflowExecutionStateTracker)
+            execContext.getExecutionStateTracker();
+    DataflowOperationContext op1 =
+        execContext.createOperationContext(NameContext.create("S01", "s1", "s1", "StepA"));
+    DataflowOperationContext op2 =
+        execContext.createOperationContext(NameContext.create("S01", "s2", "s2", "StepB"));
+    Set<String> validSteps = new HashSet<>(Arrays.asList("StepA", "StepB"));
+
+    AtomicBoolean done = new AtomicBoolean(false);
+    AtomicReference<Throwable> readerError = new AtomicReference<>();
+
+    Thread reader =
+        new Thread(
+            () -> {
+              try {
+                while (!done.get()) {
+                  Optional<ActiveMessageMetadata> active = tracker.getActiveMessageMetadata();
+                  if (active.isPresent()) {
+                    if (!validSteps.contains(active.get().userStepName())) {
+                      readerError.set(
+                          new IllegalStateException(
+                              "Unexpected active step: " + active.get().userStepName()));
+                      return;
+                    }
+                    if (active.get().stopwatch().elapsed(TimeUnit.NANOSECONDS) < 0L) {
+                      readerError.set(new IllegalStateException("Negative elapsed nanos"));
+                      return;
+                    }
+                  }
+                  Map<String, IntSummaryStatistics> stats = tracker.getProcessingTimesByStepCopy();
+                  for (Map.Entry<String, IntSummaryStatistics> entry : stats.entrySet()) {
+                    if (!validSteps.contains(entry.getKey())) {
+                      readerError.set(
+                          new IllegalStateException("Unexpected stats step: " + entry.getKey()));
+                      return;
+                    }
+                    IntSummaryStatistics s = entry.getValue();
+                    if (s.getCount() <= 0L
+                        || s.getMin() < 0
+                        || s.getMin() > s.getMax()
+                        || s.getSum() < 0L) {
+                      readerError.set(new IllegalStateException("Inconsistent stats: " + s));
+                      return;
+                    }
+                  }
+                }
+              } catch (Throwable t) {
+                readerError.set(t);
+              }
+            });
+    reader.start();
+
+    int iterations = 100_000;
+    try (Closeable activation = tracker.activate()) {
+      for (int i = 0; i < iterations; i++) {
+        try (Closeable c1 = op1.enterProcess()) {
+          try (Closeable c2 = op2.enterProcess()) {
+            // Simulate minimal fused step work
+          }
+        }
+      }
+    } finally {
+      done.set(true);
+      reader.join(10_000);
+    }
+
+    Assert.assertNull("Reader thread failed: " + readerError.get(), readerError.get());
+    Map<String, IntSummaryStatistics> finalStats = tracker.getProcessingTimesByStepCopy();
+    Assert.assertEquals(iterations, finalStats.get("StepA").getCount());
+    Assert.assertEquals(iterations, finalStats.get("StepB").getCount());
     assertFalse(tracker.getActiveMessageMetadata().isPresent());
   }
 }
