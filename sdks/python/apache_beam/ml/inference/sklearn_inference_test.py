@@ -110,6 +110,11 @@ class FakePandasModelDictOut:
     return {"out1": out, "out2": out}
 
 
+class FakePandasModelWithScale:
+  def predict(self, df: pandas.DataFrame, scale=1):
+    return df.loc[:, 'number_2'].to_numpy() * scale
+
+
 def build_model():
   x = [[0, 0], [1, 1]]
   y = [0, 1]
@@ -562,6 +567,37 @@ class SkLearnRunInferenceTest(unittest.TestCase):
           PredictionResult(splits[4], {
               'out1': 4, 'out2': 4
           }),
+      ]
+      assert_that(
+          actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_predict_pandas_with_inference_args(self):
+    inference_runner = SklearnModelHandlerPandas(model_uri='unused')
+    dataframe = pandas_dataframe()
+    splits = [dataframe.loc[[i]] for i in dataframe.index]
+    inferences = list(
+        inference_runner.run_inference(
+            splits, FakePandasModelWithScale(), inference_args={'scale': 10}))
+    self.assertEqual([50, 80, 10, 10, 40], [p.inference for p in inferences])
+
+  def test_pipeline_pandas_with_inference_args(self):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakePandasModelWithScale(), file)
+    with TestPipeline() as pipeline:
+      dataframe = pandas_dataframe()
+      splits = [dataframe.loc[[i]] for i in dataframe.index]
+      pcoll = pipeline | 'start' >> beam.Create(splits)
+      actual = pcoll | RunInference(
+          SklearnModelHandlerPandas(model_uri=temp_file_name),
+          inference_args={'scale': 10})
+
+      expected = [
+          PredictionResult(splits[0], 50),
+          PredictionResult(splits[1], 80),
+          PredictionResult(splits[2], 10),
+          PredictionResult(splits[3], 10),
+          PredictionResult(splits[4], 40),
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))

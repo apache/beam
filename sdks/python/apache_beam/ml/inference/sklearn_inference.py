@@ -209,9 +209,10 @@ def _default_pandas_inference_fn(
     model: BaseEstimator,
     batch: Sequence[pandas.DataFrame],
     inference_args: Optional[dict[str, Any]] = None) -> Any:
+  inference_args = {} if not inference_args else inference_args
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
-  predictions = model.predict(vectorized_batch)
+  predictions = model.predict(vectorized_batch, **inference_args)
   splits = [
       vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
   ]
