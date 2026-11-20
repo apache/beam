@@ -45,6 +45,9 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -53,6 +56,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.aws2.common.ClientBuilderFactory;
 import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
@@ -95,6 +99,9 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
 
   /** Maximum times to retry batch SQS operations upon partial success. */
   private static final int BATCH_OPERATION_MAX_RETIRES = 5;
+
+  /** Timeout to wait for in-flight checkpoints to finalize on close. */
+  private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.standardSeconds(60);
 
   /** Timeout for round trip from receiving a message to finally deleting it from SQS. */
   private static final Duration PROCESSING_TIMEOUT = Duration.standardMinutes(2);
@@ -305,6 +312,11 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
   /** Stats only: Maximum number of checkpoints in flight at any time. */
   private int maxInFlightCheckpoints;
 
+  private final SqsCheckpointMark.PendingCheckpoints pendingCheckpoints =
+      SqsCheckpointMark.PendingCheckpoints.create(this);
+  private final Object closeLock = new Object();
+  private ScheduledFuture<?> closeTimeoutFuture;
+
   private static MovingFunction newFun(Combine.BinaryCombineLongFn function) {
     return new MovingFunction(
         SAMPLE_PERIOD.getMillis(),
@@ -428,8 +440,15 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
   public CheckpointMark getCheckpointMark() {
     int cur = numInFlightCheckpoints.incrementAndGet();
     maxInFlightCheckpoints = Math.max(maxInFlightCheckpoints, cur);
-    return new SqsCheckpointMark(
-        this, safeToDeleteIds, transform(messagesNotYetRead, SqsMessage::getReceiptHandle));
+    SqsCheckpointMark mark =
+        new SqsCheckpointMark(
+            pendingCheckpoints,
+            pendingCheckpoints.nextSequence(),
+            this,
+            safeToDeleteIds,
+            transform(messagesNotYetRead, SqsMessage::getReceiptHandle));
+    pendingCheckpoints.add(mark);
+    return mark;
   }
 
   @Override
@@ -520,9 +539,37 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
    * no in-flight checkpoints remain, the reader will be closed.
    */
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public void close() throws IOException {
     active.set(false);
-    maybeCloseClient();
+    synchronized (closeLock) {
+      if (numInFlightCheckpoints.get() == 0) {
+        maybeCloseClient();
+      } else if (closeTimeoutFuture == null) {
+        ScheduledExecutorService executorService =
+            awsOptions.as(ExecutorOptions.class).getScheduledExecutorService();
+        closeTimeoutFuture =
+            executorService.schedule(
+                () -> {
+                  List<SqsCheckpointMark> abandoned = pendingCheckpoints.removeAll();
+                  if (!abandoned.isEmpty()) {
+                    numInFlightCheckpoints.addAndGet(-abandoned.size());
+                    LOG.info(
+                        "SQS reader for {} closes with {} checkpoint(s) not finalized within {}.",
+                        queueUrl(),
+                        abandoned.size(),
+                        DEFAULT_CLOSE_TIMEOUT);
+                  }
+                  try {
+                    maybeCloseClient();
+                  } catch (IOException e) {
+                    LOG.warn("Error closing SQS client after close timeout", e);
+                  }
+                },
+                DEFAULT_CLOSE_TIMEOUT.getMillis(),
+                TimeUnit.MILLISECONDS);
+      }
+    }
   }
 
   /**
@@ -530,11 +577,19 @@ class SqsUnboundedReader extends UnboundedSource.UnboundedReader<SqsMessage> {
    * outstanding checkpoints.
    */
   void maybeCloseClient() throws IOException {
-    if (!active.get() && numInFlightCheckpoints.get() == 0) {
-      // The reader has been closed and it has no more outstanding checkpoints. The client
-      // must be closed so it doesn't leak
-      if (sqsClient != null) {
-        sqsClient.close();
+    synchronized (closeLock) {
+      if (!active.get() && numInFlightCheckpoints.get() <= 0) {
+        if (closeTimeoutFuture != null) {
+          closeTimeoutFuture.cancel(false);
+          closeTimeoutFuture = null;
+        }
+        pendingCheckpoints.removeAll();
+        // The reader has been closed and it has no more outstanding checkpoints. The client
+        // must be closed so it doesn't leak
+        if (sqsClient != null) {
+          sqsClient.close();
+          sqsClient = null;
+        }
       }
     }
   }

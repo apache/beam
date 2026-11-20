@@ -50,6 +50,16 @@ class SqsUnboundedSource extends UnboundedSource<SqsMessage, SqsCheckpointMark> 
   @Override
   public UnboundedReader<SqsMessage> createReader(
       PipelineOptions options, @Nullable SqsCheckpointMark checkpointMark) {
+    if (checkpointMark != null) {
+      try {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // deleted if the reader that took it lives in this JVM.
+        checkpointMark.finalizeCheckpoint();
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "Unable to finalize resumed checkpoint for " + read.queueUrl() + ": ", e);
+      }
+    }
     try {
       return new SqsUnboundedReader(this, checkpointMark, options.as(AwsOptions.class));
     } catch (IOException e) {
