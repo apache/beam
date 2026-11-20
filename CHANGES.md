@@ -111,6 +111,7 @@
 * [Beam SQL] Added a live view to the SQL shell. A streaming (unbounded) SELECT shows its rows as they arrive, with an `op` column for each row's change kind ([#41313](https://github.com/apache/beam/issues/41313)).
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
+* (Python) Added a `Deduplicate` transform to Beam YAML that drops records with the same key fields within a `duration`, in processing or event time. `DeduplicatePerKey` now reports `deduplicate_kept` and `deduplicate_dropped` counters ([#41354](https://github.com/apache/beam/issues/41354)).
 
 ### Performance
 
