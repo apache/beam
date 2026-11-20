@@ -22,7 +22,6 @@
 --influx_measurement=python_batch_sideinput_6
 --num_workers=10
 --autoscaling_algorithm=NONE
---experiments=use_runner_v2
 --input_options=''{\\"num_records\\":1000000,\\"key_size\\":100,\\"value_size\\":900,\\"algorithm\\":\\"lcg\\"}''
 --side_input_type=list
 --runner=DataflowRunner

@@ -80,7 +80,7 @@ public class CommitSchemaOnceTest {
             CollectDistinctSchemas.SchemaGroup.of(
                 SchemaParser.toJson(FileSchemas.canonical(file)), 3L, Arrays.asList()));
 
-    PCollection<Long> schemaIds =
+    PCollection<SchemaCommitVerdict> verdicts =
         pipeline
             .apply(
                 Create.of(Arrays.asList(schemas)).withCoder(CollectDistinctSchemas.outputCoder()))
@@ -89,10 +89,11 @@ public class CommitSchemaOnceTest {
                     new CommitSchemaOnce(
                         catalogConfig,
                         "default." + testName.getMethodName(),
-                        SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION),
-                        IncompatibleSchemaHandling.FAIL_PIPELINE,
-                        new CommitSchemaUnion.TableCreation(null, null, null))));
-    PAssert.that(schemaIds).containsInAnyOrder(1L);
+                        new CommitSchemaUnion.Settings(
+                            SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION),
+                            IncompatibleSchemaHandling.FAIL_PIPELINE,
+                            new CommitSchemaUnion.NewTableSettings(null, null, null)))));
+    PAssert.that(verdicts).containsInAnyOrder(SchemaCommitVerdict.committed(1L));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
     assertEquals(1, commitsCounted(result));
@@ -130,9 +131,10 @@ public class CommitSchemaOnceTest {
                 new CommitSchemaOnce(
                     catalogConfig,
                     "default." + testName.getMethodName(),
-                    SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION),
-                    IncompatibleSchemaHandling.FAIL_PIPELINE,
-                    new CommitSchemaUnion.TableCreation(null, null, null))));
+                    new CommitSchemaUnion.Settings(
+                        SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION),
+                        IncompatibleSchemaHandling.FAIL_PIPELINE,
+                        new CommitSchemaUnion.NewTableSettings(null, null, null)))));
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
     assertEquals(0, commitsCounted(result));

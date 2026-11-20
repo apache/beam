@@ -299,6 +299,12 @@ class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
     return _PollWatermarkEstimator(estimator_state)
 
 
+def _quote_identifier(name: str) -> str:
+  if '`' in name:
+    raise ValueError(f'Invalid column name (contains backtick): {name!r}')
+  return f'`{name}`'
+
+
 def build_changes_query(
     table: str,
     start: Timestamp,
@@ -334,12 +340,18 @@ def build_changes_query(
   # destination tables with their original names. Rename them so they can
   # be persisted to the temp table for Storage Read API reading.
   pseudo = (
-      f"_CHANGE_TYPE AS {change_type_column}, "
-      f"_CHANGE_TIMESTAMP AS {change_timestamp_column}")
+      f"_CHANGE_TYPE AS {_quote_identifier(change_type_column)}, "
+      f"_CHANGE_TIMESTAMP AS {_quote_identifier(change_timestamp_column)}")
   if columns is None:
-    select = f"SELECT * EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP), {pseudo}"
+    hidden = "_CHANGE_TYPE, _CHANGE_TIMESTAMP"
+    if change_function == 'CHANGES':
+      hidden += ", _CHANGE_IS_FOR_UPDATE"
+    select = f"SELECT * EXCEPT({hidden}), {pseudo}"
+  elif columns:
+    quoted = ', '.join(_quote_identifier(c) for c in columns)
+    select = f"SELECT {quoted}, {pseudo}"
   else:
-    select = f"SELECT {', '.join(columns)}, {pseudo}"
+    select = f"SELECT {pseudo}"
   from_clause = (
       f"FROM {change_function}"
       f"(TABLE `{table}`, "
@@ -416,7 +428,8 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       start_time: Timestamp,
       stop_time: Timestamp,
       poll_interval: Duration,
-      location: Optional[str] = None) -> None:
+      location: Optional[str] = None,
+      quota_project_id: Optional[str] = None) -> None:
     self._table = table
     self._project = project
     self._change_function = change_function
@@ -425,9 +438,11 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     self._stop_time = stop_time
     self._poll_interval = poll_interval
     self._location = location
+    self._quota_project_id = quota_project_id
 
   def setup(self) -> None:
-    self._bq_wrapper = bigquery_tools.BigQueryWrapper()
+    self._bq_wrapper = bigquery_tools.BigQueryWrapper(
+        quota_project_id=self._quota_project_id)
     if self._location is None:
       table_ref = bigquery_tools.parse_table_reference(
           self._table, project=self._project)
@@ -496,8 +511,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       self,
       start_ts: Timestamp,
       end_ts: Timestamp,
-      watermark_estimator: _PollWatermarkEstimator
-  ) -> Iterable[TimestampedValue[_QueryRange]]:
+      watermark_estimator: _PollWatermarkEstimator):
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
     _LOGGER.info(
@@ -524,9 +538,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       _: _PollConfig,
       restriction_tracker=beam.DoFn.RestrictionParam(),
       watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
-          _PollWatermarkEstimatorProvider())
-  ) -> Iterable[TimestampedValue[_QueryRange]]:
-
+          _PollWatermarkEstimatorProvider())):
     now = time.time()
     start_ts = watermark_estimator.poll_cursor()
 
@@ -570,7 +582,8 @@ class _ExecuteQueryFn(beam.DoFn):
       change_type_column: str = 'change_type',
       change_timestamp_column: str = 'change_timestamp',
       columns: Optional[list[str]] = None,
-      row_filter: Optional[str] = None) -> None:
+      row_filter: Optional[str] = None,
+      quota_project_id: Optional[str] = None) -> None:
     self._table = table
     self._project = project
     self._change_function = change_function
@@ -580,9 +593,11 @@ class _ExecuteQueryFn(beam.DoFn):
     self._change_timestamp_column = change_timestamp_column
     self._columns = columns
     self._row_filter = row_filter
+    self._quota_project_id = quota_project_id
 
   def setup(self) -> None:
-    self._bq_wrapper = bigquery_tools.BigQueryWrapper()
+    self._bq_wrapper = bigquery_tools.BigQueryWrapper(
+        quota_project_id=self._quota_project_id)
     if self._location is None:
       table_ref = bigquery_tools.parse_table_reference(
           self._table, project=self._project)
@@ -711,11 +726,13 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       batch_arrow_read: bool = True,
       change_timestamp_column: str = 'change_timestamp',
       max_split_rounds: int = 1,
-      emit_raw_batches: bool = False) -> None:
+      emit_raw_batches: bool = False,
+      quota_project_id: Optional[str] = None) -> None:
     self._batch_arrow_read = batch_arrow_read
     self._change_timestamp_column = change_timestamp_column
     self._max_split_rounds = max_split_rounds
     self._emit_raw_batches = emit_raw_batches
+    self._quota_project_id = quota_project_id
     self._storage_client = None
 
   def _ensure_client(self) -> None:
@@ -727,7 +744,8 @@ class _ReadStorageStreamsSDF(beam.DoFn,
     """
     if self._storage_client is None:
       _LOGGER.info('[Read] creating BigQueryReadClient')
-      self._storage_client = bq_storage.BigQueryReadClient()
+      self._storage_client = bigquery_tools.create_bq_storage_client(
+          self._quota_project_id)
 
   def setup(self) -> None:
     self._ensure_client()
@@ -1032,10 +1050,7 @@ class _DecompressArrowBatchesFn(beam.DoFn):
   def __init__(self, change_timestamp_column: str = 'change_timestamp') -> None:
     self._change_timestamp_column = change_timestamp_column
 
-  def process(
-      self,
-      element: tuple[bytes,
-                     bytes]) -> Iterable[TimestampedValue[dict[str, Any]]]:
+  def process(self, element: tuple[bytes, bytes]):
     schema_bytes, batch_bytes = element
     schema = pyarrow.ipc.read_schema(pyarrow.py_buffer(schema_bytes))
     batch = pyarrow.ipc.read_record_batch(
@@ -1072,9 +1087,13 @@ class _CleanupTempTablesFn(beam.DoFn):
   STREAMS_READ = beam.transforms.userstate.CombiningValueStateSpec(
       'streams_read', sum)
 
+  def __init__(self, quota_project_id: Optional[str] = None) -> None:
+    self._quota_project_id = quota_project_id
+
   def setup(self) -> None:
     _LOGGER.info('[Cleanup] setup: creating BigQueryWrapper')
-    self._bq_wrapper = bigquery_tools.BigQueryWrapper()
+    self._bq_wrapper = bigquery_tools.BigQueryWrapper(
+        quota_project_id=self._quota_project_id)
 
   def process(
       self,
@@ -1247,6 +1266,9 @@ class ReadBigQueryChangeHistory(beam.PTransform):
           'project must be specified either in ReadBigQueryChangeHistory '
           'or in pipeline options (--project)')
 
+    quota_project_id = bigquery_tools._quota_project_id_from_options(
+        pbegin.pipeline.options)
+
     start_time = Timestamp(self._start_time or time.time())
     stop_time = (
         Timestamp(self._stop_time)
@@ -1290,7 +1312,9 @@ class ReadBigQueryChangeHistory(beam.PTransform):
                 start_time=start_time,
                 stop_time=stop_time,
                 poll_interval=poll_interval,
-                location=self._location)))
+                location=self._location,
+                quota_project_id=quota_project_id)).with_output_types(
+                    _QueryRange))
 
     # CommitQueryResults: Reshuffle commits _QueryResult (temp table ref)
     # so that if the Read SDF retries, it re-reads the existing temp table
@@ -1311,7 +1335,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
                 change_type_column=self._change_type_column,
                 change_timestamp_column=self._change_timestamp_column,
                 columns=self._columns,
-                row_filter=self._row_filter))
+                row_filter=self._row_filter,
+                quota_project_id=quota_project_id))
         | 'CommitQueryResults' >> beam.Reshuffle())
 
     emit_raw = self._reshuffle_decompress
@@ -1321,7 +1346,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
             batch_arrow_read=self._batch_arrow_read,
             change_timestamp_column=self._change_timestamp_column,
             max_split_rounds=self._max_split_rounds,
-            emit_raw_batches=emit_raw))
+            emit_raw_batches=emit_raw,
+            quota_project_id=quota_project_id))
     if emit_raw:
       read_sdf = read_sdf.with_output_types(tuple[bytes, bytes])
     else:
@@ -1334,7 +1360,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
 
     _ = (
         read_outputs[_CLEANUP_TAG]
-        | 'CleanupTempTables' >> beam.ParDo(_CleanupTempTablesFn()))
+        | 'CleanupTempTables' >> beam.ParDo(
+            _CleanupTempTablesFn(quota_project_id=quota_project_id)))
 
     if emit_raw:
       # Reshuffle raw Arrow batches for fan-out, then decompress and
@@ -1344,7 +1371,8 @@ class ReadBigQueryChangeHistory(beam.PTransform):
           | 'ReshuffleForFanout' >> beam.Reshuffle()
           | 'DecompressBatches' >> beam.ParDo(
               _DecompressArrowBatchesFn(
-                  change_timestamp_column=(self._change_timestamp_column))))
+                  change_timestamp_column=self._change_timestamp_column)).
+          with_output_types(dict[str, Any]))
       return rows
     else:
       return read_outputs['rows']

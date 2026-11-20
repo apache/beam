@@ -376,6 +376,9 @@ final class RpcQosImpl implements RpcQos {
     @Override
     public boolean awaitSafeToProceed(Instant instant) throws InterruptedException {
       state.checkActive();
+      if (!options.isShouldThrottleRampup()) {
+        return super.awaitSafeToProceed(instant);
+      }
       Optional<Duration> shouldThrottle = writeRampUp.shouldThrottle(instant);
       if (shouldThrottle.isPresent()) {
         Duration throttleDuration = shouldThrottle.get();
@@ -392,7 +395,10 @@ final class RpcQosImpl implements RpcQos {
     public <ElementT extends Element<?>> FlushBufferImpl<ElementT> newFlushBuffer(
         Instant instantSinceEpoch) {
       state.checkActive();
-      int availableWriteCountBudget = writeRampUp.getAvailableWriteCountBudget(instantSinceEpoch);
+      int availableWriteCountBudget =
+          options.isShouldThrottleRampup()
+              ? writeRampUp.getAvailableWriteCountBudget(instantSinceEpoch)
+              : Integer.MAX_VALUE;
       int nextBatchMaxCount = wb.nextBatchMaxCount(instantSinceEpoch);
       int batchMaxCount =
           Ints.min(

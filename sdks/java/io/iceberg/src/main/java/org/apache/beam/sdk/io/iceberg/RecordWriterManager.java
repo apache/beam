@@ -27,7 +27,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -94,7 +93,7 @@ class RecordWriterManager implements AutoCloseable {
    *
    * <p>On closing, each writer's output {@link DataFile} is collected.
    */
-  class DestinationState {
+  final class DestinationState {
     private final IcebergDestination icebergDestination;
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;
@@ -318,9 +317,7 @@ class RecordWriterManager implements AutoCloseable {
     if (sideInputTableSpecs != null && sideInputTableSpecs.containsKey(tableIdString)) {
       SerializableTableSpec spec = sideInputTableSpecs.get(tableIdString);
       if (spec != null) {
-        Map<String, String> catalogProperties = catalogConfig.getCatalogProperties();
-        return new SideInputTable(
-            spec, catalogProperties != null ? catalogProperties : Collections.emptyMap());
+        return new SideInputTable(spec, catalogConfig);
       }
     }
     return TableCache.getAndRefreshIfStale(

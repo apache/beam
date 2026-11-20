@@ -18,10 +18,19 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
@@ -33,10 +42,14 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -53,8 +66,10 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 
 /** Tests for {@link TestPipeline}. */
 public class TestPipelineTest implements Serializable {
@@ -121,6 +136,48 @@ public class TestPipelineTest implements Serializable {
       pipeline.run();
     }
 
+    @Test
+    public void testRunPreservesWhichOptionsWereExplicitlySet() {
+      pipeline.getOptions().setRunner(OptionsCapturingRunner.class);
+      // Reading a default binds it on the options object without making it explicitly set.
+      assertFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+      pipeline.apply(Create.of(1, 2, 3));
+
+      OptionsCapturingRunner.captured = null;
+      try {
+        pipeline.run();
+        fail("expected the runner to throw");
+      } catch (UnsupportedOperationException expected) {
+        // The runner always throws; what matters is the options it was created with.
+      }
+
+      PipelineOptions seenByRunner = OptionsCapturingRunner.captured;
+      assertNotNull(seenByRunner);
+      assertThat(seenByRunner, not(sameInstance(pipeline.getOptions())));
+      // The copy still serves the bound default ...
+      assertFalse(seenByRunner.as(StreamingOptions.class).isStreaming());
+      // ... but does not report it as explicitly set, while explicitly set options are reported.
+      assertThat(
+          PipelineOptionsFactory.explicitlySetProperties(seenByRunner), not(hasItem("streaming")));
+      assertThat(PipelineOptionsFactory.explicitlySetProperties(seenByRunner), hasItem("runner"));
+    }
+
+    /** A runner that records the options it was constructed from and refuses to run. */
+    public static class OptionsCapturingRunner extends PipelineRunner<PipelineResult> {
+      static volatile @Nullable PipelineOptions captured;
+
+      @SuppressWarnings("unused") // used by reflection
+      public static OptionsCapturingRunner fromOptions(PipelineOptions options) {
+        captured = options;
+        return new OptionsCapturingRunner();
+      }
+
+      @Override
+      public PipelineResult run(Pipeline pipeline) {
+        throw new UnsupportedOperationException("OptionsCapturingRunner does not run pipelines");
+      }
+    }
+
     /** TestMatcher is a matcher designed for testing matcher serialization/deserialization. */
     public static class TestMatcher extends BaseMatcher<PipelineResult>
         implements SerializableMatcher<PipelineResult> {
@@ -149,6 +206,200 @@ public class TestPipelineTest implements Serializable {
       public int hashCode() {
         return uuid.hashCode();
       }
+    }
+  }
+
+  /** Tests for {@link TestPipeline#PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES}. */
+  @RunWith(JUnit4.class)
+  public static class UniqueRootNamesTest implements Serializable {
+    /** Turns unique root names on before the {@link TestPipeline} rule below evaluates. */
+    private static final TestRule ENABLE_UNIQUE_ROOT_NAMES =
+        (base, description) ->
+            new Statement() {
+              @Override
+              public void evaluate() throws Throwable {
+                System.setProperty(
+                    TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES, "true");
+                base.evaluate();
+              }
+            };
+
+    private final transient TestPipeline pipeline = TestPipeline.create();
+
+    @Rule
+    public final transient RuleChain rules =
+        RuleChain.outerRule(new RestoreSystemProperties())
+            .around(ENABLE_UNIQUE_ROOT_NAMES)
+            .around(pipeline);
+
+    @Test
+    public void testRuleNamesRootAfterTest() {
+      String root = pipeline.getRootName();
+      assertThat(
+          root, matchesPattern("t[0-9]+-TestPipelineTest\\$UniqueRootNamesTest-testRuleNames.*"));
+      assertThat(root.length(), lessThanOrEqualTo(TestPipeline.MAX_ROOT_NAME_LENGTH));
+
+      PCollection<Integer> created = pipeline.apply("MyCreate", Create.of(1, 2, 3));
+      PCollection<Integer> mapped =
+          created.apply(
+              "MyMap",
+              MapElements.via(
+                  new SimpleFunction<Integer, Integer>() {
+                    @Override
+                    public Integer apply(Integer input) {
+                      return input;
+                    }
+                  }));
+      assertThat(created.getName(), startsWith(root + "/"));
+      assertThat(mapped.getName(), startsWith(root + "/"));
+
+      List<String> fullNames = new ArrayList<>();
+      pipeline.traverseTopologically(
+          new Pipeline.PipelineVisitor.Defaults() {
+            @Override
+            public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+              if (!node.isRootNode()) {
+                fullNames.add(node.getFullName());
+              }
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+
+            @Override
+            public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+              fullNames.add(node.getFullName());
+            }
+          });
+      assertThat(fullNames, hasItem(root + "/MyCreate"));
+      assertThat(fullNames, hasItem(root + "/MyMap"));
+      assertThat(fullNames, everyItem(startsWith(root + "/")));
+    }
+
+    @Test
+    public void testRootNamesAreUniqueAcrossPipelines() {
+      TestPipeline other = TestPipeline.create();
+      other.nameRoot("someOtherTest");
+      assertThat(other.getRootName(), not(equalTo(pipeline.getRootName())));
+      assertThat(other.getRootName(), matchesPattern("t[0-9]+-someOtherTest"));
+    }
+
+    @Test
+    public void testNameRootIsIgnoredOnceTransformsExist() {
+      TestPipeline late = TestPipeline.create();
+      late.apply(Create.of(1));
+      late.nameRoot("tooLate");
+      assertEquals("", late.getRootName());
+    }
+
+    @Test
+    public void testRootNameForSanitizesAndTruncates() {
+      assertEquals("t7-Foo$Bar-baz", TestPipeline.rootNameFor(7, "Foo$Bar-baz"));
+      // Characters outside the conservative set, notably the '/' name separator, are replaced.
+      assertEquals("t7-a_b_c_d", TestPipeline.rootNameFor(7, "a/b c[d"));
+      // Only the human-readable part is truncated; the unique sequence prefix is kept intact.
+      String longName = "x".repeat(200);
+      String truncated = TestPipeline.rootNameFor(123456, longName);
+      assertEquals(TestPipeline.MAX_ROOT_NAME_LENGTH, truncated.length());
+      assertThat(truncated, startsWith("t123456-xxx"));
+      assertEquals("t1-", TestPipeline.rootNameFor(1, ""));
+    }
+  }
+
+  /** Tests for the default (unnamed) root. */
+  @RunWith(JUnit4.class)
+  public static class DefaultRootNameTest {
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    public void testRootIsUnnamedUnlessPropertySet() {
+      assertEquals("", pipeline.getRootName());
+      PCollection<Integer> created = pipeline.apply("MyCreate", Create.of(1));
+      assertThat(created.getName(), startsWith("MyCreate"));
+    }
+  }
+
+  /**
+   * Tests for each condition under which {@link TestPipeline#isStandaloneExecutionRequired()}
+   * reports that the pipeline must not be merged with others. Runs under {@link
+   * BeamParallelJunit4Runner} because that is what hands the test instance to the rule, which the
+   * {@link ExpectedException} detection relies on. The {@link Timeout} rule is deliberate: like
+   * many ValidatesRunner suites this class then executes its test bodies on a thread of JUnit's
+   * choosing rather than the runner's, and detection must not depend on which thread that is.
+   */
+  @RunWith(BeamParallelJunit4Runner.class)
+  public static class StandaloneExecutionTest {
+    @Rule public transient ExpectedException thrown = ExpectedException.none();
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
+
+    @Test
+    public void testPlainTestDoesNotRequireStandalone() {
+      assertFalse(pipeline.isStandaloneExecutionRequired());
+      pipeline.apply("MyCreate", Create.of(1));
+      assertFalse(pipeline.isStandaloneExecutionRequired());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testExpectedAnnotationRequiresStandalone() {
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+      throw new IllegalStateException("expected");
+    }
+
+    @Test
+    @Category(UsesFailureMessage.class)
+    public void testUsesFailureMessageCategoryRequiresStandalone() {
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+    }
+
+    @Test
+    @BeamParallelJunit4Runner.SerialTest
+    public void testSerialTestMethodRequiresStandalone() {
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+    }
+
+    @Test
+    public void testExpectedExceptionRuleRequiresStandalone() {
+      assertFalse(pipeline.isStandaloneExecutionRequired());
+      thrown.expect(IllegalStateException.class);
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+      throw new IllegalStateException("expected");
+    }
+
+    @Test
+    public void testOptionsMutatedAfterRuleRequiresStandalone() {
+      assertFalse(pipeline.isStandaloneExecutionRequired());
+      pipeline.getOptions().setJobName("custom-job-name");
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+    }
+
+    @Test
+    public void testRuntimeValueProviderRequiresStandalone() {
+      assertFalse(pipeline.isStandaloneExecutionRequired());
+      pipeline.newProvider("runtime-value");
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+    }
+  }
+
+  /** Class-level {@link BeamParallelJunit4Runner.SerialTest} also forces standalone execution. */
+  @RunWith(JUnit4.class)
+  @BeamParallelJunit4Runner.SerialTest
+  public static class SerialClassStandaloneExecutionTest {
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    public void testSerialTestClassRequiresStandalone() {
+      assertTrue(pipeline.isStandaloneExecutionRequired());
+    }
+  }
+
+  /** Class-level {@code @Category(UsesFailureMessage.class)} also forces standalone execution. */
+  @RunWith(JUnit4.class)
+  @Category(UsesFailureMessage.class)
+  public static class UsesFailureMessageClassStandaloneExecutionTest {
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    public void testUsesFailureMessageClassRequiresStandalone() {
+      assertTrue(pipeline.isStandaloneExecutionRequired());
     }
   }
 

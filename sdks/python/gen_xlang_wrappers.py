@@ -230,8 +230,9 @@ def pretty_type(tp):
     else:
       # Remove nested typing module name (like Optional)
       tp = str(tp).replace("typing.", "")
-  elif tp.__module__ == 'typing':
+  elif tp.__module__ in ('typing', 'collections.abc'):
     tp = str(tp).replace("typing.", "")
+    tp = tp.replace("collections.abc.", "")
     tp = tp.replace("Sequence", "list")
     tp = tp.replace("Mapping", "map")
   elif tp.__module__ == 'numpy':

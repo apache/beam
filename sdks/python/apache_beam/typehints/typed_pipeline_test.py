@@ -20,6 +20,8 @@
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import functools
+import types
 import typing
 import unittest
 from typing import Tuple
@@ -399,11 +401,80 @@ class MainInputTest(unittest.TestCase):
       _ = [1, 2, 3] | beam.ParDo(my_do_fn, a=1)
 
   def test_typed_callable_string_literals(self):
-    def do_fn(element: 'int') -> 'typehints.List[str]':
+    def do_fn(element: 'int') -> 'typehints.List[typehints.List[str]]':
       return [[str(element)] * 2]
 
     result = [1, 2] | beam.ParDo(do_fn)
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
+
+  def test_typed_map_partial_with_future_annotations(self):
+    # Keywords bound by functools.partial are typed from their (string)
+    # annotations, which must resolve to the same types as the expected hints,
+    # including names referenced through an aliased module import.
+    class Config(object):
+      def __init__(self, scale):
+        self.scale = scale
+
+    config_lib = types.ModuleType('config_lib')
+    config_lib.Config = Config
+    namespace = {'config_lib': config_lib}
+    exec(
+        'from __future__ import annotations\n'
+        'def scale(\n'
+        '    element: int, config: config_lib.Config, offset: int) -> int:\n'
+        '  return element * config.scale + offset\n',
+        namespace)
+
+    fn = functools.partial(namespace['scale'], config=Config(2), offset=1)
+    result = [1, 2, 3] | beam.Map(fn)
+    self.assertEqual([3, 5, 7], sorted(result))
+
+  def test_typed_map_future_annotations_with_type_variable(self):
+    # String annotations that use a TypeVar must still resolve, so the output
+    # type is inferred from the input type.
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'T = typing.TypeVar("T")\n'
+        'def first(xs: list[T]) -> T:\n'
+        '  return xs[0]\n',
+        namespace)
+
+    p = TestPipeline()
+    result = p | beam.Create([[1]]) | beam.Map(namespace['first'])
+    self.assertEqual(int, result.element_type)
+
+  def test_typed_flatmap_future_annotations_unsupported_hint(self):
+    # A resolved annotation that Beam cannot convert (collections.abc.Generator
+    # with a single argument) falls back to Any instead of raising.
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'from collections.abc import Generator\n'
+        'def gen(x: int) -> Generator[int]:\n'
+        '  yield x\n',
+        namespace)
+
+    result = [1, 2] | beam.FlatMap(namespace['gen'])
+    self.assertEqual([1, 2], sorted(result))
+
+  def test_typed_map_string_annotation_naming_non_type(self):
+    # A protobuf enum is an EnumTypeWrapper instance, not a type (e.g.
+    # tensorflow_data_validation annotates parameters with
+    # Mapping[..., "schema_pb2.FeatureType"]).
+    namespace = {}
+    exec(
+        'from __future__ import annotations\n'
+        'import typing\n'
+        'from google.protobuf import descriptor_pb2\n'
+        'def fn(element: int, types: typing.Mapping[\n'
+        '           str, descriptor_pb2.FieldDescriptorProto.Type]) -> int:\n'
+        '  return element\n',
+        namespace)
+
+    result = [1, 2] | beam.Map(namespace['fn'], {})
+    self.assertEqual([1, 2], sorted(result))
 
   def test_typed_ptransform_fn(self):
     # Test that type hints are propagated to the created PTransform.
@@ -439,7 +510,8 @@ class MainInputTest(unittest.TestCase):
 
   def test_typed_dofn_string_literals(self):
     class MyDoFn(beam.DoFn):
-      def process(self, element: 'int') -> 'typehints.List[str]':
+      def process(
+          self, element: 'int') -> 'typehints.List[typehints.List[str]]':
         return [[str(element)] * 2]
 
     result = [1, 2] | beam.ParDo(MyDoFn())
@@ -460,6 +532,17 @@ class MainInputTest(unittest.TestCase):
 
     result = [1, 2, 3] | beam.Map(fn)
     self.assertCountEqual([None, 2, 3], result)
+
+  def test_inferred_type_of_tuple_slice(self):
+    # https://github.com/apache/beam/issues/20899
+    rows = [('day1', 'a', 1), ('day2', 'a', 2), ('day1', 'b', 3)]
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(rows).with_output_types(typing.Tuple[str, str, int])
+          | beam.Map(lambda row: row[1:])
+          | beam.CombinePerKey(sum))
+      assert_that(result, equal_to([('a', 3), ('b', 3)]))
 
   def test_typed_flatmap(self):
     def fn(element: int) -> typehints.Iterable[int]:

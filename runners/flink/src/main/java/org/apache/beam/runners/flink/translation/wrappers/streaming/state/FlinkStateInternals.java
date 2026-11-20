@@ -103,7 +103,7 @@ import org.joda.time.Instant;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class FlinkStateInternals<K> implements StateInternals {
+public final class FlinkStateInternals<K> implements StateInternals {
 
   private static final StateNamespace globalWindowNamespace =
       StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
@@ -1185,7 +1185,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkWatermarkHoldState implements WatermarkHoldState {
+  private final class FlinkWatermarkHoldState implements WatermarkHoldState {
 
     private final TimestampCombiner timestampCombiner;
     private final String namespaceString;

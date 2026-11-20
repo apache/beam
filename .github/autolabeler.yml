@@ -111,4 +111,4 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "portability": ["runners/portability/**/*"]
 "prism": ["runners/prism/**/*", "sdks/go/pkg/beam/runners/prism/**/*", "sdks/go/cmd/prism/**/*", "sdks/python/apache_beam/runners/portability/prism_runner.py","sdks/python/apache_beam/runners/portability/prism_runner_test.py"]
 "spark": ["runners/spark/**/*", "sdks/go/pkg/beam/runners/spark/**/*"]
-"twister2": ["runners/twister2/**/*"]
+

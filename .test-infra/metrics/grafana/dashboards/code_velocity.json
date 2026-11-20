@@ -13,7 +13,7 @@
     ]
   },
   "description": "Shows common Code Velocity metrics, like reviewer load and open/closed PRs.",
-  "editable": true,
+  "editable": false,
   "gnetId": null,
   "graphTooltip": 0,
   "id": 7,

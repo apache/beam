@@ -2405,10 +2405,10 @@ public class StreamingDataflowWorkerTest {
 
     // Wait until the worker has given up.
     int maxTries = 100;
-    while (maxTries-- > 0 && !worker.workExecutorIsEmpty()) {
+    while (maxTries-- > 0 && !worker.workExecutorIsEmptyForTesting()) {
       Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
-    assertTrue(worker.workExecutorIsEmpty());
+    assertTrue(worker.workExecutorIsEmptyForTesting());
 
     // Spam worker updates a few times.
     maxTries = 10;
@@ -3541,6 +3541,118 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
+  private static class HookPrintFn extends DoFn<ValueWithRecordId<KV<Integer, Integer>>, String> {
+    private static final AtomicReference<Consumer<KV<Integer, Integer>>> ON_PROCESS_ELEMENT =
+        new AtomicReference<>();
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      KV<Integer, Integer> elem = c.element().getValue();
+      Consumer<KV<Integer, Integer>> hook = ON_PROCESS_ELEMENT.get();
+      if (hook != null) {
+        hook.accept(elem);
+      }
+      c.output(elem.getKey() + ":" + elem.getValue());
+    }
+  }
+
+  @Test
+  public void testUnboundedSources_sourceBytesIsolatedFromCounterExtractionAndConcurrentWork()
+      throws Exception {
+    List<Integer> finalizeTracker = Lists.newArrayList();
+    TestCountingSource.setFinalizeTracker(finalizeTracker);
+    AtomicReference<Iterable<CounterUpdate>> midBundleCounters = new AtomicReference<>();
+    HookPrintFn.ON_PROCESS_ELEMENT.set(
+        elem ->
+            // Simulate StreamingWorkerStatusReporter extracting modified delta counters after the
+            // ReadOperation has emitted the element, before WorkItemCommitRequest is built.
+            midBundleCounters.set(Lists.newArrayList(buildCounters())));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams()
+                .setInstructions(makeUnboundedSourcePipeline(2, new HookPrintFn()))
+                .publishCounters()
+                .build());
+    worker.start();
+
+    try {
+      server
+          .whenGetWorkCalled()
+          .thenReturn(
+              buildInput(
+                  "work {"
+                      + "  computation_id: \"computation\""
+                      + "  input_data_watermark: 0"
+                      + "  work {"
+                      + "    key: \"0000000000000001\""
+                      + "    sharding_key: 1"
+                      + "    work_token: 1"
+                      + "    cache_token: 1"
+                      + "  }"
+                      + "}",
+                  null));
+
+      Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+      assertEquals(36L, result.get(1L).getSourceBytesProcessed());
+      assertNull(
+          getCounter(midBundleCounters.get(), "dataflow_source_bytes_processed-computation"));
+
+      // Verify concurrent work items on the same computation track distinct source_bytes_processed
+      // values independently without racing on a shared counter: sharding_key 2 starts fresh and
+      // reads 2 elements (36 bytes), while sharding_key 3 resumes from checkpoint 0 and reads 1
+      // element (18 bytes).
+      server.clearCommitsReceived();
+      CountDownLatch bothFinishedReading = new CountDownLatch(2);
+      HookPrintFn.ON_PROCESS_ELEMENT.set(
+          elem -> {
+            if (elem.getValue() == 1) {
+              bothFinishedReading.countDown();
+              try {
+                if (!bothFinishedReading.await(10, TimeUnit.SECONDS)) {
+                  throw new AssertionError("Timed out waiting for concurrent source work items");
+                }
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+              }
+            }
+          });
+
+      server
+          .whenGetWorkCalled()
+          .thenReturn(
+              buildInput(
+                  "work {"
+                      + "  computation_id: \"computation\""
+                      + "  input_data_watermark: 0"
+                      + "  work {"
+                      + "    key: \"0000000000000002\""
+                      + "    sharding_key: 2"
+                      + "    work_token: 2"
+                      + "    cache_token: 2"
+                      + "  }"
+                      + "  work {"
+                      + "    key: \"0000000000000003\""
+                      + "    sharding_key: 3"
+                      + "    work_token: 3"
+                      + "    cache_token: 3"
+                      + "    source_state {"
+                      + "      state: \"\000\""
+                      + "    }"
+                      + "  }"
+                      + "}",
+                  null));
+
+      result = server.waitForAndGetCommits(2);
+      assertEquals(36L, result.get(2L).getSourceBytesProcessed());
+      assertEquals(18L, result.get(3L).getSourceBytesProcessed());
+    } finally {
+      HookPrintFn.ON_PROCESS_ELEMENT.set(null);
+      worker.stop();
+    }
+  }
+
   @Test
   public void testUnboundedSourcesDrain() throws Exception {
     List<Integer> finalizeTracker = Lists.newArrayList();
@@ -3638,7 +3750,111 @@ public class StreamingDataflowWorkerTest {
     commit = result.get(3L);
 
     assertThat(
-        commit,
+        removeDynamicFields(commit),
+        equalTo(
+            parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 3 "
+                        + "cache_token: 3 "
+                        + "source_state_updates {"
+                        + "  only_finalize: true"
+                        + "} ")
+                .build()));
+
+    assertThat(finalizeTracker, contains(0));
+    worker.stop();
+  }
+
+  @Test
+  public void testUnboundedSourcesDrain_multiKeyBundleEnabled() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    List<Integer> finalizeTracker = Lists.newArrayList();
+    TestCountingSource.setFinalizeTracker(finalizeTracker);
+    server.clearCommitsReceived();
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--experiments=unstable_enable_multi_key_bundle")
+                .setInstructions(makeUnboundedSourcePipeline())
+                .publishCounters()
+                .build());
+    worker.start();
+
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 2"
+                    + "    cache_token: 3"
+                    + "    key_group { high: 0 low: 1 }"
+                    + "  }"
+                    + "}",
+                null));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Windmill.WorkItemCommitRequest commit = result.get(2L);
+    assertEquals(1, commit.getSourceStateUpdates().getFinalizeIdsCount());
+    UnsignedLong finalizeId =
+        UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    // Test drain work item with only_finalize.
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            buildInput(
+                "work {"
+                    + "  computation_id: \"computation\""
+                    + "  input_data_watermark: 0"
+                    + "  work {"
+                    + "    key: \"0000000000000001\""
+                    + "    sharding_key: 1"
+                    + "    work_token: 3"
+                    + "    cache_token: 3"
+                    + "    key_group { high: 0 low: 1 }"
+                    + "    source_state {"
+                    + "      only_finalize: true"
+                    + "      finalize_ids: "
+                    + finalizeId
+                    + "    }"
+                    + "  }"
+                    + "}",
+                null));
+
+    result = server.waitForAndGetCommits(1);
+    commit = result.get(3L);
+
+    assertThat(
+        removeDynamicFields(commit),
+        equalTo(
+            parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 3 "
+                        + "cache_token: 3 "
+                        + "source_state_updates {"
+                        + "  only_finalize: true"
+                        + "} ")
+                .build()));
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(2, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest finalizeMultiKeyCommit = multiKeyCommits.get(1);
+    assertEquals(
+        Windmill.Uint128Proto.newBuilder().setHigh(0).setLow(1).build(),
+        finalizeMultiKeyCommit.getKeyGroup());
+    assertEquals(1, finalizeMultiKeyCommit.getRequestsCount());
+    assertThat(
+        removeDynamicFields(finalizeMultiKeyCommit.getRequests(0)),
         equalTo(
             parseCommitRequest(
                     "key: \"0000000000000001\" "
@@ -3901,7 +4117,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3963,7 +4179,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4034,7 +4250,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -4109,7 +4325,7 @@ public class StreamingDataflowWorkerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     ComputationState computationState =
         new ComputationState(

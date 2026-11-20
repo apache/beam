@@ -76,13 +76,13 @@ Here's a non-exhaustive set of variants.
 
 The "default" variant is testing focused, intending to route out issues at development
 time, rather than discovering them on production runners. Notably, this mode should
-never use fusion, executing each Transform individually and independantly, one at a time.
+never use fusion, executing each Transform individually and independently, one at a time.
 
 This variant should be able to execute arbitrary pipelines, correctly, with clarity and
 precision when an error occurs. Other features supported by the SDK should be enabled by default to
 ensure good coverage, such as caches, or RPC reductions like sending elements in
 ProcessBundleRequest and Response, as they should not affect correctness. Composite
-transforms like Splitable DoFns and Combines should be expanded to ensure coverage.
+transforms like Splittable DoFns and Combines should be expanded to ensure coverage.
 
 Additional validations may be added as time goes on.
 
@@ -96,21 +96,21 @@ executions.
 Not Yet Implemented - Illustrative goal.
 
 The "fast" variant is performance focused, intended for local scale execution.
-A psuedo production execution. Fusion optimizations should be performed.
+A pseudo production execution. Fusion optimizations should be performed.
 Large PCollection should be offloaded to persistent disk. Bundles should be
 dynamically split. Multiple Bundles should be executed simultaneously. And so on.
 
 Pipelines should execute as swiftly as possible within the bounds of correct
 execution.
 
-### Variant Hightlight: "flink" "dataflow" "spark" AKA Emulations
+### Variant Highlight: "flink" "dataflow" "spark" AKA Emulations
 
 Not Yet Implemented - Illustrative goal.
 
 Emulation variants have the goal of replicating on the local scale,
 the behaviors of other runners. Flink execution never "lifts" Combines, and
 doesn't dynamically split. Dataflow has different characteristics for batch
-and streaming execution with certain execution charateristics enabled or
+and streaming execution with certain execution characteristics enabled or
 disabled.
 
 As Prism is intended to implement all facets of Beam Model execution, the handlers
@@ -144,12 +144,12 @@ can have features selectively disabled to ensure
 * Expands Splittable DoFns
 * Process Continuations (AKA Streaming transform support)
 * Limited support for Process Continuations
-  * Residuals are rescheduled for execution immeadiately.
+  * Residuals are rescheduled for execution immediately.
   * The transform must be finite (and eventually return a stop process continuation)
 * Basic Metrics support
 * Stand alone execution support
   * Web UI available when run as a standalone command.
-* Progess tracking
+* Progress tracking
     * Channel Splitting
     * Dynamic Splitting
 * FnAPI Optimizations
@@ -177,7 +177,7 @@ support users of the Go SDK in testing their pipelines.
 Until additional structure is necessary, check the main issue
 https://github.com/apache/beam/issues/24789 for the current
 status, file an issue for the feature or bug to fix with `[prism]`
-in the title, and refer to the main issue, before begining work
+in the title, and refer to the main issue, before beginning work
 to avoid duplication of effort.
 
 If a feature will take a long time, please send a PR to
@@ -189,4 +189,4 @@ Otherwise, ordinary [Beam contribution guidelines apply](https://beam.apache.org
 
 Once support for containers is implemented, Prism should become a target
 for the Java Runner Validation tests, which are the current specification
-for correct runner behavior. This will inform further feature developement.
+for correct runner behavior. This will inform further feature development.

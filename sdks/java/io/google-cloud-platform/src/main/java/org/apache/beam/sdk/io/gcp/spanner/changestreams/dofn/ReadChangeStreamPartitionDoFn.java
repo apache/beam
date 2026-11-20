@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -77,6 +78,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
   private final boolean cancelQueryOnHeartbeat;
+  private final boolean enablePerChangeRecordOpenTelemetryTracing;
 
   /**
    * Needs to be set through the {@link
@@ -103,6 +105,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
    * @param metrics the {@link ChangeStreamMetrics} to emit partition related metrics
    * @param realTimeCheckpointInterval duration to be used for the next end timestamp
    * @param cancelQueryOnHeartbeat flag to improve low latency checkpointing
+   * @param enablePerChangeRecordOpenTelemetryTracing flag to add change records traces
    */
   public ReadChangeStreamPartitionDoFn(
       DaoFactory daoFactory,
@@ -110,7 +113,8 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
       ActionFactory actionFactory,
       ChangeStreamMetrics metrics,
       Duration realTimeCheckpointInterval,
-      boolean cancelQueryOnHeartbeat) {
+      boolean cancelQueryOnHeartbeat,
+      boolean enablePerChangeRecordOpenTelemetryTracing) {
     this.daoFactory = daoFactory;
     this.actionFactory = actionFactory;
     this.mapperFactory = mapperFactory;
@@ -119,6 +123,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     this.realTimeCheckpointInterval = realTimeCheckpointInterval;
     this.cancelQueryOnHeartbeat = cancelQueryOnHeartbeat;
     this.throughputEstimator = new NullThroughputEstimator<>();
+    this.enablePerChangeRecordOpenTelemetryTracing = enablePerChangeRecordOpenTelemetryTracing;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -236,7 +241,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
             metrics,
             isMutableChangeStream,
             realTimeCheckpointInterval,
-            options.as(SdkHarnessOptions.class).getOpenTelemetry());
+            enablePerChangeRecordOpenTelemetryTracing
+                ? options.as(SdkHarnessOptions.class).getOpenTelemetry()
+                : OpenTelemetry.noop());
   }
 
   /**

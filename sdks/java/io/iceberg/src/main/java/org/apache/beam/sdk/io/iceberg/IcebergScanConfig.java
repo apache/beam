@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.MetadataColumns;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableUtil;
@@ -65,6 +66,7 @@ import org.joda.time.Duration;
 public abstract class IcebergScanConfig implements Serializable {
   private transient @MonotonicNonNull Table cachedTable;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedProjectedSchema;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequestedSchema;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
   private transient @MonotonicNonNull Expression cachedFilter;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRecordIdSchema;
@@ -136,12 +138,23 @@ public abstract class IcebergScanConfig implements Serializable {
     return selectedFields.isEmpty() ? schema : schema.select(selectedFields);
   }
 
-  /** Returns the projected Schema after applying column pruning. */
+  /**
+   * Returns the projected Schema after applying column pruning. For CDC reads, this also includes
+   * the primary key and watermark columns, even when they are not requested.
+   */
   public org.apache.iceberg.Schema getProjectedSchema() {
     if (cachedProjectedSchema == null) {
-      cachedProjectedSchema = resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+      cachedProjectedSchema = withCdcFields(getRequestedSchema());
     }
     return cachedProjectedSchema;
+  }
+
+  /** Returns the Schema of the columns selected by 'keep' or 'drop'. */
+  public org.apache.iceberg.Schema getRequestedSchema() {
+    if (cachedRequestedSchema == null) {
+      cachedRequestedSchema = resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+    }
+    return cachedRequestedSchema;
   }
 
   /**
@@ -151,13 +164,52 @@ public abstract class IcebergScanConfig implements Serializable {
   public org.apache.iceberg.Schema getRequiredSchema() {
     if (cachedRequiredSchema == null) {
       cachedRequiredSchema =
-          resolveSchema(
-              getTable().schema(),
-              getKeepFields(),
-              getDropFields(),
-              FilterUtils.getReferencedFieldNames(getFilterString()));
+          withCdcFields(
+              resolveSchema(
+                  getTable().schema(),
+                  getKeepFields(),
+                  getDropFields(),
+                  FilterUtils.getReferencedFieldNames(getFilterString())));
     }
     return cachedRequiredSchema;
+  }
+
+  /**
+   * CDC reads also need the primary key, whose column stats the changelog scan uses to find update
+   * pairs, and the watermark column, which timestamps rows. Adds the top-level columns holding them
+   * if the projection leaves them out.
+   */
+  private org.apache.iceberg.Schema withCdcFields(org.apache.iceberg.Schema projection) {
+    if (!getUseCdc()) {
+      return projection;
+    }
+    org.apache.iceberg.Schema tableSchema = getTable().schema();
+    Set<Integer> missing = new HashSet<>(tableSchema.identifierFieldIds());
+    @Nullable String watermarkColumn = getWatermarkColumn();
+    @Nullable NestedField watermarkField =
+        watermarkColumn != null ? tableSchema.findField(watermarkColumn) : null;
+    if (watermarkField != null) {
+      missing.add(watermarkField.fieldId());
+    }
+    missing.removeAll(TypeUtil.getProjectedIds(projection));
+    if (missing.isEmpty()) {
+      return projection;
+    }
+
+    Set<Integer> addedColumnIds = new HashSet<>();
+    for (NestedField column : TypeUtil.select(tableSchema, missing).columns()) {
+      addedColumnIds.add(column.fieldId());
+    }
+    List<NestedField> columns = new ArrayList<>();
+    for (NestedField column : tableSchema.columns()) {
+      @Nullable NestedField projected = projection.asStruct().field(column.fieldId());
+      if (addedColumnIds.contains(column.fieldId())) {
+        columns.add(column);
+      } else if (projected != null) {
+        columns.add(projected);
+      }
+    }
+    return new org.apache.iceberg.Schema(columns);
   }
 
   public org.apache.iceberg.Schema recordIdSchema() {
@@ -438,17 +490,9 @@ public abstract class IcebergScanConfig implements Serializable {
                     + invalidOptions));
       }
     } else {
-      Set<Integer> primaryKeyIds = new HashSet<>(table.schema().identifierFieldIds());
       checkState(
-          !primaryKeyIds.isEmpty(),
+          !table.schema().identifierFieldIds().isEmpty(),
           "Cannot read CDC records as the table schema does not specified any primary key fields.");
-      Set<Integer> projectedFieldIds = TypeUtil.getProjectedIds(getProjectedSchema());
-      primaryKeyIds.removeAll(projectedFieldIds);
-      checkArgument(
-          primaryKeyIds.isEmpty(),
-          "When reading CDC records, the projected schema must not drop primary key fields. "
-              + "The specified configuration drops the following PK fields: %s",
-          primaryKeyIds);
       validateMetadataColumns(table);
     }
 
@@ -464,46 +508,43 @@ public abstract class IcebergScanConfig implements Serializable {
     checkArgument(
         getToTimestamp() == null || getToSnapshot() == null,
         error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
-    @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
-    @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
-    if (fromSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(fromSnapshotId),
-          error("configured starting snapshot does not exist: '%s'"),
-          fromSnapshotId);
-    }
-    if (toSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(toSnapshotId),
-          error("configured end snapshot does not exist: '%s'"),
-          toSnapshotId);
-    }
-    if (fromSnapshotId != null && toSnapshotId != null) {
+    @Nullable Long fromTimestamp = getFromTimestamp();
+    @Nullable Long toTimestamp = getToTimestamp();
+    if (fromTimestamp != null && toTimestamp != null) {
       checkArgument(
-          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
-          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
-          fromSnapshotId,
-          toSnapshotId);
+          fromTimestamp <= toTimestamp,
+          error("'from_timestamp' must not be later than 'to_timestamp'"));
     }
-
-    if (fromSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(fromSnapshotId),
-          error("configured starting snapshot does not exist: '%s'"),
-          fromSnapshotId);
-    }
-    if (toSnapshotId != null) {
-      checkArgumentNotNull(
-          table.snapshot(toSnapshotId),
-          error("configured end snapshot does not exist: '%s'"),
-          toSnapshotId);
-    }
-    if (fromSnapshotId != null && toSnapshotId != null) {
-      checkArgument(
-          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
-          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
-          fromSnapshotId,
-          toSnapshotId);
+    if (!ReadUtils.isEmptyRange(table, this)) {
+      @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
+      @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
+      if (fromSnapshotId != null) {
+        checkArgumentNotNull(
+            table.snapshot(fromSnapshotId),
+            error("configured starting snapshot does not exist: '%s'"),
+            fromSnapshotId);
+      }
+      if (toSnapshotId != null) {
+        checkArgumentNotNull(
+            table.snapshot(toSnapshotId),
+            error("configured end snapshot does not exist: '%s'"),
+            toSnapshotId);
+      }
+      if (fromSnapshotId != null && toSnapshotId != null) {
+        checkArgument(
+            SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
+            error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
+            fromSnapshotId,
+            toSnapshotId);
+      } else if (fromSnapshotId != null) {
+        @Nullable Snapshot current = table.currentSnapshot();
+        checkArgument(
+            current != null
+                && SnapshotUtil.isAncestorOf(table, current.snapshotId(), fromSnapshotId),
+            error("fromSnapshot '%s' is not an ancestor of the current snapshot '%s'"),
+            fromSnapshotId,
+            current != null ? current.snapshotId() : null);
+      }
     }
 
     if (getPollInterval() != null) {
@@ -527,9 +568,6 @@ public abstract class IcebergScanConfig implements Serializable {
           error("'watermark_column' must be a timestamp-typed column, but '%s' has type %s"),
           watermarkColumn,
           field.type().typeId());
-      checkArgumentNotNull(
-          getProjectedSchema().findField(watermarkColumn),
-          "'watermark_column' column should not be dropped.");
     }
 
     @Nullable String watermarkColumnTimeUnit = getWatermarkColumnTimeUnit();

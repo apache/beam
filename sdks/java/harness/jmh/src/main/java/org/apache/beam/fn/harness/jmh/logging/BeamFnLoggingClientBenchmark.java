@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.jmh.logging;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.UUID;
@@ -81,6 +82,12 @@ public class BeamFnLoggingClientBenchmark {
 
   /** Setup a simple logging service and configure the {@link BeamFnLoggingClient}. */
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class ManageLoggingClientAndService {
     public final LoggingClient loggingClient;
     public final CallCountLoggingService loggingService;

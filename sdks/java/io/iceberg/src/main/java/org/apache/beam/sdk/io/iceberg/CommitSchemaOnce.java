@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.metrics.Metrics.counter;
 
 import java.util.List;
-import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.iceberg.catalog.Catalog;
@@ -31,59 +30,47 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
  * Commits one schema union per window (the combine output is one element per window) and emits the
  * resulting schema id as the signal for the Wait.on gate ahead of file registration.
  */
-class CommitSchemaOnce extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Long> {
+class CommitSchemaOnce extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, SchemaCommitVerdict> {
   static final String COMMITS_COUNTER = "numSchemaCommits";
   private static final Counter numSchemaCommits = counter(CommitSchemaOnce.class, COMMITS_COUNTER);
 
   private final IcebergCatalogConfig catalogConfig;
   private final String identifier;
-  private final SchemaEvolutionConfig config;
-  private final IncompatibleSchemaHandling handling;
-  private final CommitSchemaUnion.TableCreation creation;
+  private final CommitSchemaUnion.Settings settings;
   private final CommitSchemaUnion.Committer committer;
   private transient @MonotonicNonNull Catalog catalog;
 
   CommitSchemaOnce(
-      IcebergCatalogConfig catalogConfig,
-      String identifier,
-      SchemaEvolutionConfig config,
-      IncompatibleSchemaHandling handling,
-      CommitSchemaUnion.TableCreation creation) {
-    this(
-        catalogConfig, identifier, config, handling, creation, CommitSchemaUnion.DEFAULT_COMMITTER);
+      IcebergCatalogConfig catalogConfig, String identifier, CommitSchemaUnion.Settings settings) {
+    this(catalogConfig, identifier, settings, CommitSchemaUnion.DEFAULT_COMMITTER);
   }
 
   CommitSchemaOnce(
       IcebergCatalogConfig catalogConfig,
       String identifier,
-      SchemaEvolutionConfig config,
-      IncompatibleSchemaHandling handling,
-      CommitSchemaUnion.TableCreation creation,
+      CommitSchemaUnion.Settings settings,
       CommitSchemaUnion.Committer committer) {
     this.catalogConfig = catalogConfig;
     this.identifier = identifier;
-    this.config = config;
-    this.handling = handling;
-    this.creation = creation;
+    this.settings = settings;
     this.committer = committer;
   }
 
   @ProcessElement
   public void process(
-      @Element List<CollectDistinctSchemas.SchemaGroup> schemas, OutputReceiver<Long> out) {
+      @Element List<CollectDistinctSchemas.SchemaGroup> schemas,
+      OutputReceiver<SchemaCommitVerdict> out) {
     if (catalog == null) {
       catalog = catalogConfig.catalog();
     }
     TableIdentifier tableId = IcebergUtils.parseTableIdentifier(identifier);
     // The committer runs only when a transaction is actually committed, so wrapping it counts
     // real commits and skips no-op windows.
-    CommitSchemaUnion.Committer counting =
+    CommitSchemaUnion.Committer countingCommitter =
         txn -> {
           committer.commit(txn);
           numSchemaCommits.inc();
         };
-    long schemaId =
-        CommitSchemaUnion.commit(catalog, tableId, schemas, config, handling, creation, counting);
-    out.output(schemaId);
+    out.output(CommitSchemaUnion.commit(catalog, tableId, schemas, settings, countingCommitter));
   }
 }

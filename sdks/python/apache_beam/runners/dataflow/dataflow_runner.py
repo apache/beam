@@ -410,6 +410,13 @@ class DataflowRunner(PipelineRunner):
         # if prebuild_sdk_container_engine is specified we will build a new sdk
         # container image with dependencies pre-installed and use that image,
         # instead of using the inferred default container image.
+        worker_options = options.view_as(WorkerOptions)
+        if (worker_options.dataflow_container_base_repository and
+            not worker_options.sdk_container_image):
+          # Build on top of the Dataflow image in the configured repository
+          # instead of the Apache Beam image on Docker Hub.
+          worker_options.sdk_container_image = (
+              apiclient.get_container_image_from_options(options))
         self._default_environment = (
             environments.DockerEnvironment.from_options(options))
         options.view_as(WorkerOptions).sdk_container_image = (

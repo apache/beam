@@ -67,7 +67,7 @@ The `beam-sql.sh` script supports several options:
 **Options:**
 - `--version <beam_version>`: Specify the Apache Beam version (a recent stable version is used by default).
 - `--runner <runner_name>`: Specify the Beam runner to use (default: direct).
-- `--io <io_connector>`: Specify an IO connector to include. Can be used multiple times. Available connectors include: amazon-web-services2, amqp, azure, azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, elasticsearch, google-ads, google-cloud-platform, hadoop-format, hbase, hcatalog, iceberg, influxdb, jdbc, jms, json, kafka, kinesis, kudu, mongodb, mqtt, neo4j, parquet, pulsar, rabbitmq, redis, singlestore, snowflake, solace, solr, sparkreceiver, splunk, synthetic, thrift, tika, xml
+- `--io <io_connector>`: Specify an IO connector to include. Can be used multiple times. Available connectors include: amazon-web-services2, amqp, azure, azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, delta, elasticsearch, google-ads, google-cloud-platform, hadoop-format, hbase, hcatalog, iceberg, influxdb, jdbc, jms, json, kafka, kinesis, kudu, mongodb, mqtt, neo4j, parquet, pulsar, rabbitmq, redis, singlestore, snowflake, solace, solr, sparkreceiver, splunk, synthetic, thrift, tika, xml
 - `--list-versions`: List all available Beam versions from Maven Central and exit
 - `--list-ios`: List all available IO connectors from Maven Central and exit (provides the most up-to-date list)
 - `--list-runners`: List all available runners from Maven Central for the specified Beam version with detailed descriptions and exit

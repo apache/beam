@@ -38,10 +38,6 @@ plugins {
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
   if (useMirror) {
-    logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror for buildSrc.")
-  }
-
-  if (useMirror) {
     maven { url = uri(mavenCentralMirrorUrl!!) }
   }
   maven { url = uri("https://plugins.gradle.org/m2/") }
@@ -63,7 +59,7 @@ dependencies {
   implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.8") {                   // Enable shading Java dependencies
     exclude(group="org.codehaus.plexus", module="plexus-xml") // plexus-xml 4.x requires Java17
   }
-  runtimeOnly("org.codehaus.plexus:plexus-xml:4.2.0")
+  runtimeOnly("org.codehaus.plexus:plexus-xml:3.0.2") // Do not bump to plexus-xml 4.x which requires Java17
   implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.14")
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                         // Enable proto code generation
@@ -114,6 +110,10 @@ gradlePlugin {
     create("vendorJava") {
       id = "org.apache.beam.vendor-java"
       implementationClass = "org.apache.beam.gradle.VendorJavaPlugin"
+    }
+    create("beamRust") {
+      id = "org.apache.beam.rust"
+      implementationClass = "org.apache.beam.gradle.rust.BeamRustPlugin"
     }
   }
 }

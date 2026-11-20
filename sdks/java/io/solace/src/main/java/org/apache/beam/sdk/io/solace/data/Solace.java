@@ -435,6 +435,8 @@ public class Solace {
           .setUserProperties(Collections.emptyMap());
     }
 
+    public abstract Builder toBuilder();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setMessageId(String messageId);
@@ -550,7 +552,12 @@ public class Solace {
    *
    * <p>In the streaming writer is optionally used to calculate publish latencies, by calculating
    * the time difference between the creation of the correlation key, and the time of the ack.
+   *
+   * @deprecated No longer used by {@link org.apache.beam.sdk.io.solace.SolaceIO.Write}; internal
+   *     per-bundle correlation keys are created via {@link
+   *     org.apache.beam.sdk.io.solace.broker.PublishResultHandler#correlationKey}.
    */
+  @Deprecated
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class CorrelationKey {

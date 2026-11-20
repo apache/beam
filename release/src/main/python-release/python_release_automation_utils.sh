@@ -82,9 +82,7 @@ function get_version() {
 #######################################
 function download_files() {
   if [[ $1 = *"wheel"* ]]; then
-    if [[ $2 == "python3.10" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
-    elif [[ $2 == "python3.11" ]]; then
+    if [[ $2 == "python3.11" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
     elif [[ $2 == "python3.12" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"

@@ -120,6 +120,13 @@ class DaskOptions(PipelineOptions):
         default=None,
         help='The length of each `dask.Bag` partition. When unspecified, '
         'an educated guess is made.')
+    parser.add_argument(
+        '--dask_lazy_side_inputs',
+        dest='lazy_side_inputs',
+        action='store_true',
+        help='Opt in to partition-at-a-time evaluation of iterable side '
+        'inputs to reduce peak memory. May increase scheduler overhead and '
+        'recompute side inputs; AsList still materializes its full view.')
 
 
 @dataclasses.dataclass
@@ -166,7 +173,8 @@ class DaskRunnerResult(PipelineResult):
 class DaskRunner(BundleBasedDirectRunner):
   """Executes a pipeline on a Dask distributed client."""
   @staticmethod
-  def to_dask_bag_visitor(bag_kwargs=None) -> PipelineVisitor:
+  def to_dask_bag_visitor(
+      bag_kwargs=None, lazy_side_inputs: bool = False) -> PipelineVisitor:
     from dask import bag as db
 
     if bag_kwargs is None:
@@ -210,7 +218,8 @@ class DaskRunner(BundleBasedDirectRunner):
                 SideInputMap(
                     type(si),
                     si._view_options(),
-                    DaskBagWindowedIterator(si_asbag, si._window_mapping_fn)))
+                    DaskBagWindowedIterator(
+                        si_asbag, si._window_mapping_fn, lazy_side_inputs)))
 
           op_kws["side_inputs"] = bag_side_inputs
 
@@ -238,11 +247,12 @@ class DaskRunner(BundleBasedDirectRunner):
     dask_options = options.view_as(DaskOptions).get_all_options(
         drop_default=True, current_only=True)
     bag_kwargs = DaskOptions._extract_bag_kwargs(dask_options)
+    lazy_side_inputs = dask_options.pop('lazy_side_inputs', False)
     client = ddist.Client(**dask_options)
 
     pipeline.replace_all(dask_overrides())
 
-    dask_visitor = self.to_dask_bag_visitor(bag_kwargs)
+    dask_visitor = self.to_dask_bag_visitor(bag_kwargs, lazy_side_inputs)
     pipeline.visit(dask_visitor)
     # The dictionary in this visitor keeps a mapping of every Beam
     # PTransform to the equivalent Bag operation. This is highly

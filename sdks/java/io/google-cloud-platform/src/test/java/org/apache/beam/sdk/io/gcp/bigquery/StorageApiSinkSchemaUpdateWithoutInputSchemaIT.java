@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
+
 import java.io.IOException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.AfterClass;
@@ -24,11 +26,14 @@ import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-@RunWith(Parameterized.class)
+// Runs the two changeTableSchema cases in parallel. Splitting the suite into two concrete
+// classes additionally lets Gradle's maxParallelForks run the with/without-input-schema
+// halves in separate JVMs.
+@RunWith(StorageApiSinkSchemaUpdateITBase.ParallelParameterized.class)
 public class StorageApiSinkSchemaUpdateWithoutInputSchemaIT
     extends StorageApiSinkSchemaUpdateITBase {
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_schema_change_without_input_" + System.nanoTime();
+      TEMP_DATASET_PREFIX + "sink_schema_change_without_input_" + System.nanoTime();
 
   @Parameterized.Parameters(name = "changeTableSchema={0}")
   public static Iterable<Object[]> data() {

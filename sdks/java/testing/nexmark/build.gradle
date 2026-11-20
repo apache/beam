@@ -200,3 +200,8 @@ task run(type: JavaExec) {
   classpath = configurations.gradleRun
   args nexmarkArgsList.toArray()
 }
+
+test {
+  maxParallelForks 4
+}
+

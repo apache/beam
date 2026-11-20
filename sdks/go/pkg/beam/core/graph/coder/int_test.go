@@ -86,3 +86,35 @@ func TestEncodeDecodeInt32(t *testing.T) {
 		}
 	}
 }
+
+func TestEncodeDecodeInt16(t *testing.T) {
+	tests := []struct {
+		value int16
+		want  []byte
+	}{
+		{-32768, []byte{0x80, 0x00}},
+		{-2, []byte{0xff, 0xfe}},
+		{-1, []byte{0xff, 0xff}},
+		{0, []byte{0x00, 0x00}},
+		{1, []byte{0x00, 0x01}},
+		{999, []byte{0x03, 0xe7}},
+		{32767, []byte{0x7f, 0xff}},
+	}
+
+	for _, test := range tests {
+		var buf bytes.Buffer
+		if err := EncodeInt16(test.value, &buf); err != nil {
+			t.Fatalf("EncodeInt16(%v) failed: %v", test.value, err)
+		}
+		if got := buf.Bytes(); !bytes.Equal(got, test.want) {
+			t.Errorf("EncodeInt16(%v) = %v, want %v", test.value, got, test.want)
+		}
+		actual, err := DecodeInt16(&buf)
+		if err != nil {
+			t.Fatalf("DecodeInt16(<%v>) failed: %v", test.value, err)
+		}
+		if actual != test.value {
+			t.Errorf("DecodeInt16(<%v>) = %v, want %v", test.value, actual, test.value)
+		}
+	}
+}

@@ -345,18 +345,14 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    *   </tr>
    * </table>
    *
-   * <p>Note that value provided here cannot exceed the default value ({@link
-   * #DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE}).
+   * <p>The default value is {@link #DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE}.
    */
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
     checkArgument(
         getMaxNumWritersPerBundle() != -1,
         "Cannot use withMaxNumWritersPerBundle() after withNoSpilling() has been set.");
-    checkArgument(
-        maxNumWritersPerBundle > 0 && maxNumWritersPerBundle <= DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE,
-        "maxNumWritersPerBundle must be greater than 0 and less than or equal to %s",
-        DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE);
+    checkArgument(maxNumWritersPerBundle > 0, "maxNumWritersPerBundle must be greater than 0");
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
   }
 

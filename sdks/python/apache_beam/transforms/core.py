@@ -341,7 +341,7 @@ class RestrictionProvider(object):
   def truncate(self, element, restriction):
     """Truncates the provided restriction into a restriction representing a
     finite amount of work when the pipeline is
-    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.  # pylint: disable=line-too-long
+    `draining <https://beam.apache.org/documentation/programming-guide/#truncating-during-drain>`_.  # pylint: disable=line-too-long
     By default, if the restriction is bounded then the restriction will be
     returned otherwise None will be returned.
 
@@ -1856,7 +1856,9 @@ class ParDo(PTransformWithSideInputs):
   def _get_key_and_window_coder(self, named_inputs):
     if named_inputs is None or not self._signature.is_stateful_dofn():
       return None, None
-    main_input = list(set(named_inputs.keys()) - set(self.side_inputs))[0]
+    main_input = [
+        tag for tag in named_inputs if not tag.startswith(SIDE_INPUT_PREFIX)
+    ][0]
     input_pcoll = named_inputs[main_input]
     kv_type_hint = input_pcoll.element_type
     if kv_type_hint and kv_type_hint != typehints.Any:
@@ -3495,7 +3497,8 @@ class GroupByKey(PTransform):
       from apache_beam.transforms.util import GroupByEncryptedKey
       from apache_beam.transforms.util import Secret
 
-      secret = Secret.parse_secret_option(replace_with_gbek_secret)
+      secret = Secret.parse_secret_option(
+          replace_with_gbek_secret, pcoll.pipeline._options)
       return (pcoll | "Group by encrypted key" >> GroupByEncryptedKey(secret))
 
     from apache_beam.transforms.trigger import DataLossReason

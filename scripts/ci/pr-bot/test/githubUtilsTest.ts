@@ -17,7 +17,7 @@
  */
 
 var assert = require("assert");
-const { hasLabel } = require("../shared/githubUtils");
+const { hasLabel, requestPrReviewers } = require("../shared/githubUtils");
 
 describe("githubUtils", function () {
   describe("hasLabel()", function () {
@@ -56,6 +56,55 @@ describe("githubUtils", function () {
       assert.equal(hasLabel({}, "awaiting triage"), false);
       assert.equal(hasLabel({ labels: [] }, "awaiting triage"), false);
       assert.equal(hasLabel(null, "awaiting triage"), false);
+    });
+  });
+
+  describe("requestPrReviewers()", function () {
+    it("should request review for each reviewer via the GitHub client", async function () {
+      const requested: string[][] = [];
+      const mockClient = {
+        rest: {
+          pulls: {
+            requestReviewers: async ({
+              reviewers,
+            }: {
+              reviewers: string[];
+            }) => {
+              requested.push(reviewers);
+            },
+          },
+        },
+      };
+      await requestPrReviewers(123, ["reviewer1", "reviewer2"], mockClient);
+      assert.deepEqual(requested, [["reviewer1"], ["reviewer2"]]);
+    });
+
+    it("should continue best-effort if requesting a reviewer fails", async function () {
+      const requested: string[][] = [];
+      const mockClient = {
+        rest: {
+          pulls: {
+            requestReviewers: async ({
+              reviewers,
+            }: {
+              reviewers: string[];
+            }) => {
+              if (reviewers[0] === "nonCollaborator") {
+                throw new Error(
+                  "Reviews may only be requested from collaborators."
+                );
+              }
+              requested.push(reviewers);
+            },
+          },
+        },
+      };
+      await requestPrReviewers(
+        123,
+        ["nonCollaborator", "collaboratorReviewer"],
+        mockClient
+      );
+      assert.deepEqual(requested, [["collaboratorReviewer"]]);
     });
   });
 });

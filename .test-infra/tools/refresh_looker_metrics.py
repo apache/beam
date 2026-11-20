@@ -30,8 +30,8 @@ TARGET_BUCKET = os.getenv("GCS_BUCKET")
 LOOKS_TO_DOWNLOAD = [
     ("30", ["18", "50", "92", "49", "91"]),    # BigQueryIO_Read
     ("31", ["19", "52", "88", "51", "87"]),    # BigQueryIO_Write
-    ("32", ["20", "60", "104", "59", "103"]),  # BigTableIO_Read
-    ("33", ["21", "70", "116", "69", "115"]),  # BigTableIO_Write
+    ("32", ["20", "60", "104", "59", "103"]),  # BigtableIO_Read
+    ("33", ["21", "70", "116", "69", "115"]),  # BigtableIO_Write
     ("34", ["22", "56", "96", "55", "95"]),    # TextIO_Read
     ("35", ["23", "64", "110", "63", "109"]),  # TextIO_Write
     ("113", ["386", "388", "390", "392", "394"]),    # IcebergIO_Read
@@ -64,7 +64,7 @@ LOOKS_TO_DOWNLOAD = [
     ("104", ["341", "342", "343", "344", "345"]),
     ("105", ["346", "347", "348", "349", "350"]),
 
-    ("96", ["270", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
+    ("96", ["351", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
     ("106", ["355", "356", "357", "358", "359"]),   # Table Row Inference Sklearn Streaming
     ("107", ["360", "361", "362", "363", "364"]),  # MLTransform Generate Vocab Batch
     ("108", ["365", "366", "367", "368", "369"]),  # MLTransform One-Hot Encoding Batch

@@ -22,6 +22,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -37,15 +46,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
-import javax.jms.TextMessage;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -87,9 +87,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>JmsIO source returns unbounded collection of JMS records as {@code PCollection<JmsRecord>}. A
  * {@link JmsRecord} includes JMS headers and properties, along with the JMS {@link
- * javax.jms.TextMessage} payload.
+ * jakarta.jms.TextMessage} payload.
  *
- * <p>To configure a JMS source, you have to provide a {@link javax.jms.ConnectionFactory} and the
+ * <p>To configure a JMS source, you have to provide a {@link jakarta.jms.ConnectionFactory} and the
  * destination (queue or topic) where to consume. The following example illustrates various options
  * for configuring the source:
  *
@@ -103,8 +103,8 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
- * <p>It is possible to read any type of JMS {@link javax.jms.Message} into a custom POJO using the
- * following configuration:
+ * <p>It is possible to read any type of JMS {@link jakarta.jms.Message} into a custom POJO using
+ * the following configuration:
  *
  * <pre>{@code
  * pipeline.apply(JmsIO.<T>readMessage()
@@ -122,10 +122,10 @@ import org.slf4j.LoggerFactory;
  * <h4>Acknowledgment Modes and Client Prefetch Configuration</h4>
  *
  * <p>By default, {@link JmsIO} consumes messages using {@link AcknowledgeMode#CLIENT_ACKNOWLEDGE}
- * where a new {@link javax.jms.Session} is created for each checkpoint to prevent premature
+ * where a new {@link jakarta.jms.Session} is created for each checkpoint to prevent premature
  * acknowledgments across bundles. When using {@link AcknowledgeMode#CLIENT_ACKNOWLEDGE}, if your
  * JMS broker or client library utilizes client-side message prefetch buffers (such as Apache
- * ActiveMQ), you should configure {@code prefetch=0} on your {@link javax.jms.ConnectionFactory}
+ * ActiveMQ), you should configure {@code prefetch=0} on your {@link jakarta.jms.ConnectionFactory}
  * (e.g., via {@code ?jms.prefetchPolicy.all=0} in the broker URL or {@code
  * ActiveMQPrefetchPolicy.setAll(0)}). Otherwise, unconsumed messages could be held inside old
  * consumers in low throughput scenario and could lead to message backlog.
@@ -138,8 +138,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to a JMS destination</h3>
  *
  * <p>JmsIO sink supports writing text messages to a JMS destination on a broker. To configure a JMS
- * sink, you must specify a {@link javax.jms.ConnectionFactory} and a {@link javax.jms.Destination}
- * name. For instance:
+ * sink, you must specify a {@link jakarta.jms.ConnectionFactory} and a {@link
+ * jakarta.jms.Destination} name. For instance:
  *
  * <pre>{@code
  * pipeline
@@ -633,6 +633,34 @@ public class JmsIO {
     T mapMessage(Message message) throws Exception;
   }
 
+  /** The first stack frames outside JmsIO, to tell which runner code path calls the reader. */
+  private static String callerOutsideJmsIO() {
+    String jmsPackage = JmsIO.class.getName().substring(0, JmsIO.class.getName().lastIndexOf('.'));
+    StringBuilder caller = new StringBuilder();
+    int frames = 0;
+    for (StackTraceElement frame : new Throwable().getStackTrace()) {
+      if (frame.getClassName().startsWith(jmsPackage)) {
+        continue;
+      }
+      if (frames > 0) {
+        caller.append(" <- ");
+      }
+      caller.append(frame.getClassName()).append('.').append(frame.getMethodName());
+      if (++frames == 3) {
+        break;
+      }
+    }
+    return caller.toString();
+  }
+
+  private static String clientId(Connection connection) {
+    try {
+      return connection.getClientID();
+    } catch (JMSException e) {
+      return "<" + e.getMessage() + ">";
+    }
+  }
+
   /** An unbounded JMS source. */
   static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
 
@@ -661,8 +689,20 @@ public class JmsIO {
 
     @Override
     public UnboundedJmsReader<T> createReader(
-        PipelineOptions options, JmsCheckpointMark checkpointMark) {
-      return new UnboundedJmsReader<T>(this, options);
+        PipelineOptions options, @Nullable JmsCheckpointMark checkpointMark) {
+      if (checkpointMark != null) {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // acknowledged if the reader that took it lives in this JVM. Its finalize callback may
+        // never arrive, e.g. when the runner recreates the reader instead of reusing it.
+        checkpointMark.finalizeCheckpoint();
+      }
+      UnboundedJmsReader<T> reader = new UnboundedJmsReader<T>(this, options);
+      LOG.debug(
+          "Created reader {} for {}, resuming from checkpoint {}",
+          reader.readerId,
+          spec.getQueue() != null ? "queue " + spec.getQueue() : "topic " + spec.getTopic(),
+          checkpointMark);
+      return reader;
     }
 
     @Override
@@ -698,10 +738,13 @@ public class JmsIO {
     // Acknowlging messages need open consumer. Tracking active checkpoints allows delayed close of
     // session and consumer.
     private final AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    // Short id for logs.
+    private final String readerId;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
       this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer(source.spec.getAcknowledgeMode());
+      this.readerId = JmsCheckpointMark.shortId(checkpointMarkPreparer.getReaderId());
       this.currentMessage = null;
       this.currentID = EMPTY;
       this.options = options;
@@ -773,6 +816,9 @@ public class JmsIO {
         }
         connection.start();
         this.connection = connection;
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Reader {} connected with client ID {}", readerId, clientId(connection));
+        }
         if (spec.getAutoScaler() == null) {
           this.autoScaler = new DefaultAutoscaler();
         } else {
@@ -872,6 +918,22 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
+      JmsCheckpointMark checkpointMark = takeCheckpoint();
+      if (LOG.isDebugEnabled() && checkpointMark.getMessageCount() > 0) {
+        // The caller tells a checkpoint ending a bundle from one taken e.g. to report progress.
+        LOG.debug(
+            "Reader {} took checkpoint {} with {} message(s), {} checkpoint(s) not finalized,"
+                + " called from {}",
+            readerId,
+            checkpointMark,
+            checkpointMark.getMessageCount(),
+            checkpointMarkPreparer.pendingCheckpointCount(),
+            callerOutsideJmsIO());
+      }
+      return checkpointMark;
+    }
+
+    private JmsCheckpointMark takeCheckpoint() {
       if (checkpointMarkPreparer.isEmpty()) {
         return checkpointMarkPreparer.emptyCheckpoint();
       }
@@ -909,6 +971,8 @@ public class JmsIO {
 
     @Override
     public void close() {
+      LOG.debug(
+          "Closing reader {}, {} checkpoint(s) not finalized", readerId, activeCheckpoints.get());
       doClose();
     }
 
@@ -927,7 +991,7 @@ public class JmsIO {
         if (activeCheckpoints.get() == 0) {
           closeConsumer();
           closeSession();
-          closeConnection();
+          abandonPendingCheckpointsAndCloseConnection();
         } else {
           ScheduledExecutorService executorService =
               options.as(ExecutorOptions.class).getScheduledExecutorService();
@@ -943,7 +1007,7 @@ public class JmsIO {
                         source.spec.getCloseTimeout());
                     closeConsumer();
                     closeSession();
-                    closeConnection();
+                    abandonPendingCheckpointsAndCloseConnection();
                   } else {
                     executorService.schedule(this, pollInterval, TimeUnit.SECONDS);
                   }
@@ -955,6 +1019,25 @@ public class JmsIO {
       } catch (Exception e) {
         LOG.warn("Error closing reader", e);
       }
+    }
+
+    /**
+     * Drop the checkpoints that are still not finalized, since closing the connection returns their
+     * messages to the broker, and close the connection.
+     */
+    private void abandonPendingCheckpointsAndCloseConnection() {
+      int pending = checkpointMarkPreparer.pendingCheckpointCount();
+      int abandoned = checkpointMarkPreparer.abandonPendingCheckpoints();
+      if (pending > 0) {
+        LOG.info(
+            "Reader {} closes its JMS connection with {} checkpoint(s) not finalized within"
+                + " closeTimeout {}. The broker will redeliver their {} message(s).",
+            readerId,
+            pending,
+            source.spec.getCloseTimeout(),
+            abandoned);
+      }
+      closeConnection();
     }
 
     private void closeConnection() {
@@ -1000,12 +1083,6 @@ public class JmsIO {
       } catch (Exception e) {
         LOG.error("Error closing autoscaler", e);
       }
-    }
-
-    @Override
-    @SuppressWarnings("Finalize")
-    protected void finalize() {
-      doClose();
     }
   }
 
@@ -1223,7 +1300,7 @@ public class JmsIO {
     }
 
     /**
-     * Map the {@code EventT} object to a {@link javax.jms.Message}.
+     * Map the {@code EventT} object to a {@link jakarta.jms.Message}.
      *
      * <p>For instance:
      *
@@ -1245,7 +1322,7 @@ public class JmsIO {
      * .apply(JmsIO.write().withValueMapper(valueNapper)
      * }</pre>
      *
-     * @param valueMapper The function returning the {@link javax.jms.Message}
+     * @param valueMapper The function returning the {@link jakarta.jms.Message}
      * @return The corresponding {@link JmsIO.Write}.
      */
     public Write<EventT> withValueMapper(

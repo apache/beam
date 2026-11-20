@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -550,9 +551,18 @@ public class Read {
         receiver.output(restriction);
       }
 
+      int desiredNumSplits = DEFAULT_DESIRED_NUM_SPLITS;
+      if (pipelineOptions != null) {
+        int configuredSplits =
+            pipelineOptions.as(StreamingOptions.class).getDesiredNumUnboundedSourceSplits();
+        if (configuredSplits > 0) {
+          desiredNumSplits = configuredSplits;
+        }
+      }
+
       try {
         for (UnboundedSource<OutputT, CheckpointT> split :
-            restriction.getSource().split(DEFAULT_DESIRED_NUM_SPLITS, pipelineOptions)) {
+            restriction.getSource().split(desiredNumSplits, pipelineOptions)) {
           receiver.output(
               UnboundedSourceRestriction.create(split, null, restriction.getWatermark()));
         }
@@ -607,7 +617,7 @@ public class Read {
       CheckpointT checkpoint = currentRestriction.getCheckpoint();
       if (checkpoint != null
           && !isInitialRestriction
-          && !(tracker.currentRestriction().getCheckpoint() instanceof NoopCheckpointMark)) {
+          && !(checkpoint instanceof NoopCheckpointMark)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardMinutes(DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS)),
             checkpoint::finalizeCheckpoint);
@@ -1002,6 +1012,22 @@ public class Read {
             watermark);
       }
 
+      /**
+       * Whether there is nothing left to read, like {@code currentRestriction().getSource()
+       * instanceof EmptyUnboundedSource} but without calling {@link
+       * UnboundedReader#getCheckpointMark()}: a checkpoint ends the bundle of elements read so far,
+       * so a checkpoint taken only to report progress would never be committed nor finalized.
+       */
+      private boolean isDone() {
+        @Nullable UnboundedReader<OutputT> reader = currentReader;
+        if (reader == null || !readerHasBeenStarted) {
+          return initialRestriction.getSource() instanceof EmptyUnboundedSource;
+        }
+        return reader instanceof EmptyUnboundedSource.EmptyUnboundedReader
+            || BoundedWindow.TIMESTAMP_MAX_VALUE.equals(
+                ensureTimestampWithinBounds(reader.getWatermark()));
+      }
+
       @Override
       public @Nullable SplitResult<UnboundedSourceRestriction<OutputT, CheckpointT>> trySplit(
           double fractionOfRemainder) {
@@ -1065,7 +1091,7 @@ public class Read {
 
       private Progress tryGetProgressOrThrow() throws IOException {
         // We treat the empty source as implicitly done.
-        if (currentRestriction().getSource() instanceof EmptyUnboundedSource) {
+        if (isDone()) {
           return Progress.from(1, 0);
         }
         boolean resetReaderAfter = false;

@@ -415,13 +415,16 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         inputs.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
-      max_batch_weight: optional. the maximum total weight of a batch.
+      max_batch_weight: optional. the maximum total weight of a batch. Cannot
+        be combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: optional. a function that returns the size (weight) of
         an element.
       batch_length_fn: optional. a callable that returns the length of an
-        element for length-aware batching.
+        element for length-aware batching. Cannot be used together with
+        max_batch_weight.
       batch_bucket_boundaries: optional. a sorted list of positive boundary
-        values for length-aware batching buckets.
+        values for length-aware batching buckets. Cannot be used together with
+        max_batch_weight.
     """
     super().__init__(
         min_batch_size=min_batch_size,
@@ -558,13 +561,16 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         inputs.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
-      max_batch_weight: optional. the maximum total weight of a batch.
+      max_batch_weight: optional. the maximum total weight of a batch. Cannot
+        be combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: optional. a function that returns the size (weight) of
         an element.
       batch_length_fn: optional. a callable that returns the length of an
-        element for length-aware batching.
+        element for length-aware batching. Cannot be used together with
+        max_batch_weight.
       batch_bucket_boundaries: optional. a sorted list of positive boundary
-        values for length-aware batching buckets.
+        values for length-aware batching buckets. Cannot be used together with
+        max_batch_weight.
     """
     super().__init__(
         min_batch_size=min_batch_size,

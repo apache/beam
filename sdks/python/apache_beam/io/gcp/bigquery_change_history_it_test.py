@@ -24,6 +24,8 @@ import time
 import unittest
 import uuid
 
+import pytest
+
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
@@ -61,8 +63,8 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.bq_wrapper = BigQueryWrapper()
     suffix = secrets.token_hex(4)
-    cls.dataset = f'beam_ch_src_{suffix}'
-    cls.temp_dataset = f'beam_ch_tmp_{suffix}'
+    cls.dataset = f'{bigquery_tools._TEMP_DATASET_PREFIX}ch_src_{suffix}'
+    cls.temp_dataset = f'{bigquery_tools._TEMP_DATASET_PREFIX}ch_tmp_{suffix}'
     cls.bq_wrapper.get_or_create_dataset(cls.project, cls.dataset)
     ds = cls.bq_wrapper.client.datasets.Get(
         bigquery.BigqueryDatasetsGetRequest(
@@ -168,6 +170,7 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
 
 class CleanupTempTablesFnTest(BigQueryChangeHistoryIntegrationBase):
   """Integration tests for _CleanupTempTablesFn against real BigQuery."""
+  @pytest.mark.it_postcommit
   def test_single_complete_signal_deletes_table(self):
     """A single signal with streams_read == total deletes the temp table."""
     table_id = f'cleanup_test_{secrets.token_hex(4)}'
@@ -189,6 +192,7 @@ class CleanupTempTablesFnTest(BigQueryChangeHistoryIntegrationBase):
     with self.assertRaises(Exception):
       self.bq_wrapper.get_table(self.project, self.temp_dataset, table_id)
 
+  @pytest.mark.it_postcommit
   def test_partial_signals_then_complete(self):
     """Partial signals don't delete; final signal triggers cleanup."""
     table_id = f'cleanup_partial_{secrets.token_hex(4)}'
@@ -228,6 +232,7 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
       ('change_type', 'STRING'),
   ]
 
+  @pytest.mark.it_postcommit
   def test_reads_rows_from_temp_table(self):
     """SDF reads rows from a real temp table via Storage Read API."""
     table_id = f'sdf_test_{secrets.token_hex(4)}'
@@ -277,6 +282,7 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
           | 'CountRows' >> beam.combiners.Count.Globally())
       assert_that(row_count, equal_to([3]), label='CheckRowCount')
 
+  @pytest.mark.it_postcommit
   def test_cleanup_signal_emitted(self):
     """SDF emits cleanup signal with correct counts."""
     table_id = f'sdf_cleanup_{secrets.token_hex(4)}'
@@ -304,15 +310,27 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
           | beam.ParDo(_ReadStorageStreamsSDF()).with_outputs(
               'cleanup', main='rows'))
 
-      # Verify cleanup signal
-      cleanup_table_keys = (
-          outputs['cleanup']
-          | 'ExtractKey' >> beam.Map(lambda x: x[0]))
-      assert_that(
-          cleanup_table_keys,
-          equal_to([bigquery_tools.get_hashable_destination(table_ref)]),
-          label='CheckCleanupKey')
+      # Each stream split emits its own (table_key, (streams_read, total))
+      # signal; _CleanupTempTablesFn sums streams_read across them.
+      expected_key = bigquery_tools.get_hashable_destination(table_ref)
 
+      def check_cleanup_signals(signals):
+        assert signals, 'Expected at least one cleanup signal'
+        keys = {key for key, _ in signals}
+        assert keys == {expected_key}, f'Unexpected table keys: {keys}'
+        totals = {total for _, (_, total) in signals}
+        assert len(totals) == 1, f'Inconsistent total_streams: {totals}'
+        total_streams = totals.pop()
+        streams_read = sum(count for _, (count, _) in signals)
+        assert streams_read == total_streams, (
+            f'streams_read={streams_read} != total_streams={total_streams}')
+
+      assert_that(
+          outputs['cleanup'],
+          check_cleanup_signals,
+          label='CheckCleanupSignals')
+
+  @pytest.mark.it_postcommit
   def test_empty_table(self):
     """Empty table produces 0 rows and cleanup signal."""
     table_id = f'sdf_empty_{secrets.token_hex(4)}'
@@ -340,6 +358,7 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
 
 class PollChangeHistoryFnTest(BigQueryChangeHistoryIntegrationBase):
   """Integration test for _PollChangeHistoryFn in isolation."""
+  @pytest.mark.it_postcommit
   def test_poll_emits_query_ranges(self):
     """Poll SDF emits _QueryRange elements with valid time ranges."""
     table_str = f'{self.project}:{self.dataset}.nonexistent'
@@ -389,6 +408,7 @@ class ExecuteQueryFnTest(BigQueryChangeHistoryIntegrationBase):
     cls.insert_time = time.time()
     time.sleep(10)
 
+  @pytest.mark.it_postcommit
   def test_execute_query_produces_query_result(self):
     """ExecuteQueryFn creates a temp table from a _QueryRange."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
@@ -439,6 +459,7 @@ class ChangesEndToEndTest(BigQueryChangeHistoryIntegrationBase):
     _LOGGER.info('Waiting for change history propagation...')
     time.sleep(15)
 
+  @pytest.mark.it_postcommit
   def test_changes_captures_insert_update_delete(self):
     """ReadBigQueryChangeHistory with CHANGES sees all mutation types."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
@@ -531,6 +552,7 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
     _LOGGER.info('Waiting for streaming buffer to flush...')
     time.sleep(15)
 
+  @pytest.mark.it_postcommit
   def test_public_api_reads_inserted_rows(self):
     """ReadBigQueryChangeHistory PTransform with polling SDF."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
@@ -564,6 +586,7 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
 
       assert_that(rows, check_rows)
 
+  @pytest.mark.it_postcommit
   def test_public_api_reads_inserted_row_inline_decompress(self):
     """ReadBigQueryChangeHistory with inline decompression (no reshuffle)."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'
@@ -598,6 +621,7 @@ class EndToEndTest(BigQueryChangeHistoryIntegrationBase):
 
       assert_that(rows, check_rows)
 
+  @pytest.mark.it_postcommit
   def test_public_api_reads_inserted_row_with_split_streams(self):
     """ReadBigQueryChangeHistory with max_split_rounds=1."""
     table_str = f'{self.project}:{self.dataset}.{self.test_table_id}'

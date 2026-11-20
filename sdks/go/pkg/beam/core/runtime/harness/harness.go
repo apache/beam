@@ -164,6 +164,8 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 		runnerCapabilities:   rcMap,
 		elmTimeout:           elmTimeout,
 	}
+	defer ctrl.data.Close()
+	defer ctrl.state.Close()
 
 	if enabled, ok := rcMap[graphx.URNDataSampling]; ok && enabled {
 		ctrl.dataSampler = exec.NewDataSampler(ctx)

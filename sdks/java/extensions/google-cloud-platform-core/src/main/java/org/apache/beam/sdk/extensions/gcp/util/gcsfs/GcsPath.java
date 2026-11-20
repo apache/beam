@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util.gcsfs;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
@@ -65,9 +67,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @see <a href= "http://docs.oracle.com/javase/tutorial/essential/io/pathOps.html" >Java Tutorials:
  *     Path Operations</a>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class GcsPath implements Path, Serializable {
 
   public static final String SCHEME = "gs";
@@ -118,7 +117,10 @@ public class GcsPath implements Path, Serializable {
     Matcher m = GCS_URI.matcher(uri);
     checkArgument(m.matches(), "Invalid GCS URI: %s", uri);
 
-    checkArgument(m.group("SCHEME").equalsIgnoreCase(SCHEME), "URI: %s is not a GCS URI", uri);
+    checkArgument(
+        checkArgumentNotNull(m.group("SCHEME")).equalsIgnoreCase(SCHEME),
+        "URI: %s is not a GCS URI",
+        uri);
     return new GcsPath(null, m.group("BUCKET"), m.group("OBJECT"));
   }
 
@@ -233,7 +235,10 @@ public class GcsPath implements Path, Serializable {
   }
 
   @Override
-  public FileSystem getFileSystem() {
+  // fs is null for paths not attached to a filesystem. @Nullable documents the contract; the
+  // suppression covers overriding Path.getFileSystem, which the checker treats as @NonNull.
+  @SuppressWarnings("nullness")
+  public @Nullable FileSystem getFileSystem() {
     return fs;
   }
 
@@ -264,7 +269,7 @@ public class GcsPath implements Path, Serializable {
    * <p>Returns a path that ends in '/', as the parent path always refers to a directory.
    */
   @Override
-  public GcsPath getParent() {
+  public @Nullable GcsPath getParent() {
     if (bucket.isEmpty() && object.isEmpty()) {
       // The root path has no parent, by definition.
       return null;
@@ -341,7 +346,8 @@ public class GcsPath implements Path, Serializable {
       ++beginIndex;
     }
 
-    return path;
+    // endIndex > beginIndex is checked above, so the loop runs at least once and path is set.
+    return checkStateNotNull(path);
   }
 
   @Override
@@ -403,7 +409,10 @@ public class GcsPath implements Path, Serializable {
 
     if (other.startsWith(SCHEME + "://")) {
       GcsPath path = GcsPath.fromUri(other);
-      path.setFileSystem(getFileSystem());
+      @Nullable FileSystem currentFs = getFileSystem();
+      if (currentFs != null) {
+        path.setFileSystem(currentFs);
+      }
       return path;
     }
 
@@ -473,11 +482,11 @@ public class GcsPath implements Path, Serializable {
   }
 
   private static class NameIterator implements Iterator<Path> {
-    private final FileSystem fs;
+    private final @Nullable FileSystem fs;
     private boolean fullPath;
-    private String name;
+    private @Nullable String name;
 
-    NameIterator(FileSystem fs, boolean fullPath, String name) {
+    NameIterator(@Nullable FileSystem fs, boolean fullPath, String name) {
       this.fs = fs;
       this.fullPath = fullPath;
       this.name = name;
@@ -490,13 +499,14 @@ public class GcsPath implements Path, Serializable {
 
     @Override
     public GcsPath next() {
-      int i = name.indexOf('/');
+      String currentName = checkStateNotNull(name);
+      int i = currentName.indexOf('/');
       String component;
       if (i >= 0) {
-        component = name.substring(0, i);
-        name = name.substring(i + 1);
+        component = currentName.substring(0, i);
+        name = currentName.substring(i + 1);
       } else {
-        component = name;
+        component = currentName;
         name = null;
       }
       if (fullPath) {
@@ -593,6 +603,8 @@ public class GcsPath implements Path, Serializable {
   }
 
   @Override
+  // URI permits a null fragment; the JDK URI constructor stub is not annotated for nullness.
+  @SuppressWarnings("nullness")
   public URI toUri() {
     try {
       return new URI(SCHEME, "//" + bucketAndObject(), null);
@@ -613,7 +625,7 @@ public class GcsPath implements Path, Serializable {
   public static String getNonWildcardPrefix(String globExp) {
     Matcher m = GLOB_PREFIX.matcher(globExp);
     checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));
-    return m.group("PREFIX");
+    return checkArgumentNotNull(m.group("PREFIX"));
   }
 
   /** Returns true if the given {@code spec} contains wildcard. */

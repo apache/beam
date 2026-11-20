@@ -39,7 +39,7 @@ import org.apache.spark.metrics.sink.Sink;
  * "spark.metrics.conf.*.sink.graphite.regex"="<optional_regex_to_send_matching_metrics>"
  * }</pre>
  */
-public class CodahaleGraphiteSink implements Sink {
+public final class CodahaleGraphiteSink implements Sink {
 
   // Initialized reflectively as done by Spark's MetricsSystem
   private final org.apache.spark.metrics.sink.GraphiteSink delegate;

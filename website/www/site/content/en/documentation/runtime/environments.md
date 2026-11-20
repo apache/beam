@@ -117,10 +117,10 @@ This method requires building image artifacts from Beam source. For additional i
   ./gradlew :sdks:java:container:java17:docker
   ./gradlew :sdks:java:container:java21:docker
   ./gradlew :sdks:go:container:docker
-  ./gradlew :sdks:python:container:py310:docker
   ./gradlew :sdks:python:container:py311:docker
   ./gradlew :sdks:python:container:py312:docker
   ./gradlew :sdks:python:container:py313:docker
+  ./gradlew :sdks:python:container:py314:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container:buildAll
@@ -134,10 +134,10 @@ This method requires building image artifacts from Beam source. For additional i
   apache/beam_java11_sdk             latest               sha256:...               ...              1 min ago         ...
   apache/beam_java17_sdk             latest               sha256:...               ...              1 min ago         ...
   apache/beam_java21_sdk              latest               sha256:...               ...              1 min ago         ...
-  apache/beam_python3.10_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.11_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.12_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.13_sdk          latest               sha256:...               ...              1 min ago         ...
+  apache/beam_python3.14_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_go_sdk                 latest               sha256:...               ...              1 min ago         ...
   ```
 
@@ -181,13 +181,13 @@ Beam offers a way to provide your own custom container image. The easiest way to
 1. Copy necessary artifacts from Apache Beam base image to your image.
   ```
   # This can be any container image,
- FROM python:3.8-bookworm
+ FROM python:3.11-trixie
 
  # Install SDK. (needed for Python SDK)
  RUN pip install --no-cache-dir apache-beam[gcp]==2.52.0
 
  # Copy files from official SDK image, including script/dependencies.
- COPY --from=apache/beam_python3.8_sdk:2.52.0 /opt/apache/beam /opt/apache/beam
+ COPY --from=apache/beam_python3.11_sdk:2.52.0 /opt/apache/beam /opt/apache/beam
 
  # Perform any additional customizations if desired
 
@@ -195,7 +195,7 @@ Beam offers a way to provide your own custom container image. The easiest way to
  ENTRYPOINT ["/opt/apache/beam/boot"]
 
   ```
->**NOTE**: This example assumes necessary dependencies (in this case, Python 3.8 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
+>**NOTE**: This example assumes necessary dependencies (in this case, Python 3.11 and pip) have been installed on the existing base image. Installing the Apache Beam SDK into the image will ensure that the image has the necessary SDK dependencies and reduce the worker startup time.
 >The version specified in the `RUN` instruction must match the version used to launch the pipeline.<br>
 >**Make sure that the Python or Java runtime version specified in the base image is the same as the version used to run the pipeline.**
 

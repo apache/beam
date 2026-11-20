@@ -34,6 +34,7 @@ import (
 	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
@@ -88,14 +89,22 @@ func NewQualifiedTableName(s string) (QualifiedTableName, error) {
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
-func Read(s beam.Scope, project, table string, t reflect.Type) beam.PCollection {
+// Of the options, only WithQuotaProject applies to Read; UseStandardSQL and
+// WithQueryParameters panic, because the generated statement is legacy SQL and
+// takes no parameters.
+func Read(s beam.Scope, project, table string, t reflect.Type, options ...func(*QueryOptions) error) beam.PCollection {
 	mustParseTable(table)
 
 	s = s.Scope("bigquery.Read")
 
+	qo := applyQueryOptions(options)
+	if qo.UseStandardSQL || len(qo.parameters) > 0 {
+		panic("bigqueryio.Read: UseStandardSQL and WithQueryParameters are only supported by Query")
+	}
+
 	stmt := constructSelectStatement(t, bigQueryTag, table)
 
-	return query(s, project, stmt, t)
+	return queryWithOptions(s, project, stmt, t, qo)
 }
 
 func constructSelectStatement(t reflect.Type, tagKey string, table string) string {
@@ -114,6 +123,9 @@ func constructSelectStatement(t reflect.Type, tagKey string, table string) strin
 type QueryOptions struct {
 	// UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
 	UseStandardSQL bool
+	// QuotaProject is the GCP project ID used for quota and billing attribution
+	// of the BigQuery API calls, if different from the project the data resides in.
+	QuotaProject string
 	// Parameters are the query parameters for parameterized queries.
 	// In the current implementation, user-defines types are not supported in Value field.
 	// Use *bigquery.QueryParameterValue to build STRUCT/ARRAY parameters
@@ -129,6 +141,17 @@ func UseStandardSQL() func(qo *QueryOptions) error {
 	}
 }
 
+// WithQuotaProject sets the GCP project ID used for quota and billing
+// attribution of the BigQuery API calls, if different from the project the
+// data resides in. The credentials used must have the
+// serviceusage.services.use permission on that project.
+func WithQuotaProject(project string) func(qo *QueryOptions) error {
+	return func(qo *QueryOptions) error {
+		qo.QuotaProject = project
+		return nil
+	}
+}
+
 // WithQueryParameters sets the query parameters for parameterized queries.
 // See QueryOptions.parameters for the list of supported Value types.
 func WithQueryParameters(params ...bigquery.QueryParameter) func(qo *QueryOptions) error {
@@ -138,6 +161,15 @@ func WithQueryParameters(params ...bigquery.QueryParameter) func(qo *QueryOption
 	}
 }
 
+// clientOptions returns the BigQuery client options implied by qo.
+func clientOptions(qo QueryOptions) []option.ClientOption {
+	var opts []option.ClientOption
+	if qo.QuotaProject != "" {
+		opts = append(opts, option.WithQuotaProject(qo.QuotaProject))
+	}
+	return opts
+}
+
 // Query executes a query. The output must have a schema compatible with the given
 // type, t. It returns a PCollection<t>.
 func Query(s beam.Scope, project, q string, t reflect.Type, options ...func(*QueryOptions) error) beam.PCollection {
@@ -145,15 +177,22 @@ func Query(s beam.Scope, project, q string, t reflect.Type, options ...func(*Que
 	return query(s, project, q, t, options...)
 }
 
-func query(s beam.Scope, project, query string, t reflect.Type, options ...func(*QueryOptions) error) beam.PCollection {
-	mustInferSchema(t)
-
+func applyQueryOptions(options []func(*QueryOptions) error) QueryOptions {
 	queryOptions := QueryOptions{}
 	for _, opt := range options {
 		if err := opt(&queryOptions); err != nil {
 			panic(err)
 		}
 	}
+	return queryOptions
+}
+
+func query(s beam.Scope, project, query string, t reflect.Type, options ...func(*QueryOptions) error) beam.PCollection {
+	return queryWithOptions(s, project, query, t, applyQueryOptions(options))
+}
+
+func queryWithOptions(s beam.Scope, project, query string, t reflect.Type, queryOptions QueryOptions) beam.PCollection {
+	mustInferSchema(t)
 
 	imp := beam.Impulse(s)
 	queryParameters, err := encodeQueryParameters(queryOptions.parameters)
@@ -181,8 +220,11 @@ type queryFn struct {
 	Options QueryOptions `json:"options"`
 }
 
+// newClient creates the BigQuery client used by queryFn. Tests replace it.
+var newClient = bigquery.NewClient
+
 func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
-	client, err := bigquery.NewClient(ctx, f.Project)
+	client, err := newClient(ctx, f.Project, clientOptions(f.Options)...)
 	if err != nil {
 		return err
 	}

@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -57,9 +58,11 @@ import org.joda.time.Instant;
  * Factory to create a {@link DoFnRunner}. The factory supports fusing multiple {@link DoFnRunner
  * runners} into a single one.
  */
-abstract class DoFnRunnerFactory<InT, T> implements Serializable {
+@Internal
+public abstract class DoFnRunnerFactory<InT, T> implements Serializable {
 
-  interface DoFnRunnerWithTeardown<InT, T> extends DoFnRunner<InT, T> {
+  @Internal
+  public interface DoFnRunnerWithTeardown<InT, T> extends DoFnRunner<InT, T> {
     void teardown();
   }
 
@@ -77,7 +80,8 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
    *
    * <p>Only supported for a single, unfused {@link DoFn}: a fused runner cannot drive timers.
    */
-  DoFnRunnerWithTeardown<InT, T> create(
+  @Internal
+  public DoFnRunnerWithTeardown<InT, T> create(
       PipelineOptions options,
       MetricsAccumulator metrics,
       WindowedValueMultiReceiver output,
@@ -92,7 +96,8 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
    */
   abstract <T2> DoFnRunnerFactory<InT, T2> fuse(DoFnRunnerFactory<T, T2> next);
 
-  static <InT, T> DoFnRunnerFactory<InT, T> simple(
+  @Internal
+  public static <InT, T> DoFnRunnerFactory<InT, T> simple(
       AppliedPTransform<PCollection<? extends InT>, ?, ParDo.MultiOutput<InT, T>> appliedPT,
       PCollection<InT> input,
       SideInputReader sideInputReader,
@@ -147,7 +152,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
     }
 
     @Override
-    DoFnRunnerWithTeardown<InT, T> create(
+    public DoFnRunnerWithTeardown<InT, T> create(
         PipelineOptions options,
         MetricsAccumulator metrics,
         WindowedValueMultiReceiver output,

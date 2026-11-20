@@ -377,6 +377,7 @@ public class PythonExternalTransformTest implements Serializable {
   }
 
   @Test
+  @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
   public void testLoopbackEnvironmentWithPythonExternalTransform() {
     PortablePipelineOptions options =
         PipelineOptionsFactory.create().as(PortablePipelineOptions.class);

@@ -76,6 +76,9 @@ spec:
           #    be granted read and write permissions for a database specified
           #    in `INFLUXDB_DB`
           #  * `INFLUXDB_USER_PASSWORD`
+          #  * `INFLUXDB_READ_USER` - The name of a read-only user to be created
+          #    with READ permissions only for `INFLUXDB_DB`
+          #  * `INFLUXDB_READ_USER_PASSWORD`
           - secretRef:
               name: influxdb-creds
       restartPolicy: Always

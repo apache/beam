@@ -269,6 +269,70 @@ class TestQdrantCreateConverter(unittest.TestCase):
     self.assertIsInstance(result, models.PointStruct)
     self.assertIn("dense", result.vector)
 
+  def test_content_not_in_payload_by_default(self):
+    item = EmbeddableItem(
+        id="1",
+        content=Content(text="hello"),
+        embedding=Embedding(dense_embedding=[1.0]),
+        metadata={"source": "test"},
+    )
+    result = self.convert(item)
+    self.assertEqual(result.payload, {"source": "test"})
+
+  def test_content_payload_key_writes_content(self):
+    config = QdrantWriteConfig(
+        connection_params=QdrantConnectionParameters(location=":memory:"),
+        collection_name="test",
+        content_payload_key="content",
+    )
+    item = EmbeddableItem(
+        id="1",
+        content=Content(text="hello"),
+        embedding=Embedding(dense_embedding=[1.0]),
+        metadata={"source": "test"},
+    )
+    result = config.create_converter()(item)
+    self.assertEqual(result.payload, {"source": "test", "content": "hello"})
+    # metadata of the input item must not be mutated
+    self.assertEqual(item.metadata, {"source": "test"})
+
+  def test_content_payload_key_without_metadata(self):
+    config = QdrantWriteConfig(
+        connection_params=QdrantConnectionParameters(location=":memory:"),
+        collection_name="test",
+        content_payload_key="text",
+    )
+    item = EmbeddableItem(
+        id="1",
+        content=Content(text="hello"),
+        embedding=Embedding(dense_embedding=[1.0]),
+    )
+    result = config.create_converter()(item)
+    self.assertEqual(result.payload, {"text": "hello"})
+
+  def test_content_payload_key_collision_raises(self):
+    config = QdrantWriteConfig(
+        connection_params=QdrantConnectionParameters(location=":memory:"),
+        collection_name="test",
+        content_payload_key="source",
+    )
+    item = EmbeddableItem(
+        id="1",
+        content=Content(text="hello"),
+        embedding=Embedding(dense_embedding=[1.0]),
+        metadata={"source": "test"},
+    )
+    with self.assertRaises(ValueError):
+      config.create_converter()(item)
+
+  def test_empty_content_payload_key_raises(self):
+    with self.assertRaises(ValueError):
+      QdrantWriteConfig(
+          connection_params=QdrantConnectionParameters(location=":memory:"),
+          collection_name="test",
+          content_payload_key="",
+      )
+
 
 @unittest.skipIf(not QDRANT_AVAILABLE, "qdrant dependencies not installed.")
 class TestQdrantWriteFnBatching(unittest.TestCase):

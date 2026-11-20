@@ -17,7 +17,13 @@
     under the License.
 -->
 
-# Example RunInference API pipelines
+# Example inference pipelines
+
+For typed classification, Boolean judgments, and scoring, see the
+[decision model examples](decision_models/README.md). They use
+`EvaluateDecisions` with a swappable model adapter, including Jev and local rules.
+
+## RunInference
 
 This module contains example pipelines that use the Beam RunInference
 API. <!---TODO: Add link to full documentation on Beam website when it's published.-->

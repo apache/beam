@@ -24,13 +24,11 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Static factory methods for constructing instances of {@link TransformExecutorService}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 final class TransformExecutorServices {
   private TransformExecutorServices() {
     // Do not instantiate
@@ -115,7 +113,7 @@ final class TransformExecutorServices {
   private static class SerialTransformExecutor implements TransformExecutorService {
     private final ExecutorService executor;
 
-    private AtomicReference<TransformExecutor> currentlyEvaluating;
+    private AtomicReference<@Nullable TransformExecutor> currentlyEvaluating;
     private final Queue<TransformExecutor> workQueue;
     private boolean active = true;
 

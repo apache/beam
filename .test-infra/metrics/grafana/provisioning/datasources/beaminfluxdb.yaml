@@ -30,4 +30,6 @@ datasources:
       password: ${INFLUX_DB_PASSWORD}
     user: ${INFLUX_DB_USER}
     database: ${INFLUX_DB_DBNAME}
+    jsonData:
+      httpMode: GET
     editable: false

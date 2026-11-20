@@ -29,8 +29,6 @@ import apache_beam as beam
 from apache_beam.testing.benchmarks.nexmark.models import nexmark_model
 from apache_beam.testing.benchmarks.nexmark.queries import nexmark_query_util
 
-USD_TO_EURO = 0.89
-
 
 def load(events, metadata=None, pipeline_options=None):
   return (
@@ -38,5 +36,5 @@ def load(events, metadata=None, pipeline_options=None):
       | nexmark_query_util.JustBids()
       | 'ConvertToEuro' >> beam.Map(
           lambda bid: nexmark_model.Bid(
-              bid.auction, bid.bidder, bid.price * USD_TO_EURO, bid.date_time,
-              bid.extra)))
+              bid.auction, bid.bidder,
+              (bid.price * 89) // 100, bid.date_time, bid.extra)))

@@ -27,6 +27,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import org.apache.beam.sdk.io.iceberg.SchemaChange.Kind;
@@ -126,6 +127,17 @@ public class SchemaDeltaTest {
         "file schema needs changes that are not allowed: "
             + "relax id to optional (absent from file) (pinned as required)",
         delta.disallowedReason(pinned("id")));
+  }
+
+  /** As for a file under id=7/ in a table partitioned by id: required id is not made optional. */
+  @Test
+  public void testAbsentRequiredColumnSuppliedByThePathIsNoChange() {
+    Schema file = new Schema(optional(1, "name", Types.StringType.get()));
+    assertEquals(Arrays.asList("id"), classify(file).absentRequiredPaths());
+    Table created = checkStateNotNull(table);
+    int id = created.schema().findField("id").fieldId();
+
+    assertTrue(SchemaDelta.classify(created, file, Collections.singleton(id)).isEmpty());
   }
 
   @Test

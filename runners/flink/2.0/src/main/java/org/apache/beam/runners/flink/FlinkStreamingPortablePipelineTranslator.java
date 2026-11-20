@@ -130,7 +130,7 @@ import org.apache.flink.util.OutputTag;
   "keyfor",
   "nullness"
 }) // TODO(https://github.com/apache/beam/issues/20497)
-public class FlinkStreamingPortablePipelineTranslator
+public final class FlinkStreamingPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkStreamingPortablePipelineTranslator.StreamingTranslationContext> {
 

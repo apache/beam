@@ -30,3 +30,5 @@ All commands are case insensitive.
 | `remind me after tests pass` | This will comment after all checks complete and tag the person who commented the command. |
 | `waiting on author` | This shifts the attention set to the author. The author can shift the attention set back to the reviewer by commenting anywhere or pushing. |
 | `assign set of reviewers` | If the bot has not yet assigned a set of reviewers to the PR, this command will trigger that happening. |
+| `/summarize-failures` | Clusters failing CI check logs on the PR and posts/updates a sticky root-cause summary comment (handled by `pr_failure_summary.yml`). |
+| `/gemini review` | Triggers an automated Gemini code review on the PR (handled by `gemini_code_review.yml`). |

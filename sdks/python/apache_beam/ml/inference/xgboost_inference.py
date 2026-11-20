@@ -36,6 +36,7 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import PredictionT
+from apache_beam.utils.annotations import deprecated
 
 __all__ = [
     'XGBoostModelHandler',
@@ -108,18 +109,21 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         inputs.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
-      max_batch_weight: optional. the maximum total weight of a batch.
+      max_batch_weight: optional. the maximum total weight of a batch. Cannot
+        be combined with batch_length_fn or batch_bucket_boundaries.
       element_size_fn: optional. a function that returns the size (weight)
         of an element.
       batch_length_fn: optional. a callable that returns the length of an
-        element for length-aware batching.
+        element for length-aware batching. Cannot be used together with
+        max_batch_weight.
       batch_bucket_boundaries: optional. a sorted list of positive boundary
-        values for length-aware batching buckets.
+        values for length-aware batching buckets. Cannot be used together with
+        max_batch_weight.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
-    with XGBoost 1.6.0 and 1.7.0
+    with XGBoost 2.x and 3.x
 
     XGBoost 1.0.0 introduced support for using JSON to save and load
     XGBoost models. XGBoost 1.6.0, additional support for Universal Binary JSON.
@@ -313,6 +317,12 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
     return sum(sys.getsizeof(element) for element in batch)
 
 
+@deprecated(
+    since='2.78.0',
+    extra_message=(
+        'datatable has not had a release since 2023 and has no wheels for '
+        'Python 3.13+. XGBoostModelHandlerDatatable and the datatable '
+        'dependency will be removed in Beam 2.79.0.'))
 class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
                                                        PredictionResult,
                                                        Union[xgboost.Booster,

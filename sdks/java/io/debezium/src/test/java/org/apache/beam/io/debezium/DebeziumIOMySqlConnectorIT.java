@@ -20,7 +20,11 @@ package org.apache.beam.io.debezium;
 import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE_SCHEMA;
 import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
@@ -31,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.List;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -44,6 +49,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonParser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -288,6 +295,73 @@ public class DebeziumIOMySqlConnectorIT {
         .satisfies(
             (Iterable<String> res) -> {
               assertThat(res, hasItem(expected));
+              return null;
+            });
+
+    p.run().waitUntilFinish();
+  }
+
+  /**
+   * Debezium - MySQL connector Test with {@link DebeziumIO.Read#withFullMetadata(boolean)}.
+   *
+   * <p>Tests that the JSON metadata carries {@code op} and the MySQL source fields, flattened.
+   */
+  @Test
+  public void testDebeziumIOMySqlFullMetadata() {
+
+    String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
+    String schemaHistoryTopic = "mysql-schema-history-full-metadata-" + System.nanoTime();
+
+    String host = MY_SQL_CONTAINER.getHost();
+    String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> results =
+        p.apply(
+            DebeziumIO.readAsJson()
+                .withConnectorConfiguration(
+                    DebeziumIO.ConnectorConfiguration.create()
+                        .withUsername("debezium")
+                        .withPassword("dbz")
+                        .withConnectorClass(MySqlConnector.class)
+                        .withHostName(host)
+                        .withPort(port)
+                        .withConnectionProperty("database.server.id", "184055")
+                        .withConnectionProperty("database.include.list", "inventory")
+                        .withConnectionProperty("include.schema.changes", "false")
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.bootstrap.servers",
+                            kafkaBootstrapServers)
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.topic", schemaHistoryTopic)
+                        .withConnectionProperty(
+                            "schema.history.internal",
+                            "io.debezium.storage.kafka.history.KafkaSchemaHistory")
+                        .withConnectionProperty(
+                            "schema.history.internal.store.only.captured.tables.ddl", "true"))
+                .withFullMetadata(true)
+                .withMaxNumberOfRecords(10));
+
+    PAssert.that(results)
+        .satisfies(
+            (Iterable<String> res) -> {
+              List<String> records = Lists.newArrayList(res);
+              assertThat(records, not(empty()));
+              for (String record : records) {
+                JsonObject metadata =
+                    JsonParser.parseString(record).getAsJsonObject().getAsJsonObject("metadata");
+                // Snapshot rows are reads.
+                assertThat(metadata.get("op").getAsString(), equalTo("r"));
+                assertTrue(metadata.get("pos").getAsJsonPrimitive().isNumber());
+                assertTrue(metadata.get("row").getAsJsonPrimitive().isNumber());
+                assertTrue(metadata.get("ts_ms").getAsJsonPrimitive().isNumber());
+                // MySQL keeps exposing the binlog file under "schema" for compatibility.
+                assertThat(
+                    metadata.get("file").getAsString(),
+                    equalTo(metadata.get("schema").getAsString()));
+                assertFalse(metadata.has("source"));
+              }
               return null;
             });
 

@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -35,8 +39,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.iceberg.CommitSchemaUnion.Committer;
 import org.apache.beam.sdk.io.iceberg.CommitSchemaUnion.IncompatibleSchemaException;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.Table;
@@ -65,6 +71,9 @@ public class CommitSchemaUnionTest {
 
   @Rule public TestName testName = new TestName();
 
+  /** Advances a fake clock instead of sleeping out the commit backoff. */
+  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
+
   private static final Schema TABLE =
       new Schema(
           required(1, "id", Types.LongType.get()),
@@ -77,8 +86,15 @@ public class CommitSchemaUnionTest {
   private static final SchemaEvolutionConfig ADDITION_ONLY =
       SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION);
 
-  private static final CommitSchemaUnion.TableCreation NO_CREATION =
-      new CommitSchemaUnion.TableCreation(null, null, null);
+  private static final CommitSchemaUnion.NewTableSettings NO_CREATION =
+      new CommitSchemaUnion.NewTableSettings(null, null, null);
+
+  private static CommitSchemaUnion.Settings settings(
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CommitSchemaUnion.NewTableSettings newTable) {
+    return new CommitSchemaUnion.Settings(config, handling, newTable);
+  }
 
   private HadoopCatalog catalog;
   private TableIdentifier tableId;
@@ -103,7 +119,32 @@ public class CommitSchemaUnionTest {
     return CollectDistinctSchemas.SchemaGroup.of(json(schema), count, nullFreeColumns);
   }
 
+  /** {@code count} files, each under a folder per key, e.g. dt=2024-01-15/ for key dt. */
+  private static CollectDistinctSchemas.SchemaGroup filesUnder(
+      Schema schema, long count, String... partitionKeysInPath) {
+    return CollectDistinctSchemas.SchemaGroup.of(
+        json(schema), count, Collections.emptyList(), Arrays.asList(partitionKeysInPath));
+  }
+
+  private static final Schema PARTITIONED =
+      new Schema(
+          required(1, "id", Types.LongType.get()), required(2, "dt", Types.StringType.get()));
+
+  private TableIdentifier partitionedByDt() {
+    TableIdentifier id = missing();
+    catalog.createTable(
+        id, PARTITIONED, PartitionSpec.builderFor(PARTITIONED).identity("dt").build());
+    return id;
+  }
+
   private long commit(
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
+    return checkStateNotNull(commitVerdict(config, handling, schemas).getSchemaId());
+  }
+
+  private SchemaCommitVerdict commitVerdict(
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
       CollectDistinctSchemas.SchemaGroup... schemas) {
@@ -111,9 +152,7 @@ public class CommitSchemaUnionTest {
         catalog,
         tableId,
         Arrays.asList(schemas),
-        config,
-        handling,
-        NO_CREATION,
+        settings(config, handling, NO_CREATION),
         CommitSchemaUnion.DEFAULT_COMMITTER);
   }
 
@@ -258,99 +297,6 @@ public class CommitSchemaUnionTest {
     assertTrue(schema.findField("items.element.qty").isOptional());
     assertTrue(schema.findField("attrs.value").isOptional());
     assertTrue(schema.findField("attrs.value.v").isOptional());
-  }
-
-  // ---- newRequiredPaths (direct)
-
-  @Test
-  public void testNewRequiredPathsAtEveryLevelExceptMapKeys() {
-    Schema before = new Schema(required(1, "id", Types.LongType.get()));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "s",
-                Types.StructType.of(
-                    required(3, "a", Types.IntegerType.get()),
-                    optional(4, "b", Types.IntegerType.get()))),
-            optional(
-                5,
-                "items",
-                Types.ListType.ofRequired(
-                    6, Types.StructType.of(required(7, "qty", Types.IntegerType.get())))),
-            optional(
-                8,
-                "attrs",
-                Types.MapType.ofRequired(
-                    9,
-                    10,
-                    Types.StructType.of(required(11, "k", Types.StringType.get())),
-                    Types.StructType.of(required(12, "v", Types.IntegerType.get())))));
-    assertEquals(
-        Arrays.asList("s.a", "items.element", "items.element.qty", "attrs.value", "attrs.value.v"),
-        CommitSchemaUnion.newRequiredPaths(before, after));
-  }
-
-  /** Names containing element/key/value are not containers; regression for a substring check. */
-  @Test
-  public void testNewRequiredPathsContainerLikeNamesAreNotContainers() {
-    Schema before = new Schema(required(1, "id", Types.LongType.get()));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "stats",
-                Types.StructType.of(
-                    required(3, "keyword", Types.StringType.get()),
-                    required(4, "value_sum", Types.LongType.get()),
-                    required(5, "element", Types.StringType.get()))));
-    assertEquals(
-        Arrays.asList("stats.keyword", "stats.value_sum", "stats.element"),
-        CommitSchemaUnion.newRequiredPaths(before, after));
-  }
-
-  @Test
-  public void testNewRequiredPathsInNestedContainers() {
-    Schema before = new Schema(required(1, "id", Types.LongType.get()));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "ll",
-                Types.ListType.ofRequired(
-                    3, Types.ListType.ofRequired(4, Types.IntegerType.get()))),
-            optional(
-                5,
-                "lm",
-                Types.ListType.ofRequired(
-                    6,
-                    Types.MapType.ofRequired(
-                        7, 8, Types.StringType.get(), Types.IntegerType.get()))));
-    assertEquals(
-        Arrays.asList("ll.element", "ll.element.element", "lm.element", "lm.element.value"),
-        CommitSchemaUnion.newRequiredPaths(before, after));
-  }
-
-  /** Growing an existing struct: only the field with a new id is a candidate. */
-  @Test
-  public void testNewRequiredPathsIgnoreExistingFields() {
-    Schema before =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(2, "s", Types.StructType.of(required(3, "old", Types.IntegerType.get()))));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "s",
-                Types.StructType.of(
-                    required(3, "old", Types.IntegerType.get()),
-                    required(4, "fresh", Types.IntegerType.get()))));
-    assertEquals(Arrays.asList("s.fresh"), CommitSchemaUnion.newRequiredPaths(before, after));
   }
 
   /** A declared-optional column every file proved null-free does not relax the table. */
@@ -550,9 +496,7 @@ public class CommitSchemaUnionTest {
         catalog,
         other,
         Arrays.asList(files(b, 2), files(a, 1)),
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertTrue(first.sameSchema(catalog.loadTable(other).schema()));
   }
@@ -742,18 +686,21 @@ public class CommitSchemaUnionTest {
         catalog,
         tableId,
         Arrays.asList(files(file, 1)),
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
-        flakyThenExternalChange);
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
+        flakyThenExternalChange,
+        fastClock);
     Table table = load();
     assertEquals(2, attempts.get());
     assertNotNull(table.schema().findField("external"));
     assertNotNull(table.schema().findField("email"));
   }
 
-  @Test
-  public void testPersistentCommitFailurePropagates() {
+  private long millisSleptSince(long startNanos) {
+    return (fastClock.nanoTime() - startNanos) / 1_000_000;
+  }
+
+  /** A commit that always loses; returns how many times it was attempted. */
+  private int attemptsUntilGivingUp() {
     AtomicInteger attempts = new AtomicInteger();
     Committer alwaysFails =
         txn -> {
@@ -772,14 +719,95 @@ public class CommitSchemaUnionTest {
                 catalog,
                 tableId,
                 Arrays.asList(files(file, 1)),
-                ALL,
-                IncompatibleSchemaHandling.FAIL_PIPELINE,
-                NO_CREATION,
-                alwaysFails));
-    assertEquals(CommitSchemaUnion.MAX_ATTEMPTS, attempts.get());
+                settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
+                alwaysFails,
+                fastClock));
+    return attempts.get();
+  }
+
+  /** The budget is time, not a count: the waits add up to the timeout, whatever the jitter. */
+  @Test
+  public void testPersistentCommitFailureGivesUpWhenTheRetryTimeIsSpent() {
+    long start = fastClock.nanoTime();
+    int attempts = attemptsUntilGivingUp();
+    assertEquals(
+        CommitSchemaUnion.DEFAULT_RETRY_TOTAL_TIMEOUT.getMillis(), millisSleptSince(start));
+    assertTrue("retried: " + attempts, attempts > 1);
+    assertNull("nothing was committed", load().schema().findField("email"));
+  }
+
+  @Test
+  public void testTableRetryPropertiesSetTheBudget() {
+    load()
+        .updateProperties()
+        .set(TableProperties.COMMIT_MIN_RETRY_WAIT_MS, "10")
+        .set(TableProperties.COMMIT_MAX_RETRY_WAIT_MS, "40")
+        .set(TableProperties.COMMIT_TOTAL_RETRY_TIME_MS, "200")
+        .commit();
+    long start = fastClock.nanoTime();
+    attemptsUntilGivingUp();
+    assertEquals(200, millisSleptSince(start));
+  }
+
+  /** A bad table property must not replace the commit failure with a configuration error. */
+  @Test
+  public void testUnusableTableRetryPropertiesAreClamped() {
+    load()
+        .updateProperties()
+        .set(TableProperties.COMMIT_MIN_RETRY_WAIT_MS, "0")
+        .set(TableProperties.COMMIT_TOTAL_RETRY_TIME_MS, "-5")
+        .set(TableProperties.COMMIT_NUM_RETRIES, "-1")
+        .commit();
+    long start = fastClock.nanoTime();
+    assertEquals("no retries", 1, attemptsUntilGivingUp());
+    assertEquals(0, millisSleptSince(start));
+  }
+
+  @Test
+  public void testTableRetryCountCapsTheAttempts() {
+    load().updateProperties().set(TableProperties.COMMIT_NUM_RETRIES, "2").commit();
+    assertEquals(3, attemptsUntilGivingUp());
   }
 
   // ---- create path
+
+  /** Files under dt=.../ folders, with no dt column: required dt stays required. */
+  @Test
+  public void testRequiredPartitionColumnSuppliedByThePathIsNotRelaxed() {
+    TableIdentifier id = partitionedByDt();
+    Schema file = new Schema(required(1, "id", Types.LongType.get()));
+    int before = catalog.loadTable(id).schema().schemaId();
+
+    long schemaId =
+        commitTo(
+            id,
+            ADDITION_ONLY,
+            IncompatibleSchemaHandling.FAIL_PIPELINE,
+            NO_CREATION,
+            filesUnder(file, 3, "dt"));
+
+    assertEquals(before, schemaId);
+    assertTrue(catalog.loadTable(id).schema().findField("dt").isRequired());
+  }
+
+  /** Files with no dt=... folder would read dt as null, so dt must still become optional. */
+  @Test
+  public void testRequiredPartitionColumnWithoutAPathValueStillNeedsRelaxation() {
+    TableIdentifier id = partitionedByDt();
+    Schema file = new Schema(required(1, "id", Types.LongType.get()));
+
+    assertThrows(
+        IncompatibleSchemaException.class,
+        () ->
+            commitTo(
+                id,
+                ADDITION_ONLY,
+                IncompatibleSchemaHandling.FAIL_PIPELINE,
+                NO_CREATION,
+                filesUnder(file, 3)));
+    commitTo(id, ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION, filesUnder(file, 3));
+    assertTrue(catalog.loadTable(id).schema().findField("dt").isOptional());
+  }
 
   private TableIdentifier missing() {
     return TableIdentifier.of("default", testName.getMethodName() + "_new");
@@ -789,15 +817,23 @@ public class CommitSchemaUnionTest {
       TableIdentifier id,
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
-      CommitSchemaUnion.TableCreation creation,
+      CommitSchemaUnion.NewTableSettings creation,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
+    return checkStateNotNull(
+        commitVerdictTo(id, config, handling, creation, schemas).getSchemaId());
+  }
+
+  private SchemaCommitVerdict commitVerdictTo(
+      TableIdentifier id,
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CommitSchemaUnion.NewTableSettings creation,
       CollectDistinctSchemas.SchemaGroup... schemas) {
     return CommitSchemaUnion.commit(
         catalog,
         id,
         Arrays.asList(schemas),
-        config,
-        handling,
-        creation,
+        settings(config, handling, creation),
         CommitSchemaUnion.DEFAULT_COMMITTER);
   }
 
@@ -812,8 +848,8 @@ public class CommitSchemaUnionTest {
     Schema other =
         new Schema(
             required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
-    CommitSchemaUnion.TableCreation creation =
-        new CommitSchemaUnion.TableCreation(
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(
             Arrays.asList("region"), null, java.util.Collections.singletonMap("k", "v"));
     long schemaId =
         commitTo(
@@ -848,8 +884,8 @@ public class CommitSchemaUnionTest {
     Schema other =
         new Schema(
             required(1, "id", Types.LongType.get()), optional(2, "extra", Types.StringType.get()));
-    CommitSchemaUnion.TableCreation creation =
-        new CommitSchemaUnion.TableCreation(Arrays.asList("extra"), null, null);
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("extra"), null, null);
     commitTo(
         id,
         ALL,
@@ -965,82 +1001,6 @@ public class CommitSchemaUnionTest {
         new Schema(optional(1, "id", Types.LongType.get())), catalog.loadTable(id).schema());
   }
 
-  // ---- createdSchema (direct)
-
-  @Test
-  public void testCreatedSchemaPinsHoldAtEveryLevel() {
-    Schema merged =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "l",
-                Types.ListType.ofOptional(
-                    3, Types.StructType.of(optional(4, "q", Types.IntegerType.get())))));
-    SchemaEvolutionConfig pinned =
-        SchemaEvolutionConfig.builder()
-            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
-            .setRequiredColumns(Collections.singleton("l.element.q"))
-            .build();
-    Schema created = CommitSchemaUnion.createdSchema(merged, pinned);
-    assertSameSchema(
-        new Schema(
-            optional(1, "id", Types.LongType.get()),
-            required(
-                2,
-                "l",
-                Types.ListType.ofRequired(
-                    3, Types.StructType.of(required(4, "q", Types.IntegerType.get()))))),
-        created);
-  }
-
-  @Test
-  public void testCreatedSchemaEveryLevelOptionalExceptMapKeys() {
-    Schema schema =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            required(
-                2,
-                "s",
-                Types.StructType.of(
-                    required(3, "a", Types.IntegerType.get()),
-                    required(
-                        4,
-                        "items",
-                        Types.ListType.ofRequired(
-                            5, Types.StructType.of(required(6, "qty", Types.IntegerType.get())))))),
-            required(
-                7,
-                "attrs",
-                Types.MapType.ofRequired(
-                    8,
-                    9,
-                    Types.StructType.of(required(10, "k", Types.StringType.get())),
-                    Types.StructType.of(required(11, "v", Types.IntegerType.get())))));
-    assertSameSchema(
-        new Schema(
-            optional(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "s",
-                Types.StructType.of(
-                    optional(3, "a", Types.IntegerType.get()),
-                    optional(
-                        4,
-                        "items",
-                        Types.ListType.ofOptional(
-                            5, Types.StructType.of(optional(6, "qty", Types.IntegerType.get())))))),
-            optional(
-                7,
-                "attrs",
-                Types.MapType.ofOptional(
-                    8,
-                    9,
-                    Types.StructType.of(required(10, "k", Types.StringType.get())),
-                    Types.StructType.of(optional(11, "v", Types.IntegerType.get()))))),
-        CommitSchemaUnion.createdSchema(schema, ALL));
-  }
-
   /** Options guard an existing table's schema; with no table there is nothing to guard. */
   @Test
   public void testCreationIsNotGatedOnAnyParticularOption() {
@@ -1063,16 +1023,17 @@ public class CommitSchemaUnionTest {
   @Test
   public void testMissingTableWithoutSchemasIsNotCreated() {
     TableIdentifier id = missing();
-    long result =
+    SchemaCommitVerdict result =
         CommitSchemaUnion.commit(
             catalog,
             id,
             new ArrayList<>(),
-            ALL,
-            IncompatibleSchemaHandling.FAIL_PIPELINE,
-            NO_CREATION,
+            settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
             CommitSchemaUnion.DEFAULT_COMMITTER);
-    assertEquals(CommitSchemaUnion.NO_TABLE, result);
+    assertTrue(result.refused());
+    assertEquals(
+        "the table does not exist and no file schema was read to create it from",
+        result.getRefusal());
     assertFalse(catalog.tableExists(id));
   }
 
@@ -1095,6 +1056,58 @@ public class CommitSchemaUnionTest {
                 NO_CREATION,
                 files(asLong, 3),
                 files(asString, 1)));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  /** The fallback creation at registration throws the same error, so no handling can route it. */
+  @Test
+  public void testPartitionFieldAbsentFromUnionFailsCreationUnderEitherHandling() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("missing"), null, null);
+    for (IncompatibleSchemaHandling handling : IncompatibleSchemaHandling.values()) {
+      IllegalStateException e =
+          assertThrows(
+              IllegalStateException.class,
+              () -> commitTo(id, ALL, handling, creation, files(seed, 2)));
+      assertEquals(
+          "not an IncompatibleSchemaException, which the handling could downgrade",
+          IllegalStateException.class,
+          e.getClass());
+      assertThat(
+          e.getMessage(), containsString("cannot be created with partition fields [missing]"));
+    }
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testPartitionFieldOnlyInASkippedSchemaFailsCreation() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.StringType.get()));
+    Schema loser =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(2, "code", Types.LongType.get()),
+            optional(3, "region", Types.StringType.get()));
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("region"), null, null);
+    IllegalStateException e =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                commitTo(
+                    id,
+                    ALL,
+                    IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+                    creation,
+                    files(seed, 3),
+                    files(loser, 1)));
+    assertThat(e.getMessage(), containsString("region"));
     assertFalse(catalog.tableExists(id));
   }
 
@@ -1142,10 +1155,9 @@ public class CommitSchemaUnionTest {
         catalog,
         id,
         Arrays.asList(files(file, 1)),
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
-        raced);
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
+        raced,
+        fastClock);
     Table table = catalog.loadTable(id);
     assertEquals(2, attempts.get());
     assertNotNull(table.schema().findField("email"));
@@ -1156,16 +1168,13 @@ public class CommitSchemaUnionTest {
 
   @Test
   public void testEmptyInputCommitsNothing() {
-    seedNameMapping();
     String before = metadataLocation(load());
     List<CollectDistinctSchemas.SchemaGroup> none = new ArrayList<>();
     CommitSchemaUnion.commit(
         catalog,
         tableId,
         none,
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertEquals(before, metadataLocation(load()));
   }
@@ -1192,15 +1201,17 @@ public class CommitSchemaUnionTest {
     assertFalse(catalog.tableExists(id));
 
     // nothing valid to seed from: routed, and no table
-    long none =
-        commitTo(
+    SchemaCommitVerdict none =
+        commitVerdictTo(
             id,
             ALL,
             IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
             NO_CREATION,
             files(dotted, 1),
             files(caseDuplicate, 2));
-    assertEquals(CommitSchemaUnion.NO_TABLE, none);
+    assertTrue(none.refused());
+    assertEquals(
+        "the table does not exist and every file schema read was refused", none.getRefusal());
     assertFalse(catalog.tableExists(id));
 
     // the valid schema alone seeds the table

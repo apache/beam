@@ -82,7 +82,6 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -151,7 +150,6 @@ import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.util.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.util.construction.UnconsumedReads;
-import org.apache.beam.sdk.util.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -169,6 +167,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -1041,9 +1040,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String imageAndTag =
               normalizeDataflowImageAndTag(
                   containerImage.substring(containerImage.lastIndexOf("/")));
-          containerImage =
-              DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository()
-                  + imageAndTag;
+          containerImage = getContainerImageBaseRepository(options) + imageAndTag;
         }
         environmentBuilder.setPayload(
             RunnerApi.DockerPayload.newBuilder()
@@ -2674,28 +2671,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         numShards = DEFAULT_NUM_SHARDS;
       }
 
-      try {
-        List<PCollectionView<?>> sideInputs =
-            WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
-        FileBasedSink sink = WriteFilesTranslation.getSink(transform);
-        WriteFiles<UserT, DestinationT, OutputT> replacement =
-            WriteFiles.to(sink).withSideInputs(sideInputs);
-        if (WriteFilesTranslation.isWindowedWrites(transform)) {
-          replacement = replacement.withWindowedWrites();
-        }
-
-        if (WriteFilesTranslation.isAutoSharded(transform)) {
-          replacement = replacement.withAutoSharding();
-          return PTransformReplacement.of(
-              PTransformReplacements.getSingletonMainInput(transform), replacement);
-        }
-
-        return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform),
-            replacement.withNumShards(numShards));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      // Keep every option of the original transform and only set the shard count.
+      WriteFiles<UserT, DestinationT, OutputT> original = transform.getTransform();
+      checkArgument(
+          !original.getWithAutoSharding(),
+          "StreamingShardedWriteFactory should not be applied when autosharding is enabled");
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          original.withNumShards(numShards));
     }
 
     @Override
@@ -2722,12 +2705,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   /** Construct the default Dataflow container full image URL. */
   static String getDefaultContainerImageUrl(DataflowPipelineOptions options) {
-    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     return String.format(
         "%s/%s:%s",
-        dataflowRunnerInfo.getContainerImageBaseRepository(),
+        getContainerImageBaseRepository(options),
         getDefaultContainerImageNameForJob(options),
         getDefaultContainerVersion(options));
+  }
+
+  /**
+   * Returns the base repository of the default Dataflow container images, without a trailing slash.
+   * Uses {@code --dataflowContainerBaseRepository} if set, and the repository configured in {@link
+   * DataflowRunnerInfo} otherwise.
+   */
+  @VisibleForTesting
+  static String getContainerImageBaseRepository(DataflowPipelineOptions options) {
+    String baseRepository = options.getDataflowContainerBaseRepository();
+    if (baseRepository != null) {
+      String trimmed = CharMatcher.is('/').trimTrailingFrom(baseRepository.trim());
+      if (!trimmed.isEmpty()) {
+        return trimmed;
+      }
+    }
+    return DataflowRunnerInfo.getDataflowRunnerInfo().getContainerImageBaseRepository();
   }
 
   /**

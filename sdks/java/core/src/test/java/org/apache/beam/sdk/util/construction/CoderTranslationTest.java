@@ -224,14 +224,14 @@ public class CoderTranslationTest {
           .addAll(KNOWN_CODERS)
           .add(
               StringUtf8Coder.of(),
-              SerializableCoder.of(Record.class),
-              new RecordCoder(),
-              KvCoder.of(new RecordCoder(), StringUtf8Coder.of()))
+              SerializableCoder.of(TestRecord.class),
+              new TestRecordCoder(),
+              KvCoder.of(new TestRecordCoder(), StringUtf8Coder.of()))
           .add(
               StringUtf8Coder.of(),
-              SerializableCoder.of(Record.class),
-              new RecordCoder(),
-              KvCoder.of(new RecordCoder(), StringUtf8Coder.of()))
+              SerializableCoder.of(TestRecord.class),
+              new TestRecordCoder(),
+              KvCoder.of(new TestRecordCoder(), StringUtf8Coder.of()))
           .add(UnknownCoderWrapper.of("dummy_urn", new byte[] {}))
           .build();
     }
@@ -262,15 +262,16 @@ public class CoderTranslationTest {
       }
     }
 
-    static class Record implements Serializable {}
+    static class TestRecord implements Serializable {}
 
-    private static class RecordCoder extends AtomicCoder<Record> {
+    private static class TestRecordCoder extends AtomicCoder<TestRecord> {
       @Override
-      public void encode(Record value, OutputStream outStream) throws CoderException, IOException {}
+      public void encode(TestRecord value, OutputStream outStream)
+          throws CoderException, IOException {}
 
       @Override
-      public Record decode(InputStream inStream) throws CoderException, IOException {
-        return new Record();
+      public TestRecord decode(InputStream inStream) throws CoderException, IOException {
+        return new TestRecord();
       }
     }
   }

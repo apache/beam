@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -138,6 +139,12 @@ import org.joda.time.format.PeriodFormat;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 @Internal
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Object, BoundedWindow> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
@@ -1301,7 +1308,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  private class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
+  private final class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
     private final String timerIdOrFamily;
     private final K userKey;
     private final String dynamicTimerTag;

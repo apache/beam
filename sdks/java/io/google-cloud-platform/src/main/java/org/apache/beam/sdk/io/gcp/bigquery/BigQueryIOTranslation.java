@@ -482,6 +482,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("row_mutation_information_fn")
             .addNullableByteArrayField("bad_record_error_handler")
             .addNullableByteArrayField("bad_record_router")
+            .addNullableInt64Field("auto_schema_update_strict_timeout_ms")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -623,7 +624,10 @@ public class BigQueryIOTranslation {
       fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
       fieldValues.put("ignore_unknown_values", transform.getIgnoreUnknownValues());
       fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
-      fieldValues.put("max_retry_jobs", transform.getMaxRetryJobs());
+      Integer maxRetryJobs = transform.getMaxRetryJobs();
+      if (maxRetryJobs != null) {
+        fieldValues.put("max_retry_jobs", maxRetryJobs);
+      }
       fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
       String kmsKey = transform.getKmsKey();
       if (kmsKey != null) {
@@ -642,6 +646,11 @@ public class BigQueryIOTranslation {
       fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
       fieldValues.put("auto_sharding", transform.getAutoSharding());
       fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
+      org.joda.time.Duration autoSchemaUpdateTimeout = transform.getAutoSchemaUpdateStrictTimeout();
+      if (autoSchemaUpdateTimeout != null) {
+        fieldValues.put(
+            "auto_schema_update_strict_timeout_ms", autoSchemaUpdateTimeout.getMillis());
+      }
       Class<?> writeProtosClass = transform.getWriteProtosClass();
       if (writeProtosClass != null) {
         fieldValues.put("write_protos_class", toByteArray(writeProtosClass));
@@ -892,8 +901,18 @@ public class BigQueryIOTranslation {
         if (ignoreInsertIds != null) {
           builder = builder.setIgnoreInsertIds(ignoreInsertIds);
         }
+        // before 2.78.0 BigQueryIO.write() always seeded maxRetryJobs with 1000, whether or not the
+        // pipeline ever called withMaxRetryJobs, and a bounded write ignored the value and used
+        // BatchLoads' own default of 3. so a row from one of those versions that holds exactly 1000
+        // tells us nothing about what the user asked for. leaving it unset makes both modes fall
+        // back to the same numbers they used before the upgrade, 3 for bounded and 1000 for
+        // unbounded. any other value was chosen deliberately and is carried over
         Integer maxRetryJobs = configRow.getInt32("max_retry_jobs");
-        if (maxRetryJobs != null) {
+        boolean isPreservedLegacyDefault =
+            TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.78.0") < 0
+                && Integer.valueOf(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED)
+                    .equals(maxRetryJobs);
+        if (maxRetryJobs != null && !isPreservedLegacyDefault) {
           builder = builder.setMaxRetryJobs(maxRetryJobs);
         }
         String kmsKey = configRow.getString("kms_key");
@@ -931,6 +950,15 @@ public class BigQueryIOTranslation {
         Boolean autoSchemaUpdate = configRow.getBoolean("auto_schema_update");
         if (autoSchemaUpdate != null) {
           builder = builder.setAutoSchemaUpdate(autoSchemaUpdate);
+        }
+        Long autoSchemaUpdateStrictTimeoutMillis =
+            configRow.getInt64("auto_schema_update_strict_timeout_ms");
+        if (autoSchemaUpdateStrictTimeoutMillis != null) {
+          builder =
+              builder
+                  .setAutoSchemaUpdate(true)
+                  .setAutoSchemaUpdateStrictTimeout(
+                      org.joda.time.Duration.millis(autoSchemaUpdateStrictTimeoutMillis));
         }
         byte[] writeProtosClasses = configRow.getBytes("write_protos_class");
         if (writeProtosClasses != null) {

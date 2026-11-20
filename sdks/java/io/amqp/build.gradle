@@ -19,6 +19,22 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.amqp')
 
+// The JMS IO module pulls ActiveMQ 6.2.5 (Java 17) into the shared dependency
+// map. Because the global resolution strategy forces every mapped version,
+// that 6.2.5 would otherwise be forced onto this Java 11 module via the shared
+// org.apache.activemq coordinates. AMQP IO only needs ActiveMQ as an embedded
+// test broker, so pin it back to the Java 11-compatible 5.x line.
+def activemq5_version = '5.19.5'
+configurations.all {
+  resolutionStrategy.dependencySubstitution {
+    substitute module('org.apache.activemq:activemq-broker') using module("org.apache.activemq:activemq-broker:${activemq5_version}")
+    substitute module('org.apache.activemq:activemq-amqp') using module("org.apache.activemq:activemq-amqp:${activemq5_version}")
+    substitute module('org.apache.activemq:activemq-client') using module("org.apache.activemq:activemq-client:${activemq5_version}")
+    substitute module('org.apache.activemq:activemq-kahadb-store') using module("org.apache.activemq:activemq-kahadb-store:${activemq5_version}")
+    substitute module('org.apache.activemq.tooling:activemq-junit') using module("org.apache.activemq.tooling:activemq-junit:${activemq5_version}")
+  }
+}
+
 description = "Apache Beam :: SDKs :: Java :: IO :: AMQP"
 ext.summary = "IO to read and write using AMQP 1.0 protocol (http://www.amqp.org)."
 

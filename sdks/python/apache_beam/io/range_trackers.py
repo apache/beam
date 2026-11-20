@@ -429,7 +429,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     istart = cls._bytestring_to_int(start, prec)
     ikey = cls._bytestring_to_int(key, prec)
     iend = cls._bytestring_to_int(end, prec) if end else 1 << (prec * 8)
-    return float(ikey - istart) / (iend - istart)
+    return (ikey - istart) / (iend - istart)
 
   @staticmethod
   def _bytestring_to_int(s: Union[bytes, str], prec: int) -> int:

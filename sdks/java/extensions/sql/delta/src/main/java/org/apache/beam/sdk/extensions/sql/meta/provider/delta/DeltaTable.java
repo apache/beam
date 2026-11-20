@@ -26,10 +26,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
+import org.apache.beam.sdk.extensions.sql.meta.ChangeRange;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.delta.DeltaIO;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -40,7 +43,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class DeltaTable extends SchemaBaseBeamTable {
+final class DeltaTable extends SchemaBaseBeamTable {
   @VisibleForTesting static final String VERSION_FIELD = "version";
   @VisibleForTesting static final String TIMESTAMP_FIELD = "timestamp";
   @VisibleForTesting static final String HADOOP_CONFIG_FIELD = "hadoop_config";
@@ -137,6 +140,27 @@ class DeltaTable extends SchemaBaseBeamTable {
     }
   }
 
+  /** A plain read takes no options: the SQL table and the query set every one of them. */
+  @Override
+  public BeamSqlTable forRead(Map<String, Object> options) {
+    throw new IllegalArgumentException(
+        "WITH options on a Delta Lake read are only accepted with CHANGES(...), got "
+            + options.keySet());
+  }
+
+  /** Returns the table's changes for a {@code CHANGES(...)} call. */
+  @Override
+  public BeamSqlTable forChanges(
+      ChangeRange changes, Map<String, Object> options, List<String> metadataColumns) {
+    return DeltaChangesTable.of(this, changes, options, metadataColumns);
+  }
+
+  /** The metadata columns of the Change Data Feed, such as {@code _change_type}. */
+  @Override
+  public List<String> getChangeMetadataColumns() {
+    return DeltaIO.METADATA_COLUMNS;
+  }
+
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
@@ -182,7 +206,7 @@ class DeltaTable extends SchemaBaseBeamTable {
     return new DefaultTableFilter(filter);
   }
 
-  private Map<String, Object> getBaseConfig() {
+  Map<String, Object> getBaseConfig() {
     ImmutableMap.Builder<String, Object> managedConfigBuilder = ImmutableMap.builder();
     managedConfigBuilder.put("table", tableLocation);
     if (version != null) {

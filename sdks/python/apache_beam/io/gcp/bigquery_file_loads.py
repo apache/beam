@@ -383,16 +383,19 @@ class UpdateDestinationSchema(beam.DoFn):
       test_client=None,
       additional_bq_parameters=None,
       step_name=None,
-      load_job_project_id=None):
+      load_job_project_id=None,
+      quota_project_id=None):
     self.project = project
     self._test_client = test_client
+    self._quota_project_id = quota_project_id
     self._write_disposition = write_disposition
     self._additional_bq_parameters = additional_bq_parameters or {}
     self._step_name = step_name
     self._load_job_project_id = load_job_project_id
 
   def start_bundle(self):
-    self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self._test_client)
+    self.bq_wrapper = bigquery_tools.BigQueryWrapper(
+        client=self._test_client, quota_project_id=self._quota_project_id)
     self._bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
 
@@ -525,11 +528,13 @@ class TriggerCopyJobs(beam.DoFn):
       write_disposition=None,
       test_client=None,
       step_name=None,
-      load_job_project_id=None):
+      load_job_project_id=None,
+      quota_project_id=None):
     self.project = project
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
+    self.quota_project_id = quota_project_id
     self._observed_tables = set()
     self.bq_io_metadata = None
     self._step_name = step_name
@@ -545,7 +550,8 @@ class TriggerCopyJobs(beam.DoFn):
     self._observed_tables = set()
 
   def start_bundle(self):
-    self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    self.bq_wrapper = bigquery_tools.BigQueryWrapper(
+        client=self.test_client, quota_project_id=self.quota_project_id)
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
@@ -677,10 +683,12 @@ class TriggerLoadJobs(beam.DoFn):
       additional_bq_parameters=None,
       source_format=None,
       step_name=None,
-      load_job_project_id=None):
+      load_job_project_id=None,
+      quota_project_id=None):
     self.schema = schema
     self.project = project
     self.test_client = test_client
+    self.quota_project_id = quota_project_id
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.source_format = source_format
@@ -709,7 +717,8 @@ class TriggerLoadJobs(beam.DoFn):
     return result
 
   def start_bundle(self):
-    self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    self.bq_wrapper = bigquery_tools.BigQueryWrapper(
+        client=self.test_client, quota_project_id=self.quota_project_id)
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
@@ -749,14 +758,11 @@ class TriggerLoadJobs(beam.DoFn):
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
-    # Load jobs for a single destination are always triggered from the same
-    # worker. This means that we can generate a deterministic numbered job id,
-    # and not need to worry.
+    # Use the same destination identity as file grouping. Equivalent table
+    # references can form separate groups with different files but identical
+    # partition numbers, so normalizing the reference would collide job IDs.
     destination_hash = _bq_uuid(
-        '%s:%s.%s' % (
-            table_reference.projectId,
-            table_reference.datasetId,
-            table_reference.tableId))
+        bigquery_tools.get_hashable_destination(destination))
     job_name = '%s_%s_pane%s_partition%s' % (
         load_job_name_prefix, destination_hash, pane_info.index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
@@ -928,11 +934,13 @@ class PartitionFiles(beam.DoFn):
 
 
 class DeleteTablesFn(beam.DoFn):
-  def __init__(self, test_client=None):
+  def __init__(self, test_client=None, quota_project_id=None):
     self.test_client = test_client
+    self.quota_project_id = quota_project_id
 
   def start_bundle(self):
-    self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
+    self.bq_wrapper = bigquery_tools.BigQueryWrapper(
+        client=self.test_client, quota_project_id=self.quota_project_id)
 
   def process(self, table_reference):
     _LOGGER.info("Deleting table %s", table_reference)
@@ -998,6 +1006,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     self.test_client = test_client
     self.schema = schema
+    self.quota_project_id = None
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     # If we have multiple destinations, then we will have multiple load jobs,
@@ -1207,7 +1216,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 additional_bq_parameters=self.additional_bq_parameters,
                 source_format=self._temp_file_format,
                 step_name=step_name,
-                load_job_project_id=self.load_job_project_id),
+                load_job_project_id=self.load_job_project_id,
+                quota_project_id=self.quota_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES,
@@ -1228,7 +1238,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 additional_bq_parameters=self.additional_bq_parameters,
                 step_name=step_name,
-                load_job_project_id=self.load_job_project_id),
+                load_job_project_id=self.load_job_project_id,
+                quota_project_id=self.quota_project_id),
             schema_mod_job_name_pcv))
 
     if self.write_disposition in ('WRITE_EMPTY', 'WRITE_TRUNCATE'):
@@ -1259,7 +1270,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 write_disposition=self.write_disposition,
                 test_client=self.test_client,
                 step_name=step_name,
-                load_job_project_id=self.load_job_project_id),
+                load_job_project_id=self.load_job_project_id,
+                quota_project_id=self.quota_project_id),
             copy_job_name_pcv,
             pvalue.AsIter(schema_mod_job_ids_pc)).with_outputs(
                 TriggerCopyJobs.TRIGGER_DELETE_TEMP_TABLES, main='main'))
@@ -1275,7 +1287,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
         | "RemoveTempTables/GetTableNames" >> beam.Keys()
         | "RemoveTempTables/Delete" >> beam.ParDo(
-            DeleteTablesFn(self.test_client)))
+            DeleteTablesFn(
+                test_client=self.test_client,
+                quota_project_id=self.quota_project_id)))
 
     # Load data directly to destination table
     destination_load_job_ids_pc = (
@@ -1290,7 +1304,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 additional_bq_parameters=self.additional_bq_parameters,
                 source_format=self._temp_file_format,
                 step_name=step_name,
-                load_job_project_id=self.load_job_project_id),
+                load_job_project_id=self.load_job_project_id,
+                quota_project_id=self.quota_project_id),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.ONGOING_JOBS, main='main')
@@ -1305,6 +1320,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
   def expand(self, pcoll):
     p = pcoll.pipeline
     self.project = self.project or p.options.view_as(GoogleCloudOptions).project
+    self.quota_project_id = bigquery_tools._quota_project_id_from_options(
+        p.options)
     try:
       step_name = self.label
     except AttributeError:

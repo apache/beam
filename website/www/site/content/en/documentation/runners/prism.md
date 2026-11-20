@@ -131,14 +131,14 @@ Simply unzip, and execute.
 This approach requires a [recent version of Go installed](https://go.dev/dl/).
 This is recommended if you only want to run Prism on your local machine.
 
-You can insall Prism with `go install`:
+You can install Prism with `go install`:
 
 ```sh
 go install github.com/apache/beam/sdks/v2/go/cmd/prism@latest
 prism
 ```
 
-Or simply build and execute the binary immeadiately using `go run`:
+Or simply build and execute the binary immediately using `go run`:
 
 ```sh
 go run github.com/apache/beam/sdks/v2/go/cmd/prism@latest

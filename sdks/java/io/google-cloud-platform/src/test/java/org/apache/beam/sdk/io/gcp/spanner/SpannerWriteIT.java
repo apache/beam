@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper.isOmni;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
 import com.google.api.gax.longrunning.OperationFuture;
@@ -28,6 +30,7 @@ import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SessionPoolOptions;
@@ -44,6 +47,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -52,6 +56,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -61,8 +66,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -105,15 +111,15 @@ public class SpannerWriteIT {
     void setTable(String value);
   }
 
-  private Spanner spanner;
-  private DatabaseAdminClient databaseAdminClient;
-  private SpannerTestPipelineOptions options;
-  private String databaseName;
-  private String pgDatabaseName;
-  private String project;
+  private static Spanner spanner;
+  private static DatabaseAdminClient databaseAdminClient;
+  private static SpannerTestPipelineOptions options;
+  private static String databaseName;
+  private static String pgDatabaseName;
+  private static String project;
 
-  @Before
-  public void setUp() throws Exception {
+  @BeforeClass
+  public static void setUpTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
@@ -152,15 +158,15 @@ public class SpannerWriteIT {
                     + "  Key           INT64,"
                     + "  Value         STRING(MAX) NOT NULL,"
                     + ") PRIMARY KEY (Key)"));
-    op.get();
-    databaseAdminClient
-        .createDatabase(
+    OperationFuture<Database, CreateDatabaseMetadata> pgOp =
+        databaseAdminClient.createDatabase(
             databaseAdminClient
                 .newDatabaseBuilder(DatabaseId.of(project, options.getInstanceId(), pgDatabaseName))
                 .setDialect(Dialect.POSTGRESQL)
                 .build(),
-            Collections.emptyList())
-        .get();
+            Collections.emptyList());
+    op.get();
+    pgOp.get();
     databaseAdminClient
         .updateDatabaseDdl(
             options.getInstanceId(),
@@ -176,7 +182,18 @@ public class SpannerWriteIT {
         .get();
   }
 
-  private String generateDatabaseName() {
+  @Before
+  public void setUp() {
+    Mutation deleteAll = Mutation.delete(options.getTable(), KeySet.all());
+    spanner
+        .getDatabaseClient(DatabaseId.of(project, options.getInstanceId(), databaseName))
+        .writeAtLeastOnce(Collections.singletonList(deleteAll));
+    spanner
+        .getDatabaseClient(DatabaseId.of(project, options.getInstanceId(), pgDatabaseName))
+        .writeAtLeastOnce(Collections.singletonList(deleteAll));
+  }
+
+  private static String generateDatabaseName() {
     String random =
         RandomUtils.randomAlphaNumeric(
             MAX_DB_NAME_LENGTH - 4 - options.getDatabaseIdPrefix().length());
@@ -215,6 +232,40 @@ public class SpannerWriteIT {
     assertThat(result.getState(), is(PipelineResult.State.DONE));
     assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
     assertThat(countNumberOfRecords(pgDatabaseName), equalTo((long) numRecords));
+  }
+
+  @Test
+  public void testWriteWithResults() throws Exception {
+    int numRecords = 100;
+    PCollection<WriteResults> writeResults =
+        p.apply("Init", GenerateSequence.from(0).to(numRecords))
+            .apply("Generate mu", ParDo.of(new GenerateMutations(options.getTable())))
+            .apply(
+                "Write db with results",
+                SpannerTestHelper.setUpSpannerIO(
+                        SpannerIO.write()
+                            .withProjectId(project)
+                            .withInstanceId(options.getInstanceId())
+                            .withDatabaseId(databaseName))
+                    .withWriteResults());
+
+    PAssert.that(writeResults)
+        .satisfies(
+            results -> {
+              long totalMutations = 0;
+              for (WriteResults r : results) {
+                assertNotNull(r.getCommitTimestamp());
+                assertTrue(r.getMutationCount() > 0);
+                totalMutations += r.getMutationCount();
+              }
+              assertThat(totalMutations, equalTo(2L * numRecords));
+              return null;
+            });
+
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
+    assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
   }
 
   @Test
@@ -390,11 +441,15 @@ public class SpannerWriteIT {
     result.waitUntilFinish();
   }
 
-  @After
-  public void tearDown() throws Exception {
-    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
-    databaseAdminClient.dropDatabase(options.getInstanceId(), pgDatabaseName);
-    spanner.close();
+  @AfterClass
+  public static void tearDown() throws Exception {
+    if (databaseAdminClient != null) {
+      databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+      databaseAdminClient.dropDatabase(options.getInstanceId(), pgDatabaseName);
+    }
+    if (spanner != null) {
+      spanner.close();
+    }
   }
 
   private static class GenerateMutations extends DoFn<Long, Mutation> {

@@ -87,7 +87,7 @@ This method is used when users start from an existing image and configure it to 
 1. Use a multi-stage build process to copy necessary artifacts from a default Apache Beam base image to build your custom container image:
 
 ```Dockerfile
-FROM python:3.11-bookworm
+FROM python:3.11-trixie
 
 RUN pip install --no-cache-dir apache-beam[gcp]==2.54.0
 

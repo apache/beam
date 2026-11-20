@@ -85,7 +85,7 @@ There is also a Python Universal Local Runner and shared java runners library.
 Performance is good and multi-language pipelines are supported.
 Currently, the Flink and Spark runners support portable pipeline execution
 (which is used by default for SDKs other than Java),
-as does Dataflow when using the [Dataflow Runner v2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
+as does Dataflow when using the [Dataflow Portable Runner](https://docs.cloud.google.com/dataflow/docs/portable-runner).
 See the
 [Portability support table](https://s.apache.org/apache-beam-portability-support-table)
 for details.

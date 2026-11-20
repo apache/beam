@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.components.throttling;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,12 @@ import org.slf4j.LoggerFactory;
  * system recovery. capture the timestamp of the attempted request, then execute the request code.
  * On a success, call successfulRequest(timestamp) to report the success to the throttler.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class ReactiveThrottler extends AdaptiveThrottler {
   private static final Logger LOG = LoggerFactory.getLogger(ReactiveThrottler.class);
   private static final long SECONDS_TO_MILLISECONDS = 1000L;

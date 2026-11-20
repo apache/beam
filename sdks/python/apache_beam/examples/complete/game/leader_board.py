@@ -212,9 +212,6 @@ class CalculateTeamScores(beam.PTransform):
     self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
-    # NOTE: the behavior does not exactly match the Java example
-    # TODO: allowed_lateness not implemented yet in FixedWindows
-    # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
         pcoll
         # We will get early (speculative) results as well as cumulative
@@ -222,8 +219,10 @@ class CalculateTeamScores(beam.PTransform):
         | 'LeaderboardTeamFixedWindows' >> beam.WindowInto(
             beam.window.FixedWindows(self.team_window_duration),
             trigger=trigger.AfterWatermark(
-                trigger.AfterCount(10), trigger.AfterCount(20)),
-            accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+                early=trigger.AfterProcessingTime(5),
+                late=trigger.AfterProcessingTime(30)),
+            accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+            allowed_lateness=self.allowed_lateness_seconds)
         # Extract and sum teamname/score pairs from the event data.
         | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
 
@@ -242,16 +241,14 @@ class CalculateUserScores(beam.PTransform):
     self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
-    # NOTE: the behavior does not exactly match the Java example
-    # TODO: allowed_lateness not implemented yet in FixedWindows
-    # TODO: AfterProcessingTime not implemented yet, replace AfterCount
     return (
         pcoll
-        # Get periodic results every ten events.
+        # Get periodic results every ten seconds.
         | 'LeaderboardUserGlobalWindows' >> beam.WindowInto(
             beam.window.GlobalWindows(),
-            trigger=trigger.Repeatedly(trigger.AfterCount(10)),
-            accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(10)),
+            accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+            allowed_lateness=self.allowed_lateness_seconds)
         # Extract and sum username/score pairs from the event data.
         | 'ExtractAndSumScore' >> ExtractAndSumScore('user'))
 

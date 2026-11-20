@@ -17,7 +17,8 @@
 
 import logging
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 # Import the renamed class
 from apache_beam.testing.pubsub_test_context import TestPubsubContext

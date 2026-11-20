@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.solace.broker;
 
 import com.google.api.client.http.HttpResponse;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +28,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BrokerResponse {
   final int code;
   final String message;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashSet;
@@ -46,8 +47,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 // TODO: Handle Key-preserving transforms when appropriate and more aggressively make PTransforms
 // unkeyed
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
 
@@ -87,7 +87,7 @@ class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
         node);
     if (node.isRootNode()) {
       finalized = true;
-    } else if (PRODUCES_KEYED_OUTPUTS.contains(node.getTransform().getClass())) {
+    } else if (PRODUCES_KEYED_OUTPUTS.contains(checkStateNotNull(node.getTransform()).getClass())) {
       Map<TupleTag<?>, PCollection<?>> outputs = node.getOutputs();
       for (PValue output : outputs.values()) {
         keyedValues.add(output);
@@ -101,8 +101,9 @@ class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
     for (PValue input : producer.getInputs().values()) {
       inputsAreKeyed = inputsAreKeyed && keyedValues.contains(input);
     }
-    if (PRODUCES_KEYED_OUTPUTS.contains(producer.getTransform().getClass())
-        || (isKeyPreserving(producer.getTransform()) && inputsAreKeyed)) {
+    PTransform<?, ?> transform = checkStateNotNull(producer.getTransform());
+    if (PRODUCES_KEYED_OUTPUTS.contains(transform.getClass())
+        || (isKeyPreserving(transform) && inputsAreKeyed)) {
       keyedValues.add(value);
     }
   }

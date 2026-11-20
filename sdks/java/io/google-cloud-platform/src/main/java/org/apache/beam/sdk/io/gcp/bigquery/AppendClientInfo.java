@@ -191,21 +191,30 @@ abstract class AppendClientInfo {
   public ByteString mergeNewFields(
       ByteString payloadBytes, TableRow unknownFields, boolean ignoreUnknownValues)
       throws TableRowToStorageApiProto.SchemaConversionException {
-    return TableRowToStorageApiProto.mergeNewFields(
-        payloadBytes,
-        getDescriptor(),
-        getTableSchema(),
-        getSchemaInformation(),
-        unknownFields,
-        ignoreUnknownValues);
+    try {
+      return TableRowToStorageApiProto.mergeNewFields(
+          payloadBytes,
+          getWrappedDescriptor(),
+          getDescriptorIgnoreRequired(),
+          getSchemaInformation(),
+          unknownFields,
+          ignoreUnknownValues);
+    } catch (Descriptors.DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Memoized
+  public Descriptors.Descriptor getWrappedDescriptor()
+      throws Descriptors.DescriptorValidationException {
+    return TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor());
   }
 
   public TableRow toTableRow(ByteString protoBytes, Predicate<String> includeField) {
     try {
       return TableRowToStorageApiProto.tableRowFromMessage(
           getSchemaInformation(),
-          DynamicMessage.parseFrom(
-              TableRowToStorageApiProto.wrapDescriptorProto(getDescriptor()), protoBytes),
+          DynamicMessage.parseFrom(getWrappedDescriptor(), protoBytes),
           true,
           includeField);
     } catch (Exception e) {

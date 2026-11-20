@@ -22,22 +22,27 @@
 import json
 import logging
 import os
+import sys
 import unittest
 
 import hamcrest as hc
 import mock
 from parameterized import parameterized
 
+from apache_beam.options.pipeline_options import AwsOptions
+from apache_beam.options.pipeline_options import BigQueryOptions
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import JobServerOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
+from apache_beam.options.pipeline_options import S3Options
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import _BeamArgumentParser
+from apache_beam.options.pipeline_options import _find_positions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
@@ -403,6 +408,111 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(['-i'])
     result = options.get_all_options(retain_unknown_options=True)
     self.assertEqual(result['i'], True)
+
+  # Unknown args are not necessarily adjacent in the original flags, so a
+  # value must only be attributed to an unknown flag it directly follows.
+  # See https://github.com/apache/beam/issues/22434.
+  @parameterized.expand([
+      (['--unknown_option', '--job_name=foo', 'bar'], ),
+      (['--unknown_option', '--job_name', 'foo', 'bar'], ),
+  ])
+  def test_retain_unknown_options_unary_followed_by_known_option(self, flags):
+    options = PipelineOptions(flags)
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['job_name'], 'foo')
+
+  def test_retain_unknown_options_mixed_with_known_options(self):
+    options = PipelineOptions([
+        '--unknown_unary',
+        '--job_name=foo',
+        'stray_value',
+        '--unknown_binary',
+        'some_value',
+        '--project',
+        'bar',
+    ])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_unary'], True)
+    self.assertEqual(result['unknown_binary'], 'some_value')
+    self.assertEqual(result['job_name'], 'foo')
+    self.assertEqual(result['project'], 'bar')
+
+  def test_retain_unknown_options_binary_equals_followed_by_value(self):
+    options = PipelineOptions(['--unknown_option=some_value', 'stray_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+    self.assertNotIn('unknown_option=some_value', result)
+
+  def test_retain_unknown_options_repeated_unary_store_true(self):
+    options = PipelineOptions(
+        ['--unknown_option', '--job_name=foo', 'bar', '--unknown_option'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+
+  def test_retain_unknown_options_repeated_binary_keeps_last_value(self):
+    options = PipelineOptions([
+        '--unknown_option',
+        'first',
+        '--job_name=foo',
+        '--unknown_option',
+        'second',
+    ])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'second')
+
+  def test_retain_unknown_options_unary_before_separator(self):
+    options = PipelineOptions(
+        ['--unknown_option', '--', 'bar', '--after_separator'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertNotIn('after_separator', result)
+
+  def test_retain_unknown_options_unary_single_dash_followed_by_known_option(
+      self):
+    options = PipelineOptions(['-i', '--job_name=foo', 'bar'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['i'], True)
+    self.assertEqual(result['job_name'], 'foo')
+
+  def test_retain_unknown_options_does_not_take_value_of_known_positional(self):
+    options = PipelineOptions(['--unknown_option', 'some_value'])
+
+    def add_extra_options(parser):
+      parser.add_argument('extra_positional', nargs='?')
+
+    result = options.get_all_options(
+        add_extra_args_fn=add_extra_options, retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['extra_positional'], 'some_value')
+
+  def test_retain_unknown_options_value_then_known_positional(self):
+    options = PipelineOptions(['--unknown_option', 'some_value', 'other'])
+
+    def add_extra_options(parser):
+      parser.add_argument('extra_positional', nargs='?')
+
+    result = options.get_all_options(
+        add_extra_args_fn=add_extra_options, retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+    self.assertEqual(result['extra_positional'], 'other')
+
+  def test_retain_unknown_options_from_sys_argv(self):
+    # Without flags, the options are read from sys.argv.
+    argv = ['prog', '--unknown_option', '--job_name=foo', 'bar']
+    with mock.patch.object(sys, 'argv', argv):
+      options = PipelineOptions()
+      result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+    self.assertEqual(result['job_name'], 'foo')
+
+  def test_find_positions(self):
+    flags = ['--a', '--known=1', 'x', '--b', 'x']
+    self.assertEqual(
+        _find_positions(['--a', 'x', '--b', 'x'], flags), [0, 2, 3, 4])
+    # An arg that is not in the flags gets no position, and the search for
+    # the next arg still starts after the last one found.
+    self.assertEqual(_find_positions(['--a', '--c', 'x'], flags), [0, None, 2])
 
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
@@ -928,6 +1038,58 @@ class PipelineOptionsTest(unittest.TestCase):
       errors = options._handle_temp_and_staging_locations(validator)
       self.assertEqual(errors, expected)
 
+  @unittest.skipIf(not has_gcsio, 'GCP dependencies are not installed')
+  @mock.patch.dict(
+      os.environ,
+      {
+          "GOOGLE_CLOUD_UNIVERSE_DOMAIN": "example-tpc.goog",
+          # mTLS auto-detection is incompatible with non-default universes.
+          "GOOGLE_API_USE_CLIENT_CERTIFICATE": "false",
+      })
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO.get_bucket')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_soft_delete_check_with_tpc_universe_domain(
+      self, mock_get_service_credentials, mock_get_bucket):
+    import google.auth.credentials
+
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        mock.Mock(
+            spec=google.auth.credentials.Credentials,
+            universe_domain="example-tpc.goog"))
+    soft_delete_policy = mock_get_bucket.return_value.soft_delete_policy
+    soft_delete_policy.retention_duration_seconds = 0
+
+    options = GoogleCloudOptions([
+        '--project=myproject',
+        '--impersonate_service_account=sa@myproject.iam.gserviceaccount.com',
+        '--temp_location=gs://beam/tmp'
+    ])
+    # Must not raise a universe domain mismatch ValueError.
+    options._warn_if_soft_delete_policy_enabled('temp_location')
+
+    # The GCS client must be built from the user's pipeline options so that
+    # project and impersonation settings are honored.
+    used_options = mock_get_service_credentials.call_args[0][0].view_as(
+        GoogleCloudOptions)
+    self.assertEqual(used_options.project, 'myproject')
+    self.assertEqual(
+        used_options.impersonate_service_account,
+        'sa@myproject.iam.gserviceaccount.com')
+
+  @unittest.skipIf(not has_gcsio, 'GCP dependencies are not installed')
+  @mock.patch(
+      'apache_beam.io.gcp.gcsio.GcsIO.__init__',
+      side_effect=ValueError('universe domain mismatch'))
+  def test_soft_delete_check_does_not_raise(self, unused_mock_init):
+    options = GoogleCloudOptions(
+        ['--project=myproject', '--temp_location=gs://beam/tmp'])
+    # The soft delete check only emits a warning; failures must not block
+    # pipeline submission.
+    with self.assertLogs('apache_beam.options.pipeline_options',
+                         level='WARNING'):
+      options._warn_if_soft_delete_policy_enabled('temp_location')
+
   def test_validation_good_stg_good_temp(self):
     runner = MockRunners.DataflowRunner()
     options = GoogleCloudOptions([
@@ -1119,6 +1281,192 @@ class CompatVersionTest(unittest.TestCase):
     self.assertFalse(
         options_no_compat.is_compat_version_prior_to("1.0.0"),
         msg="Should return False when update_compatibility_version is not set")
+
+
+class AwsOptionsTest(unittest.TestCase):
+  def test_aws_options(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+        '--aws_disable_ssl',
+    ]).view_as(AwsOptions)
+    self.assertEqual(options.aws_access_key_id, 'key')
+    self.assertEqual(options.aws_region_name, 'us-east-1')
+    self.assertTrue(options.aws_disable_ssl)
+    self.assertIsNone(options.aws_endpoint_url)
+
+  def test_s3_options(self):
+    options = PipelineOptions([
+        '--s3_access_key_id=key',
+        '--s3_region_name=us-west-2',
+        '--s3_api_version=2006-03-01',
+    ]).view_as(S3Options)
+    self.assertEqual(options.s3_access_key_id, 'key')
+    self.assertEqual(options.s3_region_name, 'us-west-2')
+    self.assertEqual(options.s3_api_version, '2006-03-01')
+    self.assertFalse(options.s3_disable_ssl)
+
+  def test_client_settings_without_service_options(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+    ])
+    self.assertEqual(
+        options.view_as(AwsOptions).get_client_settings(),
+        {
+            'access_key_id': 'key',
+            'secret_access_key': None,
+            'session_token': None,
+            'endpoint_url': None,
+            'region_name': 'us-east-1',
+            'verify': None,
+            'disable_ssl': False,
+        })
+
+  def test_s3_options_override_aws_defaults(self):
+    options = PipelineOptions([
+        '--aws_access_key_id=key',
+        '--aws_region_name=us-east-1',
+        '--aws_endpoint_url=https://vpce.example.com',
+        '--s3_region_name=us-west-2',
+        '--s3_endpoint_url=http://localhost:9000',
+        '--s3_disable_ssl',
+    ])
+    settings = options.view_as(AwsOptions).get_client_settings(
+        options.view_as(S3Options))
+    self.assertEqual(settings['region_name'], 'us-west-2')
+    self.assertEqual(settings['endpoint_url'], 'http://localhost:9000')
+    self.assertTrue(settings['disable_ssl'])
+    # Not overridden for S3, so the --aws_* default applies.
+    self.assertEqual(settings['access_key_id'], 'key')
+
+  def test_s3_options_from_kwargs(self):
+    options = PipelineOptions(s3_endpoint_url='http://localhost:4566')
+    settings = options.view_as(AwsOptions).get_client_settings(
+        options.view_as(S3Options))
+    self.assertEqual(settings['endpoint_url'], 'http://localhost:4566')
+
+  def test_other_services_can_override_aws_defaults(self):
+    # Any service options class can override the defaults by declaring a
+    # prefix and <prefix>_<setting> options, e.g. a future
+    # SecretsManagerOptions with --secretsmanager_endpoint_url.
+    class FakeServiceOptions(object):
+      AWS_CLIENT_SETTINGS_PREFIX = 'fake'
+      fake_endpoint_url = 'https://fake.example.com'
+      fake_region_name = None
+
+    aws_options = PipelineOptions([
+        '--aws_region_name=us-east-1',
+        '--aws_endpoint_url=https://default.example.com',
+    ]).view_as(AwsOptions)
+    settings = aws_options.get_client_settings(FakeServiceOptions())
+    self.assertEqual(settings['endpoint_url'], 'https://fake.example.com')
+    self.assertEqual(settings['region_name'], 'us-east-1')
+
+  def test_s3_api_version_is_s3_only(self):
+    options = PipelineOptions(['--s3_api_version=2006-03-01'])
+    self.assertNotIn('aws_api_version', options.get_all_options())
+    self.assertNotIn(
+        'api_version', options.view_as(AwsOptions).get_client_settings())
+
+  def test_options_are_registered_once(self):
+    all_options = PipelineOptions(['--aws_region_name=us-east-1'
+                                   ]).get_all_options()
+    self.assertEqual(all_options['aws_region_name'], 'us-east-1')
+    self.assertIn('s3_region_name', all_options)
+    self.assertIn('s3_api_version', all_options)
+
+
+def _java_option_name(python_option_name):
+  """Converts a Python option name the way Java's PipelineOptionsTranslation
+  does (Guava CaseFormat.LOWER_UNDERSCORE to LOWER_CAMEL)."""
+  first, *rest = python_option_name.lower().split('_')
+  return first + ''.join(part.capitalize() for part in rest)
+
+
+class BigQueryOptionsTest(unittest.TestCase):
+  # Python option name (dest) -> property name in Java's
+  # org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions. Options are passed to
+  # Java (e.g. cross-language BigQuery transforms) as
+  # beam:option:<dest>:v1, and Java derives the property name from <dest>.
+  JAVA_OPTION_NAMES = {
+      'big_query_endpoint': 'bigQueryEndpoint',
+      'big_query_quota_project_id': 'bigQueryQuotaProjectId',
+  }
+
+  def test_option_names_map_to_java_option_names(self):
+    parser = _BeamArgumentParser()
+    BigQueryOptions._add_argparse_args(parser)
+    dests = {action.dest for action in parser._actions if action.dest != 'help'}
+    # A new option must be added to JAVA_OPTION_NAMES, so that its name is
+    # checked against Java.
+    self.assertEqual(dests, set(self.JAVA_OPTION_NAMES))
+    for dest, java_name in self.JAVA_OPTION_NAMES.items():
+      self.assertEqual(_java_option_name(dest), java_name)
+
+  def test_options_serialized_with_java_compatible_names(self):
+    options = PipelineOptions([
+        '--bigquery_endpoint=https://bq.example.com',
+        '--bigquery_quota_project_id=billing-project',
+    ])
+    fields = options.to_runner_api().fields
+    self.assertEqual(
+        fields['beam:option:big_query_endpoint:v1'].string_value,
+        'https://bq.example.com')
+    self.assertNotIn('beam:option:bigquery_endpoint:v1', fields)
+    self.assertEqual(
+        fields['beam:option:big_query_quota_project_id:v1'].string_value,
+        'billing-project')
+    self.assertNotIn('beam:option:bigquery_quota_project_id:v1', fields)
+
+  @parameterized.expand([
+      ('--bigquery_endpoint', ),
+      ('--big_query_endpoint', ),
+  ])
+  def test_endpoint_flags(self, flag):
+    options = PipelineOptions([flag, 'https://bq.example.com'])
+    self.assertEqual(
+        options.get_all_options()['big_query_endpoint'],
+        'https://bq.example.com')
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.big_query_endpoint, 'https://bq.example.com')
+    self.assertEqual(bq_options.bigquery_endpoint, 'https://bq.example.com')
+
+  @parameterized.expand([
+      ('--bigquery_quota_project_id', ),
+      ('--big_query_quota_project_id', ),
+  ])
+  def test_quota_project_id_flags(self, flag):
+    options = PipelineOptions([flag, 'billing-project'])
+    self.assertEqual(
+        options.get_all_options()['big_query_quota_project_id'],
+        'billing-project')
+    bq_options = options.view_as(BigQueryOptions)
+    self.assertEqual(bq_options.big_query_quota_project_id, 'billing-project')
+    self.assertEqual(bq_options.bigquery_quota_project_id, 'billing-project')
+
+  def test_quota_project_id_default(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.big_query_quota_project_id)
+    self.assertIsNone(bq_options.bigquery_quota_project_id)
+
+  def test_endpoint_default(self):
+    bq_options = PipelineOptions([]).view_as(BigQueryOptions)
+    self.assertIsNone(bq_options.big_query_endpoint)
+    self.assertIsNone(bq_options.bigquery_endpoint)
+
+  def test_endpoint_attribute_alias_setter(self):
+    options = PipelineOptions([])
+    options.view_as(
+        BigQueryOptions).bigquery_endpoint = 'https://bq.example.com'
+    self.assertEqual(
+        options.view_as(BigQueryOptions).big_query_endpoint,
+        'https://bq.example.com')
+    self.assertNotIn('bigquery_endpoint', options.get_all_options())
+
+  def test_unknown_attribute_still_raises(self):
+    with self.assertRaises(AttributeError):
+      getattr(PipelineOptions([]).view_as(BigQueryOptions), 'not_an_option')
 
 
 if __name__ == '__main__':

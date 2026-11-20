@@ -32,7 +32,9 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -170,6 +172,38 @@ public class BeamSqlCliIcebergAlterTest {
     thrown.expectMessage(
         "Adding required columns is not yet supported. Encountered required columns: [col3]");
     cli.execute("ALTER TABLE my_table ADD COLUMNS (col3 BOOLEAN NOT NULL)");
+  }
+
+  @Test
+  public void testAlterTablePrimaryKey() {
+    cli.execute(createCatalog("my_catalog"));
+    cli.execute("CREATE DATABASE my_catalog.my_db");
+    cli.execute("USE DATABASE my_catalog.my_db");
+    // Iceberg identifier fields must be required, so this also checks that id becomes NOT NULL.
+    cli.execute(
+        "CREATE EXTERNAL TABLE my_table(id BIGINT PRIMARY KEY NOT ENFORCED, "
+            + "region VARCHAR NOT NULL, name VARCHAR) TYPE 'iceberg'");
+    IcebergCatalog catalog = (IcebergCatalog) catalogManager.currentCatalog();
+    Table table =
+        catalog.catalogConfig.catalog().loadTable(TableIdentifier.parse("my_db.my_table"));
+    assertEquals(ImmutableSet.of("id"), table.schema().identifierFieldNames());
+
+    cli.execute("ALTER TABLE my_table DROP PRIMARY KEY ADD PRIMARY KEY (id, region) NOT ENFORCED");
+    table.refresh();
+    assertEquals(ImmutableSet.of("id", "region"), table.schema().identifierFieldNames());
+    // The session reloads the altered table, key included.
+    assertEquals(
+        ImmutableList.of("id", "region"),
+        catalog.metaStore("my_db").getTable("my_table").getPrimaryKey());
+
+    cli.execute("ALTER TABLE my_table DROP PRIMARY KEY");
+    table.refresh();
+    assertEquals(ImmutableSet.of(), table.schema().identifierFieldNames());
+
+    // DROP left id NOT NULL, so it can be the key again.
+    cli.execute("ALTER TABLE my_table ADD PRIMARY KEY (id) NOT ENFORCED");
+    table.refresh();
+    assertEquals(ImmutableSet.of("id"), table.schema().identifierFieldNames());
   }
 
   @Test

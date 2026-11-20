@@ -62,7 +62,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * BigTableIO stress test. The test is designed to assess the performance of BigTableIO under
+ * BigtableIO stress test. The test is designed to assess the performance of BigtableIO under
  * various conditions.
  *
  * <p>Usage: <br>
@@ -229,7 +229,7 @@ public final class BigTableIOST extends IOStressTestBase {
   }
 
   /**
-   * The method creates a pipeline to simulate data generation and write operations to BigTable,
+   * The method creates a pipeline to simulate data generation and write operations to Bigtable,
    * based on the specified configuration parameters. The stress test involves varying the load
    * dynamically over time, with options to use configurable parameters.
    */
@@ -278,7 +278,7 @@ public final class BigTableIOST extends IOStressTestBase {
     return pipelineLauncher.launch(project, region, options);
   }
 
-  /** The method reads data from BigTable in batch mode. */
+  /** The method reads data from Bigtable in batch mode. */
   private PipelineLauncher.LaunchInfo readData() throws IOException {
     BigtableIO.Read readIO =
         BigtableIO.read()
@@ -307,7 +307,7 @@ public final class BigTableIOST extends IOStressTestBase {
     return pipelineLauncher.launch(project, region, options);
   }
 
-  /** Options for BigTableIO stress test. */
+  /** Options for BigtableIO stress test. */
   static class Configuration extends SyntheticSourceOptions {
     /** Pipeline timeout in minutes. Must be a positive value. */
     @JsonProperty public int pipelineTimeout = 20;
@@ -347,7 +347,7 @@ public final class BigTableIOST extends IOStressTestBase {
     @JsonProperty public String influxDatabase;
   }
 
-  /** Maps Instant to the BigTable format record. */
+  /** Maps Instant to the Bigtable format record. */
   private static class MapToBigTableFormat
       extends DoFn<KV<byte[], byte[]>, KV<ByteString, Iterable<Mutation>>> implements Serializable {
 

@@ -100,6 +100,7 @@ func computeRoots(xforms map[string]*pipepb.PTransform) []string {
 			roots = append(roots, id)
 		}
 	}
+	sort.Sort(idSorted(roots))
 	return TopologicalSort(xforms, roots)
 }
 

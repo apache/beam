@@ -63,7 +63,7 @@ public class StreamingCommitFinalizerTest {
                 .setDaemon(true)
                 .build(),
             /* useFairMonitor= */ false,
-            /* useKeyGroupWorkQueue= */ false);
+            /* multiKeyBundleEnabled= */ false);
 
     cleanupExecutor =
         Executors.newScheduledThreadPool(

@@ -51,6 +51,10 @@ public class GcpSecretTest {
     Secret secretMixedCase =
         Secret.parseSecretOption("type:gcpsecreT;version_name:my_secret/versions/latest");
     assertEquals(new GcpSecret("my_secret/versions/latest"), secretMixedCase);
+
+    // Only the first ':' separates the parameter name from its value.
+    Secret secretWithColon = Secret.parseSecretOption("type:gcpsecret;version_name:a:b/c;");
+    assertEquals(new GcpSecret("a:b/c"), secretWithColon);
   }
 
   @Test

@@ -130,10 +130,10 @@ public class IcebergWriteSchemaTransformProviderTest {
             .withFieldValue("table", "test_table_identifier")
             .withFieldValue("catalog_name", "test-name")
             .withFieldValue("catalog_properties", properties)
-            .withFieldValue("using_side_input_table_cache", true)
-            .withFieldValue("table_refresh_interval_seconds", 60)
-            .withFieldValue("maximum_cache_size", 100)
-            .withFieldValue("polling_buckets", 2)
+            .withFieldValue("use_side_input_table_cache", true)
+            .withFieldValue("table_cache_refresh_interval_seconds", 60)
+            .withFieldValue("maximum_table_cache_size", 100)
+            .withFieldValue("table_cache_polling_buckets", 2)
             .build();
 
     new IcebergWriteSchemaTransformProvider().from(transformConfigRow);
@@ -196,9 +196,9 @@ public class IcebergWriteSchemaTransformProviderTest {
             .setCatalogName("name")
             .setCatalogProperties(properties)
             .setDistributionMode(distributionMode.name())
-            .setUsingSideInputTableCache(true)
-            .setTableRefreshIntervalSeconds(60)
-            .setPollingBuckets(1)
+            .setUseSideInputTableCache(true)
+            .setTableCacheRefreshIntervalSeconds(60)
+            .setTableCachePollingBuckets(1)
             .build();
 
     PCollectionRowTuple input =
@@ -274,10 +274,10 @@ public class IcebergWriteSchemaTransformProviderTest {
             "table: %s\n"
                 + "catalog_name: test-name\n"
                 + "distribution_mode: %s\n"
-                + "using_side_input_table_cache: true\n"
-                + "table_refresh_interval_seconds: 60\n"
-                + "maximum_cache_size: 50\n"
-                + "polling_buckets: 1\n"
+                + "use_side_input_table_cache: true\n"
+                + "table_cache_refresh_interval_seconds: 60\n"
+                + "maximum_table_cache_size: 50\n"
+                + "table_cache_polling_buckets: 1\n"
                 + "catalog_properties: \n"
                 + "  type: %s\n"
                 + "  warehouse: %s",
@@ -316,14 +316,14 @@ public class IcebergWriteSchemaTransformProviderTest {
             p.apply("DummyInput", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
                 .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
-    // Setting sub-options when using_side_input_table_cache is not set (null) must throw
+    // Setting sub-options when use_side_input_table_cache is not set (null) must throw
     // IllegalArgumentException
     Configuration configWithMaxCacheSizeOnly =
         Configuration.builder()
             .setTable("default.table_max_cache")
             .setCatalogName("name")
             .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setMaximumCacheSize(50)
+            .setMaximumTableCacheSize(50)
             .build();
     assertThrows(
         IllegalArgumentException.class,
@@ -334,7 +334,7 @@ public class IcebergWriteSchemaTransformProviderTest {
             .setTable("default.table_refresh")
             .setCatalogName("name")
             .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setTableRefreshIntervalSeconds(60)
+            .setTableCacheRefreshIntervalSeconds(60)
             .build();
     assertThrows(
         IllegalArgumentException.class,
@@ -345,36 +345,36 @@ public class IcebergWriteSchemaTransformProviderTest {
             .setTable("default.table_buckets")
             .setCatalogName("name")
             .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setPollingBuckets(2)
+            .setTableCachePollingBuckets(2)
             .build();
     assertThrows(
         IllegalArgumentException.class,
         () -> dummyInput.apply(provider.from(configWithPollingBucketsOnly)));
 
-    // Setting using_side_input_table_cache to false while setting sub-options must throw
+    // Setting use_side_input_table_cache to false while setting sub-options must throw
     // IllegalArgumentException
     Configuration invalidConfigWithFalse =
         Configuration.builder()
             .setTable("default.table_invalid")
             .setCatalogName("name")
             .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setUsingSideInputTableCache(false)
-            .setMaximumCacheSize(50)
+            .setUseSideInputTableCache(false)
+            .setMaximumTableCacheSize(50)
             .build();
     assertThrows(
         IllegalArgumentException.class,
         () -> dummyInput.apply(provider.from(invalidConfigWithFalse)));
 
-    // Explicitly setting using_side_input_table_cache to true with sub-options succeeds
+    // Explicitly setting use_side_input_table_cache to true with sub-options succeeds
     Configuration validConfig =
         Configuration.builder()
             .setTable("default.table_valid")
             .setCatalogName("name")
             .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setUsingSideInputTableCache(true)
-            .setMaximumCacheSize(50)
-            .setTableRefreshIntervalSeconds(60)
-            .setPollingBuckets(2)
+            .setUseSideInputTableCache(true)
+            .setMaximumTableCacheSize(50)
+            .setTableCacheRefreshIntervalSeconds(60)
+            .setTableCachePollingBuckets(2)
             .build();
     assertNotNull(dummyInput.apply(provider.from(validConfig)));
   }

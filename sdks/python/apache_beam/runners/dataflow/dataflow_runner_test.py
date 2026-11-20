@@ -27,6 +27,7 @@ import apache_beam.transforms as ptransform
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import Pipeline
 from apache_beam.portability import common_urns
@@ -360,6 +361,55 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
             capabilities=environments.python_sdk_docker_capabilities(),
             dependencies=environments.python_sdk_dependencies(options=options) +
             main_session_dep))
+
+  def _run_prebuild_and_get_base_image(self, extra_properties):
+    self.default_properties.extend(
+        ['--prebuild_sdk_container_engine=local_docker'] + extra_properties)
+    options = PipelineOptions(self.default_properties)
+    options.view_as(DebugOptions).add_experiment(
+        'disable_logging_submission_environment')
+    base_images = []
+
+    def fake_build(pipeline_options):
+      # The builder uses sdk_container_image as the base image if set.
+      base_images.append(
+          pipeline_options.view_as(WorkerOptions).sdk_container_image)
+      return 'prebuilt/beam_python_prebuilt_sdk:tag'
+
+    remote_runner = DataflowRunner()
+    with mock.patch('apache_beam.runners.portability.sdk_container_builder.'
+                    'SdkContainerImageBuilder.build_container_image',
+                    side_effect=fake_build):
+      with Pipeline(remote_runner, options=options) as p:
+        p | ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
+
+    from apache_beam.utils import proto_utils
+    images = [
+        proto_utils.parse_Bytes(
+            env.payload, beam_runner_api_pb2.DockerPayload).container_image for
+        env in remote_runner.proto_pipeline.components.environments.values()
+    ]
+    self.assertEqual(images, ['prebuilt/beam_python_prebuilt_sdk:tag'])
+    self.assertEqual(len(base_images), 1)
+    return base_images[0]
+
+  def test_prebuild_uses_dataflow_container_base_repository(self):
+    base = 'docker.example.com/my-prefix/cloud-dataflow/v1beta3'
+    base_image = self._run_prebuild_and_get_base_image(
+        ['--dataflow_container_base_repository=' + base])
+    self.assertTrue(
+        base_image.startswith(base + '/beam_python'),
+        'unexpected base image %s' % base_image)
+
+  def test_prebuild_without_base_repository_keeps_default_base_image(self):
+    self.assertIsNone(self._run_prebuild_and_get_base_image([]))
+
+  def test_prebuild_sdk_container_image_takes_precedence(self):
+    base_image = self._run_prebuild_and_get_base_image([
+        '--dataflow_container_base_repository=docker.example.com/prefix',
+        '--sdk_container_image=FOO'
+    ])
+    self.assertEqual(base_image, 'FOO')
 
   def test_remote_runner_translation(self):
     remote_runner = DataflowRunner()

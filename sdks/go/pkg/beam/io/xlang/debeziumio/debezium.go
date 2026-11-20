@@ -79,6 +79,7 @@ type readFromDebeziumSchema struct {
 	ConnectionProperties []string
 	StartOffset          []string
 	OffsetStoragePath    *string
+	FullMetadata         *bool
 }
 
 type debeziumConfig struct {
@@ -145,6 +146,8 @@ func MaxTimeToRun(r int64) readOption {
 
 // ConnectionProperties specifies properties of the debezium connection passed as
 // a string with format [propertyName=property;]*
+// Set provide.transaction.metadata=true to add a transaction key to records and
+// emit transaction BEGIN/END records.
 func ConnectionProperties(cp []string) readOption {
 	return func(cfg *debeziumConfig) {
 		cfg.readSchema.ConnectionProperties = cp
@@ -186,6 +189,22 @@ func StartOffset(offset []string) readOption {
 func OffsetStoragePath(path string) readOption {
 	return func(cfg *debeziumConfig) {
 		cfg.readSchema.OffsetStoragePath = &path
+	}
+}
+
+// FullMetadata adds op and all Debezium source fields not already present
+// (e.g. MySQL file, pos, row, ts_ms; PostgreSQL lsn, txId, ts_ms) to the
+// metadata of each JSON record. By default, only connector, version, name,
+// database, schema and table are included.
+//
+// Example:
+//
+//	debeziumio.Read(s, username, password, host, port, debeziumio.MySQL,
+//	                reflectx.String, debeziumio.FullMetadata())
+func FullMetadata() readOption {
+	return func(cfg *debeziumConfig) {
+		b := true
+		cfg.readSchema.FullMetadata = &b
 	}
 }
 
