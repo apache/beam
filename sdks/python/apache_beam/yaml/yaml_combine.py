@@ -23,9 +23,10 @@ from typing import Any
 from typing import Optional
 
 import apache_beam as beam
-from apache_beam import typehints
+from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
+from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
@@ -128,9 +129,17 @@ class PyJsYamlCombine(beam.PTransform):
             fn_spec['type'])
         if 'config' in fn_spec:
           fn = fn(**fn_spec['config'])
+        elif isinstance(fn, type) and issubclass(fn, beam.CombineFn):
+          # When a zero-argument CombineFn class is provided without `config`
+          # (e.g. `fn: pkg.MyCombineFn`), load_from_source returns the class
+          # object itself. Instantiate it here so GroupBy.aggregate_field does
+          # not wrap the class constructor as a plain callable in
+          # CallableWrapperCombineFn, and so output type inference below sees a
+          # CombineFn instance consistently with the `config` branch above.
+          fn = fn()
         return fn
       else:
-        raise TypeError('Unknown CombineFn: {fn_spec}')
+        raise TypeError(f'Unknown CombineFn: {fn_spec}')
 
     def extract_return_type(expr):
       if isinstance(expr, str) and expr in input_types:
@@ -157,9 +166,27 @@ class PyJsYamlCombine(beam.PTransform):
       # TODO(yaml): See if this logic can be pushed into GroupBy itself.
       expr_type = extract_return_type(expr)
       if isinstance(fn, beam.CombineFn):
-        # TODO(yaml): Better inference on CombineFns whose outputs types are
-        # functions of their input types
-        combined_type = extract_return_type(fn)
+        if pcoll.pipeline.options.is_compat_version_prior_to('2.79.0'):
+          # Preserve pre-2.79.0 RowCoder schemas (where CombineFn output fields
+          # fell back to Any unless `_type_hints` was set directly on the
+          # instance) for Dataflow streaming update compatibility.
+          fn_hints = getattr(fn, '_type_hints', None)
+          if (fn_hints and fn_hints.has_simple_output_type() and
+              fn_hints.simple_output_type(None) != typehints.Any):
+            combined_type = fn_hints.simple_output_type(None)
+          else:
+            combined_type = Any
+        else:
+          combined_type = extract_return_type(fn)
+          fn_hints = get_type_hints(fn)
+          if fn_hints.input_types and fn_hints.input_types[0]:
+            combined_type = typehints.bind_type_variables(
+                combined_type,
+                typehints.match_type_variables(
+                    fn_hints.input_types[0][0],
+                    native_type_compatibility.convert_to_beam_type(expr_type)))
+          combined_type = typehints.bind_type_variables(
+              combined_type, {'*': typehints.Any})
       elif fn in (sum, min, max):
         combined_type = expr_type
       elif fn in (any, all):

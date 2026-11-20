@@ -173,6 +173,8 @@
 * (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
+* (Python) Fixed `decorators.get_type_hints()` ignoring class `@with_output_types` and `default_type_hints()` on `WithTypeHints` / `CombineFn` instances ([#41374](https://github.com/apache/beam/issues/41374)).
+* (Python/YAML) Fixed Beam YAML `Combine` instantiating zero-arg `CombineFn` classes when `config` is omitted and inferring concrete output schema types for builtin (`count`, `mean`, `group`, `concat`) and custom `CombineFn`s instead of `Any` (preserving `Any` when `--update_compatibility_version` is prior to `2.79.0`) ([#41350](https://github.com/apache/beam/issues/41350)).
 
 ## Security Fixes
 

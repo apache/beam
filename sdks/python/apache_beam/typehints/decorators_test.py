@@ -734,6 +734,27 @@ class WithTypeHintsTest(unittest.TestCase):
     self.assertNotEqual(
         Subclass().with_input_types(str)._type_hints, Subclass._type_hints)
 
+  def test_module_get_type_hints_on_instance(self):
+    @decorators.with_input_types(int)
+    @decorators.with_output_types(str)
+    class Decorated(WithTypeHints):
+      pass
+
+    class WithDefaults(WithTypeHints):
+      def default_type_hints(self):
+        return decorators.IOTypeHints(
+            input_types=((float, ), {}), output_types=((bool, ), {}), origin=[])
+
+    self.assertEqual(
+        decorators.get_type_hints(Decorated()).input_types, ((int, ), {}))
+    self.assertEqual(
+        decorators.get_type_hints(Decorated()).output_types, ((str, ), {}))
+    self.assertEqual(
+        decorators.get_type_hints(WithDefaults()).output_types, ((bool, ), {}))
+    self.assertEqual(
+        decorators.get_type_hints(
+            Decorated().with_output_types(bytes)).output_types, ((bytes, ), {}))
+
 
 class DecoratorsTest(unittest.TestCase):
   def tearDown(self):
