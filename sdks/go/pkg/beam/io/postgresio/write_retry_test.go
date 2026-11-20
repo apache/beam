@@ -186,10 +186,9 @@ type wideRow struct {
 	Notes string
 }
 
-// TestEstimateElementSizeCountsSliceBytes covers the miscount the reviewer
-// found: the previous implementation added the slice length, an element count,
-// to a byte total. A []string of a hundred kilobyte values counted as 100, so
-// MaxBatchBytes could be exceeded by orders of magnitude.
+// TestEstimateElementSizeCountsSliceBytes verifies that a []string contributes
+// the byte length of its elements rather than just the slice's element count,
+// so wide rows budget accurately against MaxBatchBytes.
 func TestEstimateElementSizeCountsSliceBytes(t *testing.T) {
 	const (
 		tagCount = 100
@@ -238,8 +237,8 @@ func TestEstimateElementSizeFloorsSmallRows(t *testing.T) {
 	}
 }
 
-// TestEstimateElementSizeHandlesNilAndPointers checks the shapes that used to
-// reach the reflect calls unguarded.
+// TestEstimateElementSizeHandlesNilAndPointers verifies that nil pointers use
+// the floor estimate and non-nil pointers match their pointees.
 func TestEstimateElementSizeHandlesNilAndPointers(t *testing.T) {
 	var nilPtr *wideRow
 	row := wideRow{Notes: strings.Repeat("n", 4096)}
@@ -282,9 +281,9 @@ func TestEstimateElementSizeTerminatesOnCycles(t *testing.T) {
 
 // --- PgBouncer compatibility ---
 
-// TestPgBouncerDowngradesStagedCopy covers the option that previously set a
-// field nothing read. Staged COPY reuses a session-scoped staging table, which
-// transaction pooling cannot keep alive between flushes.
+// TestPgBouncerDowngradesStagedCopy verifies that WithPgBouncer(true)
+// downgrades WriteMethodStagedCopy to WriteMethodUnnest, since transaction
+// pooling cannot keep a session-scoped staging table alive between flushes.
 func TestPgBouncerDowngradesStagedCopy(t *testing.T) {
 	fn := &writeFn{Options: newWriteOptions(
 		WithWriteMethod(WriteMethodStagedCopy),

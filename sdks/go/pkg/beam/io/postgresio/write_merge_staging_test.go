@@ -91,21 +91,19 @@ func TestStagingOpColumnDDL(t *testing.T) {
 	}
 }
 
-// TestMergeStagingCoversEveryCopiedColumn is the regression test for the
-// staged-COPY MERGE failure.
+// TestMergeStagingCoversEveryCopiedColumn verifies that every column named by
+// the staged COPY exists on the temporary staging table under WriteModeMerge.
 //
-// Two decisions have to agree and are made in different functions. The staging
-// table is created LIKE the target, and buildMergeQuery deliberately keeps the
+// The staging table is created LIKE the target, and buildMergeQuery keeps the
 // operation column out of the target column lists because it describes the
-// change rather than the stored row. The consequence is that the operation
-// column exists on no target and therefore on no clone, while the COPY that
-// loads the staging table names every column of the Go row, including it. The
-// COPY failed with 42703 on every MERGE batch.
+// change rather than the stored row. The operation column therefore exists on
+// neither the target nor the initial clone, while the COPY that loads the
+// staging table names every column of the Go row, including it; stagingOpColumnDDL
+// adds that column before the COPY runs so the COPY does not fail with 42703.
 //
-// The test states the invariant the two functions have to satisfy jointly:
-// every column the COPY names must exist on the staging table. It also asserts
-// the pre-fix condition still fails, so that it cannot pass vacuously if the
-// operation column later stops being excluded from the target column list.
+// The test checks both halves so it stays effective if the target column list
+// changes: the clone alone omits the operation column, and the clone after
+// stagingOpColumnDDL covers every column the COPY names.
 func TestMergeStagingCoversEveryCopiedColumn(t *testing.T) {
 	const (
 		target = `"public"."accounts"`
@@ -145,17 +143,18 @@ func TestMergeStagingCoversEveryCopiedColumn(t *testing.T) {
 			"this test's premise no longer holds and the staging ALTER may be redundant", opCol, clonedCols)
 	}
 
-	// Negative control: without the ALTER the COPY names a column the staging
-	// table does not have. This is exactly the pre-fix behaviour, and asserting
-	// it keeps the check below from passing for the wrong reason.
+	// Negative control: without the ALTER, the COPY names a column the staging
+	// table does not have. Asserting this keeps the check below from passing
+	// vacuously.
 	if missing := missingFrom(fn.columns, clonedCols); len(missing) == 0 {
 		t.Fatalf("negative control failed: a staging table cloned from the target already covers every copied column %v, "+
-			"so this test would pass with the fix reverted", fn.columns)
+			"so this test would pass without stagingOpColumnDDL", fn.columns)
 	} else if !reflect.DeepEqual(missing, []string{opCol}) {
 		t.Fatalf("negative control: expected only %q to be missing from the clone, got %v", opCol, missing)
 	}
 
-	// The fix: the staging table gains the operation column before the COPY.
+	// With stagingOpColumnDDL applied, the staging table carries the operation
+	// column before the COPY runs.
 	alterSQL, err := stagingOpColumnDDL(`"stage"`, fn.Options.WriteMode, fn.Options.OpColumn)
 	if err != nil {
 		t.Fatalf("stagingOpColumnDDL failed: %v", err)
@@ -170,18 +169,15 @@ func TestMergeStagingCoversEveryCopiedColumn(t *testing.T) {
 	}
 }
 
-// TestMergeQueryUsesTheSanitizationStageTheSinkIsAt is the regression test for
-// the second half of the staged-COPY MERGE failure.
+// TestMergeQueryUsesTheSanitizationStageTheSinkIsAt verifies that MERGE query
+// construction accepts the already-sanitized table identifier stored on writeFn.
 //
 // Write sanitizes the table name once and stores the quoted result on writeFn,
-// and every statement executeStagedCopy builds interpolates that stored value
-// directly. The MERGE builder was the one exception: it sanitized its arguments
-// itself, so the stored value went through sanitizeTableIdentifier a second
-// time and was rejected, because a quotation mark already present in the input
-// is indistinguishable from an injected one.
+// so executeStagedCopy calls buildMergeQueryForSanitizedTables rather than
+// buildMergeQuery (which rejects quotation marks already present in its input
+// as indistinguishable from an injection attempt).
 //
-// The test asserts both directions, so it keeps biting if either the storage
-// convention or the builder's contract drifts.
+// The test asserts both directions so it catches drift in either contract.
 func TestMergeQueryUsesTheSanitizationStageTheSinkIsAt(t *testing.T) {
 	const raw = "public.accounts"
 
@@ -336,10 +332,7 @@ func addedColumnOf(t *testing.T, alterSQL string) string {
 	return strings.Trim(name, `"`)
 }
 
-// includesColumn reports whether a column list contains a name. The package
-// has an equivalent helper, but it is introduced by a later commit in the
-// stack, and a test file may not reference a symbol its own commit does not
-// yet define.
+// includesColumn reports whether list contains name.
 func includesColumn(list []string, name string) bool {
 	for _, c := range list {
 		if c == name {

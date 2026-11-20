@@ -35,7 +35,7 @@ sequenceDiagram
     autonumber
     participant DoFn as PostgreSqlWriteDoFn / Worker
     participant Pool as Dynamic DB Connection Pool
-    participant PG as PostgreSQL 18 Server
+    participant PG as PostgreSQL Server
     participant Temp as Session Temporary Staging Table
     participant Target as Production Target Table
 
@@ -96,7 +96,7 @@ sequenceDiagram
 
 ### Prerequisites
 * Go 1.21 or higher
-* Docker or native PostgreSQL 15–18
+* Docker or native PostgreSQL 15–19
 * Git
 
 ### Unit & Integration Testing
@@ -110,4 +110,4 @@ go test -v -race ./pkg/beam/io/postgresio/...
 - [ ] Code is formatted with `gofmt -s -w .`.
 - [ ] Zero personal usernames or credentials in repository code, tests, docs, or roles (use `beam_navigator`, `scotty`, or `beam_transporter` exclusively).
 - [ ] Apache 2.0 license header is present on every newly created file.
-- [ ] Conformance tests pass against PostgreSQL 15, 16, 17, and 18.
+- [ ] Conformance tests pass against PostgreSQL 15, 16, 17, 18, and 19.

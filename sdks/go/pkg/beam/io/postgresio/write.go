@@ -1141,10 +1141,9 @@ const (
 // estimateElementSize approximates the number of bytes one element contributes
 // to a batch, which is what MaxBatchBytes budgets.
 //
-// The previous implementation added f.Len() for slices. That is the element
-// count, not a byte count, so a []string holding a hundred one-kilobyte values
-// counted as 100 rather than ~100,000. Wide rows therefore under-reported by
-// orders of magnitude and a flush could carry far more memory than configured.
+// For slices of variable-width elements (such as []string), v.Len() is the
+// element count rather than a byte count, so each element is sized rather than
+// using v.Len() directly.
 func estimateElementSize(elem any) int {
 	if elem == nil {
 		return minElementSizeEstimate

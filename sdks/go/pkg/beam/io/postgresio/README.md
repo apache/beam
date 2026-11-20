@@ -240,7 +240,8 @@ GRANT TEMPORARY ON DATABASE appdb TO beam_writer;
 >
 > ```sql
 > SELECT pg_replication_origin_create('beam_origin');  -- superuser, once
-> GRANT EXECUTE ON FUNCTION pg_replication_origin_session_setup(text) TO beam_writer;
+> -- Omit the argument list: PG 18+ added an optional pid parameter, and the function is not overloaded.
+> GRANT EXECUTE ON FUNCTION pg_catalog.pg_replication_origin_session_setup TO beam_writer;
 > ```
 >
 > or run the sink as a superuser. Without this the connection is refused rather
@@ -249,7 +250,7 @@ GRANT TEMPORARY ON DATABASE appdb TO beam_writer;
 
 ### Security & TLS Configuration
 
-`NewCDCOptions` defaults `sslmode` to `verify-full`. `verify-ca` is available
+`Write` defaults `sslmode` to `verify-full`. `verify-ca` is available
 for deployments whose DNS topology makes hostname verification impractical,
 such as private endpoints; it is not a performance optimization.
 
@@ -262,7 +263,7 @@ Supported modes and what each one actually guarantees:
 | `verify-ca` | Yes | Yes | No | Hostname verification is impossible for topology reasons — private endpoints, connecting by IP, a proxy or PgBouncer presenting a different name, SSH tunnels, Kubernetes service names. |
 | `verify-full` | Yes | Yes | Yes | **Everything else. This is the correct default.** |
 
-**Why `verify-full` rather than `verify-ca`.** The two modes cost the same. Both perform the same handshake, key exchange, certificate chain validation, and symmetric bulk encryption; `verify-full` additionally matches the hostname against the certificate's SAN entries, which is one comparison performed once at handshake. PostgreSQL's own documentation assigns the two modes identical overhead. Because the CDC source holds a single replication connection for the lifetime of the pipeline, even that one-time cost amortizes to nothing.
+**Why `verify-full` rather than `verify-ca`.** The two modes cost the same. Both perform the same handshake, key exchange, certificate chain validation, and symmetric bulk encryption; `verify-full` additionally matches the hostname against the certificate's SAN entries, which is one comparison performed once at handshake. PostgreSQL's own documentation assigns the two modes identical overhead. Because the sink reuses pooled connections across batches, even that one-time cost is paid only when a connection is opened.
 
 The security difference is not small. Managed PostgreSQL providers sign every tenant's server certificate with a shared regional CA, so under `verify-ca` a certificate issued to **any other customer of the same provider** passes validation. The PostgreSQL documentation states the case directly: *"If a public CA is used, `verify-ca` allows connections to a server that somebody else may have registered with the CA. In this case, `verify-full` should always be used."* Hostname verification is the control that closes this, and it is precisely the part `verify-ca` omits.
 

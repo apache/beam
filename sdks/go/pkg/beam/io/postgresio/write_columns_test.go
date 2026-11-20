@@ -123,9 +123,9 @@ func TestInspectColumnsDerivesUsableNames(t *testing.T) {
 	}
 }
 
-// TestInspectColumnsRejectedNothingBefore documents the concrete breakage: the
-// derived names must survive the identifier sanitizer that every statement
-// builder runs them through. A name of `customer_id,omitempty` or `-` does not.
+// TestInspectColumnsProducesSanitizableNames verifies that derived names pass
+// the identifier sanitizer that every statement builder runs them through;
+// unstripped tag values like `customer_id,omitempty` or `-` would not.
 func TestInspectColumnsProducesSanitizableNames(t *testing.T) {
 	fn := &writeFn{}
 	fn.inspectColumns(reflect.TypeOf(taggedRow{}))
@@ -155,10 +155,9 @@ func TestInspectColumnsFallsBackToSnakeCase(t *testing.T) {
 	}
 }
 
-// TestExtractRowValuesMatchesTaggedColumns closes the loop. inspectColumns and
-// resolveColumn have to read the tags the same way: when they disagreed, the
-// column derived from `json:"customer_id,omitempty"` never matched the field
-// it came from, and the row was written with that column NULL.
+// TestExtractRowValuesMatchesTaggedColumns verifies that inspectColumns and
+// resolveColumn interpret struct tags identically, including options such as
+// `json:"customer_id,omitempty"`, so tagged fields resolve rather than reading NULL.
 func TestExtractRowValuesMatchesTaggedColumns(t *testing.T) {
 	fn := &writeFn{Type: beam.EncodedType{T: reflect.TypeOf(taggedRow{})}}
 	fn.inspectColumns(fn.Type.T)

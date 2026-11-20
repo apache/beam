@@ -492,18 +492,18 @@ func parseLibpqDSN(dsn string) (map[string]string, error) {
 	}
 }
 
-// TestBuildWriteDSNRejectsKeywordInjection is the regression test for the
-// unescaped-DSN finding.
+// TestBuildWriteDSNRejectsKeywordInjection verifies that configured values
+// cannot break out of quoting and inject additional libpq connection keywords.
 //
 // libpq ends an unquoted value at the first space and reads the remainder as
-// further keywords. An unquoted password therefore authenticated with only the
-// text before the first space, and the discarded remainder became connection
-// settings. sslrootcert is the damaging case: it appears nowhere else in the
-// DSN, so nothing overrides it, and moving the trust anchor defeats
-// certificate verification even though sslmode is still verify-full.
+// further keywords. An unquoted password would authenticate with only the text
+// before the first space and turn the remainder into connection settings.
+// sslrootcert is the damaging case: it appears nowhere else in the DSN, so
+// nothing overrides it, and moving the trust anchor defeats certificate
+// verification even though sslmode is still verify-full.
 //
-// The test asserts both halves, so that it keeps biting if the oracle drifts:
-// the naive concatenation really is exploitable, and the sink's output is not.
+// The test asserts both halves so it stays effective: naive concatenation is
+// vulnerable, and buildWriteDSN is not.
 func TestBuildWriteDSNRejectsKeywordInjection(t *testing.T) {
 	const payload = "hunter2 sslrootcert=/tmp/attacker-ca.crt"
 
@@ -685,7 +685,8 @@ func TestWriteOptions_DefaultSSLMode(t *testing.T) {
 	}
 }
 
-// TestWriteRejectsUnqualifiedTableName covers the schema-qualification finding.
+// TestWriteRejectsUnqualifiedTableName verifies that an unqualified table name
+// fails at pipeline construction with an actionable message.
 //
 // Because the sink pins search_path to pg_catalog,pg_temp, an unqualified name
 // cannot resolve to a user table. Without this check the pipeline builds
@@ -1045,12 +1046,11 @@ func TestRecordingWriteFn_WriteModeUpdate_Execution(t *testing.T) {
 	}
 }
 
-// TestConnectorSelectsReplicationOrigin covers the mechanism that stamps
-// outgoing writes. pg_replication_origin_session_setup is the only function
-// that names an origin; the code previously called
-// pg_replication_origin_xact_setup, which takes (origin_lsn, origin_timestamp)
-// and was being passed the origin name where an LSN belongs. Every tagged
-// write therefore failed, and loop prevention never worked.
+// TestConnectorSelectsReplicationOrigin verifies how outgoing writes are
+// stamped with a replication origin. pg_replication_origin_session_setup is the
+// function that names a session origin; pg_replication_origin_xact_setup only
+// records (origin_lsn, origin_timestamp) progress once a session origin is
+// already active.
 func TestConnectorSelectsReplicationOrigin(t *testing.T) {
 	rec := &stmtRecorder{}
 	conn := recordingConn{rec: rec}
@@ -1247,10 +1247,10 @@ func writePanic(t *testing.T, opts writeOptions) string {
 	return msg
 }
 
-// TestWriteRejectsConflictModesWithoutPrimaryKeys covers the case the reviewer
-// called the exact opposite of what upsert promises: with no key, the
-// statement degrades to ON CONFLICT DO NOTHING and conflicting rows are
-// dropped while the pipeline reports success.
+// TestWriteRejectsConflictModesWithoutPrimaryKeys verifies that upsert, merge,
+// and update modes reject an empty PrimaryKeyCols at pipeline construction:
+// without primary keys, upsert degrades to ON CONFLICT DO NOTHING and silently
+// drops conflicting rows while reporting success.
 func TestWriteRejectsConflictModesWithoutPrimaryKeys(t *testing.T) {
 	for _, mode := range []WriteMode{WriteModeUpsert, WriteModeMerge, WriteModeUpdate} {
 		t.Run(mode.String(), func(t *testing.T) {
@@ -1297,8 +1297,8 @@ func TestWriteRejectsIncompleteConnectionTarget(t *testing.T) {
 	})
 }
 
-// TestWriteRejectsInvalidSSLMode confirms validateSSLMode now guards the
-// struct-literal path, not just the option builders.
+// TestWriteRejectsInvalidSSLMode verifies that validateSSLMode guards direct
+// writeOptions structs as well as functional option builders.
 func TestWriteRejectsInvalidSSLMode(t *testing.T) {
 	opts := validWriteOpts()
 	opts.SSLMode = "verify_full" // underscore rather than hyphen
@@ -1324,12 +1324,9 @@ func TestWriteAcceptsEmptySSLModeAsDefault(t *testing.T) {
 	}
 }
 
-// TestWriteRejectsUnknownUpdateField covers the typo the reviewer described:
-// WithUpdateFields("emial") is a valid identifier, so sanitizeIdentifier passes
-// it through and PostgreSQL rejects the batch at flush time with `column
-// "emial" of relation "orders" does not exist`. The name is checkable against
-// the element type at construction, which is where every other write option is
-// checked.
+// TestWriteRejectsUnknownUpdateField verifies that an unknown column name in
+// WithUpdateFields (such as "emial") is caught against the element type at
+// pipeline construction rather than failing at flush time on a worker.
 func TestWriteRejectsUnknownUpdateField(t *testing.T) {
 	for _, mode := range []WriteMode{WriteModeUpsert, WriteModeUpdate} {
 		t.Run(mode.String(), func(t *testing.T) {
@@ -1395,8 +1392,8 @@ func TestWriteRejectsUpdateFieldsForModesWithoutSetClause(t *testing.T) {
 	}
 }
 
-// TestWriteAcceptsValidUpdateFields guards against the new checks rejecting the
-// cases they are meant to allow.
+// TestWriteAcceptsValidUpdateFields verifies that valid UpdateFields
+// configurations pass construction-time validation.
 func TestWriteAcceptsValidUpdateFields(t *testing.T) {
 	t.Run("upsert subset", func(t *testing.T) {
 		opts := validWriteOpts()
@@ -1481,9 +1478,8 @@ func TestSetupRejectsUnknownUpdateField(t *testing.T) {
 	}
 }
 
-// TestExtractRowValuesFromMap covers the panic the reviewer found:
-// extractPrimaryKeys accepted maps, but extractRowValues called FieldByName
-// unconditionally, so a map-shaped element took down the bundle.
+// TestExtractRowValuesFromMap verifies that map-shaped elements resolve column
+// values via map lookup rather than struct reflection.
 func TestExtractRowValuesFromMap(t *testing.T) {
 	fn := &writeFn{columns: []string{"id", "region", "amount", "missing"}}
 

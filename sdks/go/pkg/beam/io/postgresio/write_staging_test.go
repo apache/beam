@@ -20,14 +20,11 @@ import (
 	"testing"
 )
 
-// --- P2-1: COPY statement construction ---
+// --- COPY statement construction ---
 
-// TestBuildCopyStatementDoesNotDoubleQuote is the regression test for the
-// identifier bug that pq.CopyIn caused.
-//
-// sanitizeTableIdentifier already returns a quoted identifier. pq.CopyIn
-// quoted it again, producing COPY """public"".""orders""" which PostgreSQL
-// parses as a single table literally named `"public"."orders"`.
+// TestBuildCopyStatementDoesNotDoubleQuote verifies that buildCopyStatement
+// preserves identifiers already quoted by sanitizeTableIdentifier, rather than
+// quoting them a second time (as pq.CopyIn would) into COPY """public"".""orders""".
 func TestBuildCopyStatementDoesNotDoubleQuote(t *testing.T) {
 	table, err := sanitizeTableIdentifier("public.orders")
 	if err != nil {
@@ -49,7 +46,7 @@ func TestBuildCopyStatementDoesNotDoubleQuote(t *testing.T) {
 		t.Errorf("buildCopyStatement() =\n %q\nwant %q", got, want)
 	}
 
-	// A tripled quote is the specific signature of the double-quoting bug.
+	// A tripled quote is the specific signature of double-quoting.
 	if strings.Contains(got, `"""`) {
 		t.Errorf("COPY statement contains a triple quote, indicating the identifier was quoted twice: %q", got)
 	}
@@ -88,11 +85,11 @@ func TestBuildCopyStatementRejectsEmptyInput(t *testing.T) {
 	}
 }
 
-// --- P1-4: staging table reuse ---
+// --- staging table reuse ---
 
-// TestStagingTableNameIsStableAcrossCalls is what makes reuse possible: the
-// name must not change between batches, otherwise every flush creates a new
-// table and the catalog churn returns.
+// TestStagingTableNameIsStableAcrossCalls verifies that stagingTableName is
+// deterministic across batches so the session temporary table can be reused
+// without per-flush catalog churn.
 func TestStagingTableNameIsStableAcrossCalls(t *testing.T) {
 	const table = `"public"."orders"`
 	const workerID = "w1"
