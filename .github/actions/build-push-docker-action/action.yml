@@ -32,14 +32,19 @@ runs:
     - name: Build and Push Docker Image
       id: build-push # give the step an ID to reference its output
       shell: bash
+      env:
+        IMAGE_NAME: ${{ inputs.image_name }}
+        IMAGE_TAG: ${{ inputs.image_tag }}
+        DOCKERFILE_PATH: ${{ inputs.dockerfile_path }}
+        BUILD_CONTEXT: ${{ inputs.build_context }}
       run: |
         # Construct the full image URL from the inputs
-        FULL_IMAGE_URL="${{ inputs.image_name }}:${{ inputs.image_tag }}"
+        FULL_IMAGE_URL="${IMAGE_NAME}:${IMAGE_TAG}"
         echo "Building image: $FULL_IMAGE_URL"
         
         # Build the image
-        docker build -t $FULL_IMAGE_URL -f ${{ inputs.dockerfile_path }} ${{ inputs.build_context }}
+        docker build -t "$FULL_IMAGE_URL" -f "$DOCKERFILE_PATH" "$BUILD_CONTEXT"
         # Push the image
-        docker push $FULL_IMAGE_URL
+        docker push "$FULL_IMAGE_URL"
         # Set the output value for this action
-        echo "image_url=$FULL_IMAGE_URL" >> $GITHUB_OUTPUT
+        echo "image_url=$FULL_IMAGE_URL" >> "$GITHUB_OUTPUT"
