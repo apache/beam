@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -38,6 +40,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
@@ -143,15 +146,16 @@ public class SchemaUtilTest {
     for (boolean nullable : new boolean[] {false, true}) {
       for (int scale : new int[] {2, -2}) {
         Schema schema = SchemaUtil.toBeamSchema(decimalMetadata(12, scale, nullable));
-        Schema.Field field =
-            SchemaTranslation.schemaFromProto(SchemaTranslation.schemaToProto(schema, false))
-                .getField("amount");
+        SchemaApi.Schema proto = SchemaTranslation.schemaToProto(schema, false);
 
-        assertEquals(Schema.FieldType.DECIMAL.withNullable(nullable), field.getType());
         assertEquals(
-            Integer.valueOf(12), field.getOptions().getValue(SchemaUtil.DECIMAL_PRECISION_OPTION));
-        assertEquals(
-            Integer.valueOf(scale), field.getOptions().getValue(SchemaUtil.DECIMAL_SCALE_OPTION));
+            Schema.FieldType.DECIMAL.withNullable(nullable), schema.getField("amount").getType());
+        assertThat(
+            proto.getFields(0).getOptionsList(),
+            containsInAnyOrder(
+                int32Option("beam:option:jdbc:decimal_precision:v1", 12),
+                int32Option("beam:option:jdbc:decimal_scale:v1", scale)));
+        assertEquals(schema, SchemaTranslation.schemaFromProto(proto));
       }
     }
   }
@@ -177,6 +181,16 @@ public class SchemaUtilTest {
 
     assertEquals(
         value, AvroUtils.toBeamRowStrict(AvroUtils.toGenericRecord(row), schema).getDecimal(0));
+  }
+
+  private static SchemaApi.Option int32Option(String name, int value) {
+    return SchemaApi.Option.newBuilder()
+        .setName(name)
+        .setType(SchemaApi.FieldType.newBuilder().setAtomicType(SchemaApi.AtomicType.INT32))
+        .setValue(
+            SchemaApi.FieldValue.newBuilder()
+                .setAtomicValue(SchemaApi.AtomicTypeValue.newBuilder().setInt32(value)))
+        .build();
   }
 
   private static ResultSetMetaData decimalMetadata(int precision, int scale, boolean nullable)

@@ -64,8 +64,8 @@ import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 public class SchemaUtil {
-  static final String DECIMAL_PRECISION_OPTION = "beam:option:jdbc:decimal_precision:v1";
-  static final String DECIMAL_SCALE_OPTION = "beam:option:jdbc:decimal_scale:v1";
+  private static final String DECIMAL_PRECISION_OPTION = "beam:option:jdbc:decimal_precision:v1";
+  private static final String DECIMAL_SCALE_OPTION = "beam:option:jdbc:decimal_scale:v1";
 
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
