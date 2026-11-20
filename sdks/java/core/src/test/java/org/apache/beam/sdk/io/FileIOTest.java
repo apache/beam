@@ -44,7 +44,9 @@ import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.zip.GZIPOutputStream;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -73,18 +75,22 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -434,6 +440,170 @@ public class FileIOTest implements Serializable {
             MapElements.into(TypeDescriptors.strings())
                 .via((metadata) -> metadata.resourceId().getFilename()));
     PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
+
+    p.run();
+  }
+
+  private static Path writeFileWithMtime(Path path, long mtimeMillis) throws IOException {
+    Files.write(path, new byte[] {1});
+    Files.setLastModifiedTime(path, FileTime.fromMillis(mtimeMillis));
+    return path;
+  }
+
+  @Test
+  public void testMatchPollFnTimestampCursorWatermark() throws Exception {
+    Path dir = tmpFolder.newFolder("poll_watermark").toPath();
+    String pattern = dir.toAbsolutePath() + File.separator + "*";
+
+    FileIO.MatchAll.MatchPollFn pollFn = new FileIO.MatchAll.MatchPollFn(Duration.ZERO);
+    // Empty match advances watermark to poll time.
+    KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> empty =
+        pollFn.poll(pattern, new Instant(4000000L));
+    assertTrue(empty.getKey().isEmpty());
+    assertEquals(new Instant(4000000L), empty.getValue());
+
+    // Newer match holds watermark at newest mtime and timestamps outputs by mtime.
+    writeFileWithMtime(dir.resolve("a"), 1234000L);
+    writeFileWithMtime(dir.resolve("b"), 2345000L);
+    KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> first =
+        pollFn.poll(pattern, new Instant(5000000L));
+    assertEquals(new Instant(2345000L), first.getValue());
+    Map<String, Instant> timestampsByFile = new HashMap<>();
+    for (TimestampedValue<MatchResult.Metadata> tv : first.getKey()) {
+      timestampsByFile.put(tv.getValue().resourceId().getFilename(), tv.getTimestamp());
+    }
+    assertEquals(new Instant(1234000L), timestampsByFile.get("a"));
+    assertEquals(new Instant(2345000L), timestampsByFile.get("b"));
+
+    // Quiet poll releases watermark to poll time; a newer match holds again; future mtime is
+    // capped.
+    assertEquals(new Instant(6000000L), pollFn.poll(pattern, new Instant(6000000L)).getValue());
+    writeFileWithMtime(dir.resolve("c"), 3456000L);
+    assertEquals(new Instant(3456000L), pollFn.poll(pattern, new Instant(7000000L)).getValue());
+    writeFileWithMtime(dir.resolve("future"), 9000000L);
+    assertEquals(new Instant(8000000L), pollFn.poll(pattern, new Instant(8000000L)).getValue());
+
+    // Allowed lateness shifts watermark back, survives serialization, and saturates at min
+    // timestamp.
+    Duration lateness = Duration.standardSeconds(30);
+    FileIO.MatchAll.MatchPollFn latenessPollFn =
+        SerializableUtils.clone(new FileIO.MatchAll.MatchPollFn(lateness));
+    assertEquals(
+        new Instant(5000000L).minus(lateness),
+        latenessPollFn.poll(pattern, new Instant(5000000L)).getValue());
+    FileIO.MatchAll.MatchPollFn hugeLatenessPollFn =
+        new FileIO.MatchAll.MatchPollFn(Duration.millis(Long.MAX_VALUE));
+    assertEquals(
+        BoundedWindow.TIMESTAMP_MIN_VALUE,
+        hugeLatenessPollFn.poll(pattern, new Instant(5000000L)).getValue());
+  }
+
+  private static class StageTimestampCursorFilesFn
+      extends DoFn<MatchResult.Metadata, KV<String, Long>> {
+    private final String stagingDir;
+    private final String watchDir;
+    private final long baseMillis;
+    private final boolean testAllowedLateness;
+
+    StageTimestampCursorFilesFn(
+        Path stagingDir, Path watchDir, long baseMillis, boolean testAllowedLateness) {
+      this.stagingDir = stagingDir.toString();
+      this.watchDir = watchDir.toString();
+      this.baseMillis = baseMillis;
+      this.testAllowedLateness = testAllowedLateness;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws IOException {
+      MatchResult.Metadata metadata = c.element();
+      assertEquals(metadata.lastModifiedMillis(), c.timestamp().getMillis());
+      String filename = metadata.resourceId().getFilename();
+      Path staging = Paths.get(stagingDir);
+      Path watch = Paths.get(watchDir);
+
+      if (testAllowedLateness) {
+        if ("first".equals(filename)) {
+          moveIfExists(staging.resolve("too_old"), watch.resolve("too_old"));
+          moveIfExists(staging.resolve("within_lateness"), watch.resolve("within_lateness"));
+        }
+      } else if ("first".equals(filename) && metadata.lastModifiedMillis() == baseMillis) {
+        moveIfExists(staging.resolve("backdated"), watch.resolve("backdated"));
+        moveIfExists(staging.resolve("twin"), watch.resolve("twin"));
+      } else if ("twin".equals(filename)) {
+        moveIfExists(staging.resolve("first_updated"), watch.resolve("first"));
+        moveIfExists(staging.resolve("newer"), watch.resolve("newer"));
+      }
+      c.output(KV.of(filename, c.timestamp().getMillis()));
+    }
+
+    private static void moveIfExists(Path src, Path dst) throws IOException {
+      if (Files.exists(src)) {
+        Files.move(src, dst, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+      }
+    }
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+  public void testMatchContinuouslyWithTimestampCursor() throws IOException {
+    long baseMillis =
+        ((System.currentTimeMillis() - Duration.standardMinutes(1).getMillis()) / 1000) * 1000;
+
+    Path stagingDir = tmpFolder.newFolder("cursor_staging").toPath();
+    Path watchDir = tmpFolder.newFolder("cursor_watch").toPath();
+    writeFileWithMtime(watchDir.resolve("initial_old"), baseMillis - 60_000L);
+    writeFileWithMtime(watchDir.resolve("first"), baseMillis);
+    writeFileWithMtime(stagingDir.resolve("backdated"), baseMillis - 10_000L);
+    writeFileWithMtime(stagingDir.resolve("twin"), baseMillis);
+    writeFileWithMtime(stagingDir.resolve("first_updated"), baseMillis + 5_000L);
+    writeFileWithMtime(stagingDir.resolve("newer"), baseMillis + 10_000L);
+
+    Path latenessStaging = tmpFolder.newFolder("lateness_staging").toPath();
+    Path latenessWatch = tmpFolder.newFolder("lateness_watch").toPath();
+    writeFileWithMtime(latenessWatch.resolve("first"), baseMillis);
+    writeFileWithMtime(latenessStaging.resolve("too_old"), baseMillis - 20_000L);
+    writeFileWithMtime(latenessStaging.resolve("within_lateness"), baseMillis - 5_000L);
+
+    PCollection<MatchResult.Metadata> matches =
+        p.apply(
+            "match with timestamp cursor",
+            FileIO.match()
+                .filepattern(watchDir.toAbsolutePath() + File.separator + "*")
+                .continuously(
+                    Duration.millis(100),
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(2)))
+                .withTimestampCursor());
+    PCollection<MatchResult.Metadata> matchAllLateness =
+        p.apply("create pattern", Create.of(latenessWatch.toAbsolutePath() + File.separator + "*"))
+            .apply(
+                "matchAll with timestamp cursor allowed lateness",
+                FileIO.matchAll()
+                    .continuously(
+                        Duration.millis(100),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(2)))
+                    .withTimestampCursor(Duration.standardSeconds(10)));
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matches.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllLateness.isBounded());
+
+    PAssert.that(
+            matches.apply(
+                "stage cursor files",
+                ParDo.of(new StageTimestampCursorFilesFn(stagingDir, watchDir, baseMillis, false))))
+        .containsInAnyOrder(
+            KV.of("initial_old", baseMillis - 60_000L),
+            KV.of("first", baseMillis),
+            KV.of("twin", baseMillis),
+            KV.of("first", baseMillis + 5_000L),
+            KV.of("newer", baseMillis + 10_000L));
+
+    PAssert.that(
+            matchAllLateness.apply(
+                "stage lateness files",
+                ParDo.of(
+                    new StageTimestampCursorFilesFn(
+                        latenessStaging, latenessWatch, baseMillis, true))))
+        .containsInAnyOrder(
+            KV.of("first", baseMillis), KV.of("within_lateness", baseMillis - 5_000L));
 
     p.run();
   }
