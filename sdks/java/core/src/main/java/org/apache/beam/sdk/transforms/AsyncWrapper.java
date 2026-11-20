@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -448,6 +449,17 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
 
     @Override
     public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+      throw new UnsupportedOperationException(
+          "Tagged output not supported in FinishBundleContext for AsyncWrapper");
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      receiver.outputWindowedValue(windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
       throw new UnsupportedOperationException(
           "Tagged output not supported in FinishBundleContext for AsyncWrapper");
     }

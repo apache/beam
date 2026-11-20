@@ -358,6 +358,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((ValueKindParameter) this);
       } else if (this instanceof KeyParameter) {
         return cases.dispatch((KeyParameter) this);
+      } else if (this instanceof WindowedValueParameter) {
+        return cases.dispatch((WindowedValueParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -427,6 +429,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(ValueKindParameter p);
 
       ResultT dispatch(KeyParameter p);
+
+      ResultT dispatch(WindowedValueParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -554,6 +558,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(WindowedValueParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(StateParameter p) {
           return dispatchDefault(p);
         }
@@ -612,6 +621,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_CausedByDrainParameter();
     private static final ValueKindParameter VALUE_KIND_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_ValueKindParameter();
+    private static final WindowedValueParameter WINDOWED_VALUE_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_WindowedValueParameter();
     private static final OnWindowExpirationContextParameter ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnWindowExpirationContextParameter();
     private static final CurrentRecordIdParameter CURRENT_RECORD_ID_PARAMETER =
@@ -649,6 +660,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link ValueKindParameter}. */
     public static ValueKindParameter valueKindParameter() {
       return VALUE_KIND_PARAMETER;
+    }
+
+    /** Returns a {@link WindowedValueParameter}. */
+    public static WindowedValueParameter windowedValueParameter() {
+      return WINDOWED_VALUE_PARAMETER;
     }
 
     /** Returns a {@link CurrentRecordIdParameter}. */
@@ -836,6 +852,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ValueKindParameter extends Parameter {
       ValueKindParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link org.apache.beam.sdk.values.WindowedValue}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class WindowedValueParameter extends Parameter {
+      WindowedValueParameter() {}
     }
 
     /**

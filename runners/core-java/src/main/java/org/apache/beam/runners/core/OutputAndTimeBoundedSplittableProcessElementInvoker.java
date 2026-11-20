@@ -207,6 +207,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
+          public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+            return element;
+          }
+
+          @Override
           public RestrictionTracker<?, ?> restrictionTracker() {
             return processContext.tracker;
           }

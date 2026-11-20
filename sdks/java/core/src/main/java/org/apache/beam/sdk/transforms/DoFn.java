@@ -136,6 +136,34 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract <T> void output(
         TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
+
+    /**
+     * Adds the given {@link WindowedValue} to the main output {@code PCollection}, preserving its
+     * timestamp, windows, {@link PaneInfo}, and any extended metadata.
+     *
+     * <p>Once passed to {@code outputWindowedValue} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the {@link
+     * FinishBundle} method.
+     */
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      throw new UnsupportedOperationException(
+          String.format("%s does not support outputWindowedValue", getClass().getSimpleName()));
+    }
+
+    /**
+     * Adds the given {@link WindowedValue} to the output {@code PCollection} with the given tag,
+     * preserving its timestamp, windows, {@link PaneInfo}, and any extended metadata.
+     *
+     * <p>Once passed to {@code outputWindowedValue} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the {@link
+     * FinishBundle} method.
+     */
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      throw new UnsupportedOperationException(
+          String.format("%s does not support outputWindowedValue", getClass().getSimpleName()));
+    }
   }
 
   /**
@@ -458,6 +486,23 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
           .setWindows(windows)
           .setPaneInfo(paneInfo)
           .setValueKind(valueKind)
+          .output();
+    }
+
+    /**
+     * Outputs the given {@link WindowedValue}, preserving its timestamp, windows, {@link PaneInfo},
+     * and extended metadata.
+     */
+    default void outputWindowedValue(WindowedValue<T> windowedValue) {
+      builder(windowedValue.getValue())
+          .setTimestamp(windowedValue.getTimestamp())
+          .setWindows(windowedValue.getWindows())
+          .setPaneInfo(windowedValue.getPaneInfo())
+          .setRecordId(windowedValue.getRecordId())
+          .setRecordOffset(windowedValue.getRecordOffset())
+          .setCausedByDrain(windowedValue.causedByDrain())
+          .setOpenTelemetryContext(windowedValue.getOpenTelemetryContext())
+          .setValueKind(windowedValue.getValueKind())
           .output();
     }
   }

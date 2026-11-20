@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -274,6 +275,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
               return processContext.pane();
+            }
+
+            @Override
+            public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+              return templateWv;
             }
 
             @Override
@@ -548,18 +554,34 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
         @Override
         public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+          outputWindowedValue(
+              tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        }
+
+        @Override
+        public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+          outputWindowedValue(mainOutputTag, windowedValue);
+        }
+
+        @Override
+        public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+          Collection<? extends BoundedWindow> windows = windowedValue.getWindows();
+          checkArgument(
+              windows.size() == 1,
+              "DoFnTester FinishBundleContext.outputWindowedValue expects a single window, got %s",
+              windows.size());
           getMutableOutput(tag)
               .add(
                   ValueInSingleWindow.of(
-                      output,
-                      timestamp,
-                      window,
-                      PaneInfo.NO_FIRING,
-                      null,
-                      null,
-                      CausedByDrain.NORMAL,
-                      null,
-                      ValueKind.INSERT));
+                      windowedValue.getValue(),
+                      windowedValue.getTimestamp(),
+                      windows.iterator().next(),
+                      windowedValue.getPaneInfo(),
+                      windowedValue.getRecordId(),
+                      windowedValue.getRecordOffset(),
+                      windowedValue.causedByDrain(),
+                      windowedValue.getOpenTelemetryContext(),
+                      windowedValue.getValueKind()));
         }
       };
     }
@@ -869,6 +891,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public Void dispatch(DoFnSignature.Parameter.TimerIdParameter p) {
+              return null;
+            }
+
+            @Override
+            public @Nullable Void dispatch(DoFnSignature.Parameter.WindowedValueParameter p) {
               return null;
             }
 

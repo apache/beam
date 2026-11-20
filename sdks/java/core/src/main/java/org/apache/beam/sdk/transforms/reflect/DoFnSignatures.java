@@ -99,6 +99,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeParameter;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -149,7 +150,8 @@ public class DoFnSignatures {
               Parameter.CurrentRecordOffsetParameter.class,
               Parameter.CausedByDrainParameter.class,
               Parameter.ValueKindParameter.class,
-              Parameter.BundleFinalizerParameter.class);
+              Parameter.BundleFinalizerParameter.class,
+              Parameter.WindowedValueParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
@@ -169,7 +171,8 @@ public class DoFnSignatures {
               Parameter.CurrentRecordOffsetParameter.class,
               Parameter.CausedByDrainParameter.class,
               Parameter.ValueKindParameter.class,
-              Parameter.BundleFinalizerParameter.class);
+              Parameter.BundleFinalizerParameter.class,
+              Parameter.WindowedValueParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
       ImmutableList.of(Parameter.PipelineOptionsParameter.class);
@@ -1054,6 +1057,13 @@ public class DoFnSignatures {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
+  /** Generates a {@link TypeDescriptor} for {@code WindowedValue<InputT>} given {@code InputT}. */
+  private static <InputT> TypeDescriptor<WindowedValue<InputT>> windowedValueTypeOf(
+      TypeDescriptor<InputT> inputT) {
+    return new TypeDescriptor<WindowedValue<InputT>>() {}.where(
+        new TypeParameter<InputT>() {}, inputT);
+  }
+
   /**
    * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.StartBundleContext} given
    * {@code InputT} and {@code OutputT}.
@@ -1399,11 +1409,18 @@ public class DoFnSignatures {
           rawType.equals(CausedByDrain.class),
           "CausedByDrain argument must have type org.apache.beam.sdk.values.CausedByDrain.");
       return Parameter.causedByDrainParameter();
-    } else if (ValueKind.class.isAssignableFrom(rawType)) {
+    } else if (rawType.equals(ValueKind.class)) {
       methodErrors.checkArgument(
           rawType.equals(ValueKind.class),
           "ValueKind argument must have type org.apache.beam.sdk.values.ValueKind.");
       return Parameter.valueKindParameter();
+    } else if (rawType.equals(WindowedValue.class)) {
+      TypeDescriptor<?> expectedWindowedValueT = windowedValueTypeOf(inputT);
+      paramErrors.checkArgument(
+          paramT.equals(expectedWindowedValueT),
+          "WindowedValue argument must have type %s",
+          format(expectedWindowedValueT));
+      return Parameter.windowedValueParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(
