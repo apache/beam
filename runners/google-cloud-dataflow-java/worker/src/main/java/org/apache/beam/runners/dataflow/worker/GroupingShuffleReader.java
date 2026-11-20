@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
@@ -204,12 +203,13 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
     /** The iterator over shuffle entries, grouped by common key. */
     private final GroupingShuffleEntryIterator groups;
 
-    private final AtomicLong currentGroupSize = new AtomicLong(0L);
+    private long currentGroupSize = 0L;
 
     private final ShuffleReadCounter shuffleReadCounter;
 
-    private ExecutionStateTracker tracker;
-    private ExecutionState readState;
+    private final ExecutionStateTracker tracker;
+    private final ExecutionState readState;
+    private final boolean directStateTransition;
     private WindowedValue<KV<K, Reiterable<V>>> current;
 
     /**
@@ -228,6 +228,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       this.readState =
           parentReader.operationContext.newExecutionState(ExecutionStateTracker.PROCESS_STATE_NAME);
       this.tracker = parentReader.executionContext.getExecutionStateTracker();
+      this.directStateTransition = this.tracker.supportsDirectTransition();
       String baseShuffleOriginalStepName =
           parentReader.operationContext.nameContext().originalName();
 
@@ -258,7 +259,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
               protected void notifyElementRead(long byteSize) {
                 // We accumulate the sum of bytes read in a local variable. This sum will be counted
                 // when the values are actually read by the consumer of the shuffle reader.
-                currentGroupSize.addAndGet(byteSize);
+                currentGroupSize += byteSize;
                 parentReader.notifyElementRead(byteSize);
               }
 
@@ -281,11 +282,22 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
     @Override
     public boolean advance() throws IOException {
-      try (Closeable read = tracker.enterState(readState)) {
-        if (!groups.advance()) {
-          current = null;
-          return false;
+      boolean hasNext;
+      if (directStateTransition) {
+        ExecutionState previous = tracker.enterStateDirect(readState);
+        try {
+          hasNext = groups.advance();
+        } finally {
+          tracker.exitStateDirect(previous);
         }
+      } else {
+        try (Closeable read = tracker.enterState(readState)) {
+          hasNext = groups.advance();
+        }
+      }
+      if (!hasNext) {
+        current = null;
+        return false;
       }
 
       K key = CoderUtils.decodeFromByteString(parentReader.keyCoder, groups.getCurrent().key);
@@ -426,6 +438,14 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public boolean hasNext() {
+        if (directStateTransition) {
+          ExecutionState previous = tracker.enterStateDirect(readState);
+          try {
+            return base.hasNext();
+          } finally {
+            tracker.exitStateDirect(previous);
+          }
+        }
         try (Closeable read = tracker.enterState(readState)) {
           return base.hasNext();
         } catch (IOException e) {
@@ -443,36 +463,49 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
           throw new RuntimeException(new InterruptedException("Worker was asked to abort"));
         }
         atFirstValue = false;
-        try (Closeable read = tracker.enterState(readState)) {
-          ShuffleEntry entry = base.next();
-          checkNotNull(entry);
-
-          // The shuffle entries are handed over to the consumer of this iterator. Therefore, we can
-          // notify the bytes that have been read so far.
-          notifyValueReturned(currentGroupSize.getAndSet(0L));
+        if (directStateTransition) {
+          ExecutionState previous = tracker.enterStateDirect(readState);
           try {
-            if (parentReader.secondaryKeyCoder != null) {
-              InputStream bais = entry.getSecondaryKey().newInput();
-              @SuppressWarnings("unchecked")
-              V value =
-                  (V)
-                      KV.of(
-                          // We ignore decoding the timestamp.
-                          parentReader.secondaryKeyCoder.decode(bais),
-                          CoderUtils.decodeFromByteString(
-                              parentReader.valueCoder, entry.getValue()));
-              return value;
-            } else {
-              @SuppressWarnings("unchecked")
-              V value =
-                  (V) CoderUtils.decodeFromByteString(parentReader.valueCoder, entry.getValue());
-              return value;
-            }
-          } catch (IOException exn) {
-            throw new RuntimeException(exn);
+            return nextInternal();
+          } finally {
+            tracker.exitStateDirect(previous);
           }
+        }
+        try (Closeable read = tracker.enterState(readState)) {
+          return nextInternal();
         } catch (IOException e) {
           throw new RuntimeException(e);
+        }
+      }
+
+      private V nextInternal() {
+        ShuffleEntry entry = base.next();
+        checkNotNull(entry);
+
+        // The shuffle entries are handed over to the consumer of this iterator. Therefore, we can
+        // notify the bytes that have been read so far.
+        long groupSize = currentGroupSize;
+        currentGroupSize = 0L;
+        notifyValueReturned(groupSize);
+        try {
+          if (parentReader.secondaryKeyCoder != null) {
+            InputStream bais = entry.getSecondaryKey().newInput();
+            @SuppressWarnings("unchecked")
+            V value =
+                (V)
+                    KV.of(
+                        // We ignore decoding the timestamp.
+                        parentReader.secondaryKeyCoder.decode(bais),
+                        CoderUtils.decodeFromByteString(parentReader.valueCoder, entry.getValue()));
+            return value;
+          } else {
+            @SuppressWarnings("unchecked")
+            V value =
+                (V) CoderUtils.decodeFromByteString(parentReader.valueCoder, entry.getValue());
+            return value;
+          }
+        } catch (IOException exn) {
+          throw new RuntimeException(exn);
         }
       }
 

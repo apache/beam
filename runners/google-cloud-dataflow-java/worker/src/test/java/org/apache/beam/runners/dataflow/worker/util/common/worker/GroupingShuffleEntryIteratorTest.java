@@ -275,4 +275,74 @@ public class GroupingShuffleEntryIteratorTest {
 
     // We expect that AssertionException in MinIndexAssertingListReiterator.next() is not thrown.
   }
+
+  @Test
+  public void testReiterationCopyAndPartialSkip() throws Exception {
+    ArrayList<ShuffleEntry> entries = new ArrayList<>();
+    entries.add(shuffleEntry("k1", "v11"));
+    entries.add(shuffleEntry("k2", "v21"));
+    entries.add(shuffleEntry("k2", "v22"));
+    entries.add(shuffleEntry("k2", "v23"));
+    entries.add(shuffleEntry("k3", "v31"));
+    entries.add(shuffleEntry("k3", "v32"));
+    entries.add(shuffleEntry("k4", "v41"));
+
+    ShuffleEntryReader reader =
+        new ShuffleEntryReader() {
+          @Override
+          public Reiterator<ShuffleEntry> read(
+              @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
+            return new ListReiterator<>(entries, 0);
+          }
+
+          @Override
+          public void close() {}
+        };
+
+    iterator =
+        new GroupingShuffleEntryIterator(reader, START_POSITION, END_POSITION) {
+          @Override
+          protected void notifyElementRead(long byteSize) {}
+
+          @Override
+          protected void commitBytesRead(long bytes) {}
+        };
+
+    // Key 1 (single value): reiterate twice and copy before consuming first element.
+    assertTrue(iterator.advance());
+    assertEquals("k1", iterator.getCurrent().key.toStringUtf8());
+    Reiterator<ShuffleEntry> k1First = iterator.getCurrent().values.iterator();
+    Reiterator<ShuffleEntry> k1CopyBeforeNext = k1First.copy();
+    assertEquals("v11", k1First.next().getValue().toStringUtf8());
+    assertFalse(k1First.hasNext());
+    assertEquals("v11", k1CopyBeforeNext.next().getValue().toStringUtf8());
+    assertFalse(k1CopyBeforeNext.hasNext());
+    Reiterator<ShuffleEntry> k1Second = iterator.getCurrent().values.iterator();
+    assertEquals("v11", k1Second.next().getValue().toStringUtf8());
+    assertFalse(k1Second.hasNext());
+
+    // Key 2 (3 values): copy mid-key after first element, then skip rest before advancing.
+    assertTrue(iterator.advance());
+    assertEquals("k2", iterator.getCurrent().key.toStringUtf8());
+    Reiterator<ShuffleEntry> k2Iter = iterator.getCurrent().values.iterator();
+    assertEquals("v21", k2Iter.next().getValue().toStringUtf8());
+    Reiterator<ShuffleEntry> k2MidCopy = k2Iter.copy();
+    assertEquals("v22", k2MidCopy.next().getValue().toStringUtf8());
+    assertEquals("v23", k2MidCopy.next().getValue().toStringUtf8());
+    assertFalse(k2MidCopy.hasNext());
+    // Original k2Iter was not drained; advance() must skip remaining k2 entries cleanly.
+
+    // Key 3 (2 values): completely unconsumed values iterable.
+    assertTrue(iterator.advance());
+    assertEquals("k3", iterator.getCurrent().key.toStringUtf8());
+
+    // Key 4 (1 value): fully consumed.
+    assertTrue(iterator.advance());
+    assertEquals("k4", iterator.getCurrent().key.toStringUtf8());
+    Reiterator<ShuffleEntry> k4Iter = iterator.getCurrent().values.iterator();
+    assertEquals("v41", k4Iter.next().getValue().toStringUtf8());
+    assertFalse(k4Iter.hasNext());
+
+    assertFalse(iterator.advance());
+  }
 }
