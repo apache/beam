@@ -29,6 +29,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/internal/rangeio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
@@ -228,6 +229,37 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 	return f.client.Bucket(bucket).UserProject(billingProject).Object(object).NewReader(ctx)
 }
 
+// OpenSeekable reads ranges from the generation observed when opening the object.
+func (f *fs) OpenSeekable(ctx context.Context, filename string) (filesystem.ReaderAtCloser, error) {
+	bucket, object, err := gcsx.ParseObject(filename)
+	if err != nil {
+		return nil, err
+	}
+	obj := f.client.Bucket(bucket).UserProject(billingProject).Object(object)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.EqualFold(strings.TrimSpace(attrs.ContentEncoding), "gzip") {
+		return nil, fmt.Errorf("%s has gzip content encoding: %w", filename, filesystem.ErrNotSeekable)
+	}
+	if attrs.Generation <= 0 || attrs.Size < 0 {
+		return nil, fmt.Errorf("missing size or generation for positional reads: %s", filename)
+	}
+	obj = obj.Generation(attrs.Generation)
+	return rangeio.New(ctx, attrs.Size, func(ctx context.Context, off, length int64) (io.ReadCloser, error) {
+		reader, err := obj.NewRangeReader(ctx, off, length)
+		if err != nil {
+			return nil, err
+		}
+		if reader.Attrs.Decompressed || reader.Attrs.Generation != attrs.Generation || reader.Attrs.StartOffset != off || reader.Attrs.Size != attrs.Size {
+			reader.Close()
+			return nil, fmt.Errorf("object changed or was decompressed during positional read: %s", filename)
+		}
+		return reader, nil
+	}), nil
+}
+
 // TODO(herohde) 7/12/2017: should we create the bucket in OpenWrite? For now, "no".
 
 func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
@@ -324,6 +356,7 @@ func (f *fs) Rename(ctx context.Context, srcpath, dstpath string) error {
 
 // Compile time check for interface implementations.
 var (
+	_ filesystem.SeekableOpener     = (*fs)(nil)
 	_ filesystem.LastModifiedGetter = ((*fs)(nil))
 	_ filesystem.Remover            = ((*fs)(nil))
 	_ filesystem.Copier             = ((*fs)(nil))

@@ -90,6 +90,8 @@
 
 ## I/Os
 
+* (Go) Added optional positional reads for local, in-memory, GCS, and S3 filesystems through `SeekableOpener` and `fileio.ReadableFile.OpenSeekable` ([#39176](https://github.com/apache/beam/issues/39176)).
+
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Qdrant enrichment handler added (Python) ([#40628](https://github.com/apache/beam/issues/40628)). `QdrantSearchEnrichmentHandler` supports dense, sparse and hybrid (RRF/DBSF fusion) search with payload filters, and reads collections written by `QdrantWriteConfig`.
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).

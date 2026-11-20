@@ -49,6 +49,11 @@ func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error)
 	return os.Open(filename)
 }
 
+// OpenSeekable opens a local file for concurrent positional reads.
+func (f *fs) OpenSeekable(_ context.Context, filename string) (filesystem.ReaderAtCloser, error) {
+	return os.Open(filename)
+}
+
 func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		return nil, err
@@ -106,6 +111,7 @@ func (f *fs) Copy(_ context.Context, oldpath, newpath string) error {
 
 // Compile time check for interface implementations.
 var (
+	_ filesystem.SeekableOpener     = (*fs)(nil)
 	_ filesystem.LastModifiedGetter = ((*fs)(nil))
 	_ filesystem.Copier             = ((*fs)(nil))
 	_ filesystem.Remover            = ((*fs)(nil))

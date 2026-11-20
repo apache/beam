@@ -186,6 +186,7 @@ func metadataFromFiles(
 		return nil, nil
 	}
 
+	_, readSeekEfficient := fs.(filesystem.SeekableOpener)
 	metadata := make([]FileMetadata, len(files))
 
 	for i, path := range files {
@@ -200,9 +201,10 @@ func metadataFromFiles(
 		}
 
 		metadata[i] = FileMetadata{
-			Path:         path,
-			Size:         size,
-			LastModified: mTime,
+			Path:              path,
+			Size:              size,
+			LastModified:      mTime,
+			ReadSeekEfficient: readSeekEfficient,
 		}
 	}
 
