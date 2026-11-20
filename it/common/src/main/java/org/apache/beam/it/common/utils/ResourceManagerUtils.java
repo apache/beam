@@ -21,15 +21,14 @@ import static java.lang.Math.min;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing.goodFastHash;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Random;
 import java.util.regex.Pattern;
 import org.apache.beam.it.common.ResourceManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashFunction;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +96,8 @@ public class ResourceManagerUtils {
         + localDateTime.format(timeFormat);
   }
 
-  private static final Random RANDOM = new Random();
+  private static final SecureRandom RANDOM = new SecureRandom();
+  private static final String UPPER_ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
   /** Generates random letter for padding. */
   public static char generatePadding() {
@@ -180,18 +180,15 @@ public class ResourceManagerUtils {
   }
 
   /**
-   * Generates a password using random characters for tests.
+   * Generates a password using cryptographically secure random characters for tests.
    *
-   * <p>Note: The password generated is not cryptographically secure and should only be used in
-   * tests.
-   *
-   * @param minLength minimum length of password
-   * @param maxLength maximum length of password
+   * @param minLength minimum length of base alphanumeric characters
+   * @param maxLength maximum length before lower/upper insertions
    * @param numLower number of lower case letters
    * @param numUpper number of upper case letters
    * @param numSpecial number of special characters
    * @param specialChars special characters to use
-   * @return
+   * @return generated password string
    */
   public static String generatePassword(
       int minLength,
@@ -200,20 +197,40 @@ public class ResourceManagerUtils {
       int numUpper,
       int numSpecial,
       @Nullable List<Character> specialChars) {
+    checkArgument(minLength >= 0, "minLength must be non-negative.");
+    checkArgument(
+        maxLength - numSpecial >= minLength,
+        "maxLength - numSpecial must be greater than or equal to minLength.");
+    int upperBound = maxLength - numSpecial;
+    int baseLength =
+        (upperBound == minLength) ? minLength : minLength + RANDOM.nextInt(upperBound - minLength);
     StringBuilder password = new StringBuilder();
-    password.append(
-        RandomStringUtils.randomAlphanumeric(minLength, maxLength - numSpecial).toUpperCase());
-    for (int i = 0; i < numSpecial && specialChars != null; i++) {
-      password.insert(
-          RANDOM.nextInt(password.length()), specialChars.get(RANDOM.nextInt(specialChars.size())));
+    for (int i = 0; i < baseLength; i++) {
+      password.append(UPPER_ALPHANUMERIC.charAt(RANDOM.nextInt(UPPER_ALPHANUMERIC.length())));
+    }
+    for (int i = 0; i < numSpecial && specialChars != null && !specialChars.isEmpty(); i++) {
+      char special = specialChars.get(RANDOM.nextInt(specialChars.size()));
+      if (password.length() == 0) {
+        password.append(special);
+      } else {
+        password.insert(RANDOM.nextInt(password.length()), special);
+      }
     }
     for (int i = 0; i < numLower; i++) {
-      password.insert(
-          RANDOM.nextInt(password.length()), RandomStringUtils.randomAlphabetic(1).toLowerCase());
+      char lower = (char) ('a' + RANDOM.nextInt(26));
+      if (password.length() == 0) {
+        password.append(lower);
+      } else {
+        password.insert(RANDOM.nextInt(password.length()), lower);
+      }
     }
     for (int i = 0; i < numUpper; i++) {
-      password.insert(
-          RANDOM.nextInt(password.length()), RandomStringUtils.randomAlphabetic(1).toUpperCase());
+      char upper = (char) ('A' + RANDOM.nextInt(26));
+      if (password.length() == 0) {
+        password.append(upper);
+      } else {
+        password.insert(RANDOM.nextInt(password.length()), upper);
+      }
     }
     return password.toString();
   }
