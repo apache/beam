@@ -441,7 +441,14 @@ class PipeTest(unittest.TestCase):
         '--runner=DirectRunner'
     ])
     self.assertEqual(code, cli.EXIT_OK)
-    self.assertIn('Wrote 1 file:', out)
+    # The runner picks the number of parquet shards, so Prism may write more
+    # than one file.
+    self.assertRegex(out, r'Wrote \d+ files?:')
+    written = [line[2:] for line in out.splitlines() if line.startswith('  ')]
+    self.assertTrue(written)
+    for path in written:
+      self.assertTrue(path.startswith(parquet_prefix), path)
+      self.assertTrue(os.path.exists(path), path)
 
     code, out, _ = _run_cli([
         'pipe',
