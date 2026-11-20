@@ -43,7 +43,8 @@ LOGGER = logging.getLogger("GeminiModelHandler")
 # single batch by the request functions in this module, which send one
 # generate_content request per input. Bounds thread usage when adaptive
 # batching produces large batches; use max_batch_size to further limit
-# per-batch concurrency.
+# per-batch concurrency. Also the default max_batch_size: a failed request
+# retries the whole batch, so a larger batch only adds work to repeat.
 _MAX_CONCURRENT_REQUESTS_PER_BATCH = 32
 
 _InputT = TypeVar('_InputT')
@@ -203,7 +204,8 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
-        inputs.
+        inputs. Defaults to 32, unless element_size_fn is set without
+        max_batch_weight.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
       max_batch_weight: optional. the maximum total weight of a batch. Cannot
@@ -226,6 +228,14 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
+    # With element_size_fn and no max_batch_weight, BatchElements counts
+    # max_batch_size in element_size_fn units (e.g. characters), not prompts,
+    # so the default number of prompts does not apply.
+    sized_by_element_size_fn = (
+        element_size_fn is not None and max_batch_weight is None)
+    if max_batch_size is None and not sized_by_element_size_fn:
+      max_batch_size = max(
+          min_batch_size or 0, _MAX_CONCURRENT_REQUESTS_PER_BATCH)
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:
