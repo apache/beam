@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -80,6 +81,10 @@ public class DataflowOutputCounter implements ElementCounter {
   @Override
   public void update(Object elem) throws Exception {
     objectAndByteCounter.update(elem);
+    if (elem instanceof WindowedValues.SingleWindowedValue) {
+      elementCount.addValue(1L);
+      return;
+    }
     long windowsSize = ((WindowedValue<?>) elem).getWindows().size();
     if (windowsSize == 0) {
       updateEmptyWindows((WindowedValue<?>) elem);
