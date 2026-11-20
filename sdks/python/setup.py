@@ -689,7 +689,7 @@ if __name__ == '__main__':
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
-              'torch==2.8.0+cpu',
+              'torch==2.13.0+cpu',
               'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
