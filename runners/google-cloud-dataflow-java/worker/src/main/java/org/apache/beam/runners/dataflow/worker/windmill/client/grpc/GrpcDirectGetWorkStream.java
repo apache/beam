@@ -363,13 +363,6 @@ final class GrpcDirectGetWorkStream
       this.maxGetWorkBudget = maxGetWorkBudget;
     }
 
-    private synchronized void reset() {
-      itemsRequested = 0;
-      bytesRequested = 0;
-      itemsReceived = 0;
-      bytesReceived = 0;
-    }
-
     private synchronized String debugString() {
       return String.format(
           "max budget: %s; "
@@ -381,7 +374,10 @@ final class GrpcDirectGetWorkStream
 
     private synchronized BudgetExtension resetAndRecordInitialBudget() {
       streamEpoch++;
-      reset();
+      itemsRequested = 0;
+      bytesRequested = 0;
+      itemsReceived = 0;
+      bytesReceived = 0;
       return new BudgetExtension(streamEpoch, computeAndRecordBudgetExtension());
     }
 

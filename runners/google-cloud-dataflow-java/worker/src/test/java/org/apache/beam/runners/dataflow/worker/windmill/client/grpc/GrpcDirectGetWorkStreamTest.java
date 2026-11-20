@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -477,7 +477,7 @@ public class GrpcDirectGetWorkStreamTest {
   @Test
   public void testSetBudget_rapidUpdatesBeforeAsyncSend_doesNotExceedMaxBudget()
       throws InterruptedException {
-    ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+    DeferrableScheduledExecutorService executor = new DeferrableScheduledExecutorService();
     try {
       int expectedRequests = 3;
       CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
@@ -486,18 +486,16 @@ public class GrpcDirectGetWorkStreamTest {
       serviceRegistry.addService(testStub);
       stream =
           createDirectGetWorkStream(
-              GetWorkBudget.noBudget(),
-              NO_OP_WORK_ITEM_SCHEDULER,
-              singleThreadExecutor,
-              Duration.ZERO);
+              GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER, executor, Duration.ZERO);
       stream.start();
 
-      // Hold the async sender thread so rapid updates queue up before any extension is sent.
-      CountDownLatch holdExecutor = holdExecutor(singleThreadExecutor);
+      // Defer async sender tasks so rapid updates queue up before any extension is sent.
+      executor.deferring = true;
       stream.setBudget(GetWorkBudget.builder().setItems(10).setBytes(100).build());
       stream.setBudget(GetWorkBudget.builder().setItems(20).setBytes(200).build());
       stream.setBudget(GetWorkBudget.builder().setItems(30).setBytes(300).build());
-      holdExecutor.countDown();
+      executor.deferring = false;
+      executor.drainDeferred();
 
       assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
@@ -514,14 +512,14 @@ public class GrpcDirectGetWorkStreamTest {
       assertThat(totalExtensionItems).isEqualTo(30L);
       assertThat(totalExtensionBytes).isEqualTo(300L);
     } finally {
-      shutdownStreamAndExecutor(singleThreadExecutor);
+      shutdownStreamAndExecutor(executor);
     }
   }
 
   @Test
   public void testConsumedWorkItems_batchedChunkDoesNotOverRequestBudget()
       throws InterruptedException {
-    ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+    DeferrableScheduledExecutorService executor = new DeferrableScheduledExecutorService();
     try {
       int expectedRequests = 3;
       CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
@@ -540,7 +538,7 @@ public class GrpcDirectGetWorkStreamTest {
                   drainMode,
                   appliedFinalizeIds,
                   getWorkStreamLatencies) -> scheduledWorkItems.add(work),
-              singleThreadExecutor,
+              executor,
               Duration.ZERO);
       stream.start();
 
@@ -548,16 +546,18 @@ public class GrpcDirectGetWorkStreamTest {
       Windmill.WorkItem workItem2 = createWorkItem("somewhat_long_key2", 2L);
       Windmill.WorkItem workItem3 = createWorkItem("somewhat_long_key3", 3L);
 
-      CountDownLatch holdExecutor = holdExecutor(singleThreadExecutor);
-      // Inject 3 items in a single response while the executor is blocked. Item 2 brings
+      // Inject 3 items in a single response while async sends are deferred. Item 2 brings
       // in-flight items down to 1 (<= 2/2) and records a +2 extension; Item 3 must observe that
       // updated budget and NOT queue a duplicate extension.
+      executor.deferring = true;
       testStub.injectResponse(createResponse(workItem1, workItem2, workItem3));
-      holdExecutor.countDown();
 
-      // Raise max budget; delta must reflect the +2 extension already recorded by Item 2.
+      // Raise max budget before queued sends execute; delta must reflect the +2 extension already
+      // recorded by Item 2.
       GetWorkBudget finalBudget = GetWorkBudget.builder().setItems(10).setBytes(2000).build();
       stream.setBudget(finalBudget);
+      executor.deferring = false;
+      executor.drainDeferred();
 
       assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
       assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2, workItem3);
@@ -572,7 +572,7 @@ public class GrpcDirectGetWorkStreamTest {
           .isEqualTo(
               extension(GetWorkBudget.builder().setItems(8).setBytes(1000 + itemSize).build()));
     } finally {
-      shutdownStreamAndExecutor(singleThreadExecutor);
+      shutdownStreamAndExecutor(executor);
     }
   }
 
@@ -581,7 +581,7 @@ public class GrpcDirectGetWorkStreamTest {
       throws InterruptedException {
     DeferrableScheduledExecutorService executor = new DeferrableScheduledExecutorService();
     try {
-      MultiStreamTestStub stub = new MultiStreamTestStub(2);
+      MultiStreamTestStub stub = new MultiStreamTestStub();
       serviceRegistry.addService(stub);
       GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(1).setBytes(100).build();
       Set<Windmill.WorkItem> scheduledWorkItems = Collections.synchronizedSet(new HashSet<>());
@@ -598,15 +598,15 @@ public class GrpcDirectGetWorkStreamTest {
               executor,
               Duration.ofSeconds(60));
       stream.start();
-      assertHeader(stub.takeRequest(0), initialBudget);
+      MultiStreamTestStub.TestStream stream0 = stub.takeStream();
+      assertHeader(stream0.takeRequest(), initialBudget);
 
       // Deliver only the first chunk of workItem1 on stream 0 before half-close.
       Windmill.WorkItem workItem1 = createWorkItem("split_across_half_close", 1L);
       Windmill.WorkItem workItem2 = createWorkItem("after_half_close", 2L);
       ByteString item1Bytes = workItem1.toByteString();
       int splitIdx = item1Bytes.size() / 2;
-      stub.injectResponse(
-          0,
+      stream0.injectResponse(
           createResponse(
               Collections.singletonList(item1Bytes.substring(0, splitIdx)),
               item1Bytes.size() - splitIdx));
@@ -619,54 +619,36 @@ public class GrpcDirectGetWorkStreamTest {
       executor.deferring = false;
 
       assertTrue(executor.unblockNextFuture());
-      assertHeader(stub.takeRequest(1), intermediateBudget);
+      MultiStreamTestStub.TestStream stream1 = stub.takeStream();
+      assertHeader(stream1.takeRequest(), intermediateBudget);
 
       // Complete workItem1 and send workItem2 on closing stream 0; scheduler must deliver both
       // items while epoch 2 ignores their budget consumption.
-      stub.injectResponse(
-          0,
+      stream0.injectResponse(
           createResponse(
               Arrays.asList(item1Bytes.substring(splitIdx), workItem2.toByteString()), 0));
       assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2);
 
       // Drain the stale epoch-1 extension task; streamEpoch gating must drop it.
       executor.drainDeferred();
-      flushExecutor(executor);
 
       GetWorkBudget finalBudget = GetWorkBudget.builder().setItems(20).setBytes(5000).build();
       stream.setBudget(finalBudget);
-      Windmill.StreamingGetWorkRequest stream1Ext = stub.takeRequest(1);
+      Windmill.StreamingGetWorkRequest stream1Ext = stream1.takeRequest();
       assertTrue(stream1Ext.hasRequestExtension());
       assertThat(stream1Ext.getRequestExtension())
           .isEqualTo(extension(finalBudget.subtract(intermediateBudget)));
-      assertThat(stub.requests(0)).isEmpty();
-      assertThat(stub.requests(1)).isEmpty();
-      assertThat(stub.streamCount()).isEqualTo(2);
+      assertThat(stream0.requests).isEmpty();
+      assertThat(stream1.requests).isEmpty();
+      assertThat(stub.streams).isEmpty();
     } finally {
       shutdownStreamAndExecutor(executor);
     }
   }
 
-  // Blocks a single-threaded executor until countDown() so async sends queue deterministically.
-  private static CountDownLatch holdExecutor(ScheduledExecutorService executor)
+  private void shutdownStreamAndExecutor(DeferrableScheduledExecutorService executor)
       throws InterruptedException {
-    CountDownLatch hold = new CountDownLatch(1);
-    CountDownLatch blocked = new CountDownLatch(1);
-    executor.execute(
-        () -> {
-          blocked.countDown();
-          try {
-            hold.await(5, TimeUnit.SECONDS);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-          }
-        });
-    assertTrue(blocked.await(5, TimeUnit.SECONDS));
-    return hold;
-  }
-
-  private void shutdownStreamAndExecutor(ScheduledExecutorService executor)
-      throws InterruptedException {
+    executor.deferring = false;
     if (stream != null) {
       stream.shutdown();
     }
@@ -675,12 +657,6 @@ public class GrpcDirectGetWorkStreamTest {
       assertTrue(stream.awaitTermination(5, TimeUnit.SECONDS));
     }
     executor.shutdownNow();
-  }
-
-  private static void flushExecutor(ScheduledExecutorService executor) throws InterruptedException {
-    CountDownLatch flushed = new CountDownLatch(1);
-    executor.execute(flushed::countDown);
-    assertTrue(flushed.await(5, TimeUnit.SECONDS));
   }
 
   private static Windmill.WorkItem createWorkItem(String key, long token) {
@@ -721,7 +697,7 @@ public class GrpcDirectGetWorkStreamTest {
                 workItemScheduler);
   }
 
-  /** Buffers {@code execute()} tasks on demand to replay stale tasks after a half-close. */
+  /** Buffers {@code execute()} tasks on demand so tests can control when async sends run. */
   private static final class DeferrableScheduledExecutorService
       extends TriggeredScheduledExecutorService {
     private final List<Runnable> deferred = Collections.synchronizedList(new ArrayList<>());
@@ -736,50 +712,65 @@ public class GrpcDirectGetWorkStreamTest {
       }
     }
 
-    private void drainDeferred() {
+    private void drainDeferred() throws InterruptedException {
       List<Runnable> tasks;
       synchronized (deferred) {
         tasks = new ArrayList<>(deferred);
         deferred.clear();
       }
       if (!tasks.isEmpty()) {
-        super.execute(() -> tasks.forEach(Runnable::run));
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        super.execute(
+            () -> {
+              try {
+                tasks.forEach(Runnable::run);
+              } catch (Throwable t) {
+                failure.set(t);
+              } finally {
+                done.countDown();
+              }
+            });
+        assertTrue(done.await(5, TimeUnit.SECONDS));
+        Throwable thrown = failure.get();
+        if (thrown != null) {
+          throw new AssertionError("Deferred task failed", thrown);
+        }
       }
     }
   }
 
   private static class MultiStreamTestStub
       extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
-    private final List<BlockingQueue<Windmill.StreamingGetWorkRequest>> requestsPerStream;
-    private final List<CountDownLatch> streamStartedLatches;
-    private final List<StreamObserver<Windmill.StreamingGetWorkResponseChunk>> responseObservers =
-        Collections.synchronizedList(new ArrayList<>());
+    private static final class TestStream {
+      private final BlockingQueue<Windmill.StreamingGetWorkRequest> requests =
+          new LinkedBlockingQueue<>();
+      private final StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver;
 
-    private MultiStreamTestStub(int expectedStreams) {
-      this.requestsPerStream = new ArrayList<>(expectedStreams);
-      this.streamStartedLatches = new ArrayList<>(expectedStreams);
-      for (int i = 0; i < expectedStreams; i++) {
-        requestsPerStream.add(new LinkedBlockingQueue<>());
-        streamStartedLatches.add(new CountDownLatch(1));
+      private TestStream(StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver) {
+        this.responseObserver = responseObserver;
+      }
+
+      private Windmill.StreamingGetWorkRequest takeRequest() throws InterruptedException {
+        return checkNotNull(requests.poll(5, TimeUnit.SECONDS), "Timed out waiting for request");
+      }
+
+      private void injectResponse(Windmill.StreamingGetWorkResponseChunk chunk) {
+        responseObserver.onNext(chunk);
       }
     }
 
+    private final BlockingQueue<TestStream> streams = new LinkedBlockingQueue<>();
+
     @Override
-    public synchronized StreamObserver<Windmill.StreamingGetWorkRequest> getWorkStream(
+    public StreamObserver<Windmill.StreamingGetWorkRequest> getWorkStream(
         StreamObserver<Windmill.StreamingGetWorkResponseChunk> responseObserver) {
-      int streamIdx = responseObservers.size();
-      responseObservers.add(responseObserver);
-      BlockingQueue<Windmill.StreamingGetWorkRequest> streamRequests =
-          streamIdx < requestsPerStream.size()
-              ? requestsPerStream.get(streamIdx)
-              : new LinkedBlockingQueue<>();
-      if (streamIdx < streamStartedLatches.size()) {
-        streamStartedLatches.get(streamIdx).countDown();
-      }
+      TestStream testStream = new TestStream(responseObserver);
+      streams.add(testStream);
       return new StreamObserver<Windmill.StreamingGetWorkRequest>() {
         @Override
         public void onNext(Windmill.StreamingGetWorkRequest request) {
-          streamRequests.add(request);
+          testStream.requests.add(request);
         }
 
         @Override
@@ -790,27 +781,8 @@ public class GrpcDirectGetWorkStreamTest {
       };
     }
 
-    private Windmill.StreamingGetWorkRequest takeRequest(int streamIdx)
-        throws InterruptedException {
-      assertTrue(streamStartedLatches.get(streamIdx).await(5, TimeUnit.SECONDS));
-      return checkNotNull(
-          requestsPerStream.get(streamIdx).poll(5, TimeUnit.SECONDS),
-          "Timed out waiting for request on stream %s",
-          streamIdx);
-    }
-
-    private BlockingQueue<Windmill.StreamingGetWorkRequest> requests(int streamIdx) {
-      return requestsPerStream.get(streamIdx);
-    }
-
-    private int streamCount() {
-      return responseObservers.size();
-    }
-
-    private void injectResponse(int streamIdx, Windmill.StreamingGetWorkResponseChunk chunk)
-        throws InterruptedException {
-      assertTrue(streamStartedLatches.get(streamIdx).await(5, TimeUnit.SECONDS));
-      responseObservers.get(streamIdx).onNext(chunk);
+    private TestStream takeStream() throws InterruptedException {
+      return checkNotNull(streams.poll(5, TimeUnit.SECONDS), "Timed out waiting for stream");
     }
   }
 
