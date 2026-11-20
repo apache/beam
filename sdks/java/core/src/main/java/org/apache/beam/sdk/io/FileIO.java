@@ -32,6 +32,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -512,6 +514,8 @@ public class FileIO {
 
     abstract @Nullable TerminationCondition<String, ?> getWatchTerminationCondition();
 
+    public abstract @Nullable Duration getTimestampCursorAllowedLateness();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -523,6 +527,8 @@ public class FileIO {
       abstract Builder setWatchInterval(Duration watchInterval);
 
       abstract Builder setWatchTerminationCondition(TerminationCondition<String, ?> condition);
+
+      abstract Builder setTimestampCursorAllowedLateness(@Nullable Duration allowedLateness);
 
       abstract MatchConfiguration build();
     }
@@ -537,25 +543,28 @@ public class FileIO {
      * condition is reached, where the input to the condition is the filepattern.
      *
      * <p>If {@code matchUpdatedFiles} is set, also watches for files with timestamp change, with
-     * the watching frequency given by the {@code interval}. The pipeline will throw a {@code
-     * RuntimeError} if timestamp extraction for the matched file has failed, suggesting the
+     * the watching frequency given by the {@code interval}. The pipeline will throw a {@link
+     * RuntimeException} if timestamp extraction for the matched file has failed, suggesting the
      * timestamp metadata is not available with the IO connector.
      *
-     * <p>Matching continuously scales poorly, as it is stateful, and requires storing file ids in
-     * memory. In addition, because it is memory-only, if a pipeline is restarted, already processed
-     * files will be reprocessed. Consider an alternate technique, such as <a
+     * <p>Deduplication state grows with the number of files matched unless bounded with {@link
+     * #withTimestampCursor()} or {@link #withTimestampCursor(Duration)}. For a growing directory on
+     * GCS, consider an alternate technique such as <a
      * href="https://cloud.google.com/storage/docs/pubsub-notifications">Pub/Sub Notifications</a>
-     * when using GCS if possible.
+     * if possible.
      */
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition, boolean matchUpdatedFiles) {
-      LOG.warn(
-          "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
-              + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) if possible");
+      boolean effectiveMatchUpdatedFiles = matchUpdatedFiles;
+      if (getTimestampCursorAllowedLateness() != null && !matchUpdatedFiles) {
+        LOG.warn(
+            "withTimestampCursor() implies matchUpdatedFiles=true; enabling matchUpdatedFiles.");
+        effectiveMatchUpdatedFiles = true;
+      }
       return toBuilder()
           .setWatchInterval(interval)
           .setWatchTerminationCondition(condition)
-          .setMatchUpdatedFiles(matchUpdatedFiles)
+          .setMatchUpdatedFiles(effectiveMatchUpdatedFiles)
           .build();
     }
 
@@ -567,6 +576,43 @@ public class FileIO {
     public MatchConfiguration continuously(
         Duration interval, TerminationCondition<String, ?> condition) {
       return continuously(interval, condition, false);
+    }
+
+    /**
+     * Like {@link #withTimestampCursor(Duration)} with no lateness allowed.
+     *
+     * <p>This is safe for filesystems with strong global consistency, where subsequent listings
+     * always observe newly written files with last-modified timestamps that are non-decreasing
+     * relative to previously seen files.
+     */
+    public MatchConfiguration withTimestampCursor() {
+      return withTimestampCursor(Duration.ZERO);
+    }
+
+    /**
+     * Bounds continuous matching deduplication state by file last-modified time using {@link
+     * Watch.Growth#withTimestampCursor(Duration)}. Requires {@link #continuously} and implies
+     * {@code matchUpdatedFiles = true}.
+     *
+     * <p>Matched files carry their {@link MatchResult.Metadata#lastModifiedMillis()} as event
+     * timestamps (failing with {@link RuntimeException} if unavailable). On subsequent polls, files
+     * appearing with a last-modified time more than {@code allowedLateness} behind the greatest
+     * previously emitted timestamp are treated as already seen and skipped.
+     */
+    public MatchConfiguration withTimestampCursor(Duration allowedLateness) {
+      checkArgument(allowedLateness != null, "allowedLateness can not be null");
+      checkArgument(
+          !allowedLateness.isShorterThan(Duration.ZERO),
+          "allowedLateness must not be negative, but was %s",
+          allowedLateness);
+      if (getWatchInterval() != null && !getMatchUpdatedFiles()) {
+        LOG.warn(
+            "withTimestampCursor() implies matchUpdatedFiles=true; enabling matchUpdatedFiles.");
+      }
+      return toBuilder()
+          .setTimestampCursorAllowedLateness(allowedLateness)
+          .setMatchUpdatedFiles(true)
+          .build();
     }
 
     @Override
@@ -581,7 +627,11 @@ public class FileIO {
                     .withLabel("Interval to watch for new files"))
             .add(
                 DisplayData.item("isMatchUpdatedFiles", getMatchUpdatedFiles())
-                    .withLabel("If also match for files with timestamp change"));
+                    .withLabel("If also match for files with timestamp change"))
+            .addIfNotNull(
+                DisplayData.item(
+                        "timestampCursorAllowedLateness", getTimestampCursorAllowedLateness())
+                    .withLabel("Allowed lateness for timestamp cursor deduplication"));
       }
     }
   }
@@ -650,6 +700,24 @@ public class FileIO {
       return continuously(pollInterval, terminationCondition, false);
     }
 
+    /**
+     * See {@link MatchConfiguration#withTimestampCursor()}.
+     *
+     * <p>Requires continuous matching ({@link #continuously}).
+     */
+    public Match withTimestampCursor() {
+      return withConfiguration(getConfiguration().withTimestampCursor());
+    }
+
+    /**
+     * See {@link MatchConfiguration#withTimestampCursor(Duration)}.
+     *
+     * <p>Requires continuous matching ({@link #continuously}).
+     */
+    public Match withTimestampCursor(Duration allowedLateness) {
+      return withConfiguration(getConfiguration().withTimestampCursor(allowedLateness));
+    }
+
     @Override
     public PCollection<MatchResult.Metadata> expand(PBegin input) {
       return input
@@ -714,10 +782,23 @@ public class FileIO {
       return continuously(pollInterval, terminationCondition, false);
     }
 
+    /** Like {@link Match#withTimestampCursor()}. */
+    public MatchAll withTimestampCursor() {
+      return withConfiguration(getConfiguration().withTimestampCursor());
+    }
+
+    /** Like {@link Match#withTimestampCursor(Duration)}. */
+    public MatchAll withTimestampCursor(Duration allowedLateness) {
+      return withConfiguration(getConfiguration().withTimestampCursor(allowedLateness));
+    }
+
     @Override
     public PCollection<MatchResult.Metadata> expand(PCollection<String> input) {
       PCollection<MatchResult.Metadata> res;
       if (getConfiguration().getWatchInterval() == null) {
+        checkArgument(
+            getConfiguration().getTimestampCursorAllowedLateness() == null,
+            "withTimestampCursor() requires continuous matching via continuously().");
         res =
             input.apply(
                 "Match filepatterns",
@@ -753,9 +834,17 @@ public class FileIO {
     /** Helper function creating a watch transform based on outputKeyFn. */
     private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
         SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
-      return Watch.growthOf(Contextful.of(new MatchPollFn(), Requirements.empty()), outputKeyFn)
-          .withPollInterval(getConfiguration().getWatchInterval())
-          .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
+      @Nullable Duration allowedLateness = getConfiguration().getTimestampCursorAllowedLateness();
+      Watch.Growth<String, MatchResult.Metadata, KeyT> watch =
+          Watch.growthOf(
+                  Contextful.of(new MatchPollFn(allowedLateness), Requirements.empty()),
+                  outputKeyFn)
+              .withPollInterval(getConfiguration().getWatchInterval())
+              .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
+      if (allowedLateness != null) {
+        watch = watch.withTimestampCursor(allowedLateness).withOutputCoder(MetadataCoderV2.of());
+      }
+      return watch;
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -776,14 +865,92 @@ public class FileIO {
       }
     }
 
-    private static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
+    @VisibleForTesting
+    static long ensureLastModifiedMillis(MatchResult.Metadata input) {
+      long timestamp = input.lastModifiedMillis();
+      if (0L == timestamp) {
+        throw new RuntimeException(
+            String.format(
+                "Extract file timestamp failed: got file timestamp == 0 for %s.",
+                input.resourceId()));
+      }
+      return timestamp;
+    }
+
+    @VisibleForTesting
+    static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
+      private final @Nullable Duration timestampCursorAllowedLateness;
+
+      // Best-effort watermark tracking (not deduplication, which lives in Watch's checkpointed
+      // restriction): remembers the greatest last-modified time seen so far so a poll that
+      // discovers newer files holds the watermark at the filesystem clock, while a quiet poll
+      // releases it to poll time.
+      private transient @Nullable Instant newestMtime;
+
+      MatchPollFn() {
+        this(null);
+      }
+
+      MatchPollFn(@Nullable Duration timestampCursorAllowedLateness) {
+        this.timestampCursorAllowedLateness = timestampCursorAllowedLateness;
+      }
+
+      private synchronized boolean updateNewestMtime(Instant candidate) {
+        if (newestMtime == null || candidate.isAfter(newestMtime)) {
+          newestMtime = candidate;
+          return true;
+        }
+        return false;
+      }
+
+      private static Instant saturatingMinus(Instant instant, Duration duration) {
+        long millis;
+        try {
+          millis = Math.subtractExact(instant.getMillis(), duration.getMillis());
+        } catch (ArithmeticException e) {
+          millis = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+        }
+        return new Instant(Math.max(millis, BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+      }
+
+      @VisibleForTesting
+      KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> poll(String element, Instant now)
+          throws Exception {
+        List<MatchResult.Metadata> metadataList =
+            FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata();
+        List<TimestampedValue<MatchResult.Metadata>> outputs = new ArrayList<>(metadataList.size());
+        if (timestampCursorAllowedLateness == null) {
+          for (MatchResult.Metadata metadata : metadataList) {
+            outputs.add(TimestampedValue.of(metadata, now));
+          }
+          return KV.of(outputs, now);
+        }
+
+        Instant newest = null;
+        for (MatchResult.Metadata metadata : metadataList) {
+          Instant mtime = new Instant(ensureLastModifiedMillis(metadata));
+          outputs.add(TimestampedValue.of(metadata, mtime));
+          if (newest == null || mtime.isAfter(newest)) {
+            newest = mtime;
+          }
+        }
+
+        // A poll that turned up a newer last-modified time has just read the filesystem clock,
+        // so hold the watermark there (capped at the poll time). A poll that found nothing newer
+        // takes the poll time so a quiet directory does not stall downstream event-time windows.
+        boolean foundNewer = newest != null && updateNewestMtime(newest);
+        Instant baseWatermark =
+            (foundNewer && newest != null && newest.isBefore(now)) ? newest : now;
+        Instant watermark = saturatingMinus(baseWatermark, timestampCursorAllowedLateness);
+        return KV.of(outputs, watermark);
+      }
+
       @Override
       public Watch.Growth.PollResult<MatchResult.Metadata> apply(String element, Context c)
           throws Exception {
-        Instant now = Instant.now();
-        return Watch.Growth.PollResult.incomplete(
-                now, FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata())
-            .withWatermark(now);
+        KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> result =
+            poll(element, Instant.now());
+        return Watch.Growth.PollResult.incomplete(result.getKey()).withWatermark(result.getValue());
       }
     }
 
@@ -799,11 +966,7 @@ public class FileIO {
         implements SerializableFunction<MatchResult.Metadata, KV<String, Long>> {
       @Override
       public KV<String, Long> apply(MatchResult.Metadata input) throws RuntimeException {
-        long timestamp = input.lastModifiedMillis();
-        if (0L == timestamp) {
-          throw new RuntimeException("Extract file timestamp failed: got file timestamp == 0.");
-        }
-        return KV.of(input.resourceId().toString(), timestamp);
+        return KV.of(input.resourceId().toString(), ensureLastModifiedMillis(input));
       }
     }
   }
