@@ -144,18 +144,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   @Internal
   public static final Class<? extends WriteFiles> CONCRETE_CLASS = AutoValue_WriteFiles.class;
 
-  // The maximum number of file writers to keep open in a single bundle at a time,
-  // since file
-  // writers default to 64mb buffers. This comes into play when writing per-window
-  // or dynamic
-  // destination files. The first 20 files from a single WriteFiles transform will
-  // write files
-  // inline in the transform. Anything beyond that might be spilled to shuffle
-  // (default) or cause
+  // The maximum number of file writers to keep open in a single bundle at a time, since file
+  // writers default to 64mb buffers. This comes into play when writing per-window or dynamic
+  // destination files. The first 20 files from a single WriteFiles transform will write files
+  // inline in the transform. Anything beyond that might be spilled to shuffle (default) or cause
   // the least recently used open writer in the bundle to be closed and evicted if
   // withEvictWritersWhenFull() is enabled.
-  // Keep in mind that specific runners may decide to run multiple bundles in
-  // parallel, based on
+  // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
   // their own policy.
   private static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
@@ -163,8 +158,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   // We could consider making this a parameter.
   private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
 
-  // The record count and buffering duration to trigger flushing records to a tmp
-  // file. Mainly used
+  // The record count and buffering duration to trigger flushing records to a tmp file. Mainly used
   // for writing unbounded data to avoid generating too many small files.
   public static final int FILE_TRIGGERING_RECORD_COUNT = 100000;
   public static final int FILE_TRIGGERING_BYTE_COUNT = 64 * 1024 * 1024; // 64MiB as of now
@@ -202,8 +196,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   public abstract @Nullable
       PTransform<PCollection<UserT>, PCollectionView<Integer>> getComputeNumShards();
 
-  // We don't use a side input for static sharding, as we want this value to be
-  // updatable
+  // We don't use a side input for static sharding, as we want this value to be updatable
   // when a pipeline is updated.
 
   public abstract @Nullable ValueProvider<Integer> getNumShardsProvider();
@@ -339,42 +332,34 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * #withRunnerDeterminedSharding()}):</b>
    *
    * <table>
-   * <tr>
-   * <th>Configuration</th>
-   * <th>Behavior when {@code maxNumWritersPerBundle} is reached</th>
-   * <th>Worker Memory Consumption</th>
-   * <th>Shuffle Cost</th>
-   * <th>Output File Size / Count</th>
-   * </tr>
-   * <tr>
-   * <td><b>Default (Spill to Shuffle)</b><br>
-   * {@code maxNumWritersPerBundle > 0},<br>
-   * {@code evictWritersWhenFull = false}</td>
-   * <td>Keeps first {@code N} writers open; spills remaining records to a
-   * {@link GroupByKey} shuffle stage</td>
-   * <td>Bounded ({@code <= N} buffers per bundle)</td>
-   * <td>High if many records spill across shuffle</td>
-   * <td>Fewer, larger files</td>
-   * </tr>
-   * <tr>
-   * <td><b>LRU Writer Eviction</b><br>
-   * {@code maxNumWritersPerBundle > 0},<br>
-   * {@code evictWritersWhenFull = true}</td>
-   * <td>Flushes and closes the least recently used (LRU) open writer to open a
-   * new writer inline</td>
-   * <td>Bounded ({@code <= N} buffers per bundle)</td>
-   * <td>None (no shuffle stage for unwritten records)</td>
-   * <td>May produce more/smaller files (minimal if input is ordered by
-   * destination, high if random)</td>
-   * </tr>
-   * <tr>
-   * <td><b>No Spilling</b><br>
-   * {@link #withNoSpilling()} ({@code maxNumWritersPerBundle = -1})</td>
-   * <td>Opens a new writer for every destination in the bundle without limit</td>
-   * <td>Unbounded (risk of OOM with many destinations)</td>
-   * <td>None (no shuffle stage for unwritten records)</td>
-   * <td>Fewer, larger files (1 file per destination per bundle)</td>
-   * </tr>
+   *   <tr>
+   *     <th>Configuration</th>
+   *     <th>Behavior when {@code maxNumWritersPerBundle} is reached</th>
+   *     <th>Worker Memory Consumption</th>
+   *     <th>Shuffle Cost</th>
+   *     <th>Output File Size / Count</th>
+   *   </tr>
+   *   <tr>
+   *     <td><b>Default (Spill to Shuffle)</b><br>{@code maxNumWritersPerBundle > 0},<br>{@code evictWritersWhenFull = false}</td>
+   *     <td>Keeps first {@code N} writers open; spills remaining records to a {@link GroupByKey} shuffle stage</td>
+   *     <td>Bounded ({@code <= N} buffers per bundle)</td>
+   *     <td>High if many records spill across shuffle</td>
+   *     <td>Fewer, larger files</td>
+   *   </tr>
+   *   <tr>
+   *     <td><b>LRU Writer Eviction</b><br>{@code maxNumWritersPerBundle > 0},<br>{@code evictWritersWhenFull = true}</td>
+   *     <td>Flushes and closes the least recently used (LRU) open writer to open a new writer inline</td>
+   *     <td>Bounded ({@code <= N} buffers per bundle)</td>
+   *     <td>None (no shuffle stage for unwritten records)</td>
+   *     <td>May produce more/smaller files (minimal if input is ordered by destination, high if random)</td>
+   *   </tr>
+   *   <tr>
+   *     <td><b>No Spilling</b><br>{@link #withNoSpilling()} ({@code maxNumWritersPerBundle = -1})</td>
+   *     <td>Opens a new writer for every destination in the bundle without limit</td>
+   *     <td>Unbounded (risk of OOM with many destinations)</td>
+   *     <td>None (no shuffle stage for unwritten records)</td>
+   *     <td>Fewer, larger files (1 file per destination per bundle)</td>
+   *   </tr>
    * </table>
    *
    * <p>The default value is {@link #DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE}.
@@ -588,10 +573,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-      // Sharding used to be required due to
-      // https://issues.apache.org/jira/browse/BEAM-1438 and
-      // similar behavior in other runners. Some runners may support runner determined
-      // sharding now.
+      // Sharding used to be required due to https://issues.apache.org/jira/browse/BEAM-1438 and
+      // similar behavior in other runners. Some runners may support runner determined sharding now.
       // Check merging window here due to https://github.com/apache/beam/issues/20928.
       if (input.getWindowingStrategy().needsMerge()) {
         checkArgument(
@@ -639,74 +622,34 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     Long directWriteThreshold = getDirectWriteByteThreshold();
     if (directWriteThreshold != null) {
       List<String> disabledReasons = new ArrayList<>();
-      // Direct writes are only supported for unbounded inputs as of now.
       if (input.isBounded() == IsBounded.BOUNDED) {
         disabledReasons.add("the input is bounded");
       }
       // WriteFiles allows merging windows when a fixed shard count is set (merged by
-      // GroupIntoShards's GroupByKey), whereas direct writes run before any
-      // GroupByKey and would
+      // GroupIntoShards's GroupByKey), whereas direct writes run before any GroupByKey and would
       // use unmerged windows.
       if (input.getWindowingStrategy().needsMerge()) {
         disabledReasons.add("the windowing strategy uses merging windows");
       }
-      // Accumulating panes re-emit earlier records in every firing, but direct writes
-      // write each
+      // Accumulating panes re-emit earlier records in every firing, but direct writes write each
       // record only once.
       if (input.getWindowingStrategy().getMode() == AccumulationMode.ACCUMULATING_FIRED_PANES) {
         disabledReasons.add("the windowing strategy accumulates fired panes");
       }
       if (disabledReasons.isEmpty()) {
-        TupleTag<KV<DestinationT, UserT>> keyedTag = new TupleTag<>("keyedRecords");
-        TupleTag<KV<DestinationT, UserT>> smallBundlesTag = new TupleTag<>("smallBundles");
-        TupleTag<KV<DestinationT, UserT>> largeBundlesTag = new TupleTag<>("largeBundles");
         TupleTag<FileResult<DestinationT>> directFilesTag = new TupleTag<>("directFiles");
-
-        PCollectionTuple keyed =
+        TupleTag<UserT> groupedInputTag = new TupleTag<>("groupedInput");
+        PCollectionTuple directWriteResult =
             input.apply(
-                "KeyByDestination",
-                ParDo.of(new KeyByDestinationFn(input.getCoder()))
-                    .withSideInputs(getSideInputs())
-                    .withOutputTags(keyedTag, TupleTagList.of(BAD_RECORD_TAG)));
-        addErrorCollection(keyed);
-        PCollection<KV<DestinationT, UserT>> keyedInput =
-            keyed.get(keyedTag).setCoder(KvCoder.of(destinationCoder, input.getCoder()));
-
-        // Evaluate the threshold per window, pane and destination, i.e. per output
-        // file. Lifting
-        // at most maxNumWritersPerBundle keys means the direct write never runs out of
-        // writers.
-        BundleLifter<KV<DestinationT, UserT>> lifter =
-            BundleLifter.of(
-                    smallBundlesTag,
-                    largeBundlesTag,
+                "WriteFilesDirectly",
+                new WriteFilesDirectly(
+                    destinationCoder,
+                    fileResultCoder,
                     directWriteThreshold,
-                    new ValueCoderSizer<>(input.getCoder()))
-                .withKeyFn(KV::getKey);
-        if (getMaxNumWritersPerBundle() > 0) {
-          lifter = lifter.withMaxLiftedKeys(getMaxNumWritersPerBundle());
-        }
-        PCollectionTuple lifted = keyedInput.apply("LiftLargeBundles", lifter);
-
-        PCollectionTuple written =
-            lifted
-                .get(largeBundlesTag)
-                .apply(
-                    "DirectWriteLargeBundles",
-                    ParDo.of(
-                            new WriteKeyedUnshardedTempFilesFn(
-                                destinationCoder,
-                                input.getCoder(),
-                                Metrics.counter(WriteFiles.class, "directWriteBundles")))
-                        .withSideInputs(getSideInputs())
-                        .withOutputTags(directFilesTag, TupleTagList.of(BAD_RECORD_TAG)));
-        addErrorCollection(written);
-        directFiles = written.get(directFilesTag).setCoder(fileResultCoder);
-        groupedInput =
-            lifted
-                .get(smallBundlesTag)
-                .apply("DropDestinationKey", Values.create())
-                .setCoder(input.getCoder());
+                    directFilesTag,
+                    groupedInputTag));
+        directFiles = directWriteResult.get(directFilesTag);
+        groupedInput = directWriteResult.get(groupedInputTag);
       } else {
         LOG.warn(
             "Direct write is disabled (directWriteByteThreshold={}) because {}. Falling back to the"
@@ -717,8 +660,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
     PCollection<List<FileResult<DestinationT>>> tempFileResults;
     if (directFiles != null) {
-      // Shard numbers are assigned in finalize across both the direct and grouped
-      // files, so any
+      // Shard numbers are assigned in finalize across both the direct and grouped files, so any
       // fixed shard count is not enforced there.
       PCollection<FileResult<DestinationT>> groupedFiles;
       if (fixedSharding) {
@@ -748,14 +690,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 getBatchSizeBytesOrDefault(),
                 getBatchMaxBufferingDurationOrDefault());
       }
-      // The grouped files went through a GroupByKey, so their trigger is the
-      // continuation
+      // The grouped files went through a GroupByKey, so their trigger is the continuation
       // trigger. Match it so FlattenTempFiles accepts both inputs.
       directFiles.setWindowingStrategyInternal(groupedFiles.getWindowingStrategy());
-      // Group all temp files per destination so each window/pane firing is finalized
-      // together.
-      // Every file is stamped with this firing's pane so files from different firings
-      // of the
+      // Group all temp files per destination so each window/pane firing is finalized together.
+      // Every file is stamped with this firing's pane so files from different firings of the
       // same window get distinct names.
       tempFileResults =
           groupTempFilesByDestination(
@@ -860,12 +799,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             .apply("Drop key", Values.create())
             .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<>()))
             .setCoder(ListCoder.of(resultCoder))
-            // Reshuffle one more time to stabilize the contents of the bundle lists to
-            // finalize.
+            // Reshuffle one more time to stabilize the contents of the bundle lists to finalize.
             .apply(Reshuffle.viaRandomKey());
       } else {
-        // Pass results via a side input rather than reshuffle, because we need to get
-        // an empty
+        // Pass results via a side input rather than reshuffle, because we need to get an empty
         // iterable to finalize if there are no results.
         return input
             .getPipeline()
@@ -878,11 +815,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                     // inputs are materialized to disk bundle-by-bundle.
                     input.apply("Consolidate", Reshuffle.viaRandomKey()).apply(View.asIterable()),
                     IterableCoder.of(resultCoder)))
-            // View.asIterable() can be (significantly) cheaper than View.asList(), as it
-            // does not
+            // View.asIterable() can be (significantly) cheaper than View.asList(), as it does not
             // create a backing indexable view, but we must return a list to maintain update
-            // compatibility for consumers that are shared between this path and the
-            // streaming one.
+            // compatibility for consumers that are shared between this path and the streaming one.
             .apply(
                 "IterableToList",
                 MapElements.via(
@@ -910,10 +845,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
           new TupleTag<>("unwrittenRecords");
       Coder<UserT> inputCoder = input.getCoder();
-      // When no spilling is requested (maxNumWritersPerBundle < 0) or when writer
-      // eviction is
-      // enabled (evictWritersWhenFull), all records are written inline in
-      // WriteUnshardedTempFilesFn
+      // When no spilling is requested (maxNumWritersPerBundle < 0) or when writer eviction is
+      // enabled (evictWritersWhenFull), all records are written inline in WriteUnshardedTempFilesFn
       // and no records are spilled to the GroupUnwritten shuffle stage.
       if (getMaxNumWritersPerBundle() < 0 || getEvictWritersWhenFull()) {
         PCollectionTuple writeTuple =
@@ -941,8 +874,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
           writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
-      // Any "spilled" elements are written using WriteShardedBundles. Assign shard
-      // numbers in
+      // Any "spilled" elements are written using WriteShardedBundles. Assign shard numbers in
       // finalize to stay consistent with what WriteWindowedBundles does.
       PCollectionTuple spilledWriteTuple =
           writeTuple
@@ -950,11 +882,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
               // Here we group by a synthetic shard number in the range [0, spill factor),
               // just for the sake of getting some parallelism within each destination when
-              // writing the spilled records, whereas the non-spilled records don't have a
-              // shard
+              // writing the spilled records, whereas the non-spilled records don't have a shard
               // number assigned at all. Drop the shard number on the spilled records so that
-              // shard numbers are assigned together to both the spilled and non-spilled files
-              // in
+              // shard numbers are assigned together to both the spilled and non-spilled files in
               // finalize.
               .apply("GroupUnwritten", GroupByKey.create())
               .apply(
@@ -1023,8 +953,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @StartBundle
     public void startBundle(StartBundleContext unused) {
-      // Reset state in case of reuse. We need to make sure that each bundle gets
-      // unique writers.
+      // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
       synchronized (writers) {
         writers.clear();
         evictedFileResults.clear();
@@ -1253,12 +1182,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  // Hash the destination in a manner that we can then use as a key in a GBK.
-  // Since Java's
-  // hashCode isn't guaranteed to be stable across machines, we instead serialize
-  // the destination
-  // and use murmur3_32 to hash it. We enforce that destinationCoder must be
-  // deterministic, so
+  // Hash the destination in a manner that we can then use as a key in a GBK. Since Java's
+  // hashCode isn't guaranteed to be stable across machines, we instead serialize the destination
+  // and use murmur3_32 to hash it. We enforce that destinationCoder must be deterministic, so
   // this can be used as a key.
   private static <DestinationT> int hashDestination(
       DestinationT destination, Coder<DestinationT> destinationCoder) throws IOException {
@@ -1277,10 +1203,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  // Utility method to get the dynamic destination based on a record. Returns a
-  // MaybeDestination
-  // because some implementations of dynamic destinations return null, despite
-  // this being prohibited
+  // Utility method to get the dynamic destination based on a record. Returns a MaybeDestination
+  // because some implementations of dynamic destinations return null, despite this being prohibited
   // by the interface
   private MaybeDestination<DestinationT> getDestinationWithErrorHandling(
       UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception {
@@ -1294,8 +1218,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  // Utility method to format a record based on the dynamic destination. If the
-  // operation fails, and
+  // Utility method to format a record based on the dynamic destination. If the operation fails, and
   // is output to the bad record router, this returns null
   private @Nullable OutputT formatRecordWithErrorHandling(
       UserT input, MultiOutputReceiver outputReceiver, Coder<UserT> inputCoder) throws Exception {
@@ -1377,6 +1300,78 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
+  private class WriteFilesDirectly extends PTransform<PCollection<UserT>, PCollectionTuple> {
+    private final Coder<DestinationT> destinationCoder;
+    private final Coder<FileResult<DestinationT>> fileResultCoder;
+    private final long thresholdBytes;
+    private final TupleTag<FileResult<DestinationT>> directFilesTag;
+    private final TupleTag<UserT> groupedInputTag;
+
+    WriteFilesDirectly(
+        Coder<DestinationT> destinationCoder,
+        Coder<FileResult<DestinationT>> fileResultCoder,
+        long thresholdBytes,
+        TupleTag<FileResult<DestinationT>> directFilesTag,
+        TupleTag<UserT> groupedInputTag) {
+      this.destinationCoder = destinationCoder;
+      this.fileResultCoder = fileResultCoder;
+      this.thresholdBytes = thresholdBytes;
+      this.directFilesTag = directFilesTag;
+      this.groupedInputTag = groupedInputTag;
+    }
+
+    @Override
+    public PCollectionTuple expand(PCollection<UserT> input) {
+      TupleTag<KV<DestinationT, UserT>> keyedTag = new TupleTag<>("keyedRecords");
+      TupleTag<KV<DestinationT, UserT>> smallBundlesTag = new TupleTag<>("smallBundles");
+      TupleTag<KV<DestinationT, UserT>> largeBundlesTag = new TupleTag<>("largeBundles");
+
+      PCollectionTuple keyed =
+          input.apply(
+              "KeyByDestination",
+              ParDo.of(new KeyByDestinationFn(input.getCoder()))
+                  .withSideInputs(getSideInputs())
+                  .withOutputTags(keyedTag, TupleTagList.of(BAD_RECORD_TAG)));
+      addErrorCollection(keyed);
+      PCollection<KV<DestinationT, UserT>> keyedInput =
+          keyed.get(keyedTag).setCoder(KvCoder.of(destinationCoder, input.getCoder()));
+
+      // Evaluate the threshold per window, pane and destination, i.e. per output file. Lifting at
+      // most maxNumWritersPerBundle keys means the direct write never runs out of writers.
+      BundleLifter<KV<DestinationT, UserT>> lifter =
+          BundleLifter.of(
+                  smallBundlesTag,
+                  largeBundlesTag,
+                  thresholdBytes,
+                  new ValueCoderSizer<>(input.getCoder()))
+              .withKeyFn(KV::getKey);
+      if (getMaxNumWritersPerBundle() > 0) {
+        lifter = lifter.withMaxLiftedKeys(getMaxNumWritersPerBundle());
+      }
+      PCollectionTuple lifted = keyedInput.apply("LiftLargeBundles", lifter);
+
+      PCollectionTuple written =
+          lifted
+              .get(largeBundlesTag)
+              .apply(
+                  "DirectWriteLargeBundles",
+                  ParDo.of(
+                          new WriteKeyedUnshardedTempFilesFn(
+                              destinationCoder,
+                              input.getCoder(),
+                              Metrics.counter(WriteFiles.class, "directWriteBundles")))
+                      .withSideInputs(getSideInputs())
+                      .withOutputTags(directFilesTag, TupleTagList.of(BAD_RECORD_TAG)));
+      addErrorCollection(written);
+
+      PCollection<FileResult<DestinationT>> directFiles =
+          written.get(directFilesTag).setCoder(fileResultCoder);
+      PCollection<UserT> smallRecords =
+          lifted.get(smallBundlesTag).apply("DropDestinationKey", Values.create());
+      return PCollectionTuple.of(directFilesTag, directFiles).and(groupedInputTag, smallRecords);
+    }
+  }
+
   /** Keys each record by its destination, routing invalid records to {@code BAD_RECORD_TAG}. */
   private class KeyByDestinationFn extends DoFn<UserT, KV<DestinationT, UserT>> {
     private final Coder<UserT> inputCoder;
@@ -1434,17 +1429,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       int batchSize,
       int batchSizeBytes,
       Duration maxBufferingDuration) {
-    // Auto-sharding is achieved via GroupIntoBatches.WithShardedKey which shards,
-    // groups and at
-    // the same time batches the input records. The sharding behavior depends on
-    // runners. The
-    // batching is per window and we also emit the batches if there are a certain
-    // number of
+    // Auto-sharding is achieved via GroupIntoBatches.WithShardedKey which shards, groups and at
+    // the same time batches the input records. The sharding behavior depends on runners. The
+    // batching is per window and we also emit the batches if there are a certain number of
     // records buffered or they have been buffered for a certain time, controlled by
     // FILE_TRIGGERING_RECORD_COUNT and BUFFERING_DURATION respectively.
     //
-    // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't
-    // currently
+    // TODO(https://github.com/apache/beam/issues/20928): The implementation doesn't currently
     // work with merging windows.
     TupleTag<KV<Integer, UserT>> shardTag = new TupleTag<>("shardTag");
 
@@ -1548,13 +1539,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               batchSizeBytes,
               maxBufferingDuration);
 
-      // Group temp file results by destinations again to gather all the results in
-      // the same window.
-      // This is needed since we don't have shard idx associated with each temp file
-      // so have to rely
+      // Group temp file results by destinations again to gather all the results in the same window.
+      // This is needed since we don't have shard idx associated with each temp file so have to rely
       // on the indexing within a bundle.
-      // "GroupByKey" matches the default name this step has always had (update
-      // compatibility).
+      // "GroupByKey" matches the default name this step has always had (update compatibility).
       return groupTempFilesByDestination(
           tempFiles, destinationCoder, fileResultCoder, "GroupByKey", /* stampFiringPane= */ false);
     }
@@ -1604,8 +1592,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       List<FileResult<DestinationT>> result = new ArrayList<>();
       for (FileResult<DestinationT> e : c.element().getValue()) {
         if (stampFiringPane) {
-          // Stamp every file with this firing's pane so files from different firings of
-          // the
+          // Stamp every file with this firing's pane so files from different firings of the
           // same window get distinct final names.
           result.add(e.withPane(c.pane()).withShard(UNKNOWN_SHARDNUM));
         } else {
@@ -1658,26 +1645,18 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
       if (shardNumber == UNKNOWN_SHARDNUM) {
         // We want to desynchronize the first record sharding key for each instance of
-        // ApplyShardingKey, so records in a small PCollection will be statistically
-        // balanced.
+        // ApplyShardingKey, so records in a small PCollection will be statistically balanced.
         shardNumber = ThreadLocalRandom.current().nextInt(shardCount);
       } else {
         shardNumber = (shardNumber + 1) % shardCount;
       }
-      // We avoid using destination itself as a sharding key, because destination is
-      // often large.
-      // e.g. when using {@link DefaultFilenamePolicy}, the destination contains the
-      // entire path
-      // to the file. Often most of the path is constant across all destinations, just
-      // the path
-      // suffix is appended by the destination function. Instead we key by a 32-bit
-      // hash (carefully
-      // chosen to be guaranteed stable), and call getDestination again in the next
-      // ParDo to resolve
-      // the destinations. This does mean that multiple destinations might end up on
-      // the same shard,
-      // however the number of collisions should be small, so there's no need to worry
-      // about memory
+      // We avoid using destination itself as a sharding key, because destination is often large.
+      // e.g. when using {@link DefaultFilenamePolicy}, the destination contains the entire path
+      // to the file. Often most of the path is constant across all destinations, just the path
+      // suffix is appended by the destination function. Instead we key by a 32-bit hash (carefully
+      // chosen to be guaranteed stable), and call getDestination again in the next ParDo to resolve
+      // the destinations. This does mean that multiple destinations might end up on the same shard,
+      // however the number of collisions should be small, so there's no need to worry about memory
       // issues.
       return ShardedKey.of(hashDestination(destination, destinationCoder), shardNumber);
     }
@@ -1754,10 +1733,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         ProcessContext c, BoundedWindow window, MultiOutputReceiver outputReceiver)
         throws Exception {
       getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
-      // Since we key by a 32-bit hash of the destination, there might be multiple
-      // destinations
-      // in this iterable. The number of destinations is generally very small (1000s
-      // or less), so
+      // Since we key by a 32-bit hash of the destination, there might be multiple destinations
+      // in this iterable. The number of destinations is generally very small (1000s or less), so
       // there will rarely be hash collisions.
       Map<DestinationT, Writer<DestinationT, OutputT>> writers = Maps.newHashMap();
       for (UserT input : c.element().getValue()) {
@@ -1789,12 +1766,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         writeOrClose(writer, formattedRecord);
       }
 
-      // Ensure that we clean-up any prior writers that were being closed as part of
-      // this bundle
-      // before we return from this processElement call. This allows us to perform the
-      // writes/closes
-      // in parallel with the prior elements close calls and bounds the amount of data
-      // buffered to
+      // Ensure that we clean-up any prior writers that were being closed as part of this bundle
+      // before we return from this processElement call. This allows us to perform the writes/closes
+      // in parallel with the prior elements close calls and bounds the amount of data buffered to
       // limit the number of OOMs.
       CompletionStage<Void> pastCloseFutures = MoreFutures.allOf(closeFutures);
       closeFutures.clear();
@@ -1812,15 +1786,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
         closeWriterInBackground(writer);
       }
-      // Block on completing the past closes before returning. We do so after starting
-      // the current
+      // Block on completing the past closes before returning. We do so after starting the current
       // closes in the background so that they can happen in parallel.
       MoreFutures.get(pastCloseFutures);
     }
 
     private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
-      // Close in parallel so flushing of buffered writes to files for many windows
-      // happens in
+      // Close in parallel so flushing of buffered writes to files for many windows happens in
       // parallel.
       closeFutures.add(
           MoreFutures.runAsync(
@@ -1840,8 +1812,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     public void finishBundle(FinishBundleContext c) throws Exception {
       try {
         MoreFutures.get(MoreFutures.allOf(closeFutures));
-        // If all writers were closed without exception, output the results to the next
-        // stage.
+        // If all writers were closed without exception, output the results to the next stage.
         for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
           c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
         }
@@ -1857,8 +1828,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           PCollection<List<FileResult<DestinationT>>>, WriteFilesResult<DestinationT>> {
     private final @Nullable PCollectionView<Integer> numShardsView;
     private final Coder<DestinationT> destinationCoder;
-    // When true, ignore the fixed shard count and let finalize number the files
-    // 0..K-1.
+    // When true, ignore the fixed shard count and let finalize number the files 0..K-1.
     private final boolean assignShardNumbersInFinalize;
 
     private FinalizeTempFileBundles(
