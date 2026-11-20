@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Observer;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An abstract class used for iterables that notify observers about size in bytes of their elements,
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.annotations.Internal;
 public abstract class ElementByteSizeObservableIterable<
         V, InputT extends ElementByteSizeObservableIterator<V>>
     implements Iterable<V> {
-  private List<Observer> observers = new ArrayList<>();
+  private @Nullable List<Observer> observers;
 
   /** Derived classes override this method to return an iterator for this iterable. */
   protected abstract InputT createIterator();
@@ -43,7 +44,12 @@ public abstract class ElementByteSizeObservableIterable<
    * method. Future calls to iterator() won't be observed, unless an observer is set again.
    */
   public void addObserver(Observer observer) {
-    observers.add(observer);
+    List<Observer> currentObservers = this.observers;
+    if (currentObservers == null) {
+      currentObservers = new ArrayList<>(1);
+      this.observers = currentObservers;
+    }
+    currentObservers.add(observer);
   }
 
   /**
@@ -53,10 +59,13 @@ public abstract class ElementByteSizeObservableIterable<
   @Override
   public InputT iterator() {
     InputT iterator = createIterator();
-    for (Observer observer : observers) {
-      iterator.addObserver(observer);
+    List<Observer> currentObservers = this.observers;
+    if (currentObservers != null && !currentObservers.isEmpty()) {
+      for (int i = 0, n = currentObservers.size(); i < n; i++) {
+        iterator.addObserver(currentObservers.get(i));
+      }
+      currentObservers.clear();
     }
-    observers.clear();
     return iterator;
   }
 }
