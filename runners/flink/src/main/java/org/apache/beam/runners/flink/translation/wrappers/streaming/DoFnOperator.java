@@ -599,7 +599,8 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
               getOperatorStateBackend(),
               getBufferingKeyedStateBackend(),
               numConcurrentCheckpoints,
-              serializedOptions);
+              serializedOptions,
+              keyCoder != null ? () -> keyedStateInternals.getKey() : null);
     }
     return wrappedRunner;
   }
