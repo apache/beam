@@ -28,16 +28,23 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -243,5 +250,192 @@ public class WindowedValueTest {
     WindowedValue<Integer> value = WindowedValues.of(1, now, w, PaneInfo.NO_FIRING);
     assertThat(value, instanceOf(WindowedValues.SingleWindowedValue.class));
     assertThat(((WindowedValues.SingleWindowedValue) value).getWindow(), equalTo(w));
+  }
+
+  @Test
+  public void testFullWindowedValueCoderSingleMultiZeroAndChunkedWindows() throws Exception {
+    Instant ts = new Instant(1_700_000_000_000L);
+    IntervalWindow w1 = new IntervalWindow(ts, ts.plus(Duration.standardMinutes(1)));
+    IntervalWindow w2 =
+        new IntervalWindow(
+            ts.plus(Duration.standardMinutes(1)), ts.plus(Duration.standardMinutes(2)));
+    Coder<WindowedValue<String>> intervalCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+    // Single IntervalWindow round-trip + byte size observer check.
+    WindowedValue<String> single = WindowedValues.of("hello", ts, w1, PaneInfo.NO_FIRING);
+    byte[] singleBytes = CoderUtils.encodeToByteArray(intervalCoder, single);
+    WindowedValue<String> decodedSingle =
+        CoderUtils.decodeFromByteArray(intervalCoder, singleBytes);
+    assertThat(decodedSingle, equalTo(single));
+    assertThat(decodedSingle, instanceOf(WindowedValues.SingleWindowedValue.class));
+    Assert.assertEquals(
+        CoderUtils.encodeToByteArray(intervalCoder, single, Coder.Context.NESTED).length,
+        measureByteSize(intervalCoder, single));
+
+    // Multiple windows round-trip + byte size observer check.
+    WindowedValue<String> multi =
+        WindowedValues.of("world", ts, Arrays.asList(w1, w2), PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    byte[] multiBytes = CoderUtils.encodeToByteArray(intervalCoder, multi);
+    WindowedValue<String> decodedMulti = CoderUtils.decodeFromByteArray(intervalCoder, multiBytes);
+    assertThat(decodedMulti, equalTo(multi));
+    Assert.assertEquals(
+        CoderUtils.encodeToByteArray(intervalCoder, multi, Coder.Context.NESTED).length,
+        measureByteSize(intervalCoder, multi));
+
+    // Single GlobalWindow round-trip + byte size observer check.
+    Coder<WindowedValue<String>> globalCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    WindowedValue<String> globalVal = WindowedValues.valueInGlobalWindow("g");
+    byte[] globalBytes = CoderUtils.encodeToByteArray(globalCoder, globalVal);
+    WindowedValue<String> decodedGlobal = CoderUtils.decodeFromByteArray(globalCoder, globalBytes);
+    assertThat(decodedGlobal, equalTo(globalVal));
+    Assert.assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, decodedGlobal.getTimestamp());
+    Assert.assertEquals(
+        CoderUtils.encodeToByteArray(globalCoder, globalVal, Coder.Context.NESTED).length,
+        measureByteSize(globalCoder, globalVal));
+
+    // Zero windows stream (compatibility with legacy no-window encoding).
+    ByteArrayOutputStream zeroWinOut = new ByteArrayOutputStream();
+    InstantCoder.of().encode(ts, zeroWinOut);
+    zeroWinOut.write(new byte[] {0, 0, 0, 0}); // numWindows == 0
+    PaneInfoCoder.INSTANCE.encode(PaneInfo.NO_FIRING, zeroWinOut);
+    StringUtf8Coder.of().encode("empty", zeroWinOut);
+    WindowedValue<String> decodedZero =
+        intervalCoder.decode(new ByteArrayInputStream(zeroWinOut.toByteArray()));
+    assertThat(decodedZero.getValue(), equalTo("empty"));
+    assertThat(decodedZero.getWindows(), equalTo(Collections.emptyList()));
+
+    // Unknown-size chunked windows stream (-1 prefix, VarInt count=2, terminator=0).
+    ByteArrayOutputStream chunkedOut = new ByteArrayOutputStream();
+    InstantCoder.of().encode(ts, chunkedOut);
+    chunkedOut.write(new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
+    VarInt.encode(2L, chunkedOut);
+    IntervalWindow.getCoder().encode(w1, chunkedOut);
+    IntervalWindow.getCoder().encode(w2, chunkedOut);
+    VarInt.encode(0L, chunkedOut);
+    PaneInfoCoder.INSTANCE.encode(PaneInfo.NO_FIRING, chunkedOut);
+    StringUtf8Coder.of().encode("chunked", chunkedOut);
+    WindowedValue<String> decodedChunked =
+        intervalCoder.decode(new ByteArrayInputStream(chunkedOut.toByteArray()));
+    assertThat(decodedChunked.getValue(), equalTo("chunked"));
+    assertThat(decodedChunked.getWindows(), containsInAnyOrder(w1, w2));
+
+    // Non-zero negative terminator in unknown-size stream throws IllegalStateException.
+    ByteArrayOutputStream badTermOut = new ByteArrayOutputStream();
+    InstantCoder.of().encode(ts, badTermOut);
+    badTermOut.write(new byte[] {(byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF});
+    VarInt.encode(-2L, badTermOut);
+    Assert.assertThrows(
+        IllegalStateException.class,
+        () -> intervalCoder.decode(new ByteArrayInputStream(badTermOut.toByteArray())));
+
+    // Truncated IntervalWindowCoder stream throws CoderException.
+    byte[] encodedInterval = CoderUtils.encodeToByteArray(IntervalWindow.getCoder(), w1);
+    byte[] truncated = Arrays.copyOf(encodedInterval, 8); // timestamp only, missing duration
+    Assert.assertThrows(
+        CoderException.class,
+        () -> CoderUtils.decodeFromByteArray(IntervalWindow.getCoder(), truncated));
+  }
+
+  @Test
+  public void testOfWithCurrentContextOmitsRootAndPreservesActiveContext() {
+    WindowedValue<String> template = WindowedValues.valueInGlobalWindow("in");
+    try (Scope rootScope = Context.root().makeCurrent()) {
+      WindowedValue<String> derived = WindowedValues.ofWithCurrentContext(template, "out");
+      Assert.assertNull(derived.getOpenTelemetryContext());
+      WindowedValue<String> built =
+          WindowedValues.<String>builder()
+              .setValue("b")
+              .setTimestamp(BoundedWindow.TIMESTAMP_MIN_VALUE)
+              .setWindow(GlobalWindow.INSTANCE)
+              .setPaneInfo(PaneInfo.NO_FIRING)
+              .build();
+      Assert.assertNull(built.getOpenTelemetryContext());
+    }
+
+    Context activeContext =
+        Context.root()
+            .with(
+                Span.wrap(
+                    SpanContext.create(
+                        "ff000000000000000000000000000041",
+                        "ff00000000000041",
+                        TraceFlags.getSampled(),
+                        TraceState.getDefault())));
+    try (Scope activeScope = activeContext.makeCurrent()) {
+      WindowedValue<String> derived = WindowedValues.ofWithCurrentContext(template, "out");
+      Assert.assertSame(activeContext, derived.getOpenTelemetryContext());
+    }
+  }
+
+  @Test
+  public void testSingleWindowOrNullAndOfWithCurrentContextFastPaths() {
+    Instant ts = new Instant(1_700_000_000_000L);
+    IntervalWindow w1 = new IntervalWindow(ts, ts.plus(Duration.standardMinutes(1)));
+    IntervalWindow w2 =
+        new IntervalWindow(
+            ts.plus(Duration.standardMinutes(1)), ts.plus(Duration.standardMinutes(2)));
+    PaneInfo early = PaneInfo.createPane(true, false, Timing.EARLY, 3, 1);
+
+    // ValueInGlobalWindow
+    WindowedValue<String> gMin = WindowedValues.valueInGlobalWindow("g0");
+    Assert.assertEquals(GlobalWindow.INSTANCE, WindowedValues.singleWindowOrNull(gMin));
+    WindowedValue<String> gMinDerived = WindowedValues.ofWithCurrentContext(gMin, "g1", ts);
+    Assert.assertEquals(ts, gMinDerived.getTimestamp());
+    Assert.assertEquals(GlobalWindow.INSTANCE, WindowedValues.singleWindowOrNull(gMinDerived));
+    WindowedValue<String> gMinBackToMin =
+        WindowedValues.ofWithCurrentContext(gMinDerived, "g2", BoundedWindow.TIMESTAMP_MIN_VALUE);
+    Assert.assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, gMinBackToMin.getTimestamp());
+
+    // TimestampedValueInSingleWindow with full metadata
+    WindowedValue<String> single =
+        WindowedValues.of(
+            "s0", ts, w1, early, "rid", 42L, CausedByDrain.CAUSED_BY_DRAIN, null, ValueKind.DELETE);
+    Assert.assertEquals(w1, WindowedValues.singleWindowOrNull(single));
+    WindowedValue<String> singleCopy = WindowedValues.ofWithCurrentContext(single, "s1");
+    Assert.assertEquals("s1", singleCopy.getValue());
+    Assert.assertEquals(ts, singleCopy.getTimestamp());
+    Assert.assertEquals(w1, WindowedValues.singleWindowOrNull(singleCopy));
+    Assert.assertEquals(early, singleCopy.getPaneInfo());
+    Assert.assertEquals("rid", singleCopy.getRecordId());
+    Assert.assertEquals(Long.valueOf(42L), singleCopy.getRecordOffset());
+    Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, singleCopy.causedByDrain());
+    Assert.assertEquals(ValueKind.DELETE, singleCopy.getValueKind());
+
+    // TimestampedValueInMultipleWindows
+    WindowedValue<String> multi = WindowedValues.of("m0", ts, Arrays.asList(w1, w2), early);
+    Assert.assertNull(WindowedValues.singleWindowOrNull(multi));
+    WindowedValue<String> multiDerived = WindowedValues.ofWithCurrentContext(multi, "m1");
+    Assert.assertEquals("m1", multiDerived.getValue());
+    assertThat(multiDerived.getWindows(), containsInAnyOrder(w1, w2));
+
+    // 6-arg ofWithCurrentContext with ValueKind override
+    WindowedValue<String> kindOverride =
+        WindowedValues.ofWithCurrentContext(
+            single,
+            "k",
+            ts.plus(Duration.millis(10)),
+            Collections.singletonList(w2),
+            early,
+            ValueKind.UPDATE_AFTER);
+    Assert.assertEquals(ValueKind.UPDATE_AFTER, kindOverride.getValueKind());
+    Assert.assertEquals(w2, WindowedValues.singleWindowOrNull(kindOverride));
+    Assert.assertEquals("rid", kindOverride.getRecordId());
+    Assert.assertEquals(Long.valueOf(42L), kindOverride.getRecordOffset());
+  }
+
+  private static <T> long measureByteSize(Coder<T> coder, T value) throws Exception {
+    final long[] total = new long[1];
+    ElementByteSizeObserver observer =
+        new ElementByteSizeObserver() {
+          @Override
+          protected void reportElementSize(long elementByteSize) {
+            total[0] += elementByteSize;
+          }
+        };
+    coder.registerByteSizeObserver(value, observer);
+    observer.advance();
+    return total[0];
   }
 }
