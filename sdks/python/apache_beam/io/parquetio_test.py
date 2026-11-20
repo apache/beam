@@ -421,6 +421,19 @@ class TestParquet(unittest.TestCase):
             | Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
+  def test_schema_write_without_schema_bundle_based_direct_runner(self):
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'tmp_filename')
+      rows = [beam.Row(a=1, b='x'), beam.Row(a=2, b='y')]
+      with TestPipeline(runner='BundleBasedDirectRunner') as p:
+        _ = p | Create(rows) | WriteToParquet(path)
+      files = glob.glob(path + '*')
+      assert len(files) == 1
+      self.assertEqual(
+          pq.read_table(files[0]).to_pydict(), {
+              'a': [1, 2], 'b': ['x', 'y']
+          })
+
   def test_write_with_nullable_fields_missing_data(self):
     """Test WriteToParquet with nullable fields where some fields are missing.
     
