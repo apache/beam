@@ -95,6 +95,41 @@ class TestEnrichmentTransform(unittest.TestCase):
           | Enrichment(handler, on_miss='null', prefix='sku_'))
       assert_that(res, equal_to(expected))
 
+
+  def test_on_miss_null_schemaless_miss_first_is_stable(self):
+    class _SchemaLessHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+      def __call__(self, request: beam.Row, *args, **kwargs):
+        if request.id == 2:
+          return request, beam.Row(lookup_score=0.9)
+        return request, beam.Row()
+
+    handler = _SchemaLessHandler()
+    # Miss before any hit: without a static schema the unmatched row keeps
+    # only its input fields, and that must not change after a later hit.
+    inputs_miss_first = [beam.Row(id=1), beam.Row(id=2)]
+    expected_miss_first = [
+        beam.Row(id=1),
+        beam.Row(id=2, lookup_score=0.9),
+    ]
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | 'CreateMissFirst' >> beam.Create(inputs_miss_first)
+          | 'EnrichMissFirst' >> Enrichment(handler, on_miss='null'))
+      assert_that(res, equal_to(expected_miss_first), label='MissFirst')
+
+    inputs_hit_first = [beam.Row(id=2), beam.Row(id=1)]
+    expected_hit_first = [
+        beam.Row(id=2, lookup_score=0.9),
+        beam.Row(id=1),
+    ]
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | 'CreateHitFirst' >> beam.Create(inputs_hit_first)
+          | 'EnrichHitFirst' >> Enrichment(handler, on_miss='null'))
+      assert_that(res, equal_to(expected_hit_first), label='HitFirst')
+
   def test_on_miss_drop_inner_join(self):
     handler = _StaticDictHandler({1: {'value': 'durham', 'cost': 9.5}})
     inputs = [beam.Row(id=1), beam.Row(id=2)]

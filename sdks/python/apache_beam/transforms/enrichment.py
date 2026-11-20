@@ -165,7 +165,11 @@ class _EnrichmentJoinFn(beam.DoFn):
             return
           raise
 
-      # on_miss == 'null' (left join)
+      # on_miss == 'null' (left join).
+      # When the handler has no static schema, _null_fields stays empty and
+      # unmatched rows keep only their input fields. That fallback is
+      # intentional so miss rows are consistent across workers and do not
+      # depend on whether a prior hit taught the DoFn extra column names.
       if self._use_custom_types:
         yield self._join_fn(request, response)
         return
@@ -182,8 +186,6 @@ class _EnrichmentJoinFn(beam.DoFn):
       else:
         left_dict = self._to_dict(request)
         right_dict = self._to_dict(response)
-        if not self._null_fields and right_dict:
-          self._null_fields = list(right_dict.keys())
         if self._prefix:
           right_dict = {f"{self._prefix}{k}": v for k, v in right_dict.items()}
         yield self._join_fn(left_dict, right_dict)
