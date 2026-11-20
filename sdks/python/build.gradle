@@ -47,7 +47,7 @@ def sdist = tasks.register("sdist") {
     // Build artifact
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -U build && python -m build --sdist --outdir=${buildDir}"
+      args '-c', ". ${envdir}/bin/activate && pip install -U uv && uv build --sdist --out-dir=${buildDir}"
     }
 
     def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}
