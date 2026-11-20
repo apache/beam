@@ -66,6 +66,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -681,6 +682,61 @@ public class SolaceIOReadTest {
 
     // checkpointMark2 should have caught up and acked both T1 and T2 (4 + 3 = 7 messages)
     assertEquals(7, countAckMessages.get());
+  }
+
+  @Test
+  public void testRestoredCheckpointAfterCloseAndResume() throws Exception {
+    AtomicInteger countAckMessages = new AtomicInteger(0);
+
+    SerializableFunction<Integer, BytesXMLMessage> recordFn =
+        index -> {
+          List<BytesXMLMessage> messages = new ArrayList<>();
+          for (int i = 0; i < 6; i++) {
+            messages.add(
+                SolaceDataUtils.getBytesXmlMessage(
+                    "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
+          }
+          return getOrNull(index, messages);
+        };
+
+    SessionServiceFactory fakeSessionServiceFactory =
+        MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(6).build();
+
+    Read<Record> spec =
+        getDefaultRead()
+            .withSessionServiceFactory(fakeSessionServiceFactory)
+            .withMaxNumConnections(4);
+
+    UnboundedSolaceSource<Record> source = getSource(spec, pipeline);
+    UnboundedReader<Record> reader = source.createReader(PipelineOptionsFactory.create(), null);
+
+    assertTrue(reader.start());
+    assertTrue(reader.advance());
+    // Take T1 (2 messages) and leave it unfinalized.
+    reader.getCheckpointMark();
+
+    assertTrue(reader.advance());
+    assertTrue(reader.advance());
+    // Take T2 (2 messages), close the reader before T2 is finalized, then finalize a restored copy.
+    SolaceCheckpointMark t2 = (SolaceCheckpointMark) reader.getCheckpointMark();
+    reader.close();
+    assertEquals(0, countAckMessages.get());
+
+    SolaceCheckpointMark restoredT2 = CoderUtils.clone(source.getCheckpointMarkCoder(), t2);
+    restoredT2.finalizeCheckpoint();
+    assertEquals(4, countAckMessages.get());
+
+    // Now test resuming from a restored checkpoint via createReader on a live reader.
+    UnboundedReader<Record> reader2 = source.createReader(PipelineOptionsFactory.create(), null);
+    assertTrue(reader2.start());
+    assertTrue(reader2.advance());
+    SolaceCheckpointMark t3 = (SolaceCheckpointMark) reader2.getCheckpointMark();
+    SolaceCheckpointMark restoredT3 = CoderUtils.clone(source.getCheckpointMarkCoder(), t3);
+    UnboundedReader<Record> reader3 =
+        source.createReader(PipelineOptionsFactory.create(), restoredT3);
+    assertEquals(6, countAckMessages.get());
+    reader2.close();
+    reader3.close();
   }
 
   @Test

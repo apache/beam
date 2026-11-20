@@ -112,6 +112,11 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   @Override
   public UnboundedReader<T> createReader(
       PipelineOptions options, @Nullable SolaceCheckpointMark checkpointMark) {
+    if (checkpointMark != null) {
+      // A runner resumes from a checkpoint only once it is committed, so its messages can be
+      // acknowledged if the reader that took it lives in this JVM.
+      checkpointMark.finalizeCheckpoint();
+    }
     // it makes no sense to resume a Solace Session with the previous checkpoint
     // so don't need the pass a checkpoint to new a Solace Reader
     UnboundedSolaceReader<T> reader = new UnboundedSolaceReader<>(this);
