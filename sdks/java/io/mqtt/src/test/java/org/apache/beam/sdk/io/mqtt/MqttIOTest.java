@@ -57,10 +57,12 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -647,6 +649,58 @@ public class MqttIOTest {
     // the number of messages of the decoded checkpoint should be zero
     assertEquals(0, cp2.messages.size());
     assertEquals(cp1.clientId, cp2.clientId);
+  }
+
+  @Test
+  public void testRestoredCheckpointAcknowledgesLiveMessagesAndEarlierCheckpoints()
+      throws Exception {
+    MqttIO.UnboundedMqttSource<byte[]> source =
+        new MqttIO.UnboundedMqttSource<>(
+            MqttIO.read()
+                .withConnectionConfiguration(
+                    MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "TOPIC"))
+                .builder()
+                .setCoder(ByteArrayCoder.of())
+                .build());
+
+    MqttIO.MqttCheckpointMark.Preparer preparer = new MqttIO.MqttCheckpointMark.Preparer("id");
+    FakeMessage m1 = new FakeMessage();
+    FakeMessage m2 = new FakeMessage();
+    FakeMessage m3 = new FakeMessage();
+
+    preparer.add(m1, Instant.ofEpochMilli(10));
+    MqttIO.MqttCheckpointMark cp1 = preparer.newCheckpoint();
+    preparer.add(m2, Instant.ofEpochMilli(20));
+    MqttIO.MqttCheckpointMark cp2 = preparer.newCheckpoint();
+    // Empty checkpoint taken right after cp2; finalizing it later catches up cp1 & cp2 without
+    // touching cp3 which is taken afterwards.
+    MqttIO.MqttCheckpointMark emptyCp = preparer.newCheckpoint();
+    preparer.add(m3, Instant.ofEpochMilli(30));
+    MqttIO.MqttCheckpointMark cp3 = preparer.newCheckpoint();
+
+    // Restore cp2 via the source's CheckpointMarkCoder and finalize it without finalizing cp1.
+    MqttIO.MqttCheckpointMark restoredCp2 = CoderUtils.clone(source.getCheckpointMarkCoder(), cp2);
+    restoredCp2.finalizeCheckpoint();
+
+    assertEquals(1, m1.getAckCount());
+    assertEquals(1, m2.getAckCount());
+    assertEquals(0, m3.getAckCount());
+
+    // Finalizing the empty checkpoint taken before cp3 does not re-ack earlier ones or touch cp3.
+    emptyCp.finalizeCheckpoint();
+    assertEquals(1, m1.getAckCount());
+    assertEquals(1, m2.getAckCount());
+    assertEquals(0, m3.getAckCount());
+
+    // Resuming from a restored cp3 in the same JVM acknowledges cp3 as well.
+    MqttIO.MqttCheckpointMark restoredCp3 = CoderUtils.clone(source.getCheckpointMarkCoder(), cp3);
+    source.createReader(PipelineOptionsFactory.create(), restoredCp3);
+    assertEquals(1, m3.getAckCount());
+    // Subsequent finalize of cp1 or cp3 is a no-op.
+    cp1.finalizeCheckpoint();
+    cp3.finalizeCheckpoint();
+    assertEquals(1, m1.getAckCount());
+    assertEquals(1, m3.getAckCount());
   }
 
   /**

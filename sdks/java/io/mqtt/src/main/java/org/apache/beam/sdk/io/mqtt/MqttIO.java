@@ -38,12 +38,17 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -58,6 +63,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -435,35 +442,116 @@ public class MqttIO {
 
   /**
    * Checkpoint for an unbounded MQTT source. Consists of the MQTT messages waiting to be
-   * acknowledged and oldest pending message timestamp.
+   * acknowledged.
+   *
+   * <p>The checkpoints of a reader are acknowledged in order: finalizing a checkpoint also
+   * acknowledges the earlier checkpoints of the same reader that were not finalized yet. A runner
+   * commits a checkpoint only once all earlier checkpoints of the same reader are committed (see
+   * {@link UnboundedSource.UnboundedReader#getCheckpointMark()}), so this never acknowledges
+   * messages that are not committed. It covers restored checkpoint copies, checkpoints whose
+   * finalize callback is lost, and checkpoints that are taken without being committed.
    */
   @VisibleForTesting
   static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
+    // Pinned to the value computed before readerId and sequence were added, so checkpoints written
+    // by older versions can still be decoded.
+    private static final long serialVersionUID = -1267729034458576399L;
+
+    // The reader that took this checkpoint and its position among that reader's checkpoints, so
+    // a restored copy can locate the live reader in this JVM. Null for checkpoints from older
+    // versions or standalone test constructors.
+    private final @Nullable String readerId;
+    private final long sequence;
     @VisibleForTesting String clientId;
     @VisibleForTesting transient List<Mqtt3Publish> messages = new ArrayList<>();
+    private transient @Nullable PendingCheckpoints pendingCheckpoints;
+    private transient @Nullable AtomicInteger activeCheckpoints;
+    private transient @Nullable Runnable onCheckpointFinalized;
 
     public MqttCheckpointMark(String id, List<Mqtt3Publish> messages) {
-      this.clientId = id;
-      this.messages = messages;
+      this(null, 0, id, messages, null, null);
     }
 
     @VisibleForTesting
     MqttCheckpointMark(String id) {
+      this(null, 0, id, new ArrayList<>(), null, null);
+    }
+
+    private MqttCheckpointMark(
+        @Nullable PendingCheckpoints pendingCheckpoints,
+        long sequence,
+        String id,
+        List<Mqtt3Publish> messages,
+        @Nullable AtomicInteger activeCheckpoints,
+        @Nullable Runnable onCheckpointFinalized) {
+      this.pendingCheckpoints = pendingCheckpoints;
+      this.readerId = pendingCheckpoints == null ? null : pendingCheckpoints.readerId;
+      this.sequence = sequence;
       this.clientId = id;
+      this.messages = messages;
+      this.activeCheckpoints = activeCheckpoints;
+      this.onCheckpointFinalized = onCheckpointFinalized;
     }
 
     @Override
     public void finalizeCheckpoint() {
-      LOG.debug("Finalizing checkpoint acknowledging pending messages for client ID {}", clientId);
-      for (Mqtt3Publish message : messages) {
-        try {
-          message.acknowledge();
-        } catch (Exception e) {
-          LOG.warn("Can't ack message for client ID {}", clientId, e);
+      PendingCheckpoints pending = pendingCheckpoints;
+      if (pending == null && readerId != null) {
+        pending = PendingCheckpoints.LIVE.getIfPresent(readerId);
+      }
+      if (pending != null) {
+        List<MqttCheckpointMark> checkpoints = pending.removeUpTo(sequence);
+        for (MqttCheckpointMark checkpoint : checkpoints) {
+          checkpoint.acknowledge();
+        }
+        return;
+      }
+      if (readerId != null) {
+        LOG.debug(
+            "Finalized checkpoint {}#{} for client ID {}: its reader is not in this JVM, nothing"
+                + " to acknowledge",
+            shortId(readerId),
+            sequence,
+            clientId);
+        return;
+      }
+      acknowledge();
+    }
+
+    private synchronized void acknowledge() {
+      if (!messages.isEmpty()) {
+        LOG.debug(
+            "Finalizing checkpoint acknowledging {} pending message(s) for client ID {}",
+            messages.size(),
+            clientId);
+        for (Mqtt3Publish message : messages) {
+          try {
+            message.acknowledge();
+          } catch (Exception e) {
+            LOG.warn("Can't ack message for client ID {}", clientId, e);
+          }
+        }
+        messages.clear();
+      }
+      release(true);
+    }
+
+    private synchronized int abandon() {
+      int count = messages.size();
+      messages.clear();
+      release(false);
+      return count;
+    }
+
+    private void release(boolean notifyIfDrained) {
+      if (activeCheckpoints != null) {
+        int remaining = activeCheckpoints.decrementAndGet();
+        activeCheckpoints = null;
+        if (notifyIfDrained && remaining == 0 && onCheckpointFinalized != null) {
+          onCheckpointFinalized.run();
         }
       }
-      messages.clear();
     }
 
     // set an empty list to messages when deserialize
@@ -489,14 +577,67 @@ public class MqttIO {
       return Objects.hash(clientId, messages);
     }
 
+    private static String shortId(String id) {
+      return id.substring(0, Math.min(8, id.length()));
+    }
+
+    private static final class PendingCheckpoints {
+      private static final Cache<String, PendingCheckpoints> LIVE =
+          CacheBuilder.newBuilder().weakValues().build();
+
+      private final String readerId = UUID.randomUUID().toString();
+      private final List<MqttCheckpointMark> checkpoints = new ArrayList<>();
+      private long nextSequence;
+
+      static PendingCheckpoints create() {
+        PendingCheckpoints pending = new PendingCheckpoints();
+        LIVE.put(pending.readerId, pending);
+        return pending;
+      }
+
+      synchronized long nextSequence() {
+        return nextSequence++;
+      }
+
+      synchronized void add(MqttCheckpointMark checkpoint) {
+        checkpoints.add(checkpoint);
+      }
+
+      synchronized List<MqttCheckpointMark> removeUpTo(long sequence) {
+        List<MqttCheckpointMark> removed = new ArrayList<>();
+        checkpoints.removeIf(
+            checkpoint -> {
+              if (checkpoint.sequence <= sequence) {
+                removed.add(checkpoint);
+                return true;
+              }
+              return false;
+            });
+        return removed;
+      }
+
+      synchronized List<MqttCheckpointMark> removeAll() {
+        LIVE.invalidate(readerId);
+        List<MqttCheckpointMark> removed = new ArrayList<>(checkpoints);
+        checkpoints.clear();
+        return removed;
+      }
+
+      synchronized int size() {
+        return checkpoints.size();
+      }
+    }
+
     static class Preparer {
-      @VisibleForTesting String clientId;
-      @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
+      @VisibleForTesting volatile String clientId = "";
+      @VisibleForTesting volatile Instant oldestMessageTimestamp = Instant.now();
       @VisibleForTesting transient List<Mqtt3Publish> messages = new ArrayList<>();
+      private final PendingCheckpoints pendingCheckpoints = PendingCheckpoints.create();
+      private transient boolean discarded = false;
 
       public Preparer(MqttCheckpointMark checkpointMark) {
         clientId = checkpointMark.clientId;
-        messages = checkpointMark.messages;
+        messages = new ArrayList<>(checkpointMark.messages);
       }
 
       public Preparer(String id) {
@@ -505,18 +646,66 @@ public class MqttIO {
 
       public Preparer() {}
 
-      public void add(Mqtt3Publish message, Instant timestamp) {
+      public synchronized void add(Mqtt3Publish message, Instant timestamp) {
+        if (discarded) {
+          throw new IllegalStateException("Attempting to add message to discarded checkpoint");
+        }
         if (timestamp.isBefore(oldestMessageTimestamp)) {
           oldestMessageTimestamp = timestamp;
         }
         messages.add(message);
       }
 
-      MqttCheckpointMark newCheckpoint() {
+      synchronized void discard() {
+        messages.clear();
+        discarded = true;
+      }
+
+      synchronized MqttCheckpointMark newCheckpoint() {
+        return newCheckpoint(null, null);
+      }
+
+      synchronized MqttCheckpointMark newCheckpoint(
+          @Nullable AtomicInteger activeCheckpoints, @Nullable Runnable onCheckpointFinalized) {
+        if (discarded || messages.isEmpty()) {
+          messages.clear();
+          oldestMessageTimestamp = Instant.now();
+          return new MqttCheckpointMark(
+              pendingCheckpoints,
+              pendingCheckpoints.nextSequence(),
+              clientId,
+              new ArrayList<>(),
+              null,
+              null);
+        }
         List<Mqtt3Publish> currentMessages = messages;
         messages = new ArrayList<>();
         oldestMessageTimestamp = Instant.now();
-        return new MqttCheckpointMark(clientId, currentMessages);
+        MqttCheckpointMark checkpointMark =
+            new MqttCheckpointMark(
+                pendingCheckpoints,
+                pendingCheckpoints.nextSequence(),
+                clientId,
+                currentMessages,
+                activeCheckpoints,
+                onCheckpointFinalized);
+        pendingCheckpoints.add(checkpointMark);
+        if (activeCheckpoints != null) {
+          activeCheckpoints.incrementAndGet();
+        }
+        return checkpointMark;
+      }
+
+      int abandonPendingCheckpoints() {
+        int abandoned = 0;
+        for (MqttCheckpointMark checkpoint : pendingCheckpoints.removeAll()) {
+          abandoned += checkpoint.abandon();
+        }
+        return abandoned;
+      }
+
+      int pendingCheckpointCount() {
+        return pendingCheckpoints.size();
       }
     }
   }
@@ -534,20 +723,26 @@ public class MqttIO {
     @SuppressWarnings("unchecked")
     public UnboundedReader<T> createReader(
         PipelineOptions options, @Nullable MqttCheckpointMark checkpointMark) {
+      if (checkpointMark != null) {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // acknowledged if the reader that took it lives in this JVM.
+        checkpointMark.finalizeCheckpoint();
+      }
       final UnboundedMqttReader<T> unboundedMqttReader;
       MqttCheckpointMark.Preparer preparer =
           checkpointMark == null
               ? new MqttCheckpointMark.Preparer()
-              : new MqttCheckpointMark.Preparer(checkpointMark);
+              : new MqttCheckpointMark.Preparer(checkpointMark.clientId);
       if (spec.withMetadata()) {
         unboundedMqttReader =
             new UnboundedMqttReader<>(
                 this,
                 preparer,
                 message ->
-                    (T) MqttRecord.of(message.getTopic().toString(), message.getPayloadAsBytes()));
+                    (T) MqttRecord.of(message.getTopic().toString(), message.getPayloadAsBytes()),
+                options);
       } else {
-        unboundedMqttReader = new UnboundedMqttReader<>(this, preparer);
+        unboundedMqttReader = new UnboundedMqttReader<>(this, preparer, options);
       }
 
       return unboundedMqttReader;
@@ -581,19 +776,33 @@ public class MqttIO {
   @VisibleForTesting
   static class UnboundedMqttReader<T> extends UnboundedSource.UnboundedReader<T> {
 
-    private final UnboundedMqttSource<T> source;
+    private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.standardSeconds(60);
 
-    private Mqtt3BlockingClient client;
-    private Mqtt3BlockingClient.Mqtt3Publishes publishes;
+    private final UnboundedMqttSource<T> source;
+    private final PipelineOptions options;
+
+    private @Nullable Mqtt3BlockingClient client;
+    private Mqtt3BlockingClient.@Nullable Mqtt3Publishes publishes;
     private String clientId = "";
-    private T current;
-    private Instant currentTimestamp;
+    private @Nullable T current;
+    private @Nullable Instant currentTimestamp;
     private final MqttCheckpointMark.Preparer checkpointPreparer;
     private SerializableFunction<Mqtt3Publish, T> extractFn;
+    private final AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final Object closeLock = new Object();
 
     public UnboundedMqttReader(
         UnboundedMqttSource<T> source, MqttCheckpointMark.Preparer checkpointPreparer) {
+      this(source, checkpointPreparer, PipelineOptionsFactory.create());
+    }
+
+    public UnboundedMqttReader(
+        UnboundedMqttSource<T> source,
+        MqttCheckpointMark.Preparer checkpointPreparer,
+        PipelineOptions options) {
       this.source = source;
+      this.options = options;
       this.current = null;
       if (checkpointPreparer != null) {
         this.checkpointPreparer = checkpointPreparer;
@@ -607,7 +816,15 @@ public class MqttIO {
         UnboundedMqttSource<T> source,
         MqttCheckpointMark.Preparer checkpointPreparer,
         SerializableFunction<Mqtt3Publish, T> extractFn) {
-      this(source, checkpointPreparer);
+      this(source, checkpointPreparer, extractFn, PipelineOptionsFactory.create());
+    }
+
+    public UnboundedMqttReader(
+        UnboundedMqttSource<T> source,
+        MqttCheckpointMark.Preparer checkpointPreparer,
+        SerializableFunction<Mqtt3Publish, T> extractFn,
+        PipelineOptions options) {
+      this(source, checkpointPreparer, options);
       this.extractFn = extractFn;
     }
 
@@ -656,24 +873,68 @@ public class MqttIO {
     }
 
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void close() throws IOException {
-      LOG.debug("Closing MQTT reader (client ID {})", clientId);
-      if (publishes != null) {
+      closed.set(true);
+      checkpointPreparer.discard();
+      if (activeCheckpoints.get() == 0) {
+        abandonPendingCheckpointsAndCloseClient();
+      } else {
+        ScheduledExecutorService executorService =
+            options.as(ExecutorOptions.class).getScheduledExecutorService();
+        executorService.schedule(
+            () -> {
+              try {
+                abandonPendingCheckpointsAndCloseClient();
+              } catch (IOException e) {
+                LOG.warn("Error closing MQTT reader (client ID {}) after timeout", clientId, e);
+              }
+            },
+            DEFAULT_CLOSE_TIMEOUT.getMillis(),
+            TimeUnit.MILLISECONDS);
+      }
+    }
+
+    private void maybeCloseClient() {
+      if (closed.get() && activeCheckpoints.get() == 0) {
         try {
-          publishes.close();
-        } catch (Exception e) {
-          LOG.warn("Error closing publishes stream", e);
-        } finally {
-          publishes = null;
+          abandonPendingCheckpointsAndCloseClient();
+        } catch (IOException e) {
+          LOG.warn("Error closing MQTT reader (client ID {})", clientId, e);
         }
       }
-      if (client != null) {
-        try {
-          client.disconnect();
-        } catch (Exception e) {
-          throw new IOException(e);
-        } finally {
-          client = null;
+    }
+
+    private void abandonPendingCheckpointsAndCloseClient() throws IOException {
+      synchronized (closeLock) {
+        int pending = checkpointPreparer.pendingCheckpointCount();
+        int abandoned = checkpointPreparer.abandonPendingCheckpoints();
+        if (pending > 0) {
+          LOG.info(
+              "MQTT reader (client ID {}) closes with {} checkpoint(s) not finalized within {}. The"
+                  + " broker will redeliver their {} message(s).",
+              clientId,
+              pending,
+              DEFAULT_CLOSE_TIMEOUT,
+              abandoned);
+        }
+        if (publishes != null) {
+          try {
+            publishes.close();
+          } catch (Exception e) {
+            LOG.warn("Error closing publishes stream", e);
+          } finally {
+            publishes = null;
+          }
+        }
+        if (client != null) {
+          try {
+            client.disconnect();
+          } catch (Exception e) {
+            throw new IOException(e);
+          } finally {
+            client = null;
+          }
         }
       }
     }
@@ -685,7 +946,7 @@ public class MqttIO {
 
     @Override
     public UnboundedSource.CheckpointMark getCheckpointMark() {
-      return checkpointPreparer.newCheckpoint();
+      return checkpointPreparer.newCheckpoint(activeCheckpoints, this::maybeCloseClient);
     }
 
     @Override
