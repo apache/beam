@@ -205,7 +205,9 @@ public class Counter<InputT, AccumT> {
    * add any new values to the counter (just returns the current values).
    */
   protected void setDirty() {
-    commitState.set(CommitState.DIRTY);
+    if (commitState.get() != CommitState.DIRTY) {
+      commitState.set(CommitState.DIRTY);
+    }
   }
 
   /**
