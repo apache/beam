@@ -51,7 +51,34 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FieldAccessDescriptorParser {
+  /**
+   * Returns true if {@code expr} matches the {@code IDENTIFIER} grammar rule ({@code
+   * [a-zA-Z0-9_$]+}) with no dot-separators, qualifiers, wildcards, or whitespace.
+   */
+  public static boolean isSimpleIdentifier(@Nullable String expr) {
+    if (expr == null || expr.isEmpty()) {
+      return false;
+    }
+    for (int i = 0; i < expr.length(); i++) {
+      char c = expr.charAt(i);
+      if (!((c >= 'a' && c <= 'z')
+          || (c >= 'A' && c <= 'Z')
+          || (c >= '0' && c <= '9')
+          || c == '_'
+          || c == '$')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public static FieldAccessDescriptor parse(String expr) {
+    if (isSimpleIdentifier(expr)) {
+      return FieldAccessDescriptor.withFields(FieldDescriptor.builder().setFieldName(expr).build());
+    }
+    if ("*".equals(expr)) {
+      return FieldAccessDescriptor.withAllFields();
+    }
     CharStream charStream = CharStreams.fromString(expr);
     FieldSpecifierNotationLexer lexer = new FieldSpecifierNotationLexer(charStream);
     TokenStream tokens = new CommonTokenStream(lexer);

@@ -148,6 +148,60 @@ public class CachesTest {
     assertEquals("untrackedValue", parent.peek("untracked"));
   }
 
+  @Test
+  public void testClearableCacheClearsNestedSubCaches() {
+    Cache<String, String> parent = Caches.eternal();
+    ClearableCache<String, String> clearable = new ClearableCache<>(parent);
+    Cache<String, String> child = Caches.subCache(clearable, "child");
+    Cache<String, String> grandChild = Caches.subCache(child, "grandChild");
+
+    parent.put("parentKey", "parentVal");
+    clearable.put("rootKey", "rootVal");
+    child.put("childKey", "childVal");
+    grandChild.computeIfAbsent("gcKey", (unused) -> "gcVal");
+
+    assertEquals("childVal", child.peek("childKey"));
+    assertEquals("gcVal", grandChild.peek("gcKey"));
+
+    clearable.clear();
+
+    assertNull(clearable.peek("rootKey"));
+    assertNull(child.peek("childKey"));
+    assertNull(grandChild.peek("gcKey"));
+    assertEquals("parentVal", parent.peek("parentKey"));
+  }
+
+  @Test
+  public void testCompositeKeyHashCodeIncludesKey() {
+    Caches.CompositeKeyPrefix prefix = Caches.CompositeKeyPrefix.ROOT.subKey("ns");
+    Caches.CompositeKey keyA = prefix.valueKey("alpha");
+    Caches.CompositeKey keyB = prefix.valueKey("beta");
+    org.junit.Assert.assertNotEquals(keyA.hashCode(), keyB.hashCode());
+    assertEquals(keyA, prefix.valueKey("alpha"));
+    assertEquals(keyA.hashCode(), prefix.valueKey("alpha").hashCode());
+  }
+
+  @Test
+  public void testWeighFastPaths() {
+    assertEquals(Caches.REFERENCE_SIZE, Caches.weigh(null));
+    assertEquals(16L + 5L, Caches.weigh(new byte[5]));
+    assertEquals(40L + 2L * 4L, Caches.weigh("beam"));
+    assertEquals(
+        40L + 3L,
+        Caches.weigh(
+            org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString.copyFromUtf8(
+                "abc")));
+    assertEquals(24L, Caches.weigh(123L));
+    assertEquals(24L, Caches.weigh(1.5d));
+    assertEquals(16L, Caches.weigh(42));
+    assertEquals(16L, Caches.weigh(1.5f));
+    assertEquals(16L, Caches.weigh(Boolean.TRUE));
+    assertEquals(16L, Caches.weigh((byte) 1));
+    assertEquals(16L, Caches.weigh((short) 2));
+    assertEquals(16L, Caches.weigh('x'));
+    assertEquals(Caches.REFERENCE_SIZE, Caches.weigh(java.util.concurrent.TimeUnit.SECONDS));
+  }
+
   private void testCache(Cache<String, String> cache) {
     assertNull(cache.peek("key1"));
 

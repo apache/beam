@@ -104,7 +104,6 @@ public abstract class GroupingShuffleEntryIterator {
     if (isFinished) {
       return false;
     }
-    Reiterator<ShuffleEntry> atCurrentEntry;
     ShuffleEntry entry;
     // Skip entries with the same key - we're an iterator over keys, and advancement through
     // values of the same key happens through ValuesIterable instead.
@@ -112,11 +111,6 @@ public abstract class GroupingShuffleEntryIterator {
       if (!shuffleIterator.hasNext()) {
         return markFinishedAndCommitBytesCounter();
       }
-      // Save an iterator to the current entry, in case it's in a different key
-      // than the previous entry.
-      // If it's in the same key, we just skip it; if it's a new key, we'll need to
-      // start ValuesIterable below from this entry.
-      atCurrentEntry = shuffleIterator.copy();
       entry = shuffleIterator.next();
       if (!entry.getKey().equals(currentKeyBytes)) {
         break;
@@ -128,7 +122,11 @@ public abstract class GroupingShuffleEntryIterator {
       totalByteSizeOfEntriesForCurrentKey += entry.length();
     }
 
-    // Now "atCurrentEntry" points to "entry", and "entry" is the first entry in the next key.
+    // "entry" is the first entry in the next key; prepend it onto a copy of the iterator
+    // positioned immediately after "entry" so ValuesIterable starts at "entry" without
+    // copying on every skipped entry or re-reading "entry" from the underlying iterator.
+    Reiterator<ShuffleEntry> atCurrentEntry =
+        new PrependedReiterator(entry, shuffleIterator.copy());
     ShufflePosition groupStart = entry.getPosition();
     boolean isAtSplitPoint = (groupStart == null) || !groupStart.equals(lastGroupStart);
     if (!rangeTracker.tryReturnRecordAt(isAtSplitPoint, groupStart)) {
@@ -186,6 +184,49 @@ public abstract class GroupingShuffleEntryIterator {
     return rangeTracker;
   }
 
+  /**
+   * Single-entry lookahead {@link Reiterator} used at key boundaries so {@link ValuesIterator} can
+   * fast-forward the parent iterator without calling {@link Reiterator#copy()} on every value.
+   */
+  private static final class PrependedReiterator implements Reiterator<ShuffleEntry> {
+    private @Nullable ShuffleEntry first;
+    private final Reiterator<ShuffleEntry> rest;
+
+    PrependedReiterator(ShuffleEntry first, Reiterator<ShuffleEntry> rest) {
+      this.first = first;
+      this.rest = rest;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return first != null || rest.hasNext();
+    }
+
+    @Override
+    public ShuffleEntry next() {
+      ShuffleEntry entry = first;
+      if (entry != null) {
+        first = null;
+        return entry;
+      }
+      return rest.next();
+    }
+
+    @Override
+    public Reiterator<ShuffleEntry> copy() {
+      ShuffleEntry entry = first;
+      if (entry != null) {
+        return new PrependedReiterator(entry, rest.copy());
+      }
+      return rest.copy();
+    }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+  }
+
   private static class ValuesIterable
       extends ElementByteSizeObservableIterable<ShuffleEntry, ValuesIterator>
       implements Reiterable<ShuffleEntry> {
@@ -214,12 +255,16 @@ public abstract class GroupingShuffleEntryIterator {
    */
   private static class ValuesIterator extends ElementByteSizeObservableIterator<ShuffleEntry>
       implements Reiterator<ShuffleEntry> {
+    private static final byte HAS_NEXT_UNKNOWN = 0;
+    private static final byte HAS_NEXT_TRUE = 1;
+    private static final byte HAS_NEXT_FALSE = -1;
+
     private final GroupingShuffleEntryIterator parent;
     private final Reiterator<ShuffleEntry> valuesIterator;
     private final ProgressTracker<ShuffleEntry> tracker;
     private final ByteString expectedKeyBytes;
 
-    private Boolean cachedHasNext;
+    private byte cachedHasNext = HAS_NEXT_UNKNOWN;
     private long byteSizeRead = 0L;
     private ShuffleEntry current;
 
@@ -260,18 +305,17 @@ public abstract class GroupingShuffleEntryIterator {
 
     @Override
     public boolean hasNext() {
-      if (cachedHasNext != null) {
-        return cachedHasNext;
+      if (cachedHasNext != HAS_NEXT_UNKNOWN) {
+        return cachedHasNext == HAS_NEXT_TRUE;
       }
-      cachedHasNext = advance();
-      return cachedHasNext;
+      boolean hasMore = advance();
+      cachedHasNext = hasMore ? HAS_NEXT_TRUE : HAS_NEXT_FALSE;
+      return hasMore;
     }
 
     @SuppressWarnings("ReferenceEquality")
     private boolean advance() {
-      // Save a copy of the iterator pointing at the next entry, to use below in case we're right
-      // before a key boundary (or end of stream).
-      Reiterator<ShuffleEntry> possibleStartOfNextKey = valuesIterator.copy();
+      ShuffleEntry nextKeyEntry = null;
       if (valuesIterator.hasNext()) {
         ShuffleEntry entry = valuesIterator.next();
         if (entry.getKey().equals(expectedKeyBytes)) {
@@ -280,6 +324,7 @@ public abstract class GroupingShuffleEntryIterator {
           current = entry;
           return true;
         }
+        nextKeyEntry = entry;
       }
 
       // Fast-forwarding:
@@ -305,7 +350,10 @@ public abstract class GroupingShuffleEntryIterator {
       //    be idempotent)
       if (expectedKeyBytes == parent.currentKeyBytes) {
         // Fast-forward the parent's shuffle iterator.
-        parent.shuffleIterator = possibleStartOfNextKey;
+        parent.shuffleIterator =
+            nextKeyEntry != null
+                ? new PrependedReiterator(nextKeyEntry, valuesIterator.copy())
+                : valuesIterator.copy();
         // The parent is also tracking the total byte size read. Since we have been tracking this
         // amount in byteSizeRead, we can just set it to the right value.
         parent.totalByteSizeOfEntriesForCurrentKey = byteSizeRead;
@@ -322,7 +370,7 @@ public abstract class GroupingShuffleEntryIterator {
       }
       checkState(current != null, "current entry should be non-null");
       ShuffleEntry toReturn = current;
-      cachedHasNext = null;
+      cachedHasNext = HAS_NEXT_UNKNOWN;
       current = null;
       return toReturn;
     }

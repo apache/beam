@@ -141,9 +141,8 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   protected void onProcessWindowedValue(WindowedValue<InputT> elem) {
     boolean hasState = helpers.hasState();
 
-    Collection<W> windowsProcessed;
     if (sideInputProcessor != null) {
-      windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
+      Collection<W> windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
       for (Iterator<? extends WindowedValue<InputT>> it =
               sideInputProcessor.handleProcessElement(elem);
           it.hasNext(); ) {
@@ -156,13 +155,18 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
           // when the window is unblocked ensuring that it is not processed until the element is.
         }
       }
+      if (hasState) {
+        helpers.registerStateCleanup(
+            (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
+            windowsProcessed);
+      }
     } else {
       helpers.fnRunner.processElement(elem);
-      windowsProcessed = (Collection<W>) elem.getWindows();
-    }
-    if (hasState) {
-      helpers.registerStateCleanup(
-          (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(), windowsProcessed);
+      if (hasState) {
+        helpers.registerStateCleanup(
+            (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
+            (Collection<W>) elem.getWindows());
+      }
     }
   }
 

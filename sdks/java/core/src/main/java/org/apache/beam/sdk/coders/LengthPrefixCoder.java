@@ -19,14 +19,16 @@ package org.apache.beam.sdk.coders;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} which is able to take any existing coder and wrap it such that it is only invoked
@@ -36,6 +38,93 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams
  * @param <T> the type of the values being transcoded
  */
 public class LengthPrefixCoder<T> extends StructuredCoder<T> {
+
+  private static final int MAX_POOLED_BUFFER_SIZE = 64 * 1024;
+  private static final int MAX_POOL_DEPTH = 4;
+
+  @SuppressWarnings("type.argument") // object guaranteed to be non-null
+  private static final ThreadLocal<@NonNull BufferPool> BUFFER_POOL =
+      ThreadLocal.withInitial(BufferPool::new);
+
+  private static final class BufferPool {
+    private @Nullable ReusableByteArrayOutputStream head;
+    private int depth;
+
+    ReusableByteArrayOutputStream acquire() {
+      ReusableByteArrayOutputStream buf = head;
+      if (buf != null) {
+        head = buf.next;
+        buf.next = null;
+        depth--;
+        return buf;
+      }
+      return new ReusableByteArrayOutputStream();
+    }
+
+    void release(ReusableByteArrayOutputStream buf) {
+      if (buf.capacity() <= MAX_POOLED_BUFFER_SIZE && depth < MAX_POOL_DEPTH) {
+        buf.resetFast();
+        buf.next = head;
+        head = buf;
+        depth++;
+      }
+    }
+  }
+
+  private static final class ReusableByteArrayOutputStream extends OutputStream {
+    private byte[] buf = new byte[256];
+    private int count;
+    @Nullable ReusableByteArrayOutputStream next;
+
+    private void ensureCapacity(int minCapacity) {
+      if (minCapacity - buf.length > 0) {
+        int newCapacity = buf.length << 1;
+        if (newCapacity - minCapacity < 0) {
+          newCapacity = minCapacity;
+        }
+        if (newCapacity < 0) {
+          if (minCapacity < 0) {
+            throw new OutOfMemoryError();
+          }
+          newCapacity = Integer.MAX_VALUE - 8;
+        }
+        buf = Arrays.copyOf(buf, newCapacity);
+      }
+    }
+
+    @Override
+    public void write(int b) {
+      ensureCapacity(count + 1);
+      buf[count] = (byte) b;
+      count += 1;
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) {
+      if (off < 0 || len < 0 || off > b.length - len) {
+        throw new IndexOutOfBoundsException();
+      }
+      ensureCapacity(count + len);
+      System.arraycopy(b, off, buf, count, len);
+      count += len;
+    }
+
+    int sizeFast() {
+      return count;
+    }
+
+    int capacity() {
+      return buf.length;
+    }
+
+    void writeToStream(OutputStream out) throws IOException {
+      out.write(buf, 0, count);
+    }
+
+    void resetFast() {
+      count = 0;
+    }
+  }
 
   public static <T> LengthPrefixCoder<T> of(Coder<T> valueCoder) {
     checkNotNull(valueCoder, "Coder not expected to be null");
@@ -52,14 +141,26 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    valueCoder.encode(value, bos, Context.OUTER);
-    VarInt.encode(bos.size(), outStream);
-    bos.writeTo(outStream);
+    if (valueCoder instanceof ByteArrayCoder || valueCoder instanceof StringUtf8Coder) {
+      valueCoder.encode(value, outStream, Context.NESTED);
+      return;
+    }
+    BufferPool pool = BUFFER_POOL.get();
+    ReusableByteArrayOutputStream bos = pool.acquire();
+    try {
+      valueCoder.encode(value, bos, Context.OUTER);
+      VarInt.encode(bos.sizeFast(), outStream);
+      bos.writeToStream(outStream);
+    } finally {
+      pool.release(bos);
+    }
   }
 
   @Override
   public T decode(InputStream inStream) throws CoderException, IOException {
+    if (valueCoder instanceof ByteArrayCoder || valueCoder instanceof StringUtf8Coder) {
+      return valueCoder.decode(inStream, Context.NESTED);
+    }
     long size = VarInt.decodeLong(inStream);
     return valueCoder.decode(ByteStreams.limit(inStream, size), Context.OUTER);
   }

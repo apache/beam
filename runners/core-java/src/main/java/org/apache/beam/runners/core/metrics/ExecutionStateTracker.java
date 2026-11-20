@@ -26,6 +26,8 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -49,6 +51,12 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private static final long BUNDLE_LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(10);
   private static final AtomicIntegerFieldUpdater<ExecutionStateTracker> SAMPLING_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(ExecutionStateTracker.class, "sampling");
+  private static final AtomicReferenceFieldUpdater<ExecutionStateTracker, ExecutionState>
+      CURRENT_STATE_UPDATER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              ExecutionStateTracker.class, ExecutionState.class, "currentState");
+  private static final AtomicLongFieldUpdater<ExecutionStateTracker> NUM_TRANSITIONS_UPDATER =
+      AtomicLongFieldUpdater.newUpdater(ExecutionStateTracker.class, "numTransitions");
 
   public static final String START_STATE_NAME = "start";
   public static final String PROCESS_STATE_NAME = "process";
@@ -116,10 +124,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /**
    * The current state of the thread managed by this {@link ExecutionStateTracker}.
    *
-   * <p>This variable is written by the Execution thread, and read by the sampling and progress
-   * reporting threads, thus it being marked volatile.
+   * <p>This variable is written by the Execution thread via release stores ({@link
+   * #CURRENT_STATE_UPDATER}), and read by the sampling and progress reporting threads, thus it
+   * being marked volatile.
    */
   private volatile @Nullable ExecutionState currentState;
+
+  /**
+   * Non-volatile shadow of {@link #currentState}, exclusively accessed by the execution thread (and
+   * reset under {@code synchronized}) to avoid volatile read/fence overhead on transitions.
+   */
+  private @Nullable ExecutionState localCurrentState;
 
   @SuppressWarnings("UnusedVariable")
   private volatile int sampling = 0;
@@ -127,10 +142,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
    *
-   * <p>This variable is written by the Execution thread, and read by the sampling and progress
-   * reporting threads, thus it being marked volatile.
+   * <p>This variable is written by the Execution thread via release stores ({@link
+   * #NUM_TRANSITIONS_UPDATER}), and read by the sampling and progress reporting threads, thus it
+   * being marked volatile.
    */
   private volatile long numTransitions = 0;
+
+  /**
+   * Non-volatile shadow of {@link #numTransitions}, exclusively accessed by the execution thread
+   * (and reset under {@code synchronized}).
+   */
+  private long localNumTransitions = 0;
 
   /**
    * The number of milliseconds since the {@link ExecutionStateTracker} transitioned state.
@@ -162,6 +184,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       CURRENT_TRACKERS.remove(trackedThread.getId());
       trackedThread = null;
     }
+    localCurrentState = null;
+    localNumTransitions = 0;
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
@@ -266,35 +290,58 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   /**
+   * Returns {@code true} if {@link #enterStateDirect(ExecutionState)} and {@link
+   * #exitStateDirect(ExecutionState)} have identical behavior to {@link
+   * #enterState(ExecutionState)} and closing its returned {@link Closeable}.
+   *
+   * <p>Uses an exact class check so subclasses or test spies/mocks that override {@link
+   * #enterState(ExecutionState)} are not bypassed unless they explicitly opt in.
+   */
+  public boolean supportsDirectTransition() {
+    return getClass() == ExecutionStateTracker.class;
+  }
+
+  /**
+   * Allocation-free counterpart to {@link #enterState(ExecutionState)}. Callers must only invoke
+   * this when {@link #supportsDirectTransition()} returns {@code true}, and must pair it with
+   * {@link #exitStateDirect(ExecutionState)} passing the returned previous state.
+   */
+  public final @Nullable ExecutionState enterStateDirect(ExecutionState newState) {
+    // WARNING: This method is called in the hottest path, and must be kept as efficient as
+    // possible. Avoid blocking, synchronizing, etc.
+    final ExecutionState previous = localCurrentState;
+    localCurrentState = newState;
+    CURRENT_STATE_UPDATER.lazySet(this, newState);
+    newState.onActivate(true);
+    NUM_TRANSITIONS_UPDATER.lazySet(this, ++localNumTransitions);
+    return previous;
+  }
+
+  /**
+   * Allocation-free counterpart to closing the {@link Closeable} returned by {@link
+   * #enterState(ExecutionState)}.
+   */
+  public final void exitStateDirect(@Nullable ExecutionState previous) {
+    localCurrentState = previous;
+    CURRENT_STATE_UPDATER.lazySet(this, previous);
+    NUM_TRANSITIONS_UPDATER.lazySet(this, ++localNumTransitions);
+    if (previous != null) {
+      previous.onActivate(false);
+    }
+  }
+
+  /**
    * Indicates that the execution thread has entered the {@code newState}. Returns a {@link
    * Closeable} that should be called when that state is completed.
    *
-   * <p>This must be the only place where incTransitions is called, and always called from the
+   * <p>This must be the only place where transitions are updated, and always called from the
    * execution thread.
    */
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
-    final ExecutionState previous = currentState;
-    currentState = newState;
-    newState.onActivate(true);
-    incTransitions();
-    return () -> {
-      currentState = previous;
-      incTransitions();
-      if (previous != null) {
-        previous.onActivate(false);
-      }
-    };
-  }
-
-  @SuppressWarnings("NonAtomicVolatileUpdate")
-  // Helper method necessary due to https://github.com/spotbugs/spotbugs/issues/724
-  @SuppressFBWarnings(
-      value = "VO_VOLATILE_INCREMENT",
-      justification = "Intentional for performance.")
-  private void incTransitions() {
-    numTransitions++;
+    final ExecutionState previous = enterStateDirect(newState);
+    return () -> exitStateDirect(previous);
   }
 
   /** Return the number of transitions that have been observed by this state tracker. */

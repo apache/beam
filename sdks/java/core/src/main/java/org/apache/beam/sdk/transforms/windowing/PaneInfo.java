@@ -243,6 +243,9 @@ public final class PaneInfo {
   }
 
   public PaneInfo withElementMetadata(boolean elementMetadata) {
+    if (this.containsElementMetadata == elementMetadata) {
+      return this;
+    }
     return new PaneInfo(
         this.isFirst, this.isLast, this.timing, index, nonSpeculativeIndex, elementMetadata);
   }
@@ -373,7 +376,7 @@ public final class PaneInfo {
         throws CoderException, IOException {
       Encoding encoding = chooseEncoding(value);
       byte elementMetadata = value.containsElementMetadata ? ELEMENT_METADATA_MASK : 0x00;
-      switch (chooseEncoding(value)) {
+      switch (encoding) {
         case FIRST:
           outStream.write(value.encodedByte | elementMetadata);
           break;

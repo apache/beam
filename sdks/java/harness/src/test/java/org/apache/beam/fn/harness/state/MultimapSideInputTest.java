@@ -80,6 +80,60 @@ public class MultimapSideInputTest {
   }
 
   @Test
+  public void testGetWithBulkReadCached() throws Exception {
+    FakeBeamFnStateClient fakeBeamFnStateClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                keysValuesStateKey(),
+                KV.of(
+                    KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(StringUtf8Coder.of())),
+                    asList(KV.of(A, asList("A1", "A2", "A3")), KV.of(B, asList("B1", "B2"))))));
+
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // The first side input populates the bulk-read cache.
+      MultimapSideInput<byte[], String> multimapSideInput =
+          new MultimapSideInput<>(
+              cache,
+              fakeBeamFnStateClient,
+              "instructionId",
+              keysStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of(),
+              true);
+      assertArrayEquals(
+          new String[] {"A1", "A2", "A3"},
+          Iterables.toArray(multimapSideInput.get(A), String.class));
+      assertArrayEquals(
+          new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get(B), String.class));
+      assertArrayEquals(
+          new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
+    }
+
+    {
+      // The second side input must serve all bulk-read lookups purely from the cache.
+      MultimapSideInput<byte[], String> multimapSideInput =
+          new MultimapSideInput<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              keysStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of(),
+              true);
+      assertArrayEquals(
+          new String[] {"A1", "A2", "A3"},
+          Iterables.toArray(multimapSideInput.get(A), String.class));
+      assertArrayEquals(
+          new String[] {"B1", "B2"}, Iterables.toArray(multimapSideInput.get(B), String.class));
+      assertArrayEquals(
+          new String[] {}, Iterables.toArray(multimapSideInput.get(UNKNOWN), String.class));
+    }
+  }
+
+  @Test
   public void testGet() throws Exception {
     FakeBeamFnStateClient fakeBeamFnStateClient =
         new FakeBeamFnStateClient(

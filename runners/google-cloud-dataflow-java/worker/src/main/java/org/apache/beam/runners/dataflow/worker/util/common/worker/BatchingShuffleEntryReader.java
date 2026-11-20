@@ -20,8 +20,10 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.ListIterator;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.RandomAccess;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -61,8 +63,10 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
     /** The most recently read batch. */
     ShuffleBatchReader.@Nullable Batch currentBatch;
 
-    /** An iterator over the most recently read batch. */
-    private @Nullable ListIterator<ShuffleEntry> entries;
+    /** Random-access list view of the most recently read batch and index of the next element. */
+    private @Nullable List<ShuffleEntry> currentEntries;
+
+    private int nextIndex;
 
     ShuffleReadIterator(
         @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
@@ -74,13 +78,8 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
       this.endPosition = it.endPosition;
       this.nextStartPosition = it.nextStartPosition;
       this.currentBatch = it.currentBatch;
-      // The idea here: if the iterator being copied was in the middle of a
-      // batch (the typical case), create a new iteration state at the same
-      // point in the same batch.
-      this.entries =
-          (it.entries == null
-              ? null
-              : it.currentBatch.entries.listIterator(it.entries.nextIndex()));
+      this.currentEntries = it.currentEntries;
+      this.nextIndex = it.nextIndex;
     }
 
     @Override
@@ -88,13 +87,16 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
       fillEntriesIfNeeded();
       // TODO: Report API errors to the caller using checked
       // exceptions.
-      return entries.hasNext();
+      return nextIndex < currentEntries.size();
     }
 
     @Override
     public ShuffleEntry next() throws NoSuchElementException {
       fillEntriesIfNeeded();
-      return entries.next();
+      if (nextIndex >= currentEntries.size()) {
+        throw new NoSuchElementException();
+      }
+      return currentEntries.get(nextIndex++);
     }
 
     @Override
@@ -108,27 +110,30 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
     }
 
     private void fillEntriesIfNeeded() {
-      if (entries != null && entries.hasNext()) {
+      if (currentEntries != null && nextIndex < currentEntries.size()) {
         // Has more records in the current page, or error.
         return;
       }
 
-      if (entries != null && nextStartPosition == null) {
+      if (currentEntries != null && nextStartPosition == null) {
         // End of stream.
-        checkState(!entries.hasNext());
+        checkState(nextIndex >= currentEntries.size());
         return;
       }
 
       do {
         fillEntries();
-      } while (!entries.hasNext() && nextStartPosition != null);
+      } while (nextIndex >= currentEntries.size() && nextStartPosition != null);
     }
 
     private void fillEntries() {
       try {
         ShuffleBatchReader.Batch batch = batchReader.read(nextStartPosition, endPosition);
         nextStartPosition = batch.nextStartPosition;
-        entries = batch.entries.listIterator();
+        List<ShuffleEntry> batchEntries = batch.entries;
+        currentEntries =
+            batchEntries instanceof RandomAccess ? batchEntries : new ArrayList<>(batchEntries);
+        nextIndex = 0;
         currentBatch = batch;
       } catch (RuntimeException | OutOfMemoryError e) {
         throw e;
@@ -136,7 +141,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
         throw new RuntimeException(t);
       }
 
-      checkState(entries != null);
+      checkState(currentEntries != null);
     }
   }
 
