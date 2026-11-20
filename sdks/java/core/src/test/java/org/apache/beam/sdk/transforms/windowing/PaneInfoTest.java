@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -138,8 +140,8 @@ public class PaneInfoTest {
     assertSame(withoutMeta, withoutMeta.withElementMetadata(false));
 
     PaneInfo withMeta = withoutMeta.withElementMetadata(true);
-    org.junit.Assert.assertNotSame(withoutMeta, withMeta);
-    org.junit.Assert.assertTrue(withMeta.isElementMetadata());
+    assertNotSame(withoutMeta, withMeta);
+    assertTrue(withMeta.isElementMetadata());
     assertSame(withMeta, withMeta.withElementMetadata(true));
   }
 }

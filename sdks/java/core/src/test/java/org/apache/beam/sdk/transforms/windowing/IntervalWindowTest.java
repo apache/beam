@@ -19,9 +19,12 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThrows;
 
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -113,9 +116,7 @@ public class IntervalWindowTest {
         new IntervalWindow(Instant.parse("2015-04-01T00:00:00Z"), Duration.standardMinutes(1));
     byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, window);
     // Keep only the 8-byte Instant end timestamp, dropping the VarInt duration.
-    byte[] truncated = java.util.Arrays.copyOf(encoded, 8);
-    org.junit.Assert.assertThrows(
-        org.apache.beam.sdk.coders.CoderException.class,
-        () -> CoderUtils.decodeFromByteArray(TEST_CODER, truncated));
+    byte[] truncated = Arrays.copyOf(encoded, 8);
+    assertThrows(CoderException.class, () -> CoderUtils.decodeFromByteArray(TEST_CODER, truncated));
   }
 }

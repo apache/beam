@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -116,17 +117,11 @@ public class InstantCoderTest {
 
   @Test
   public void testDecodeReturnsCanonicalBoundSingletons() throws Exception {
-    byte[] minBytes =
-        CoderUtils.encodeToByteArray(
-            TEST_CODER, org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MIN_VALUE);
-    byte[] maxBytes =
-        CoderUtils.encodeToByteArray(
-            TEST_CODER, org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MAX_VALUE);
+    byte[] minBytes = CoderUtils.encodeToByteArray(TEST_CODER, BoundedWindow.TIMESTAMP_MIN_VALUE);
+    byte[] maxBytes = CoderUtils.encodeToByteArray(TEST_CODER, BoundedWindow.TIMESTAMP_MAX_VALUE);
     Assert.assertSame(
-        org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MIN_VALUE,
-        CoderUtils.decodeFromByteArray(TEST_CODER, minBytes));
+        BoundedWindow.TIMESTAMP_MIN_VALUE, CoderUtils.decodeFromByteArray(TEST_CODER, minBytes));
     Assert.assertSame(
-        org.apache.beam.sdk.transforms.windowing.BoundedWindow.TIMESTAMP_MAX_VALUE,
-        CoderUtils.decodeFromByteArray(TEST_CODER, maxBytes));
+        BoundedWindow.TIMESTAMP_MAX_VALUE, CoderUtils.decodeFromByteArray(TEST_CODER, maxBytes));
   }
 }
