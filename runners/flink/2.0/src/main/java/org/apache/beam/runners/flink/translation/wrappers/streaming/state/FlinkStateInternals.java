@@ -19,12 +19,13 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
@@ -69,7 +70,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMu
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.TreeMultiset;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -620,18 +621,23 @@ public final class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
-      return readAsMap().subMap(minTimestamp, limitTimestamp).values();
+      Range<Instant> range = Range.closedOpen(minTimestamp, limitTimestamp);
+      List<TimestampedValue<T>> values = readValues();
+      values.removeIf(value -> !range.contains(value.getTimestamp()));
+      values.sort(Comparator.comparing(TimestampedValue::getTimestamp));
+      return values;
     }
 
     @Override
     public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
-      SortedMap<Instant, TimestampedValue<T>> sortedMap = readAsMap();
-      sortedMap.subMap(minTimestamp, limitTimestamp).clear();
+      Range<Instant> range = Range.closedOpen(minTimestamp, limitTimestamp);
+      List<TimestampedValue<T>> values = readValues();
+      values.removeIf(value -> range.contains(value.getTimestamp()));
       try {
         ListState<TimestampedValue<T>> partitionedState =
             flinkStateBackend.getPartitionedState(
                 namespace, namespaceSerializer, flinkStateDescriptor);
-        partitionedState.update(Lists.newArrayList(sortedMap.values()));
+        partitionedState.update(values);
       } catch (Exception e) {
         throw new RuntimeException("Error adding to bag state.", e);
       }
@@ -680,25 +686,21 @@ public final class FlinkStateInternals<K> implements StateInternals {
     @Override
     @Nullable
     public Iterable<TimestampedValue<T>> read() {
-      return readAsMap().values();
+      List<TimestampedValue<T>> values = readValues();
+      values.sort(Comparator.comparing(TimestampedValue::getTimestamp));
+      return values;
     }
 
-    private SortedMap<Instant, TimestampedValue<T>> readAsMap() {
-      Iterable<TimestampedValue<T>> listValues;
+    private List<TimestampedValue<T>> readValues() {
       try {
         ListState<TimestampedValue<T>> partitionedState =
             flinkStateBackend.getPartitionedState(
                 namespace, namespaceSerializer, flinkStateDescriptor);
-        listValues = MoreObjects.firstNonNull(partitionedState.get(), Collections.emptyList());
+        return Lists.newArrayList(
+            MoreObjects.firstNonNull(partitionedState.get(), Collections.emptyList()));
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
-
-      SortedMap<Instant, TimestampedValue<T>> sortedMap = Maps.newTreeMap();
-      for (TimestampedValue<T> value : listValues) {
-        sortedMap.put(value.getTimestamp(), value);
-      }
-      return sortedMap;
     }
 
     @Override
