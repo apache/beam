@@ -194,6 +194,7 @@
 * (Java/Python/Go) DebeziumIO: `readAsJson()` can now include `op` and the remaining Debezium `source` fields (e.g. MySQL `file`, `pos`, `row`, `ts_ms`; PostgreSQL `lsn`, `txId`, `ts_ms`) in `metadata` via `withFullMetadata(true)` / `full_metadata=True` / `debeziumio.FullMetadata()`. Off by default ([#40701](https://github.com/apache/beam/issues/40701)).
 * [IcebergIO] AddFiles is now available through the Managed API with `Managed.write(Managed.ICEBERG_ADD_FILES)` (Java/Python) ([#40827](https://github.com/apache/beam/issues/40827)).
 * (Java) IcebergIO: `AddFiles` can register files in several tables in one transform, naming each file's table from its path. Set `path_pattern` (`withPathPattern` in Java) to a glob with `{name}` placeholders, such as `gs://lake/export/{table}/**`, and make `table` a template over what it captures, such as `default.{table}`. The schema pre-pass then runs per table, so a table whose files conflict is refused and its files reported while every other table is still registered. Requires `schema_evolution_options` and `error_handling`; not supported with `dry_run`. Error rows gain a `table` field only when `path_pattern` is set, so an existing pipeline's error output is unchanged ([#40849](https://github.com/apache/beam/issues/40849)).
+* [IcebergIO] is now compliant with encrypted tables ([#39808](https://github.com/apache/beam/issues/39808)).
 
 ## Improvements
 
