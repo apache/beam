@@ -130,7 +130,7 @@ public abstract class PipelineTranslator {
     TranslatingVisitor translator = new TranslatingVisitor(session, options, dependencies.results);
     pipeline.traverseTopologically(translator);
 
-    return createEvaluationContext(translator.leaves, session, options);
+    return createEvaluationContext(translator.leaves, translator.cachedDatasets, session, options);
   }
 
   /**
@@ -141,9 +141,10 @@ public abstract class PipelineTranslator {
    */
   protected EvaluationContext createEvaluationContext(
       Collection<? extends EvaluationContext.NamedDataset<?>> leaves,
+      Collection<Dataset<?>> cachedDatasets,
       SparkSession session,
       SparkCommonPipelineOptions options) {
-    return new EvaluationContext(leaves, session);
+    return new EvaluationContext(leaves, cachedDatasets, session);
   }
 
   /**
@@ -241,6 +242,17 @@ public abstract class PipelineTranslator {
     <T> Broadcast<SideInputValues<T>> getSideInputBroadcast(
         PCollection<T> pCollection, SideInputValues.Loader<T> loader);
 
+    /**
+     * Persists {@code dataset} at the given {@link StorageLevel} and registers it to be unpersisted
+     * once the pipeline has been fully evaluated.
+     *
+     * <p>Translators that cache a dataset outside of {@link #putDataset} (for example to reuse it
+     * across multiple derived outputs within the same translation step) must use this method rather
+     * than calling {@link Dataset#persist(StorageLevel)} directly, so the cached data doesn't
+     * outlive the pipeline run it was created for.
+     */
+    <T> Dataset<T> cacheDataset(Dataset<T> dataset, StorageLevel level);
+
     Supplier<PipelineOptions> getOptionsSupplier();
 
     PipelineOptions getOptions();
@@ -268,6 +280,7 @@ public abstract class PipelineTranslator {
 
     // Ordered, the streaming context derives each leaf's checkpoint location from its position.
     private final Set<TranslationResult<?, ?>> leaves;
+    private final Set<Dataset<?>> cachedDatasets;
 
     public TranslatingVisitor(
         SparkSession sparkSession,
@@ -280,6 +293,7 @@ public abstract class PipelineTranslator {
       this.storageLevel = StorageLevel.fromString(options.getStorageLevel());
       this.encoders = new HashMap<>();
       this.leaves = new LinkedHashSet<>();
+      this.cachedDatasets = new HashSet<>();
     }
 
     @Override
@@ -385,6 +399,13 @@ public abstract class PipelineTranslator {
         result.sideInputBroadcast = broadcast(sparkSession, sideInputValues);
       }
       return result.sideInputBroadcast;
+    }
+
+    @Override
+    public <T> Dataset<T> cacheDataset(Dataset<T> dataset, StorageLevel level) {
+      dataset.persist(level);
+      cachedDatasets.add(dataset);
+      return dataset;
     }
 
     @Override
