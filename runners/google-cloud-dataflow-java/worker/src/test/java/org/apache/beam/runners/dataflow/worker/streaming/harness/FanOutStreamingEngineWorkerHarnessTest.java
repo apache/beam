@@ -256,7 +256,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             any(),
             eq(noOpProcessWorkItemFn()));
 
-    verify(streamFactory, times(2)).createDirectGetDataStream(any());
+    verify(streamFactory, times(3)).createDirectGetDataStream(any());
     verify(streamFactory, times(2)).createDirectCommitWorkStream(any());
   }
 
