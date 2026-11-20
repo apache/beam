@@ -19,7 +19,12 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 import java.io.Closeable;
 import java.util.concurrent.TimeUnit;
@@ -43,9 +48,15 @@ public class ExecutionStateTrackerTest {
   private static class TestExecutionState extends ExecutionState {
 
     private long totalMillis = 0;
+    private int activateCount = 0;
 
     public TestExecutionState(String stateName) {
       super(stateName);
+    }
+
+    @Override
+    public void onActivate(boolean pushing) {
+      activateCount++;
     }
 
     @Override
@@ -76,6 +87,41 @@ public class ExecutionStateTrackerTest {
     assertThat(tracker.getMillisSinceLastTransition(), equalTo(0L));
     assertThat(tracker.getTransitionsAtLastSample(), equalTo(0L));
     assertThat(tracker.getNextLullReportMs(), equalTo(TimeUnit.MINUTES.toMillis(5)));
+  }
+
+  @Test
+  public void testDirectTransitionAndSubclassGuard() {
+    ExecutionStateTracker tracker = createTracker();
+    assertTrue(tracker.supportsDirectTransition());
+
+    ExecutionStateTracker subclass = new ExecutionStateTracker(sampler) {};
+    assertFalse(subclass.supportsDirectTransition());
+    assertFalse(spy(tracker).supportsDirectTransition());
+    assertFalse(mock(ExecutionStateTracker.class).supportsDirectTransition());
+
+    TestExecutionState stateA = new TestExecutionState("A");
+    TestExecutionState stateB = new TestExecutionState("B");
+
+    ExecutionState prevA = tracker.enterStateDirect(stateA);
+    assertThat(prevA, nullValue());
+    assertThat(tracker.getCurrentState(), sameInstance(stateA));
+    assertThat(tracker.getNumTransitions(), equalTo(1L));
+    assertThat(stateA.activateCount, equalTo(1));
+
+    ExecutionState prevB = tracker.enterStateDirect(stateB);
+    assertThat(prevB, sameInstance(stateA));
+    assertThat(tracker.getCurrentState(), sameInstance(stateB));
+    assertThat(tracker.getNumTransitions(), equalTo(2L));
+    assertThat(stateB.activateCount, equalTo(1));
+
+    tracker.exitStateDirect(prevB);
+    assertThat(tracker.getCurrentState(), sameInstance(stateA));
+    assertThat(tracker.getNumTransitions(), equalTo(3L));
+    assertThat(stateA.activateCount, equalTo(2));
+
+    tracker.exitStateDirect(prevA);
+    assertThat(tracker.getCurrentState(), nullValue());
+    assertThat(tracker.getNumTransitions(), equalTo(4L));
   }
 
   private ExecutionStateTracker createTracker() {
