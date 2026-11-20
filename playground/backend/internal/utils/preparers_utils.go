@@ -122,7 +122,7 @@ func wrap(wrappedFunction WrappedFunction) func(to *os.File, line, spaces, pipel
 		}
 		foundPattern := wrappedFunction(line, spaces, pipelineName, regs)
 		if _, err := io.WriteString(to, *line); err != nil {
-			logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", line, err.Error())
+			logger.Errorf("Preparation: Error during write \"%s\" to tmp file, err: %s\n", *line, err.Error())
 			return 0, err
 		}
 		return foundPattern, nil

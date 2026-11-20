@@ -43,7 +43,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.core.ElementByteSizeObservable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaceForTest;
@@ -73,12 +72,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -102,7 +95,6 @@ import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -186,7 +178,6 @@ public class StreamingModeExecutionContextTest {
         /* systemName= */ "systemName",
         StreamingCounters.create(),
         StreamingEngineFailureTracker.create(10, 10),
-        "sourceBytesProcessCounterName",
         MultiKeyBundleOptions.fromOptions(options),
         SideInputStateFetcherFactory.fromOptions(options));
   }
@@ -1040,235 +1031,64 @@ public class StreamingModeExecutionContextTest {
   }
 
   @Test
-  public void testComputeSourceBytesProcessed_customSource() throws Exception {
-    CounterSet counterSet = new CounterSet();
-    NameContext nameContext = NameContext.create("stage", "original", "system", "out");
-    DataflowOperationContext opContext = executionContext.createOperationContext(nameContext);
+  public void testSourceBytesProcessedTrackedPerKeyAndReset() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
 
-    OutputReceiver readReceiver = new OutputReceiver();
-    OutputObjectAndByteCounter customSourceCounter =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), counterSet, nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    customSourceCounter.getByteCount().addValue(100L);
-    readReceiver.addOutputCounter("sourceBytesProcessCounterName", customSourceCounter);
-
-    ReadOperation readOp = ReadOperation.forTest(mock(NativeReader.class), readReceiver, opContext);
-
-    workExecutor =
-        IntrinsicMapTaskExecutor.forOperations(
-            Arrays.asList(readOp), mock(ExecutionStateTracker.class));
-
-    Work work =
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Work work1 =
         createMockWork(
             Windmill.WorkItem.newBuilder()
                 .setKey(ByteString.copyFromUtf8("key1"))
+                .setShardingKey(1L)
                 .setWorkToken(1L)
+                .setKeyGroup(keyGroup)
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
-
-    start(work);
-
-    long processed = executionContext.computeSourceBytesProcessed("sourceBytesProcessCounterName");
-    assertEquals(100L, processed);
-    // Verified getAndReset resets to 0.
-    assertEquals(0L, executionContext.computeSourceBytesProcessed("sourceBytesProcessCounterName"));
-  }
-
-  @Test
-  public void testComputeSourceBytesProcessed_splittableDoFn() throws Exception {
-    CounterSet counterSet = new CounterSet();
-    NameContext nameContext = NameContext.create("stage", "original", "system", "out");
-    DataflowOperationContext opContext = executionContext.createOperationContext(nameContext);
-
-    OutputReceiver readReceiver = new OutputReceiver();
-    ReadOperation readOp = ReadOperation.forTest(mock(NativeReader.class), readReceiver, opContext);
-
-    ParDoFn mockParDoFn = mock(ParDoFn.class);
-    OutputReceiver parDoReceiver = new OutputReceiver();
-    OutputObjectAndByteCounter sdfCounter =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), counterSet, nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    sdfCounter.getByteCount().addValue(42L);
-    parDoReceiver.addOutputCounter("sourceBytesProcessCounterName", sdfCounter);
-
-    ParDoOperation parDoOp =
-        new ParDoOperation(
-            mockParDoFn,
-            new OutputReceiver[] {parDoReceiver},
-            opContext,
-            ImmutableMap.of(parDoReceiver, mock(Coder.class)));
-
-    workExecutor =
-        IntrinsicMapTaskExecutor.forOperations(
-            Arrays.asList(readOp, parDoOp), mock(ExecutionStateTracker.class));
-
-    Work work =
+    Work work2 =
         createMockWork(
             Windmill.WorkItem.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key1"))
-                .setWorkToken(1L)
+                .setKey(ByteString.copyFromUtf8("key2"))
+                .setShardingKey(2L)
+                .setWorkToken(2L)
+                .setKeyGroup(keyGroup)
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    start(work);
+    ExecutableWork executableWork2 = ExecutableWork.create(work2, (w, h) -> {});
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any()))
+        .thenReturn(executableWork2)
+        .thenReturn(null);
+    when(mockHandle.getWorkBatch()).thenReturn(ImmutableList.of(work1, work2));
 
-    long processed = executionContext.computeSourceBytesProcessed("sourceBytesProcessCounterName");
-    assertEquals(42L, processed);
-    // Verified getAndReset resets to 0.
-    assertEquals(0L, executionContext.computeSourceBytesProcessed("sourceBytesProcessCounterName"));
-  }
+    executionContext.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        FAILING_FAILED_WORK_HANDLER);
 
-  @Test
-  public void testComputeSourceBytesProcessed_multipleOutputReceivers() throws Exception {
-    NameContext nameContext = NameContext.create("stage", "original", "system", "out");
-    DataflowOperationContext opContext = executionContext.createOperationContext(nameContext);
-
-    // Custom source ReadOperation with a null receiver[0] and an active receiver[1].
-    OutputReceiver readSideReceiver = new OutputReceiver();
-    OutputObjectAndByteCounter readSideCounter =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), new CounterSet(), nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    readSideCounter.getByteCount().addValue(15L);
-    readSideReceiver.addOutputCounter("sourceBytesProcessCounterName", readSideCounter);
-    ReadOperation readOp =
-        ReadOperation.create(
-            mock(NativeReader.class), new OutputReceiver[] {null, readSideReceiver}, opContext);
-
-    // Multi-output SDF ParDoOperation with two receivers sharing a CounterSet (like production)
-    // plus an additional receiver with its own CounterSet.
-    ParDoFn mockParDoFn = mock(ParDoFn.class);
-    CounterSet sharedCounterSet = new CounterSet();
-
-    OutputReceiver sdfMainReceiver = new OutputReceiver();
-    OutputObjectAndByteCounter sdfMainCounter =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), sharedCounterSet, nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    sdfMainCounter.getByteCount().addValue(25L);
-    sdfMainReceiver.addOutputCounter("sourceBytesProcessCounterName", sdfMainCounter);
-
-    OutputReceiver sdfSideReceiver1 = new OutputReceiver();
-    OutputObjectAndByteCounter sdfSideCounter1 =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), sharedCounterSet, nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    sdfSideCounter1.getByteCount().addValue(30L);
-    sdfSideReceiver1.addOutputCounter("sourceBytesProcessCounterName", sdfSideCounter1);
-
-    OutputReceiver sdfSideReceiver2 = new OutputReceiver();
-    OutputObjectAndByteCounter sdfSideCounter2 =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), new CounterSet(), nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    sdfSideCounter2.getByteCount().addValue(35L);
-    sdfSideReceiver2.addOutputCounter("sourceBytesProcessCounterName", sdfSideCounter2);
-
-    ParDoOperation sdfParDoOp =
-        new ParDoOperation(
-            mockParDoFn,
-            new OutputReceiver[] {sdfMainReceiver, null, sdfSideReceiver1, sdfSideReceiver2},
-            opContext,
-            ImmutableMap.of(
-                sdfMainReceiver,
-                mock(Coder.class),
-                sdfSideReceiver1,
-                mock(Coder.class),
-                sdfSideReceiver2,
-                mock(Coder.class)));
-
-    workExecutor =
-        IntrinsicMapTaskExecutor.forOperations(
-            Arrays.asList(readOp, sdfParDoOp), mock(ExecutionStateTracker.class));
-
-    Work work =
-        createMockWork(
-            Windmill.WorkItem.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key1"))
-                .setWorkToken(1L)
-                .build(),
-            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
-
-    start(work);
-
-    long processed = executionContext.computeSourceBytesProcessed("sourceBytesProcessCounterName");
-    assertEquals(15L + 25L + 30L + 35L, processed);
-    assertEquals(0L, executionContext.computeSourceBytesProcessed("sourceBytesProcessCounterName"));
-  }
-
-  @Test
-  public void testComputeSourceBytesProcessed_multipleParDoOperationsAndFlushState()
-      throws Exception {
-    NameContext nameContext = NameContext.create("stage", "original", "system", "out");
-    DataflowOperationContext opContext = executionContext.createOperationContext(nameContext);
-
-    OutputReceiver readReceiver = new OutputReceiver();
-    ReadOperation readOp = ReadOperation.forTest(mock(NativeReader.class), readReceiver, opContext);
-
-    ParDoFn mockParDoFn = mock(ParDoFn.class);
-
-    OutputReceiver sdfReceiver1 = new OutputReceiver();
-    OutputObjectAndByteCounter sdfCounter1 =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), new CounterSet(), nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    sdfCounter1.getByteCount().addValue(40L);
-    sdfReceiver1.addOutputCounter("sourceBytesProcessCounterName", sdfCounter1);
-    ParDoOperation sdfParDoOp1 =
-        new ParDoOperation(
-            mockParDoFn,
-            new OutputReceiver[] {sdfReceiver1},
-            opContext,
-            ImmutableMap.of(sdfReceiver1, mock(Coder.class)));
-
-    OutputReceiver sdfReceiver2 = new OutputReceiver();
-    OutputObjectAndByteCounter sdfCounter2 =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), new CounterSet(), nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    sdfCounter2.getByteCount().addValue(60L);
-    sdfReceiver2.addOutputCounter("sourceBytesProcessCounterName", sdfCounter2);
-    ParDoOperation sdfParDoOp2 =
-        new ParDoOperation(
-            mockParDoFn,
-            new OutputReceiver[] {sdfReceiver2},
-            opContext,
-            ImmutableMap.of(sdfReceiver2, mock(Coder.class)));
-
-    OutputReceiver regularReceiver = new OutputReceiver();
-    OutputObjectAndByteCounter regularCounter =
-        new OutputObjectAndByteCounter(
-                mock(ElementByteSizeObservable.class), new CounterSet(), nameContext)
-            .countBytes("sourceBytesProcessCounterName");
-    regularCounter.getByteCount().addValue(999L);
-    regularReceiver.addOutputCounter("sourceBytesProcessCounterName", regularCounter);
-    ParDoOperation regularParDoOp =
-        new ParDoOperation(mockParDoFn, new OutputReceiver[] {regularReceiver}, opContext, null);
-
-    workExecutor =
-        IntrinsicMapTaskExecutor.forOperations(
-            Arrays.asList(readOp, sdfParDoOp1, regularParDoOp, sdfParDoOp2),
-            mock(ExecutionStateTracker.class));
-
-    Work work =
-        createMockWork(
-            Windmill.WorkItem.newBuilder()
-                .setKey(ByteString.copyFromUtf8("key1"))
-                .setWorkToken(1L)
-                .build(),
-            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
-
-    sdfParDoOp1.start();
-    sdfParDoOp2.start();
-    regularParDoOp.start();
-
-    start(work);
+    executionContext.addSourceBytesProcessed(42L);
+    assertEquals(42L, executionContext.getSourceBytesProcessed());
     executionContext.finishKey();
-    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    assertEquals(1, result.workItemCommits().size());
-    assertEquals(100L, result.workItemCommits().get(0).getSourceBytesProcessed());
+    assertTrue(executionContext.advance());
+    assertEquals(0L, executionContext.getSourceBytesProcessed());
+
+    executionContext.addSourceBytesProcessed(99L);
+    executionContext.finishKey();
+
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
+    assertEquals(0L, executionContext.getSourceBytesProcessed());
+    assertEquals(2, result.workItemCommits().size());
+    assertEquals(42L, result.workItemCommits().get(0).getSourceBytesProcessed());
+    assertEquals(99L, result.workItemCommits().get(1).getSourceBytesProcessed());
+
+    executionContext.addSourceBytesProcessed(15L);
+    executionContext.reset();
+    assertEquals(0L, executionContext.getSourceBytesProcessed());
   }
 }

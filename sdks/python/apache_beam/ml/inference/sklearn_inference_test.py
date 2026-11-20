@@ -160,7 +160,7 @@ def alternate_numpy_inference_fn(
     model: BaseEstimator,
     batch: Sequence[numpy.ndarray],
     inference_args: Optional[dict[str, Any]] = None) -> Any:
-  return [0]
+  return [0] * len(batch)
 
 
 def alternate_pandas_inference_fn(
@@ -212,6 +212,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
         PredictionResult(numpy.array([7, 8, 9]), 0)
     ]
     inferences = inference_runner.run_inference(batched_examples, fake_model)
+    self.assertEqual(len(inferences), len(expected_predictions))
     for actual, expected in zip(inferences, expected_predictions):
       self.assertTrue(_compare_prediction_result(actual, expected))
 

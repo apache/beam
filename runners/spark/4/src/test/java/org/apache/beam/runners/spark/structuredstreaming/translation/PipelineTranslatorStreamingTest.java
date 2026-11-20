@@ -33,10 +33,12 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -89,6 +91,15 @@ public class PipelineTranslatorStreamingTest implements Serializable {
   @Test
   public void rejectsUnsupportedStatefulFeatures() throws Exception {
     Object[][] cases = {
+      {
+        kv("o")
+            .apply(
+                ParDo.of(new StatefulDoFn())
+                    .withOutputTags(
+                        new TupleTag<Integer>() {}, TupleTagList.of(new TupleTag<Integer>() {})))
+            .getPipeline(),
+        "Stateful ParDo with additional outputs"
+      },
       {kv("pt").apply(ParDo.of(new ProcessingTimeTimerDoFn())).getPipeline(), "PROCESSING_TIME"},
       {
         kv("spt").apply(ParDo.of(new SyncProcessingTimeTimerDoFn())).getPipeline(),
@@ -148,6 +159,12 @@ public class PipelineTranslatorStreamingTest implements Serializable {
             .apply(Count.globally())
             .getPipeline(),
         "Combine.globally() with a default value (use withoutDefaults())"
+      },
+      {
+        kv("hk")
+            .apply(Combine.<String, Integer, Integer>perKey(Sum.ofIntegers()).withHotKeyFanout(2))
+            .getPipeline(),
+        "withHotKeyFanout()"
       }
     };
 
@@ -156,27 +173,11 @@ public class PipelineTranslatorStreamingTest implements Serializable {
     }
   }
 
-  @Test
-  public void rejectsAdditionalOutputs() throws Exception {
-    TupleTag<Integer> main = new TupleTag<Integer>() {};
-    TupleTag<Integer> other = new TupleTag<Integer>() {};
-    assertUnsupported(
-        kv("o")
-            .apply(ParDo.of(new StatelessDoFn()).withOutputTags(main, TupleTagList.of(other)))
-            .getPipeline(),
-        "additional outputs");
-  }
-
   private static final class ToKvFn extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
     public void process(@Element String element, OutputReceiver<KV<String, Integer>> out) {
       out.output(KV.of(element, 1));
     }
-  }
-
-  private static final class StatelessDoFn extends DoFn<KV<String, Integer>, Integer> {
-    @ProcessElement
-    public void process() {}
   }
 
   private static final class StatefulDoFn extends DoFn<KV<String, Integer>, Integer> {

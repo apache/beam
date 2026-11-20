@@ -43,9 +43,10 @@ import org.slf4j.LoggerFactory;
 /**
  * ValidatesRunner tests that deliberately exercise {@link DataflowTestBatchCoordinator}'s fallback
  * path against the real service: one test fails only while it is part of a merged job, so the
- * merged job fails, the coordinator attributes the failure, that test's {@code run()} ends in
- * {@link TestPipeline.StandaloneRerunRequested}, and {@link BeamParallelJunit4Runner} executes the
- * test again from scratch as a job of its own (where it passes). The other tests are healthy
+ * merged job fails (or, in streaming, is cancelled by {@link TestDataflowRunner.CancelOnError}),
+ * the coordinator withholds credit from unattributable members, the failing test's {@code run()}
+ * ends in {@link TestPipeline.StandaloneRerunRequested}, and {@link BeamParallelJunit4Runner}
+ * executes it again from scratch as a job of its own (where it passes). The other tests are healthy
  * companions that give the merged job stages to attribute; they pass whether they are credited from
  * the merged job or executed again.
  *
@@ -54,8 +55,8 @@ import org.slf4j.LoggerFactory;
  * single class, so the size of this class bounds that cost. All tests run concurrently under {@link
  * BeamParallelJunit4Runner} so that they do end up in the same batch.
  *
- * <p>When batching is disabled (streaming tasks, {@code -PtestBatching=false}) every test here runs
- * standalone and simply passes.
+ * <p>When batching is disabled ({@code -PtestBatching=false}}) every test here runs standalone and
+ * simply passes.
  */
 @RunWith(BeamParallelJunit4Runner.class)
 public class DataflowTestBatchFallbackTest {

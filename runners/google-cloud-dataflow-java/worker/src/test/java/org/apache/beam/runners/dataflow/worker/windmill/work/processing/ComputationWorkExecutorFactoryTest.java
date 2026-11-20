@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -46,7 +46,7 @@ import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.MultiKeyBundleOptions;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
-import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
@@ -56,6 +56,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementByteSizeCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -219,6 +220,7 @@ public class ComputationWorkExecutorFactoryTest {
           throws Exception {
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    StreamingCounters streamingCounters = StreamingCounters.create();
     ComputationWorkExecutorFactory factory =
         new ComputationWorkExecutorFactory(
             options,
@@ -226,7 +228,7 @@ public class ComputationWorkExecutorFactoryTest {
             mock(ReaderCache.class),
             computationId -> mock(WindmillStateCache.ForComputation.class),
             DataflowExecutionStateSampler.instance(),
-            StreamingCounters.create(),
+            streamingCounters,
             mock(FailureTracker.class),
             IdGenerators.decrementingLongs(),
             new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build()),
@@ -301,9 +303,12 @@ public class ComputationWorkExecutorFactoryTest {
             .findFirst()
             .orElseThrow(() -> new AssertionError("Expected ParDoOperation with windowedIntCoder"));
 
-    String counterName = computationState.sourceBytesProcessCounterName();
-    assertNotNull(stringSplittableOp.receivers[0].getOutputCounters().get(counterName));
-    assertNotNull(intSplittableOp.receivers[0].getOutputCounters().get(counterName));
+    assertTrue(
+        stringSplittableOp.receivers[0].getOutputCounters().values().stream()
+            .anyMatch(ElementByteSizeCounter.class::isInstance));
+    assertTrue(
+        intSplittableOp.receivers[0].getOutputCounters().values().stream()
+            .anyMatch(ElementByteSizeCounter.class::isInstance));
 
     // Verify that the non-reporting ParDoOperation does not have the source bytes counter attached.
     ParDoOperation regularParDoOp =
@@ -313,7 +318,9 @@ public class ComputationWorkExecutorFactoryTest {
             .orElseThrow(() -> new AssertionError("Expected non-reporting ParDoOperation"));
     assertTrue(regularParDoOp.getBytesReadCoders().isEmpty());
     assertNull(regularParDoOp.getBytesReadCoder(regularParDoOp.receivers[0]));
-    assertNull(regularParDoOp.receivers[0].getOutputCounters().get(counterName));
+    assertFalse(
+        regularParDoOp.receivers[0].getOutputCounters().values().stream()
+            .anyMatch(ElementByteSizeCounter.class::isInstance));
 
     // Process elements through each operation's receiver and verify each uses its own coder.
     WindowedValue<String> stringElem = WindowedValues.valueInGlobalWindow("hello");
@@ -327,12 +334,27 @@ public class ComputationWorkExecutorFactoryTest {
     long expectedIntBytes =
         CoderUtils.encodeToByteArray(windowedIntCoder, intElem, Coder.Context.NESTED).length;
 
-    @SuppressWarnings("unchecked")
-    Counter<Long, Long> bytesReadCounter =
-        (Counter<Long, Long>) mapTaskExecutor.getOutputCounters().getExistingCounter(counterName);
-    assertNotNull(bytesReadCounter);
+    // Extracting delta counters (as StreamingWorkerStatusReporter does) must not drain SDF bytes.
+    streamingCounters
+        .pendingDeltaCounters()
+        .extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE);
     assertEquals(
-        Long.valueOf(expectedStringBytes + expectedIntBytes), bytesReadCounter.getAggregate());
+        expectedStringBytes + expectedIntBytes, workExecutor.context().getSourceBytesProcessed());
+
+    // A second executor for the same computation must track its own bytes independently.
+    ComputationWorkExecutor secondWorkExecutor =
+        factory.createComputationWorkExecutor(stageInfo, computationState, "workLatencyTrackingId");
+    ParDoOperation secondIntSplittableOp =
+        ((DataflowMapTaskExecutor) secondWorkExecutor.workExecutor())
+            .getParDoOperations().stream()
+                .filter(op -> windowedIntCoder.equals(op.getBytesReadCoder(op.receivers[0])))
+                .findFirst()
+                .orElseThrow(
+                    () -> new AssertionError("Expected ParDoOperation with windowedIntCoder"));
+    secondIntSplittableOp.receivers[0].process(intElem);
+    assertEquals(expectedIntBytes, secondWorkExecutor.context().getSourceBytesProcessed());
+    assertEquals(
+        expectedStringBytes + expectedIntBytes, workExecutor.context().getSourceBytesProcessed());
   }
 
   @Test
@@ -340,6 +362,7 @@ public class ComputationWorkExecutorFactoryTest {
       throws Exception {
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    StreamingCounters streamingCounters = StreamingCounters.create();
     ComputationWorkExecutorFactory factory =
         new ComputationWorkExecutorFactory(
             options,
@@ -347,7 +370,7 @@ public class ComputationWorkExecutorFactoryTest {
             mock(ReaderCache.class),
             computationId -> mock(WindmillStateCache.ForComputation.class),
             DataflowExecutionStateSampler.instance(),
-            StreamingCounters.create(),
+            streamingCounters,
             mock(FailureTracker.class),
             IdGenerators.decrementingLongs(),
             new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build()),
@@ -458,9 +481,12 @@ public class ComputationWorkExecutorFactoryTest {
     assertEquals(windowedStringCoder, multiOutputSdfOp.getBytesReadCoder(stringReceiver));
     assertEquals(windowedIntCoder, multiOutputSdfOp.getBytesReadCoder(intReceiver));
 
-    String counterName = computationState.sourceBytesProcessCounterName();
-    assertNotNull(stringReceiver.getOutputCounters().get(counterName));
-    assertNotNull(intReceiver.getOutputCounters().get(counterName));
+    assertTrue(
+        stringReceiver.getOutputCounters().values().stream()
+            .anyMatch(ElementByteSizeCounter.class::isInstance));
+    assertTrue(
+        intReceiver.getOutputCounters().values().stream()
+            .anyMatch(ElementByteSizeCounter.class::isInstance));
 
     // Process differently typed elements on main and side output receivers without
     // ClassCastException.
@@ -474,11 +500,10 @@ public class ComputationWorkExecutorFactoryTest {
     long expectedIntBytes =
         CoderUtils.encodeToByteArray(windowedIntCoder, intElem, Coder.Context.NESTED).length;
 
-    @SuppressWarnings("unchecked")
-    Counter<Long, Long> bytesReadCounter =
-        (Counter<Long, Long>) mapTaskExecutor.getOutputCounters().getExistingCounter(counterName);
-    assertNotNull(bytesReadCounter);
+    streamingCounters
+        .pendingDeltaCounters()
+        .extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE);
     assertEquals(
-        Long.valueOf(expectedStringBytes + expectedIntBytes), bytesReadCounter.getAggregate());
+        expectedStringBytes + expectedIntBytes, workExecutor.context().getSourceBytesProcessed());
   }
 }

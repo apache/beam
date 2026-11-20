@@ -182,7 +182,6 @@ public class JmsLocalTest {
     JmsCheckpointMark mark =
         preparer.newCheckpoint(
             null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
-    long live = JmsCheckpointMark.liveCheckpointCount();
 
     // encode/decode drops the transient state, as when a runner restores the mark
     Coder<JmsCheckpointMark> coder =
@@ -194,7 +193,97 @@ public class JmsLocalTest {
 
     Mockito.verify(msg, Mockito.times(1)).acknowledge();
     assertEquals(0, activeCheckpoints.get());
-    assertEquals(live - 1, JmsCheckpointMark.liveCheckpointCount());
+    assertEquals(0, preparer.pendingCheckpointCount());
+
+    // finalizing again, through either copy, acknowledges nothing more
+    restored.finalizeCheckpoint();
+    mark.finalizeCheckpoint();
+    Mockito.verify(msg, Mockito.times(1)).acknowledge();
+  }
+
+  @Test
+  public void testFinalizeAcknowledgesEarlierCheckpointsOfTheReader() throws Exception {
+    Message msg1 = Mockito.mock(Message.class);
+    Message msg2 = Mockito.mock(Message.class);
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
+
+    // a checkpoint that is never committed nor finalized, e.g. taken to report progress
+    preparer.add(msg1);
+    preparer.newCheckpoint(
+        null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
+    preparer.add(msg2);
+    JmsCheckpointMark mark =
+        preparer.newCheckpoint(
+            null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
+    assertEquals(2, activeCheckpoints.get());
+
+    mark.finalizeCheckpoint();
+
+    Mockito.verify(msg1, Mockito.times(1)).acknowledge();
+    Mockito.verify(msg2, Mockito.times(1)).acknowledge();
+    assertEquals(0, activeCheckpoints.get());
+    assertEquals(0, preparer.pendingCheckpointCount());
+  }
+
+  @Test
+  public void testFinalizeEmptyCheckpointAcknowledgesEarlierCheckpoints() throws Exception {
+    Message msg = Mockito.mock(Message.class);
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    preparer.add(msg);
+    preparer.newCheckpoint(null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, null);
+
+    // nothing read since: the checkpoint ending the bundle is empty
+    preparer.emptyCheckpoint().finalizeCheckpoint();
+
+    Mockito.verify(msg, Mockito.times(1)).acknowledge();
+  }
+
+  @Test
+  public void testFinalizeDoesNotAcknowledgeLaterCheckpoints() throws Exception {
+    Message msg1 = Mockito.mock(Message.class);
+    Message msg2 = Mockito.mock(Message.class);
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    preparer.add(msg1);
+    JmsCheckpointMark first =
+        preparer.newCheckpoint(null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, null);
+    preparer.add(msg2);
+    JmsCheckpointMark second =
+        preparer.newCheckpoint(null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, null);
+
+    first.finalizeCheckpoint();
+
+    Mockito.verify(msg1, Mockito.times(1)).acknowledge();
+    Mockito.verify(msg2, Mockito.never()).acknowledge();
+    assertEquals(1, preparer.pendingCheckpointCount());
+
+    second.finalizeCheckpoint();
+
+    Mockito.verify(msg2, Mockito.times(1)).acknowledge();
+  }
+
+  @Test
+  public void testCreateReaderFromCheckpointAcknowledgesIt() throws Exception {
+    Message msg = Mockito.mock(Message.class);
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    preparer.add(msg);
+    JmsCheckpointMark mark =
+        preparer.newCheckpoint(null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, null);
+    JmsIO.UnboundedJmsSource<JmsRecord> source =
+        new JmsIO.UnboundedJmsSource<>(
+            JmsIO.read()
+                .withConnectionFactory(Mockito.mock(ConnectionFactory.class))
+                .withQueue(QUEUE));
+    JmsCheckpointMark restored = CoderUtils.clone(source.getCheckpointMarkCoder(), mark);
+
+    // the runner resumes from the checkpoint once committed, without finalizing it
+    source.createReader(PipelineOptionsFactory.create(), restored);
+
+    Mockito.verify(msg, Mockito.times(1)).acknowledge();
   }
 
   /** A checkpoint mark encoded by the checkpoint mark coder before marks had an id. */
@@ -277,6 +366,51 @@ public class JmsLocalTest {
     runnableArgumentCaptor.getValue().run();
     assertTrue(getDiscardedValue(reader));
     Mockito.verifyNoMoreInteractions(mockScheduledExecutorService);
+  }
+
+  @Test
+  public void testCloseTimeoutAbandonsPendingCheckpoints() throws Exception {
+    ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+    Connection connection = Mockito.mock(Connection.class);
+    Session session = Mockito.mock(Session.class);
+    Mockito.when(connectionFactory.createConnection(Mockito.any(), Mockito.any()))
+        .thenReturn(connection);
+    Mockito.when(connection.createSession(Mockito.anyBoolean(), Mockito.anyInt()))
+        .thenReturn(session);
+    Mockito.when(session.createQueue(Mockito.anyString())).thenReturn(Mockito.mock(Queue.class));
+    Mockito.when(session.createConsumer(Mockito.any()))
+        .thenReturn(Mockito.mock(MessageConsumer.class));
+
+    JmsIO.UnboundedJmsSource<JmsRecord> source =
+        new JmsIO.UnboundedJmsSource<>(
+            JmsIO.read()
+                .withConnectionFactory(connectionFactory)
+                .withUsername("user")
+                .withPassword("password")
+                .withQueue(QUEUE)
+                .withCloseTimeout(Duration.ZERO));
+    ScheduledExecutorService executor = Mockito.mock(ScheduledExecutorService.class);
+    ExecutorOptions options = PipelineOptionsFactory.as(ExecutorOptions.class);
+    options.setScheduledExecutorService(executor);
+    ArgumentCaptor<Runnable> closeTask = ArgumentCaptor.forClass(Runnable.class);
+    Mockito.when(executor.schedule(closeTask.capture(), Mockito.anyLong(), Mockito.any()))
+        .thenReturn(null /* unused */);
+
+    JmsIO.UnboundedJmsReader<JmsRecord> reader = source.createReader(options, null);
+    reader.start();
+    Message msg = Mockito.mock(Message.class);
+    reader.checkpointMarkPreparer.add(msg);
+    org.apache.beam.sdk.io.UnboundedSource.CheckpointMark mark = reader.getCheckpointMark();
+    reader.close();
+
+    // the close timeout expires before the checkpoint is finalized
+    closeTask.getValue().run();
+    Mockito.verify(connection).close();
+    assertEquals(0, reader.checkpointMarkPreparer.pendingCheckpointCount());
+
+    // a late finalize does not try to acknowledge on the closed connection
+    mark.finalizeCheckpoint();
+    Mockito.verify(msg, Mockito.never()).acknowledge();
   }
 
   private boolean getDiscardedValue(JmsIO.UnboundedJmsReader<JmsRecord> reader) {
