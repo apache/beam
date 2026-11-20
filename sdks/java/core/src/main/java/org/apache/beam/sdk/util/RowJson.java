@@ -46,9 +46,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -68,6 +73,8 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.variant.Variant;
+import org.apache.beam.sdk.schemas.variant.VariantJson;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -92,6 +99,8 @@ import org.joda.time.ReadableInstant;
  *   <li>{@link Schema.TypeName#STRING}
  *   <li>{@link Schema.TypeName#DECIMAL}
  *   <li>{@link Schema.TypeName#DATETIME}
+ *   <li>{@link org.apache.beam.sdk.schemas.logicaltypes.SqlTypes#VARIANT}, which maps to an
+ *       arbitrary JSON value (object, array or primitive)
  * </ul>
  */
 @SuppressWarnings({
@@ -105,7 +114,8 @@ public class RowJson {
       ImmutableSet.of(
           SqlTypes.DATE.getIdentifier(),
           SqlTypes.TIME.getIdentifier(),
-          SqlTypes.DATETIME.getIdentifier());
+          SqlTypes.DATETIME.getIdentifier(),
+          SqlTypes.VARIANT.getIdentifier());
 
   /**
    * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field
@@ -241,6 +251,7 @@ public class RowJson {
             .build();
 
     private final Schema schema;
+    private final boolean hasVariantField;
     private NullBehavior nullBehavior = NullBehavior.ACCEPT_MISSING_OR_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
@@ -252,6 +263,24 @@ public class RowJson {
     private RowJsonDeserializer(Schema schema) {
       super(Row.class);
       this.schema = schema;
+      this.hasVariantField = containsVariant(FieldType.row(schema));
+    }
+
+    private static boolean containsVariant(FieldType type) {
+      switch (type.getTypeName()) {
+        case ROW:
+          return type.getRowSchema().getFields().stream()
+              .anyMatch(field -> containsVariant(field.getType()));
+        case ARRAY:
+        case ITERABLE:
+          return containsVariant(type.getCollectionElementType());
+        case MAP:
+          return containsVariant(type.getMapValueType());
+        case LOGICAL_TYPE:
+          return SqlTypes.VARIANT.getIdentifier().equals(type.getLogicalType().getIdentifier());
+        default:
+          return false;
+      }
     }
 
     /**
@@ -269,9 +298,30 @@ public class RowJson {
         throws IOException {
 
       // Parse and convert the root object to Row as if it's a nested field with name 'root'
-      return (Row)
-          extractJsonNodeValue(
-              FieldValue.of("root", FieldType.row(schema), jsonParser.readValueAsTree()));
+      JsonNode tree =
+          hasVariantField ? readTreeWithExactDecimals(jsonParser) : jsonParser.readValueAsTree();
+      return (Row) extractJsonNodeValue(FieldValue.of("root", FieldType.row(schema), tree));
+    }
+
+    /**
+     * Reads the tree keeping fractional numbers as exact decimals (including trailing zeros), so
+     * that Variant fields store {@code 7.50} as a decimal with scale 2, matching {@link
+     * Variant#parseJson}. Only used for schemas that contain a Variant field.
+     */
+    private static JsonNode readTreeWithExactDecimals(JsonParser jsonParser) throws IOException {
+      ObjectCodec codec = jsonParser.getCodec();
+      ObjectReader reader;
+      if (codec instanceof ObjectReader) {
+        reader = (ObjectReader) codec;
+      } else if (codec instanceof ObjectMapper) {
+        reader = ((ObjectMapper) codec).reader();
+      } else {
+        return jsonParser.readValueAsTree();
+      }
+      return reader
+          .with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+          .without(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
+          .readTree(jsonParser);
     }
 
     private Object extractJsonNodeValue(FieldValue fieldValue) {
@@ -330,6 +380,9 @@ public class RowJson {
           return timeValueExtractor().extractValue(fieldValue.jsonValue());
         } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
           return localDatetimeValueExtractor().extractValue(fieldValue.jsonValue());
+        } else if (SqlTypes.VARIANT.getIdentifier().equals(identifier)) {
+          // A Variant field swallows the whole JSON subtree under it.
+          return VariantJson.fromJsonNode(fieldValue.jsonValue());
         } else {
           return logicalType.toInputType(
               extractJsonNodeValue(
@@ -612,6 +665,9 @@ public class RowJson {
             gen.writeString(((LocalTime) value).toString()); // ISO 8601 format
           } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
             gen.writeString(((LocalDateTime) value).toString()); // ISO 8601 format
+          } else if (SqlTypes.VARIANT.getIdentifier().equals(identifier)) {
+            // Written as nested JSON, not as a string.
+            gen.writeRawValue(((Variant) value).toJson());
           } else {
             writeValue(gen, logicalType.getBaseType(), logicalType.toBaseType(value));
           }
