@@ -19,6 +19,8 @@ package org.apache.beam.sdk.values;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -219,6 +221,166 @@ class RowUtils {
     }
   }
 
+  static Row captureRowValues(Schema schema, List<Object> values) {
+    int fieldCount = schema.getFieldCount();
+    List<Object> captured = new ArrayList<>(fieldCount);
+    for (int i = 0; i < fieldCount; ++i) {
+      captured.add(captureValue(schema, i, schema.getField(i).getType(), values.get(i)));
+    }
+    return new RowWithStorage(schema, captured);
+  }
+
+  static Row captureRowValues(
+      Schema schema, @Nullable Row sourceRow, FieldOverrides fieldOverrides) {
+    int fieldCount = schema.getFieldCount();
+    List<Object> captured = new ArrayList<>(fieldCount);
+    for (int i = 0; i < fieldCount; ++i) {
+      Object rawValue = fieldOverrides.getDirectOverrideOrDefault(i, sourceRow);
+      captured.add(captureValue(schema, i, schema.getField(i).getType(), rawValue));
+    }
+    return new RowWithStorage(schema, captured);
+  }
+
+  private static @Nullable Object captureValue(
+      Schema topSchema, int fieldId, FieldType fieldType, @Nullable Object value) {
+    if (value == null) {
+      if (!fieldType.getNullable()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not nullable in  field %s",
+                fieldType, FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
+      }
+      return null;
+    }
+
+    Object processedValue;
+    switch (fieldType.getTypeName()) {
+      case BYTE:
+        processedValue = (Byte) value;
+        break;
+      case INT16:
+        processedValue = (Short) value;
+        break;
+      case INT32:
+        processedValue = (Integer) value;
+        break;
+      case INT64:
+        processedValue = (Long) value;
+        break;
+      case DECIMAL:
+        processedValue = (BigDecimal) value;
+        break;
+      case FLOAT:
+        processedValue = (Float) value;
+        break;
+      case DOUBLE:
+        processedValue = (Double) value;
+        break;
+      case STRING:
+        processedValue = (String) value;
+        break;
+      case BOOLEAN:
+        processedValue = (Boolean) value;
+        break;
+      case BYTES:
+        processedValue =
+            (value instanceof ByteBuffer) ? ((ByteBuffer) value).array() : (byte[]) value;
+        break;
+      case DATETIME:
+        processedValue = ((AbstractInstant) value).toInstant();
+        break;
+      case ROW:
+        processedValue = (Row) value;
+        break;
+      case ARRAY:
+        processedValue =
+            captureIterableDirect(
+                topSchema,
+                fieldId,
+                fieldType.getCollectionElementType(),
+                (Collection<Object>) value);
+        break;
+      case ITERABLE:
+        processedValue =
+            captureIterableDirect(
+                topSchema, fieldId, fieldType.getCollectionElementType(), (Iterable<Object>) value);
+        break;
+      case MAP:
+        processedValue =
+            captureMapDirect(
+                topSchema,
+                fieldId,
+                fieldType.getMapKeyType(),
+                fieldType.getMapValueType(),
+                (Map<Object, Object>) value);
+        break;
+      case LOGICAL_TYPE:
+        LogicalType logicalType = fieldType.getLogicalType();
+        processedValue = logicalType.toInputType(logicalType.toBaseType(value));
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Not a primitive type for field name %s: %s",
+                FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema), fieldType));
+    }
+
+    if (processedValue == null && !fieldType.getNullable()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "%s is not nullable in  field %s",
+              fieldType, FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
+    }
+    return processedValue;
+  }
+
+  private static Collection<Object> captureIterableDirect(
+      Schema topSchema, int fieldId, FieldType collectionElementType, Iterable<Object> values) {
+    int size =
+        (values instanceof Collection) ? ((Collection<?>) values).size() : Iterables.size(values);
+    List<Object> captured = new ArrayList<>(size);
+    for (Object listValue : values) {
+      if (listValue == null) {
+        if (!collectionElementType.getNullable()) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "%s is not nullable in Array field %s",
+                  collectionElementType,
+                  FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
+        }
+        captured.add(null);
+      } else {
+        captured.add(captureValue(topSchema, fieldId, collectionElementType, listValue));
+      }
+    }
+    return captured;
+  }
+
+  private static Map<Object, Object> captureMapDirect(
+      Schema topSchema,
+      int fieldId,
+      FieldType keyType,
+      FieldType valueType,
+      Map<Object, Object> valueMap) {
+    Map<Object, Object> captured = Maps.newHashMapWithExpectedSize(valueMap.size());
+    for (Entry<Object, Object> kv : valueMap.entrySet()) {
+      Object capturedKey = captureValue(topSchema, fieldId, keyType, kv.getKey());
+      Object rawVal = kv.getValue();
+      if (rawVal == null) {
+        if (!valueType.getNullable()) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "%s is not nullable in Map field %s",
+                  valueType, FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
+        }
+        captured.put(capturedKey, null);
+      } else {
+        captured.put(capturedKey, captureValue(topSchema, fieldId, valueType, rawVal));
+      }
+    }
+    return captured;
+  }
+
   static class FieldOverride {
     FieldOverride(Object overrideValue) {
       this.overrideValue = overrideValue;
@@ -232,41 +394,97 @@ class RowUtils {
   }
 
   static class FieldOverrides {
-    private FieldAccessNode topNode;
-    private Schema rootSchema;
+    private static final Object UNSET = new Object();
+
+    private @Nullable FieldAccessNode topNode;
+    private final Schema rootSchema;
+    private final Object[] directOverrides;
+    private boolean hasDirectOverrides;
 
     FieldOverrides(Schema rootSchema) {
-      this.topNode = new FieldAccessNode(rootSchema);
       this.rootSchema = rootSchema;
+      this.directOverrides = new Object[rootSchema.getFieldCount()];
+      Arrays.fill(this.directOverrides, UNSET);
     }
 
     FieldOverrides(Schema rootSchema, List<Object> overrides) {
-      this.topNode = new FieldAccessNode(rootSchema, overrides);
       this.rootSchema = rootSchema;
+      this.directOverrides = overrides.toArray();
+      this.hasDirectOverrides = !overrides.isEmpty();
+    }
+
+    private FieldAccessNode ensureTopNode() {
+      if (topNode == null) {
+        topNode = new FieldAccessNode(rootSchema);
+      }
+      return topNode;
     }
 
     boolean isEmpty() {
-      return topNode.isEmpty();
+      return !hasDirectOverrides && (topNode == null || topNode.isEmpty());
+    }
+
+    boolean hasNestedOverrides() {
+      return topNode != null && !topNode.nestedAccess.isEmpty();
+    }
+
+    void addDirectOverride(int fieldId, @Nullable Object value) {
+      directOverrides[fieldId] = value;
+      hasDirectOverrides = true;
+    }
+
+    @Nullable Object getDirectOverrideOrDefault(int fieldId, @Nullable Row sourceRow) {
+      if (hasDirectOverrides) {
+        Object val = directOverrides[fieldId];
+        if (val != UNSET) {
+          return val;
+        }
+      }
+      return sourceRow != null ? sourceRow.getValue(fieldId) : null;
     }
 
     void addOverride(FieldAccessDescriptor fieldAccessDescriptor, FieldOverride fieldOverride) {
-      topNode.addOverride(fieldAccessDescriptor, fieldOverride, rootSchema);
+      if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
+        FieldDescriptor fieldDescriptor =
+            Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
+        addDirectOverride(fieldDescriptor.getFieldId(), fieldOverride.getOverrideValue());
+        return;
+      }
+      ensureTopNode().addOverride(fieldAccessDescriptor, fieldOverride, rootSchema);
     }
 
     void setOverrides(List<Object> values) {
-      List<FieldOverride> overrides = Lists.newArrayListWithExpectedSize(values.size());
-      for (Object value : values) {
-        overrides.add(new FieldOverride(value));
+      for (int i = 0; i < values.size() && i < directOverrides.length; i++) {
+        directOverrides[i] = values.get(i);
       }
-      topNode.setOverrides(overrides);
+      hasDirectOverrides = !values.isEmpty();
+      if (topNode != null) {
+        List<FieldOverride> overrides = Lists.newArrayListWithExpectedSize(values.size());
+        for (Object value : values) {
+          overrides.add(new FieldOverride(value));
+        }
+        topNode.setOverrides(overrides);
+      }
     }
 
     @Nullable FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
-      return topNode.getOverride(fieldAccessDescriptor);
+      if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
+        FieldDescriptor fieldDescriptor =
+            Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
+        int id = fieldDescriptor.getFieldId();
+        if (hasDirectOverrides && id < directOverrides.length && directOverrides[id] != UNSET) {
+          return new FieldOverride(directOverrides[id]);
+        }
+      }
+      return topNode != null ? topNode.getOverride(fieldAccessDescriptor) : null;
     }
 
     boolean hasOverrideBelow(FieldAccessDescriptor fieldAccessDescriptor) {
-      return topNode.hasOverrideBelow(fieldAccessDescriptor);
+      if (topNode != null) {
+        return topNode.hasOverrideBelow(fieldAccessDescriptor);
+      }
+      return fieldAccessDescriptor.getFieldsAccessed().isEmpty()
+          && fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty();
     }
 
     private static class FieldAccessNode {
