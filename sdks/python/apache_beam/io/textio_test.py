@@ -1640,6 +1640,37 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result), sorted(self.lines))
 
+  def test_write_pipeline_outputs_final_file_paths(self):
+    expected = [self.path + '-%05d-of-00003' % i for i in range(3)]
+    with TestPipeline() as pipeline:
+      file_paths = (
+          pipeline
+          | beam.core.Create(self.lines)
+          | 'Write' >> WriteToText(self.path, num_shards=3))
+      assert_that(file_paths, equal_to(expected))
+
+    self.assertEqual(sorted(glob.glob(self.path + '*')), expected)
+
+  def test_write_pipeline_output_timestamps_in_global_window(self):
+    # Output timestamped past the end of the global window is dropped, or fails
+    # the job, when it is grouped downstream (#41245).
+    def output_timestamp(unused_path, ts=beam.DoFn.TimestampParam):
+      # Emit the timestamp as a value, so assert_that can group it either way.
+      return beam.window.TimestampedValue(ts, 0)
+
+    for num_shards in (0, 3):
+      with TestPipeline() as pipeline:
+        timestamps = (
+            pipeline
+            | beam.core.Create(self.lines)
+            | 'Write' >> WriteToText(
+                self.path + '-%d' % num_shards, num_shards=num_shards)
+            | beam.Map(output_timestamp))
+        assert_that(
+            timestamps,
+            equal_to([beam.window.GlobalWindow().max_timestamp()] *
+                     max(num_shards, 1)))
+
   def test_write_pipeline_auto_compression(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | beam.core.Create(self.lines)
@@ -2052,6 +2083,30 @@ class WriteStreamingTest(unittest.TestCase):
   def tearDown(self):
     if os.path.exists(self.tempdir):
       shutil.rmtree(self.tempdir)
+
+  def test_write_streaming_outputs_final_file_paths(self):
+    prefix = self.tempdir + '/output'
+    expected = [
+        prefix + '-[0.0, 10.0)-00000-of-00001.txt',
+        prefix + '-[10.0, 20.0)-00000-of-00001.txt',
+    ]
+    with TestPipeline() as p:
+      file_paths = (
+          p
+          | TestStream().advance_watermark_to(0).add_elements([
+              beam.window.TimestampedValue('a', 1),
+              beam.window.TimestampedValue('b', 2)
+          ]).advance_watermark_to(15).add_elements([
+              beam.window.TimestampedValue('c', 16)
+          ]).advance_watermark_to_infinity()
+          | WriteToText(
+              prefix,
+              file_name_suffix='.txt',
+              num_shards=1,
+              triggering_frequency=10))
+      assert_that(file_paths, equal_to(expected))
+
+    self.assertEqual(sorted(glob.glob(glob.escape(prefix) + '*')), expected)
 
   def test_write_streaming_2_shards_default_shard_name_template(
       self, num_shards=2):
