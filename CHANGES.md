@@ -139,6 +139,7 @@
 ### API changes
 
 [comment]: # "Public facing interface changes that may introduce breaking change or change of behaviors"
+* (Java) JdbcIO preserves reported precision and scale on inferred JDBC `DECIMAL` fields as `INT32` field options `beam:option:jdbc:decimal_precision:v1` and `beam:option:jdbc:decimal_scale:v1`. The fields use Beam's `DECIMAL` type. These options affect `Schema.equals()` comparisons with older inferred schemas or manually defined schemas that lack them. When column order is immaterial, use `Schema.equivalent()` to compare field names, types, and nullability independently of field options and order. Consumers that read by column index should verify column order separately ([#41520](https://github.com/apache/beam/issues/41520)).
 
 ### Upgrade compatibility
 
