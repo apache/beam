@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.rabbitmq;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -44,11 +45,14 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
@@ -476,6 +480,64 @@ public class RabbitMqIOTest implements Serializable {
       if (connection != null) {
         connection.close();
       }
+    }
+  }
+
+  @Test
+  public void testRestoredCheckpointAcknowledgesLiveAndEarlierCheckpoints() throws Exception {
+    String queue = "RESTORE_CP_QUEUE_" + UUID.randomUUID();
+    String uri = "amqp://guest:guest@localhost:" + port;
+
+    ConnectionFactory connectionFactory = new ConnectionFactory();
+    connectionFactory.setUri(uri);
+    try (Connection connection = connectionFactory.newConnection();
+        Channel channel = connection.createChannel()) {
+      channel.queueDeclare(queue, false, false, false, null);
+      for (int i = 0; i < 3; i++) {
+        channel.basicPublish("", queue, null, ("msg-" + i).getBytes(StandardCharsets.UTF_8));
+      }
+
+      RabbitMqIO.RabbitMQSource source =
+          new RabbitMqIO.RabbitMQSource(RabbitMqIO.read().withUri(uri).withQueue(queue));
+      UnboundedSource.UnboundedReader<RabbitMqMessage> reader =
+          source.createReader(PipelineOptionsFactory.create(), null);
+
+      assertTrue(reader.start());
+      // Take cp1 (msg-0) and leave it unfinalized.
+      RabbitMqIO.RabbitMQCheckpointMark cp1 =
+          (RabbitMqIO.RabbitMQCheckpointMark) reader.getCheckpointMark();
+
+      assertTrue(reader.advance());
+      // Take cp2 (msg-1) and an empty checkpoint right after cp2.
+      RabbitMqIO.RabbitMQCheckpointMark cp2 =
+          (RabbitMqIO.RabbitMQCheckpointMark) reader.getCheckpointMark();
+      RabbitMqIO.RabbitMQCheckpointMark emptyCp =
+          (RabbitMqIO.RabbitMQCheckpointMark) reader.getCheckpointMark();
+
+      assertTrue(reader.advance());
+      // Take cp3 (msg-2), then close the reader before finalizing restored cp2 and resuming cp3.
+      RabbitMqIO.RabbitMQCheckpointMark cp3 =
+          (RabbitMqIO.RabbitMQCheckpointMark) reader.getCheckpointMark();
+      reader.close();
+
+      // Restored cp2 acknowledges both cp1 and cp2 even after reader.close().
+      RabbitMqIO.RabbitMQCheckpointMark restoredCp2 =
+          CoderUtils.clone(source.getCheckpointMarkCoder(), cp2);
+      restoredCp2.finalizeCheckpoint();
+      emptyCp.finalizeCheckpoint();
+
+      // Resuming from restored cp3 acknowledges cp3 on the still-open channel, then closes it.
+      RabbitMqIO.RabbitMQCheckpointMark restoredCp3 =
+          CoderUtils.clone(source.getCheckpointMarkCoder(), cp3);
+      UnboundedSource.UnboundedReader<RabbitMqMessage> resumed =
+          source.createReader(PipelineOptionsFactory.create(), restoredCp3);
+      resumed.close();
+
+      // Calling finalize on already-acknowledged cp1 is a no-op.
+      cp1.finalizeCheckpoint();
+
+      // All 3 messages were acknowledged, so none remain or are redelivered in the queue.
+      assertNull(channel.basicGet(queue, true));
     }
   }
 }
