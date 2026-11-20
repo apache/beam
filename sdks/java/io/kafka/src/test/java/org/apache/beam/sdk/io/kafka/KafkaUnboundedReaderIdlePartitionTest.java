@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -141,6 +142,60 @@ public class KafkaUnboundedReaderIdlePartitionTest {
     assertTrue("Active partitions should trigger commits", thirdCommitCount > secondCommitCount);
 
     reader.close();
+  }
+
+  @Test
+  public void testRestoredCheckpointCommitsOffsetsAndResumeDoesNotThrow() throws Exception {
+    int numElements = 50;
+    int numPartitions = 4;
+    List<String> topics = ImmutableList.of("test_topic");
+
+    TrackingConsumerFactory consumerFactory =
+        new TrackingConsumerFactory(topics, numPartitions, numElements);
+
+    UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("test_server")
+            .withTopics(topics)
+            .withConsumerFactoryFn(consumerFactory)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withConsumerConfigUpdates(
+                ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "test_group_id"))
+            .commitOffsetsInFinalize()
+            .makeSource()
+            .split(1, PipelineOptionsFactory.create())
+            .get(0);
+
+    UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
+    assertTrue(reader.start());
+    for (int i = 0; i < 10; i++) {
+      assertTrue(reader.advance());
+    }
+
+    KafkaCheckpointMark mark1 = (KafkaCheckpointMark) reader.getCheckpointMark();
+    KafkaCheckpointMark restoredMark1 = CoderUtils.clone(source.getCheckpointMarkCoder(), mark1);
+    restoredMark1.finalizeCheckpoint();
+    Thread.sleep(2000);
+    int firstCommitCount = consumerFactory.commitCounter.get();
+    assertTrue("Restored checkpoint should commit offsets on live reader", firstCommitCount > 0);
+
+    for (int i = 0; i < 10; i++) {
+      assertTrue(reader.advance());
+    }
+    KafkaCheckpointMark mark2 = (KafkaCheckpointMark) reader.getCheckpointMark();
+    KafkaCheckpointMark restoredMark2 = CoderUtils.clone(source.getCheckpointMarkCoder(), mark2);
+    UnboundedReader<KafkaRecord<Integer, Long>> resumed = source.createReader(null, restoredMark2);
+    Thread.sleep(2000);
+    assertTrue(
+        "Resuming from restored checkpoint should commit offsets on live reader",
+        consumerFactory.commitCounter.get() > firstCommitCount);
+
+    reader.close();
+    resumed.close();
+
+    // Finalizing a restored mark after its originating reader closed is a safe no-op (no NPE).
+    restoredMark2.finalizeCheckpoint();
   }
 
   /** Consumer factory that creates a mock consumer with commit tracking. */
