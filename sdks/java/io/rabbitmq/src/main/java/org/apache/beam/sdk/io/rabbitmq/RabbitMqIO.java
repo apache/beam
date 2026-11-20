@@ -35,17 +35,27 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -371,6 +381,7 @@ public class RabbitMqIO {
     }
   }
 
+  @VisibleForTesting
   static class RabbitMQSource extends UnboundedSource<RabbitMqMessage, RabbitMQCheckpointMark> {
     final Read spec;
 
@@ -395,8 +406,14 @@ public class RabbitMqIO {
 
     @Override
     public UnboundedReader<RabbitMqMessage> createReader(
-        PipelineOptions options, RabbitMQCheckpointMark checkpointMark) throws IOException {
-      return new UnboundedRabbitMqReader(this, checkpointMark);
+        PipelineOptions options, @Nullable RabbitMQCheckpointMark checkpointMark)
+        throws IOException {
+      if (checkpointMark != null) {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // acknowledged if the reader that took it lives in this JVM.
+        checkpointMark.finalizeCheckpoint();
+      }
+      return new UnboundedRabbitMqReader(this, options);
     }
 
     @Override
@@ -410,71 +427,256 @@ public class RabbitMqIO {
     }
   }
 
-  private static class RabbitMQCheckpointMark
-      implements UnboundedSource.CheckpointMark, Serializable {
-    transient Channel channel;
+  @VisibleForTesting
+  static class RabbitMQCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+
+    // Pinned to the value computed before readerId and sequence were added, so checkpoints written
+    // by older versions can still be decoded.
+    private static final long serialVersionUID = -961062677995876719L;
+
+    private final @Nullable String readerId;
+    private final long sequence;
+    transient @Nullable Channel channel;
     Instant latestTimestamp = Instant.now();
     transient ConcurrentLinkedQueue<Long> sessionIds = new ConcurrentLinkedQueue<>();
+    transient @Nullable PendingCheckpoints pendingCheckpoints;
+    transient @Nullable AtomicInteger activeCheckpoints;
+    transient @Nullable Runnable onCheckpointFinalized;
+
+    RabbitMQCheckpointMark() {
+      this(null, 0, null, Instant.now(), new ConcurrentLinkedQueue<>(), null, null);
+    }
+
+    private RabbitMQCheckpointMark(
+        @Nullable PendingCheckpoints pendingCheckpoints,
+        long sequence,
+        @Nullable Channel channel,
+        Instant latestTimestamp,
+        ConcurrentLinkedQueue<Long> sessionIds,
+        @Nullable AtomicInteger activeCheckpoints,
+        @Nullable Runnable onCheckpointFinalized) {
+      this.pendingCheckpoints = pendingCheckpoints;
+      this.readerId = pendingCheckpoints == null ? null : pendingCheckpoints.readerId;
+      this.sequence = sequence;
+      this.channel = channel;
+      this.latestTimestamp = latestTimestamp;
+      this.sessionIds = sessionIds;
+      this.activeCheckpoints = activeCheckpoints;
+      this.onCheckpointFinalized = onCheckpointFinalized;
+    }
 
     // this method is called after deserialization on the deserialized object
-    private Object readResolve() {
+    private synchronized Object readResolve() {
       // (re-)initialize transient fields as required
       this.sessionIds = new ConcurrentLinkedQueue<>();
       return this;
     }
 
-    /**
-     * Advances the watermark to the provided time, provided said time is after the current
-     * watermark. If the provided time is before the latest, this function no-ops.
-     *
-     * @param time The time to advance the watermark to
-     */
-    public void advanceWatermark(Instant time) {
-      if (time.isAfter(latestTimestamp)) {
-        latestTimestamp = time;
+    @Override
+    public void finalizeCheckpoint() throws IOException {
+      PendingCheckpoints pending = pendingCheckpoints;
+      if (pending == null && readerId != null) {
+        pending = PendingCheckpoints.LIVE.getIfPresent(readerId);
+      }
+      if (pending != null) {
+        for (RabbitMQCheckpointMark checkpoint : pending.removeUpTo(sequence)) {
+          checkpoint.acknowledge();
+        }
+        return;
+      }
+      if (readerId != null) {
+        return;
+      }
+      acknowledge();
+    }
+
+    private synchronized void acknowledge() throws IOException {
+      Channel ch = channel;
+      if (ch != null) {
+        Long sessionId = sessionIds.poll();
+        while (sessionId != null) {
+          ch.basicAck(sessionId, false);
+          sessionId = sessionIds.poll();
+        }
+        if (ch.isOpen()) {
+          ch.txCommit();
+        }
+      } else {
+        sessionIds.clear();
+      }
+      channel = null;
+      latestTimestamp = Instant.now();
+      release(true);
+    }
+
+    private synchronized void abandon() {
+      sessionIds.clear();
+      channel = null;
+      release(false);
+    }
+
+    private void release(boolean notifyIfDrained) {
+      if (activeCheckpoints != null) {
+        int remaining = activeCheckpoints.decrementAndGet();
+        activeCheckpoints = null;
+        if (notifyIfDrained && remaining == 0 && onCheckpointFinalized != null) {
+          onCheckpointFinalized.run();
+        }
       }
     }
 
-    @Override
-    public void finalizeCheckpoint() throws IOException {
-      Long sessionId = sessionIds.poll();
-      while (sessionId != null) {
-        channel.basicAck(sessionId, false);
-        sessionId = sessionIds.poll();
+    private static final class PendingCheckpoints {
+      private static final Cache<String, PendingCheckpoints> LIVE =
+          CacheBuilder.newBuilder().weakValues().build();
+
+      private final String readerId = UUID.randomUUID().toString();
+      private final List<RabbitMQCheckpointMark> checkpoints = new ArrayList<>();
+      private long nextSequence;
+
+      static PendingCheckpoints create() {
+        PendingCheckpoints pending = new PendingCheckpoints();
+        LIVE.put(pending.readerId, pending);
+        return pending;
       }
-      if (channel.isOpen()) {
-        channel.txCommit();
+
+      synchronized long nextSequence() {
+        return nextSequence++;
       }
-      latestTimestamp = Instant.now();
+
+      synchronized void add(RabbitMQCheckpointMark checkpoint) {
+        checkpoints.add(checkpoint);
+      }
+
+      synchronized List<RabbitMQCheckpointMark> removeUpTo(long sequence) {
+        List<RabbitMQCheckpointMark> removed = new ArrayList<>();
+        checkpoints.removeIf(
+            checkpoint -> {
+              if (checkpoint.sequence <= sequence) {
+                removed.add(checkpoint);
+                return true;
+              }
+              return false;
+            });
+        return removed;
+      }
+
+      synchronized List<RabbitMQCheckpointMark> removeAll() {
+        LIVE.invalidate(readerId);
+        List<RabbitMQCheckpointMark> removed = new ArrayList<>(checkpoints);
+        checkpoints.clear();
+        return removed;
+      }
+    }
+
+    static class Preparer {
+      private final PendingCheckpoints pendingCheckpoints = PendingCheckpoints.create();
+      private final List<Long> sessionIds = new ArrayList<>();
+      private volatile Instant latestTimestamp = Instant.now();
+      private boolean discarded = false;
+
+      synchronized void add(long deliveryTag) {
+        if (discarded) {
+          throw new IllegalStateException("Attempting to add delivery tag to discarded checkpoint");
+        }
+        sessionIds.add(deliveryTag);
+      }
+
+      /**
+       * Advances the watermark to the provided time, provided said time is after the current
+       * watermark. If the provided time is before the latest, this function no-ops.
+       */
+      synchronized void advanceWatermark(Instant time) {
+        if (time.isAfter(latestTimestamp)) {
+          latestTimestamp = time;
+        }
+      }
+
+      Instant getLatestTimestamp() {
+        return latestTimestamp;
+      }
+
+      synchronized void discard() {
+        sessionIds.clear();
+        discarded = true;
+      }
+
+      synchronized RabbitMQCheckpointMark newCheckpoint(
+          @Nullable Channel channel,
+          @Nullable AtomicInteger activeCheckpoints,
+          @Nullable Runnable onCheckpointFinalized) {
+        if (discarded || sessionIds.isEmpty()) {
+          sessionIds.clear();
+          return new RabbitMQCheckpointMark(
+              pendingCheckpoints,
+              pendingCheckpoints.nextSequence(),
+              null,
+              latestTimestamp,
+              new ConcurrentLinkedQueue<>(),
+              null,
+              null);
+        }
+        ConcurrentLinkedQueue<Long> snapshot = new ConcurrentLinkedQueue<>(sessionIds);
+        sessionIds.clear();
+        Instant checkpointTimestamp = latestTimestamp;
+        latestTimestamp = Instant.now();
+        RabbitMQCheckpointMark mark =
+            new RabbitMQCheckpointMark(
+                pendingCheckpoints,
+                pendingCheckpoints.nextSequence(),
+                channel,
+                checkpointTimestamp,
+                snapshot,
+                activeCheckpoints,
+                onCheckpointFinalized);
+        pendingCheckpoints.add(mark);
+        if (activeCheckpoints != null) {
+          activeCheckpoints.incrementAndGet();
+        }
+        return mark;
+      }
+
+      void abandonPendingCheckpoints() {
+        for (RabbitMQCheckpointMark checkpoint : pendingCheckpoints.removeAll()) {
+          checkpoint.abandon();
+        }
+      }
     }
   }
 
   private static class UnboundedRabbitMqReader
       extends UnboundedSource.UnboundedReader<RabbitMqMessage> {
+    private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.standardSeconds(60);
+
     private final RabbitMQSource source;
+    private final PipelineOptions options;
 
-    private RabbitMqMessage current;
-    private byte[] currentRecordId;
-    private ConnectionHandler connectionHandler;
-    private String queueName;
-    private Instant currentTimestamp;
-    private final RabbitMQCheckpointMark checkpointMark;
+    private @Nullable RabbitMqMessage current;
+    private byte @Nullable [] currentRecordId;
+    private @Nullable ConnectionHandler connectionHandler;
+    private @Nullable Channel channel;
+    private @Nullable String queueName;
+    private @Nullable Instant currentTimestamp;
+    private final RabbitMQCheckpointMark.Preparer checkpointPreparer =
+        new RabbitMQCheckpointMark.Preparer();
+    private final AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final Object closeLock = new Object();
 
-    UnboundedRabbitMqReader(RabbitMQSource source, RabbitMQCheckpointMark checkpointMark)
-        throws IOException {
+    UnboundedRabbitMqReader(RabbitMQSource source, @Nullable PipelineOptions options) {
       this.source = source;
+      this.options = options == null ? PipelineOptionsFactory.create() : options;
       this.current = null;
-      this.checkpointMark = checkpointMark != null ? checkpointMark : new RabbitMQCheckpointMark();
     }
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.latestTimestamp;
+      return checkpointPreparer.getLatestTimestamp();
     }
 
     @Override
     public UnboundedSource.CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      return checkpointPreparer.newCheckpoint(
+          channel, activeCheckpoints, this::maybeStopConnection);
     }
 
     @Override
@@ -516,25 +718,25 @@ public class RabbitMqIO {
         connectionHandler = new ConnectionHandler(source.spec.uri());
         connectionHandler.start();
 
-        Channel channel = connectionHandler.getChannel();
+        Channel createdChannel = connectionHandler.getChannel();
 
         queueName = source.spec.queue();
         if (source.spec.queueDeclare()) {
           // declare the queue (if not done by another application)
           // channel.queueDeclare(queueName, durable, exclusive, autoDelete, arguments);
-          channel.queueDeclare(queueName, false, false, false, null);
+          createdChannel.queueDeclare(queueName, false, false, false, null);
         }
         if (source.spec.exchange() != null) {
           if (source.spec.exchangeDeclare()) {
-            channel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
+            createdChannel.exchangeDeclare(source.spec.exchange(), source.spec.exchangeType());
           }
           if (queueName == null) {
-            queueName = channel.queueDeclare().getQueue();
+            queueName = createdChannel.queueDeclare().getQueue();
           }
-          channel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
+          createdChannel.queueBind(queueName, source.spec.exchange(), source.spec.routingKey());
         }
-        checkpointMark.channel = channel;
-        channel.txSelect();
+        channel = createdChannel;
+        createdChannel.txSelect();
       } catch (IOException e) {
         throw e;
       } catch (Exception e) {
@@ -546,14 +748,20 @@ public class RabbitMqIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        Channel channel = connectionHandler.getChannel();
+        Channel ch = channel;
+        if (ch == null) {
+          current = null;
+          currentRecordId = null;
+          currentTimestamp = null;
+          return false;
+        }
         // we consume message without autoAck (we want to do the ack ourselves)
-        GetResponse delivery = channel.basicGet(queueName, false);
+        GetResponse delivery = ch.basicGet(queueName, false);
         if (delivery == null) {
           current = null;
           currentRecordId = null;
           currentTimestamp = null;
-          checkpointMark.advanceWatermark(Instant.now());
+          checkpointPreparer.advanceWatermark(Instant.now());
           return false;
         }
         if (source.spec.useCorrelationId()) {
@@ -566,13 +774,13 @@ public class RabbitMqIO {
           currentRecordId = correlationId.getBytes(StandardCharsets.UTF_8);
         }
         long deliveryTag = delivery.getEnvelope().getDeliveryTag();
-        checkpointMark.sessionIds.add(deliveryTag);
+        checkpointPreparer.add(deliveryTag);
 
         current = new RabbitMqMessage(source.spec.routingKey(), delivery);
         Date deliveryTimestamp = delivery.getProps().getTimestamp();
         currentTimestamp =
             (deliveryTimestamp != null) ? new Instant(deliveryTimestamp) : Instant.now();
-        checkpointMark.advanceWatermark(currentTimestamp);
+        checkpointPreparer.advanceWatermark(currentTimestamp);
       } catch (IOException e) {
         throw e;
       } catch (Exception e) {
@@ -582,9 +790,41 @@ public class RabbitMqIO {
     }
 
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void close() throws IOException {
-      if (connectionHandler != null) {
-        connectionHandler.stop();
+      closed.set(true);
+      checkpointPreparer.discard();
+      if (activeCheckpoints.get() == 0) {
+        abandonPendingCheckpointsAndStopConnection();
+      } else {
+        ScheduledExecutorService executorService =
+            options.as(ExecutorOptions.class).getScheduledExecutorService();
+        executorService.schedule(
+            this::abandonPendingCheckpointsAndStopConnection,
+            DEFAULT_CLOSE_TIMEOUT.getMillis(),
+            TimeUnit.MILLISECONDS);
+      }
+    }
+
+    private void maybeStopConnection() {
+      if (closed.get() && activeCheckpoints.get() == 0) {
+        abandonPendingCheckpointsAndStopConnection();
+      }
+    }
+
+    private void abandonPendingCheckpointsAndStopConnection() {
+      synchronized (closeLock) {
+        checkpointPreparer.abandonPendingCheckpoints();
+        channel = null;
+        if (connectionHandler != null) {
+          try {
+            connectionHandler.stop();
+          } catch (IOException ignored) {
+            // Best-effort cleanup on close.
+          } finally {
+            connectionHandler = null;
+          }
+        }
       }
     }
   }
