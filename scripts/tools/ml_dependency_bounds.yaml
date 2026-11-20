@@ -1,0 +1,358 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Sites read by update_ml_dependency_bounds.py. Current bounds are read from the
+# files at run time, so no pattern or value here depends on a bound that the
+# script changes.
+#
+# Site fields:
+#   id             Unique name used in reports.
+#   file           Path from the repository root.
+#   package        Distribution name as written in the requirement.
+#   pypi           Project name used for https://pypi.org/pypi/<pypi>/json.
+#   pattern        Regex (multiline) that matches the requirement. The named
+#                  group "req" is the text that the script may rewrite.
+#   occurrence     Which match of the pattern in the file is this site
+#                  (1-based, in file order). Default 1.
+#   role           "high" sites are updated. "low" sites are never edited.
+#   max_exclusive  Optional ceiling. The upper bound is never raised past it.
+#   hold_reason    Reported when the site cannot move.
+#   follow         The id of an earlier site. The requirement becomes the
+#                  newest minor window that fits inside that site's upper bound.
+#   floor          Raise only the lower bound to the newest stable minor.
+#   rename         Key in "renames" for tox envs and Gradle tasks that carry
+#                  the window's factor (for example 214 for torch 2.14).
+
+renames:
+  pytorch:
+    env_prefix: pytorch
+    files:
+      - sdks/python/tox.ini
+      - sdks/python/test-suites/tox/py311/build.gradle
+      - sdks/python/test-suites/tox/py314/build.gradle
+  tensorflow:
+    env_prefix: tensorflow
+    files:
+      - sdks/python/tox.ini
+      - sdks/python/test-suites/tox/py311/build.gradle
+  tft:
+    env_prefix: tft
+    files:
+      - sdks/python/tox.ini
+      - sdks/python/test-suites/tox/py311/build.gradle
+
+sites:
+  # --- torch ---
+  # setup.py order: ml_base_core, torch extra, transformers extra, onnx extra.
+  - id: setup_torch_ml_base_core
+    file: sdks/python/setup.py
+    package: torch
+    pypi: torch
+    pattern: '(?<![\w-])(?P<req>torch>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: high
+    max_exclusive: '2.12.0'
+    hold_reason: >-
+      torch 2.12 requires triton 3.7, which aborts when imported after
+      tensorflow, and ml_base_core installs tensorflow.
+
+  - id: setup_torch_torch_extra
+    file: sdks/python/setup.py
+    package: torch
+    pypi: torch
+    pattern: '(?<![\w-])(?P<req>torch>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+
+  - id: setup_torch_transformers_extra
+    file: sdks/python/setup.py
+    package: torch
+    pypi: torch
+    pattern: '(?<![\w-])(?P<req>torch>=[0-9.]+,<[0-9.]+)'
+    occurrence: 3
+    role: high
+    max_exclusive: '2.12.0'
+    hold_reason: >-
+      torch 2.12 requires triton 3.7, which aborts when imported after
+      tensorflow, and the transformers extra installs tensorflow.
+
+  - id: setup_torch_onnx_extra
+    file: sdks/python/setup.py
+    package: torch
+    pypi: torch
+    pattern: '(?<![\w-])(?P<req>torch>=[0-9.]+,<[0-9.]+)'
+    occurrence: 4
+    role: high
+    max_exclusive: '2.12.0'
+    hold_reason: >-
+      torch 2.12 requires triton 3.7, which aborts when imported after
+      tensorflow, and the onnx extra installs tensorflow.
+
+  # tox.ini order of "<factor>: torch" lines: pytorch 23, pytorch 214, onnx 119.
+  - id: tox_torch_low
+    file: sdks/python/tox.ini
+    package: torch
+    pypi: torch
+    pattern: '^[ \t]+[0-9]+: (?P<req>torch>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: low
+
+  - id: tox_torch_high
+    file: sdks/python/tox.ini
+    package: torch
+    pypi: torch
+    pattern: '^[ \t]+[0-9]+: (?P<req>torch>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+    follow: setup_torch_torch_extra
+    rename: pytorch
+
+  - id: tox_torch_py314
+    file: sdks/python/tox.ini
+    package: torch
+    pypi: torch
+    pattern: '^[ \t]+(?P<req>torch>=[0-9.]+,<[0-9.]+)(?=\s*$)'
+    role: high
+    follow: setup_torch_torch_extra
+    rename: pytorch
+
+  # --- tensorflow ---
+  # setup.py order: ml_base_core, tensorflow extra, onnx extra.
+  - id: setup_tensorflow_ml_base_core
+    file: sdks/python/setup.py
+    package: tensorflow
+    pypi: tensorflow
+    pattern: '(?<![\w-])(?P<req>tensorflow>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: high
+
+  - id: setup_tensorflow_extra
+    file: sdks/python/setup.py
+    package: tensorflow
+    pypi: tensorflow
+    pattern: '(?<![\w-])(?P<req>tensorflow>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+
+  - id: setup_tensorflow_onnx_extra
+    file: sdks/python/setup.py
+    package: tensorflow
+    pypi: tensorflow
+    pattern: '(?<![\w-])(?P<req>tensorflow>=[0-9.]+,<[0-9.]+)'
+    occurrence: 3
+    role: high
+
+  - id: tox_tensorflow_common_deps
+    file: sdks/python/tox.ini
+    package: tensorflow
+    pypi: tensorflow
+    pattern: "COMMON_DEPS = '(?P<req>tensorflow>=[0-9.]+,<[0-9.]+)"
+    role: high
+
+  # tox.ini order of "<factor>: tensorflow" lines: 216, 221 (the onnx env line
+  # has no factor prefix and is not a site).
+  - id: tox_tensorflow_low
+    file: sdks/python/tox.ini
+    package: tensorflow
+    pypi: tensorflow
+    pattern: '^[ \t]+[0-9]+: (?P<req>tensorflow>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: low
+
+  - id: tox_tensorflow_high
+    file: sdks/python/tox.ini
+    package: tensorflow
+    pypi: tensorflow
+    pattern: '^[ \t]+[0-9]+: (?P<req>tensorflow>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+    follow: setup_tensorflow_ml_base_core
+    rename: tensorflow
+
+  - id: tox_tf_keras_high
+    file: sdks/python/tox.ini
+    package: tf-keras
+    pypi: tensorflow
+    pattern: '^[ \t]+[0-9]+: (?P<req>tf-keras>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+    follow: setup_tensorflow_ml_base_core
+    rename: tensorflow
+
+  # --- transformers ---
+  # setup.py order: ml_base_core, ml_cpu (not a site).
+  - id: setup_transformers_ml_base_core
+    file: sdks/python/setup.py
+    package: transformers
+    pypi: transformers
+    pattern: '(?<![\w-])(?P<req>transformers>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: high
+
+  - id: setup_transformers_extra
+    file: sdks/python/setup.py
+    package: transformers
+    pypi: transformers
+    pattern: '(?<![\w-])(?P<req>transformers>=[0-9.]+,!=[0-9.*]+,<[0-9.]+)'
+    role: high
+
+  - id: tox_transformers_latest
+    file: sdks/python/tox.ini
+    package: transformers
+    pypi: transformers
+    pattern: "latest: DEPS = '(?P<req>transformers>=[0-9.]+,<[0-9.]+)"
+    role: high
+    follow: setup_transformers_extra
+
+  # --- tokenizers ---
+  - id: setup_tokenizers_cap
+    file: sdks/python/setup.py
+    package: tokenizers
+    pypi: tokenizers
+    pattern: '(?<![\w-])(?P<req>tokenizers<[0-9.]+)'
+    role: high
+    max_exclusive: '0.23'
+    hold_reason: >-
+      tokenizers 0.23 renamed the cls argument of RobertaProcessing, and the
+      transformers CLIP tokenizer still passes cls=.
+
+  - id: setup_tokenizers_range
+    file: sdks/python/setup.py
+    package: tokenizers
+    pypi: tokenizers
+    pattern: '(?<![\w-])(?P<req>tokenizers>=[0-9.]+,<[0-9.]+)'
+    role: high
+    max_exclusive: '0.22.0'
+    hold_reason: >-
+      tokenizers stays below 0.22 next to the transformers range in
+      ml_base_core, and the two can conflict.
+
+  # --- onnx family: major cap in setup.py, floor raised in tox.ini ---
+  # setup.py order of onnx lines: ml_base_core, onnx extra.
+  - id: setup_onnx_ml_base_core
+    file: sdks/python/setup.py
+    package: onnx
+    pypi: onnx
+    pattern: '(?<![\w-])(?P<req>onnx>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: high
+
+  - id: setup_onnx_extra
+    file: sdks/python/setup.py
+    package: onnx
+    pypi: onnx
+    pattern: '(?<![\w-])(?P<req>onnx>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+
+  - id: setup_onnxruntime_extra
+    file: sdks/python/setup.py
+    package: onnxruntime
+    pypi: onnxruntime
+    pattern: '(?<![\w-])(?P<req>onnxruntime>=[0-9.]+,<[0-9.]+)'
+    role: high
+
+  - id: setup_skl2onnx_extra
+    file: sdks/python/setup.py
+    package: skl2onnx
+    pypi: skl2onnx
+    pattern: '(?<![\w-])(?P<req>skl2onnx>=[0-9.]+,<[0-9.]+)'
+    role: high
+
+  - id: tox_onnxruntime_latest
+    file: sdks/python/tox.ini
+    package: onnxruntime
+    pypi: onnxruntime
+    pattern: 'latest: (?P<req>onnxruntime>=[0-9.]+,<[0-9.]+)'
+    role: high
+    floor: true
+
+  - id: tox_onnx_latest
+    file: sdks/python/tox.ini
+    package: onnx
+    pypi: onnx
+    pattern: 'latest: (?P<req>onnx>=[0-9.]+,<[0-9.]+)'
+    role: high
+    floor: true
+
+  - id: tox_skl2onnx_latest
+    file: sdks/python/tox.ini
+    package: skl2onnx
+    pypi: skl2onnx
+    pattern: 'latest: (?P<req>skl2onnx>=[0-9.]+,<[0-9.]+)'
+    role: high
+    floor: true
+
+  # --- xgboost: major cap ---
+  - id: setup_xgboost
+    file: sdks/python/setup.py
+    package: xgboost
+    pypi: xgboost
+    pattern: '(?<![\w-])(?P<req>xgboost>=[0-9.]+,<[0-9.]+)'
+    role: high
+
+  - id: xgboost_tests_requirements
+    file: sdks/python/apache_beam/ml/inference/xgboost_tests_requirements.txt
+    package: xgboost
+    pypi: xgboost
+    pattern: '^(?P<req>xgboost>=[0-9.]+,<[0-9.]+)'
+    role: high
+
+  # tox.ini order of "<factor>: xgboost" lines: 200, 300.
+  - id: tox_xgboost_low
+    file: sdks/python/tox.ini
+    package: xgboost
+    pypi: xgboost
+    pattern: '^[ \t]+[0-9]+: (?P<req>xgboost>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: low
+
+  - id: tox_xgboost_high
+    file: sdks/python/tox.ini
+    package: xgboost
+    pypi: xgboost
+    pattern: '^[ \t]+[0-9]+: (?P<req>xgboost>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+
+  # --- tensorflow-transform ---
+  # setup.py spells the requirement tensorflow_transform. Order: ml_test, tft
+  # extra.
+  - id: setup_tft_ml_test
+    file: sdks/python/setup.py
+    package: tensorflow-transform
+    pypi: tensorflow-transform
+    pattern: '(?<![\w-])(?P<req>tensorflow_transform>=[0-9.]+,<[0-9.]+)'
+    occurrence: 1
+    role: high
+
+  - id: setup_tft_extra
+    file: sdks/python/setup.py
+    package: tensorflow-transform
+    pypi: tensorflow-transform
+    pattern: '(?<![\w-])(?P<req>tensorflow_transform>=[0-9.]+,<[0-9.]+)'
+    occurrence: 2
+    role: high
+
+  - id: tox_tft_high
+    file: sdks/python/tox.ini
+    package: tensorflow-transform
+    pypi: tensorflow-transform
+    pattern: '^[ \t]+(?P<req>tensorflow_transform>=[0-9.]+,<[0-9.]+)'
+    role: high
+    follow: setup_tft_extra
+    rename: tft
