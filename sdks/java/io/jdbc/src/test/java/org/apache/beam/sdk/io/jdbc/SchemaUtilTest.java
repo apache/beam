@@ -133,6 +133,70 @@ public class SchemaUtilTest {
   }
 
   @Test
+  public void testToBeamSchemaDecimalAndNumericPreservePrecisionAndScale() throws SQLException {
+    for (int jdbcType : new int[] {Types.DECIMAL, Types.NUMERIC}) {
+      for (boolean nullable : new boolean[] {false, true}) {
+        ResultSetMetaData metadata = numericMetadata(jdbcType, 12, 2, nullable);
+        Schema expected =
+            Schema.builder()
+                .addField("amount", LogicalTypes.numeric(12, 2).withNullable(nullable))
+                .build();
+
+        assertEquals(
+            JDBCType.valueOf(jdbcType).toString(), expected, SchemaUtil.toBeamSchema(metadata));
+      }
+    }
+  }
+
+  @Test
+  public void testToBeamSchemaDecimalAndNumericWithUnspecifiedPrecision() throws SQLException {
+    for (int jdbcType : new int[] {Types.DECIMAL, Types.NUMERIC}) {
+      for (int precision : new int[] {0, -1, Integer.MAX_VALUE}) {
+        for (boolean nullable : new boolean[] {false, true}) {
+          ResultSetMetaData metadata = numericMetadata(jdbcType, precision, 0, nullable);
+          Schema expected =
+              Schema.builder()
+                  .addField("amount", Schema.FieldType.DECIMAL.withNullable(nullable))
+                  .build();
+
+          assertEquals(
+              JDBCType.valueOf(jdbcType) + " precision=" + precision,
+              expected,
+              SchemaUtil.toBeamSchema(metadata));
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testBeamRowMapperInferredDecimalAndNumeric() throws Exception {
+    BigDecimal value = new BigDecimal("123.45");
+    for (int jdbcType : new int[] {Types.DECIMAL, Types.NUMERIC}) {
+      Schema schema = SchemaUtil.toBeamSchema(numericMetadata(jdbcType, 12, 2, true));
+      SchemaUtil.BeamRowMapper mapper = SchemaUtil.BeamRowMapper.of(schema);
+      ResultSet resultSet = mock(ResultSet.class);
+      when(resultSet.getBigDecimal(1)).thenReturn(value).thenReturn(null);
+      when(resultSet.wasNull()).thenReturn(false, true);
+
+      assertEquals(Row.withSchema(schema).addValue(value).build(), mapper.mapRow(resultSet));
+      assertEquals(Row.withSchema(schema).addValue(null).build(), mapper.mapRow(resultSet));
+    }
+  }
+
+  private static ResultSetMetaData numericMetadata(
+      int jdbcType, int precision, int scale, boolean nullable) throws SQLException {
+    ResultSetMetaData metadata = mock(ResultSetMetaData.class);
+    when(metadata.getColumnCount()).thenReturn(1);
+    when(metadata.getColumnLabel(1)).thenReturn("amount");
+    when(metadata.getColumnType(1)).thenReturn(jdbcType);
+    when(metadata.getPrecision(1)).thenReturn(precision);
+    when(metadata.getScale(1)).thenReturn(scale);
+    when(metadata.isNullable(1))
+        .thenReturn(nullable ? ResultSetMetaData.columnNullable : ResultSetMetaData.columnNoNulls);
+    return metadata;
+  }
+
+  @Test
   public void testBeamRowMapperArray() throws Exception {
     ResultSet mockArrayElementsResultSet = mock(ResultSet.class);
     when(mockArrayElementsResultSet.next()).thenReturn(true, true, true, false);
