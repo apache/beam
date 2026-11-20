@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -130,5 +132,16 @@ public class PaneInfoTest {
         "PaneInfo encoding should remain the same.",
         0x1,
         PaneInfo.createPane(true, false, Timing.EARLY, 1, -1, true).getEncodedByte());
+  }
+
+  @Test
+  public void testWithElementMetadataIdentityWhenUnchanged() {
+    PaneInfo withoutMeta = PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 1, false);
+    assertSame(withoutMeta, withoutMeta.withElementMetadata(false));
+
+    PaneInfo withMeta = withoutMeta.withElementMetadata(true);
+    assertNotSame(withoutMeta, withMeta);
+    assertTrue(withMeta.isElementMetadata());
+    assertSame(withMeta, withMeta.withElementMetadata(true));
   }
 }

@@ -19,7 +19,14 @@ package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertThrows;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -96,5 +103,99 @@ public class BigEndianLongCoderTest {
   @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Long.class)));
+  }
+
+  @Test
+  public void testDecodeChunkedInputStreamAndEof() throws Exception {
+    for (Long value : TEST_VALUES) {
+      byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, value);
+      InputStream oneByteAtATime =
+          new ByteArrayInputStream(encoded) {
+            @Override
+            public synchronized int read(byte[] b, int off, int len) {
+              return super.read(b, off, Math.min(1, len));
+            }
+          };
+      assertThat(TEST_CODER.decode(oneByteAtATime), equalTo(value));
+    }
+
+    // Empty stream hits EOF on the first read.
+    assertThrows(
+        CoderException.class, () -> TEST_CODER.decode(new ByteArrayInputStream(new byte[0])));
+
+    // Truncated stream (3 bytes) hits EOF mid-long.
+    byte[] truncated = new byte[] {1, 2, 3};
+    assertThrows(
+        CoderException.class,
+        () ->
+            TEST_CODER.decode(
+                new ByteArrayInputStream(truncated) {
+                  @Override
+                  public synchronized int read(byte[] b, int off, int len) {
+                    return super.read(b, off, Math.min(1, len));
+                  }
+                }));
+  }
+
+  @Test
+  public void testReentrantWriteAndReadCallbacksDoNotCorruptData() throws Exception {
+    long outerVal = 0x0102030405060708L;
+    long innerVal = 0xF1F2F3F4F5F6F7F8L;
+    byte[] expectedOuter = CoderUtils.encodeToByteArray(TEST_CODER, outerVal);
+    byte[] expectedInner = CoderUtils.encodeToByteArray(TEST_CODER, innerVal);
+
+    // Reentrant encode + decode triggered mid-write across a chunk boundary (e.g. DataStreams
+    // flush).
+    ByteArrayOutputStream outerOut = new ByteArrayOutputStream();
+    ByteArrayOutputStream innerOut = new ByteArrayOutputStream();
+    final Long[] innerDecodedDuringWrite = new Long[1];
+    OutputStream chunkedReentrantOut =
+        new OutputStream() {
+          @Override
+          public void write(int b) {
+            outerOut.write(b);
+          }
+
+          @Override
+          public void write(byte[] b, int off, int len) throws IOException {
+            int firstHalf = len / 2;
+            outerOut.write(b, off, firstHalf);
+            TEST_CODER.encode(innerVal, innerOut);
+            innerDecodedDuringWrite[0] = TEST_CODER.decode(new ByteArrayInputStream(expectedInner));
+            outerOut.write(b, off + firstHalf, len - firstHalf);
+          }
+        };
+    TEST_CODER.encode(outerVal, chunkedReentrantOut);
+    assertArrayEquals(expectedOuter, outerOut.toByteArray());
+    assertArrayEquals(expectedInner, innerOut.toByteArray());
+    assertThat(innerDecodedDuringWrite[0], equalTo(innerVal));
+
+    // Reentrant decode + encode triggered mid-read across a chunk boundary.
+    ByteArrayOutputStream encodedDuringRead = new ByteArrayOutputStream();
+    final Long[] innerDecodedDuringRead = new Long[1];
+    InputStream chunkedReentrantIn =
+        new ByteArrayInputStream(expectedOuter) {
+          private boolean triggered;
+
+          @Override
+          public synchronized int read(byte[] b, int off, int len) {
+            if (!triggered) {
+              triggered = true;
+              int n = super.read(b, off, Math.min(3, len));
+              try {
+                innerDecodedDuringRead[0] =
+                    TEST_CODER.decode(new ByteArrayInputStream(expectedInner));
+                TEST_CODER.encode(innerVal, encodedDuringRead);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+              return n;
+            }
+            return super.read(b, off, len);
+          }
+        };
+    assertThat(TEST_CODER.decode(chunkedReentrantIn), equalTo(outerVal));
+    assertThat(innerDecodedDuringRead[0], equalTo(innerVal));
+    assertArrayEquals(expectedInner, encodedDuringRead.toByteArray());
   }
 }
