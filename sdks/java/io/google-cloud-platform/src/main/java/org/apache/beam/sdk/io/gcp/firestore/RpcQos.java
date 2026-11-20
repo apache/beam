@@ -99,6 +99,15 @@ interface RpcQos {
   RpcWriteAttempt newWriteAttempt(Context context);
 
   /**
+   * Set the instant from which the write ramp-up budget grows.
+   *
+   * <p>If never called, the ramp-up starts from the first write attempted by this instance.
+   *
+   * @param rampUpStart The instant the ramp-up is considered to have started.
+   */
+  void setRampUpStart(Instant rampUpStart);
+
+  /**
    * Check if a request is over the max allowed number of bytes.
    *
    * @param bytes number of bytes to check against the allowed limit
