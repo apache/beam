@@ -87,6 +87,16 @@ function setup_maven_wrapper() {
   MAVEN_CMD="${mvnw_script}"
 }
 
+# beam-sdks-java-extensions-sql-jdbc already bundles Conscrypt, native libraries included.
+# Keep the other dependencies from adding another version of it: the shaded JAR would mix the
+# two, and the JVM aborts when Conscrypt's native library finds classes from another version.
+CONSCRYPT_EXCLUSION="            <exclusions>
+                <exclusion>
+                    <groupId>org.conscrypt</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>"
+
 function add_beam_dependency() {
   local artifact_id="$1"
   cat >> "${POM_FILE}" << EOL
@@ -94,6 +104,7 @@ function add_beam_dependency() {
             <groupId>org.apache.beam</groupId>
             <artifactId>${artifact_id}</artifactId>
             <version>\${beam.version}</version>
+${CONSCRYPT_EXCLUSION}
         </dependency>
 EOL
 }
@@ -107,6 +118,7 @@ function add_dependency() {
             <groupId>${group_id}</groupId>
             <artifactId>${artifact_id}</artifactId>
             <version>${version}</version>
+${CONSCRYPT_EXCLUSION}
         </dependency>
 EOL
 }
