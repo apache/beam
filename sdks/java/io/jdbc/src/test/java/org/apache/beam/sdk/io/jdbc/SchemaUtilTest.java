@@ -67,6 +67,8 @@ public class SchemaUtilTest {
             JdbcFieldInfo.of("char_col", Types.CHAR, 255),
             JdbcFieldInfo.of("date_col", Types.DATE),
             JdbcFieldInfo.of("decimal_col", Types.DECIMAL),
+            JdbcFieldInfo.of("decimal_unspecified_precision_col", Types.DECIMAL, -1),
+            JdbcFieldInfo.of("decimal_max_precision_col", Types.DECIMAL, Integer.MAX_VALUE),
             JdbcFieldInfo.of("double_col", Types.DOUBLE),
             JdbcFieldInfo.of("float_col", Types.FLOAT),
             JdbcFieldInfo.of("integer_col", Types.INTEGER),
@@ -108,6 +110,8 @@ public class SchemaUtilTest {
             .addField("char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 255))
             .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("decimal_col", Schema.FieldType.DECIMAL)
+            .addField("decimal_unspecified_precision_col", Schema.FieldType.DECIMAL)
+            .addField("decimal_max_precision_col", Schema.FieldType.DECIMAL)
             .addField("double_col", Schema.FieldType.DOUBLE)
             .addField("float_col", LogicalTypes.JDBC_FLOAT_TYPE)
             .addField("integer_col", Schema.FieldType.INT32)
@@ -148,21 +152,6 @@ public class SchemaUtilTest {
             Integer.valueOf(12), field.getOptions().getValue(SchemaUtil.DECIMAL_PRECISION_OPTION));
         assertEquals(
             Integer.valueOf(scale), field.getOptions().getValue(SchemaUtil.DECIMAL_SCALE_OPTION));
-      }
-    }
-  }
-
-  @Test
-  public void testToBeamSchemaDecimalWithUnspecifiedPrecision() throws SQLException {
-    for (int precision : new int[] {0, -1, Integer.MAX_VALUE}) {
-      for (boolean nullable : new boolean[] {false, true}) {
-        Schema expected =
-            Schema.of(Schema.Field.of("amount", Schema.FieldType.DECIMAL.withNullable(nullable)));
-
-        assertEquals(
-            "precision=" + precision,
-            expected,
-            SchemaUtil.toBeamSchema(decimalMetadata(precision, 0, nullable)));
       }
     }
   }
