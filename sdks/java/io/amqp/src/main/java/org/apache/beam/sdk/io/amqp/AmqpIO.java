@@ -25,10 +25,17 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -36,7 +43,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.qpid.proton.message.Message;
 import org.apache.qpid.proton.messenger.Messenger;
 import org.apache.qpid.proton.messenger.Tracker;
@@ -172,30 +182,195 @@ public class AmqpIO {
     }
   }
 
-  private static class AmqpCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+  @VisibleForTesting
+  static class AmqpCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
-    private transient Messenger messenger;
+    // Pinned to the value computed before readerId and sequence were added, so checkpoints written
+    // by older versions can still be decoded.
+    private static final long serialVersionUID = 6903044759462496471L;
+
+    private final @Nullable String readerId;
+    private final long sequence;
+    private transient @Nullable Messenger messenger;
     private transient List<Tracker> trackers = new ArrayList<>();
+    private transient @Nullable PendingCheckpoints pendingCheckpoints;
+    private transient @Nullable AtomicInteger activeCheckpoints;
+    private transient @Nullable Runnable onCheckpointFinalized;
 
-    public AmqpCheckpointMark() {}
+    public AmqpCheckpointMark() {
+      this(null, 0, null, new ArrayList<>(), null, null);
+    }
+
+    private AmqpCheckpointMark(
+        @Nullable PendingCheckpoints pendingCheckpoints,
+        long sequence,
+        @Nullable Messenger messenger,
+        List<Tracker> trackers,
+        @Nullable AtomicInteger activeCheckpoints,
+        @Nullable Runnable onCheckpointFinalized) {
+      this.pendingCheckpoints = pendingCheckpoints;
+      this.readerId = pendingCheckpoints == null ? null : pendingCheckpoints.readerId;
+      this.sequence = sequence;
+      this.messenger = messenger;
+      this.trackers = trackers;
+      this.activeCheckpoints = activeCheckpoints;
+      this.onCheckpointFinalized = onCheckpointFinalized;
+    }
 
     @Override
     public void finalizeCheckpoint() {
-      for (Tracker tracker : trackers) {
-        // flag as not cumulative
-        messenger.accept(tracker, 0);
+      PendingCheckpoints pending = pendingCheckpoints;
+      if (pending == null && readerId != null) {
+        pending = PendingCheckpoints.LIVE.getIfPresent(readerId);
+      }
+      if (pending != null) {
+        for (AmqpCheckpointMark checkpoint : pending.removeUpTo(sequence)) {
+          checkpoint.acknowledge();
+        }
+        return;
+      }
+      if (readerId != null) {
+        return;
+      }
+      acknowledge();
+    }
+
+    private synchronized void acknowledge() {
+      if (messenger != null) {
+        for (Tracker tracker : trackers) {
+          // flag as not cumulative
+          messenger.accept(tracker, 0);
+        }
       }
       trackers.clear();
+      messenger = null;
+      release(true);
+    }
+
+    private synchronized void abandon() {
+      trackers.clear();
+      messenger = null;
+      release(false);
+    }
+
+    private void release(boolean notifyIfDrained) {
+      if (activeCheckpoints != null) {
+        int remaining = activeCheckpoints.decrementAndGet();
+        activeCheckpoints = null;
+        if (notifyIfDrained && remaining == 0 && onCheckpointFinalized != null) {
+          onCheckpointFinalized.run();
+        }
+      }
     }
 
     // set an empty list to messages when deserialize
     private void readObject(java.io.ObjectInputStream stream)
         throws IOException, ClassNotFoundException {
+      stream.defaultReadObject();
       trackers = new ArrayList<>();
+    }
+
+    private static final class PendingCheckpoints {
+      private static final Cache<String, PendingCheckpoints> LIVE =
+          CacheBuilder.newBuilder().weakValues().build();
+
+      private final String readerId = UUID.randomUUID().toString();
+      private final List<AmqpCheckpointMark> checkpoints = new ArrayList<>();
+      private long nextSequence;
+
+      static PendingCheckpoints create() {
+        PendingCheckpoints pending = new PendingCheckpoints();
+        LIVE.put(pending.readerId, pending);
+        return pending;
+      }
+
+      synchronized long nextSequence() {
+        return nextSequence++;
+      }
+
+      synchronized void add(AmqpCheckpointMark checkpoint) {
+        checkpoints.add(checkpoint);
+      }
+
+      synchronized List<AmqpCheckpointMark> removeUpTo(long sequence) {
+        List<AmqpCheckpointMark> removed = new ArrayList<>();
+        checkpoints.removeIf(
+            checkpoint -> {
+              if (checkpoint.sequence <= sequence) {
+                removed.add(checkpoint);
+                return true;
+              }
+              return false;
+            });
+        return removed;
+      }
+
+      synchronized List<AmqpCheckpointMark> removeAll() {
+        LIVE.invalidate(readerId);
+        List<AmqpCheckpointMark> removed = new ArrayList<>(checkpoints);
+        checkpoints.clear();
+        return removed;
+      }
+    }
+
+    static class Preparer {
+      private final PendingCheckpoints pendingCheckpoints = PendingCheckpoints.create();
+      private final List<Tracker> trackers = new ArrayList<>();
+      private boolean discarded = false;
+
+      synchronized void add(Tracker tracker) {
+        if (discarded) {
+          throw new IllegalStateException("Attempting to add tracker to discarded checkpoint");
+        }
+        trackers.add(tracker);
+      }
+
+      synchronized void discard() {
+        trackers.clear();
+        discarded = true;
+      }
+
+      synchronized AmqpCheckpointMark newCheckpoint(
+          @Nullable Messenger messenger,
+          @Nullable AtomicInteger activeCheckpoints,
+          @Nullable Runnable onCheckpointFinalized) {
+        if (discarded || trackers.isEmpty()) {
+          trackers.clear();
+          return new AmqpCheckpointMark(
+              pendingCheckpoints,
+              pendingCheckpoints.nextSequence(),
+              null,
+              new ArrayList<>(),
+              null,
+              null);
+        }
+        List<Tracker> snapshot = new ArrayList<>(trackers);
+        trackers.clear();
+        AmqpCheckpointMark mark =
+            new AmqpCheckpointMark(
+                pendingCheckpoints,
+                pendingCheckpoints.nextSequence(),
+                messenger,
+                snapshot,
+                activeCheckpoints,
+                onCheckpointFinalized);
+        pendingCheckpoints.add(mark);
+        if (activeCheckpoints != null) {
+          activeCheckpoints.incrementAndGet();
+        }
+        return mark;
+      }
+
+      void abandonPendingCheckpoints() {
+        for (AmqpCheckpointMark checkpoint : pendingCheckpoints.removeAll()) {
+          checkpoint.abandon();
+        }
+      }
     }
   }
 
-  private static class UnboundedAmqpSource extends UnboundedSource<Message, AmqpCheckpointMark> {
+  @VisibleForTesting
+  static class UnboundedAmqpSource extends UnboundedSource<Message, AmqpCheckpointMark> {
 
     private final Read spec;
 
@@ -216,8 +391,13 @@ public class AmqpIO {
 
     @Override
     public UnboundedReader<Message> createReader(
-        PipelineOptions pipelineOptions, AmqpCheckpointMark checkpointMark) {
-      return new UnboundedAmqpReader(this, checkpointMark);
+        PipelineOptions pipelineOptions, @Nullable AmqpCheckpointMark checkpointMark) {
+      if (checkpointMark != null) {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // acknowledged if the reader that took it lives in this JVM.
+        checkpointMark.finalizeCheckpoint();
+      }
+      return new UnboundedAmqpReader(this, pipelineOptions);
     }
 
     @Override
@@ -231,24 +411,28 @@ public class AmqpIO {
     }
   }
 
-  private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<Message> {
+  @VisibleForTesting
+  static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<Message> {
+
+    private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.standardSeconds(60);
 
     private final UnboundedAmqpSource source;
+    private final PipelineOptions options;
 
-    private Messenger messenger;
-    private Message current;
-    private Instant currentTimestamp;
+    private @Nullable Messenger messenger;
+    private @Nullable Message current;
+    private @Nullable Instant currentTimestamp;
     private Instant watermark = new Instant(Long.MIN_VALUE);
-    private AmqpCheckpointMark checkpointMark;
+    private final AmqpCheckpointMark.Preparer checkpointPreparer =
+        new AmqpCheckpointMark.Preparer();
+    private final AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final Object closeLock = new Object();
 
-    public UnboundedAmqpReader(UnboundedAmqpSource source, AmqpCheckpointMark checkpointMark) {
+    public UnboundedAmqpReader(UnboundedAmqpSource source, @Nullable PipelineOptions options) {
       this.source = source;
+      this.options = options == null ? PipelineOptionsFactory.create() : options;
       this.current = null;
-      if (checkpointMark != null) {
-        this.checkpointMark = checkpointMark;
-      } else {
-        this.checkpointMark = new AmqpCheckpointMark();
-      }
     }
 
     @Override
@@ -258,7 +442,7 @@ public class AmqpIO {
 
     @Override
     public Instant getCurrentTimestamp() {
-      if (current == null) {
+      if (current == null || currentTimestamp == null) {
         throw new NoSuchElementException();
       }
       return currentTimestamp;
@@ -274,7 +458,8 @@ public class AmqpIO {
 
     @Override
     public UnboundedSource.CheckpointMark getCheckpointMark() {
-      return checkpointMark;
+      return checkpointPreparer.newCheckpoint(
+          messenger, activeCheckpoints, this::maybeStopMessenger);
     }
 
     @Override
@@ -285,25 +470,30 @@ public class AmqpIO {
     @Override
     public boolean start() throws IOException {
       Read spec = source.spec;
-      messenger = Messenger.Factory.create();
-      messenger.start();
+      Messenger created = Messenger.Factory.create();
+      created.start();
       for (String address : spec.addresses()) {
-        messenger.subscribe(address);
+        created.subscribe(address);
       }
-      checkpointMark.messenger = messenger;
+      messenger = created;
       return advance();
     }
 
     @Override
     public boolean advance() {
-      messenger.recv();
-      if (messenger.incoming() <= 0) {
+      Messenger currentMessenger = messenger;
+      if (currentMessenger == null) {
         current = null;
         return false;
       }
-      Message message = messenger.get();
-      Tracker tracker = messenger.incomingTracker();
-      checkpointMark.trackers.add(tracker);
+      currentMessenger.recv();
+      if (currentMessenger.incoming() <= 0) {
+        current = null;
+        return false;
+      }
+      Message message = currentMessenger.get();
+      Tracker tracker = currentMessenger.incomingTracker();
+      checkpointPreparer.add(tracker);
       currentTimestamp = new Instant(message.getCreationTime());
       watermark = currentTimestamp;
       current = message;
@@ -311,9 +501,35 @@ public class AmqpIO {
     }
 
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void close() {
-      if (messenger != null) {
-        messenger.stop();
+      closed.set(true);
+      checkpointPreparer.discard();
+      if (activeCheckpoints.get() == 0) {
+        abandonPendingCheckpointsAndStopMessenger();
+      } else {
+        ScheduledExecutorService executorService =
+            options.as(ExecutorOptions.class).getScheduledExecutorService();
+        executorService.schedule(
+            this::abandonPendingCheckpointsAndStopMessenger,
+            DEFAULT_CLOSE_TIMEOUT.getMillis(),
+            TimeUnit.MILLISECONDS);
+      }
+    }
+
+    private void maybeStopMessenger() {
+      if (closed.get() && activeCheckpoints.get() == 0) {
+        abandonPendingCheckpointsAndStopMessenger();
+      }
+    }
+
+    private void abandonPendingCheckpointsAndStopMessenger() {
+      synchronized (closeLock) {
+        checkpointPreparer.abandonPendingCheckpoints();
+        if (messenger != null) {
+          messenger.stop();
+          messenger = null;
+        }
       }
     }
   }
