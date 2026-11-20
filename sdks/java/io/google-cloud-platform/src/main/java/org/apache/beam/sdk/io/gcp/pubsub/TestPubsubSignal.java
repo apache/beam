@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createSubscriptionWithRetry;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
+import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicWithRetry;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -28,7 +30,6 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
-import com.google.pubsub.v1.PushConfig;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -170,21 +171,15 @@ public class TestPubsubSignal implements TestRule {
             "start-subscription-" + ThreadLocalRandom.current().nextLong());
 
     // Set variables after successful creation; this signals that they need teardown
-    topAdmin.createTopic(resultTopicPathTmp.getPath());
+    createTopicWithRetry(topAdmin, resultTopicPathTmp.getPath());
     resultTopicPath = resultTopicPathTmp;
-    topAdmin.createTopic(startTopicPathTmp.getPath());
+    createTopicWithRetry(topAdmin, startTopicPathTmp.getPath());
     startTopicPath = startTopicPathTmp;
-    subAdmin.createSubscription(
-        resultSubscriptionPathTmp.getPath(),
-        resultTopicPathTmp.getPath(),
-        PushConfig.getDefaultInstance(),
-        600);
+    createSubscriptionWithRetry(
+        subAdmin, resultSubscriptionPathTmp.getPath(), resultTopicPathTmp.getPath(), 600);
     resultSubscriptionPath = resultSubscriptionPathTmp;
-    subAdmin.createSubscription(
-        startSubscriptionPathTmp.getPath(),
-        startTopicPathTmp.getPath(),
-        PushConfig.getDefaultInstance(),
-        600);
+    createSubscriptionWithRetry(
+        subAdmin, startSubscriptionPathTmp.getPath(), startTopicPathTmp.getPath(), 600);
     startSubscriptionPath = startSubscriptionPathTmp;
   }
 

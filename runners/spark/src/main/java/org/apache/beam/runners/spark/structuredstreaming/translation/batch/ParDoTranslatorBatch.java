@@ -144,9 +144,11 @@ class ParDoTranslatorBatch<InputT, OutputT>
       // unpersisted once the pipeline has been fully evaluated, so it doesn't leak for the
       // lifetime of the Spark session.
       Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
-          cxt.cacheDataset(
-              cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders)),
-              storageLevel);
+          cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders));
+      // A streaming Dataset cannot be persisted, each consumed tag reruns the DoFn, see #41198.
+      if (!allTagsDS.isStreaming()) {
+        allTagsDS = cxt.cacheDataset(allTagsDS, storageLevel);
+      }
 
       // divide into separate output datasets per tag
       for (TupleTag<?> tag : outputs.keySet()) {

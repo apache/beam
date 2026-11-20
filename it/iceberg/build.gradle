@@ -29,7 +29,7 @@ applyJavaNature(
 description = "Apache Beam :: IT :: Iceberg"
 ext.summary = "Integration test utilities for Iceberg."
 
-def iceberg_version = "1.10.0"
+def iceberg_version = "1.12.0"
 def parquet_version = "1.16.0"
 def hive_version = "3.1.3"
 
