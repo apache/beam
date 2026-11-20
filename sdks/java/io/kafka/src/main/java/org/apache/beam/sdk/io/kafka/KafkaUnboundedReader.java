@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -248,6 +249,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public CheckpointMark getCheckpointMark() {
     reportBacklog();
+    boolean trackReader =
+        source.getSpec().isCommitOffsetsInFinalizeEnabled() || offsetBasedDeduplicationSupported();
+    if (trackReader) {
+      KafkaCheckpointMark.registerLiveReader(readerId, this);
+    }
     return new KafkaCheckpointMark(
         partitionStates.stream()
             .map(
@@ -258,9 +264,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                         p.nextOffset,
                         p.lastWatermark.getMillis()))
             .collect(Collectors.toList()),
-        source.getSpec().isCommitOffsetsInFinalizeEnabled() || offsetBasedDeduplicationSupported()
-            ? Optional.of(this)
-            : Optional.empty());
+        trackReader ? Optional.of(this) : Optional.empty());
+  }
+
+  String getReaderId() {
+    return readerId;
   }
 
   @Override
@@ -343,6 +351,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private final KafkaUnboundedSource<K, V> source;
   private final String name;
+  private final String readerId = UUID.randomUUID().toString();
   private @Nullable Consumer<byte[], byte[]> consumer = null;
   private final List<PartitionState<K, V>> partitionStates;
   private @MonotonicNonNull KafkaRecord<K, V> curRecord = null;
@@ -877,6 +886,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   @Override
   public void close() throws IOException {
+    KafkaCheckpointMark.unregisterLiveReader(readerId);
     closed.set(true);
     consumerPollThread.shutdown();
 
