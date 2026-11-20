@@ -160,6 +160,16 @@ public interface PTransformRunnerFactory {
      * instant provides the timeout on how long the finalization callback is valid for.
      */
     DoFn.BundleFinalizer getBundleFinalizer();
+
+    /** A supplier containing hasNoState. */
+    default Supplier<Boolean> getHasNoStateSupplier() {
+      return () -> false;
+    }
+
+    /** A supplier containing onlyBundleForKeys. */
+    default Supplier<Boolean> getOnlyBundleForKeysSupplier() {
+      return () -> false;
+    }
   }
 
   /**
