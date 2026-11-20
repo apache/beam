@@ -168,6 +168,7 @@ class BatchLoads<DestinationT, ElementT>
   private @Nullable Duration triggeringFrequency;
   private @Nullable ValueProvider<String> customGcsTempLocation;
   private @Nullable ValueProvider<String> loadJobProjectId;
+  private @Nullable ValueProvider<String> loadJobReservation;
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private final @Nullable String kmsKey;
@@ -187,6 +188,7 @@ class BatchLoads<DestinationT, ElementT>
       Coder<DestinationT> destinationCoder,
       @Nullable ValueProvider<String> customGcsTempLocation,
       @Nullable ValueProvider<String> loadJobProjectId,
+      @Nullable ValueProvider<String> loadJobReservation,
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
@@ -213,6 +215,7 @@ class BatchLoads<DestinationT, ElementT>
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
+    this.loadJobReservation = loadJobReservation;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.elementCoder = elementCoder;
@@ -433,6 +436,7 @@ class BatchLoads<DestinationT, ElementT>
                             bigQueryServices,
                             zeroLoadJobIdPrefixView,
                             loadJobProjectId,
+                            loadJobReservation,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
@@ -539,6 +543,7 @@ class BatchLoads<DestinationT, ElementT>
                             bigQueryServices,
                             zeroLoadJobIdPrefixView,
                             loadJobProjectId,
+                            loadJobReservation,
                             WriteDisposition.WRITE_APPEND,
                             CreateDisposition.CREATE_NEVER,
                             maxRetryJobs,
@@ -841,6 +846,7 @@ class BatchLoads<DestinationT, ElementT>
                 sideInputs,
                 destinationsWithMatching,
                 loadJobProjectId,
+                loadJobReservation,
                 maxRetryJobs,
                 ignoreUnknownValues,
                 kmsKey,
@@ -884,6 +890,7 @@ class BatchLoads<DestinationT, ElementT>
                     sideInputs,
                     dynamicDestinations,
                     loadJobProjectId,
+                    loadJobReservation,
                     maxRetryJobs,
                     ignoreUnknownValues,
                     kmsKey,

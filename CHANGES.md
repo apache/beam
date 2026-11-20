@@ -91,6 +91,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Added support for specifying a BigQuery reservation for `FILE_LOADS` jobs ([#41212](https://github.com/apache/beam/issues/41212)).
 * Qdrant enrichment handler added (Python) ([#40628](https://github.com/apache/beam/issues/40628)). `QdrantSearchEnrichmentHandler` supports dense, sparse and hybrid (RRF/DBSF fusion) search with payload filters, and reads collections written by `QdrantWriteConfig`.
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
