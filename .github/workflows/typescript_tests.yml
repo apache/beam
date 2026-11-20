@@ -39,6 +39,9 @@ on:
     paths: ['sdks/typescript/**']
 
 # This allows a subsequently queued workflow run to interrupt previous runs
+permissions:
+  contents: read
+
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login}}'
   cancel-in-progress: true
@@ -62,6 +65,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Develocity npm Agent
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
@@ -104,6 +108,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Develocity npm Agent
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
@@ -174,6 +179,7 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: Install Develocity npm Agent
         run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
         working-directory: ./sdks/typescript
