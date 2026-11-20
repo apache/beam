@@ -2725,6 +2725,60 @@ class GroupIntoBatchesTest(unittest.TestCase):
         util.GroupIntoBatches.WithShardedKey(batch_size),
         common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn)
 
+  def test_window_timer_set_only_on_first_element_of_batch(self):
+    dofn = util._pardo_group_into_batches(
+        coders.FastPrimitivesCoder(),
+        batch_size=3,
+        max_buffering_duration_secs=10,
+        clock=lambda: 100)
+    window = IntervalWindow(0, 60)
+
+    class FakeBagState:
+      def __init__(self):
+        self.items = []
+
+      def add(self, x):
+        self.items.append(x)
+
+      def read(self):
+        return list(self.items)
+
+      def clear(self):
+        self.items.clear()
+
+    class FakeCountState:
+      def __init__(self):
+        self.val = 0
+
+      def add(self, n):
+        self.val += n
+
+      def read(self):
+        return self.val
+
+      def clear(self):
+        self.val = 0
+
+    element_state = FakeBagState()
+    count_state = FakeCountState()
+    window_timer = mock.Mock()
+    buffering_timer = mock.Mock()
+
+    for i in range(7):
+      res = dofn.process(('k', i),
+                         window=window,
+                         element_state=element_state,
+                         count_state=count_state,
+                         window_timer=window_timer,
+                         buffering_timer=buffering_timer)
+      if res is not None:
+        list(res)
+
+    # 7 elements with batch_size=3 starts 3 batches (at elements 0, 3, and 6),
+    # so window_timer.set and buffering_timer.set are called 3 times, not 7.
+    self.assertEqual(window_timer.set.call_count, 3)
+    self.assertEqual(buffering_timer.set.call_count, 3)
+
 
 class ToStringTest(unittest.TestCase):
   def test_tostring_elements(self):
