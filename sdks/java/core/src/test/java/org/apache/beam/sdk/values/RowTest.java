@@ -896,4 +896,48 @@ public class RowTest {
     assertEquals(expectedCamelCaseInnerRow, row.toCamelCase().getRow("myRowField"));
     assertEquals(expectedCamelCaseRow, row.toCamelCase());
   }
+
+  @Test
+  public void testFieldValueBuilderFlatAndNestedOverrides() {
+    Schema innerSchema =
+        Schema.builder().addStringField("innerStr").addInt32Field("innerInt").build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("name")
+            .addNullableInt64Field("optLong")
+            .addRowField("nested", innerSchema)
+            .build();
+
+    Row inner =
+        Row.withSchema(innerSchema)
+            .withFieldValue("innerStr", "hello")
+            .withFieldValue("innerInt", 10)
+            .build();
+    Row base =
+        Row.withSchema(schema)
+            .withFieldValue("name", "alice")
+            .withFieldValue("nested", inner)
+            .build();
+    assertEquals("alice", base.getString("name"));
+    assertNull(base.getInt64("optLong"));
+    assertEquals(inner, base.getRow("nested"));
+
+    // Flat override via fromRow
+    Row flatUpdated =
+        Row.fromRow(base).withFieldValue("name", "bob").withFieldValue("optLong", 99L).build();
+    assertEquals("bob", flatUpdated.getString("name"));
+    assertEquals(Long.valueOf(99L), flatUpdated.getInt64("optLong"));
+    assertEquals(inner, flatUpdated.getRow("nested"));
+
+    // Mixed flat + dotted nested override via fromRow
+    Row nestedUpdated =
+        Row.fromRow(flatUpdated)
+            .withFieldValue("name", "charlie")
+            .withFieldValue("nested.innerInt", 42)
+            .build();
+    assertEquals("charlie", nestedUpdated.getString("name"));
+    assertEquals(Long.valueOf(99L), nestedUpdated.getInt64("optLong"));
+    assertEquals("hello", nestedUpdated.getRow("nested").getString("innerStr"));
+    assertEquals(Integer.valueOf(42), nestedUpdated.getRow("nested").getInt32("innerInt"));
+  }
 }
