@@ -71,7 +71,16 @@ class pyrefly(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    args = ['pyrefly', 'check', self.get_project_path()]
+    # --use-ignore-files=false is required because the Gradle toxTask runs
+    # this from a copy of the SDK placed under a build/ directory, which is
+    # matched by the repository's root .gitignore (**/build/**/*). Without it
+    # pyrefly finds no files to check in CI.
+    args = [
+        'pyrefly',
+        'check',
+        self.get_project_path(),
+        '--use-ignore-files=false',
+    ]
     result = subprocess.call(args)
     if result != 0:
       raise DistutilsError("pyrefly exited with status %d" % result)
