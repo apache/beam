@@ -34,10 +34,13 @@ import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
@@ -74,6 +77,38 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Test
+  public void testOrderedListStatePreservesTimestampTies() {
+    OrderedListState<String> state =
+        createStateInternals()
+            .state(StateNamespaces.global(), StateTags.orderedList("list", StringUtf8Coder.of()));
+    Instant start = new Instant(0);
+    Instant tiedTimestamp = new Instant(1);
+    Instant end = new Instant(2);
+    TimestampedValue<String> earlier = TimestampedValue.of("earlier", start);
+    TimestampedValue<String> first = TimestampedValue.of("first", tiedTimestamp);
+    TimestampedValue<String> second = TimestampedValue.of("second", tiedTimestamp);
+    TimestampedValue<String> later = TimestampedValue.of("later", end);
+
+    state.add(later);
+    state.add(first);
+    state.add(earlier);
+    state.add(second);
+    state.add(first);
+
+    assertThat(
+        Iterables.transform(state.read(), TimestampedValue::getTimestamp),
+        Matchers.contains(start, tiedTimestamp, tiedTimestamp, tiedTimestamp, end));
+    assertThat(
+        state.readRange(tiedTimestamp, end), Matchers.containsInAnyOrder(first, second, first));
+
+    state.clearRange(start, tiedTimestamp);
+    assertThat(state.read(), Matchers.containsInAnyOrder(first, second, first, later));
+
+    state.clearRange(tiedTimestamp, end);
+    assertThat(state.read(), Matchers.contains(later));
   }
 
   @Test
