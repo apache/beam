@@ -115,9 +115,7 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
             try {
               Iterator<KV<K, Iterable<V>>> entries =
                   StateFetchingIterators.readAllAndDecodeStartingFrom(
-                          // TOOD(https://github.com/apache/beam/issues/34149):
-                          // Use the shared cache.
-                          Caches.noop(),
+                          Caches.subCache(cache, "BulkRead"),
                           beamFnStateClient,
                           bulkReadRequest,
                           KvCoder.of(keyCoder, IterableCoder.of(valueCoder)))
