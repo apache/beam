@@ -36,8 +36,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
@@ -50,6 +48,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -200,10 +199,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
   private static Enumerable<Object> liveCollect(
       PipelineOptions options, BeamRelNode node, AtomicBoolean cancelFlag) {
     checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
+        isDirectRunner(options),
         "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Row> rows = BeamSqlRelUtils.toPCollection(pipeline, node);
@@ -316,7 +312,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       Queue<Row> values,
       int limitCount,
       AtomicBoolean cancelFlag) {
-    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.as(BlockOnRunOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
     resultCollection.apply(ParDo.of(doFn));
@@ -365,16 +361,35 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
    * finishes, waits here instead, where the wait can be cancelled.
    */
   private static PipelineResult run(Pipeline pipeline, AtomicBoolean cancelFlag) {
-    DirectOptions options = pipeline.getOptions().as(DirectOptions.class);
-    boolean blockOnRun =
-        options.isBlockOnRun()
-            && options.getRunner().getCanonicalName().equals(DirectRunner.class.getName());
+    BlockOnRunOptions options = pipeline.getOptions().as(BlockOnRunOptions.class);
+    boolean blockOnRun = options.isBlockOnRun() && isDirectRunner(options);
     options.setBlockOnRun(false);
     PipelineResult result = pipeline.run();
     if (blockOnRun) {
       waitUntilFinish(result, cancelFlag);
     }
     return result;
+  }
+
+  /**
+   * Whether the pipeline runs on the DirectRunner. Beam SQL doesn't compile against the
+   * DirectRunner, so this checks the runner's name.
+   */
+  private static boolean isDirectRunner(PipelineOptions options) {
+    return options.getRunner().getSimpleName().equals("DirectRunner");
+  }
+
+  /**
+   * The DirectRunner's {@code blockOnRun} option, declared here so that Beam SQL doesn't compile
+   * against the DirectRunner. Options of the same name share a value, so setting this sets {@code
+   * DirectOptions#isBlockOnRun()}. The default has to match it, and pipeline options interfaces
+   * have to be public.
+   */
+  public interface BlockOnRunOptions extends PipelineOptions {
+    @Default.Boolean(true)
+    boolean isBlockOnRun();
+
+    void setBlockOnRun(boolean value);
   }
 
   /**
@@ -419,12 +434,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     long id = options.getOptionsId();
     Queue<Row> values = new ConcurrentLinkedQueue<>();
 
-    checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "collectRowList is only available in direct runner.");
+    checkArgument(isDirectRunner(options), "collectRowList is only available in direct runner.");
 
     Collector.globalValues.put(id, values);
     try {
@@ -441,10 +451,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
+        isDirectRunner(options),
         "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
     int limitCount = getLimitCount(node);
