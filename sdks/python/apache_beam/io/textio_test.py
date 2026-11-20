@@ -1860,6 +1860,39 @@ class JsonTest(unittest.TestCase):
 
         assert_that(pcoll, equal_to(records))
 
+  def test_nested_values_are_valid_json(self):
+    with tempfile.TemporaryDirectory() as dest:
+      path = os.path.join(dest, 'nested.jsonl')
+      with open(path, 'w') as f:
+        f.write('{"id": 1, "user": {"name": "a"}, "tags": ["x", "y"]}\n')
+        f.write('{"id": 2, "user": null, "tags": "literal"}\n')
+        f.write('{"id": 3, "user": "literal", "tags": null}\n')
+        f.write(
+            '{"id": 4, "user": {"ok": true, "n": null}, '
+            '"tags": ["caf\\u00e9", null]}\n')
+      with TestPipeline() as p:
+        rows = p | beam.io.ReadFromJson(path)
+        nested = (
+            rows
+            | beam.Filter(lambda r: r.id in (1, 4))
+            | beam.Map(lambda r: (json.loads(r.user), json.loads(r.tags))))
+        assert_that(
+            nested,
+            equal_to([
+                ({
+                    'name': 'a'
+                }, ['x', 'y']),
+                ({
+                    'ok': True, 'n': None
+                }, ['caf\u00e9', None]),
+            ]))
+        mixed = (
+            rows
+            | beam.Filter(lambda r: r.id in (2, 3))
+            | beam.Map(lambda r: (r.id, r.user, r.tags)))
+        assert_that(
+            mixed, equal_to([(2, None, 'literal'), (3, 'literal', None)]))
+
   def test_numeric_strings_preserved(self):
     records = [
         beam.Row(
