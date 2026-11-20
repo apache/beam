@@ -144,6 +144,144 @@ func TestStatefulStageKind_buildEventTimeBundle_TimeSortedInput(t *testing.T) {
 	}
 }
 
+func TestStageKind_buildEventTimeBundle_SideInputs(t *testing.T) {
+	// One key has data pending in the windows [0,2), [6,8) and [8,10). Each step
+	// builds a bundle at the given watermark, and checks the timestamps of the
+	// data it processes. A bundle reads the side input windows that the
+	// watermark has passed, so a stage with side inputs must hold the data of
+	// the later windows.
+	type step struct {
+		watermark mtime.Time
+		want      []mtime.Time
+	}
+	all := []step{{watermark: 0, want: []mtime.Time{1, 7, 9}}}
+	byWindow := []step{
+		{watermark: 0, want: nil},
+		{watermark: 1, want: []mtime.Time{1}},
+		{watermark: 6, want: nil},
+		{watermark: 8, want: []mtime.Time{7}},
+		{watermark: mtime.MaxTimestamp, want: []mtime.Time{9}},
+	}
+	sides := []LinkID{{Transform: "dofn", Global: "side", Local: "local"}}
+	tests := []struct {
+		name     string
+		stateful bool
+		sides    []LinkID
+		steps    []step
+	}{
+		{name: "ordinary without side inputs processes all data", steps: all},
+		{name: "ordinary with side inputs holds data until the watermark passes its window", sides: sides, steps: byWindow},
+		{name: "stateful without side inputs processes all data", stateful: true, steps: all},
+		{name: "stateful with side inputs holds data until the watermark passes its window", stateful: true, sides: sides, steps: byWindow},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			em := NewElementManager(Config{})
+			em.AddStage("dofn", []string{"input"}, nil, test.sides)
+			ss := em.stages["dofn"]
+			pending := elementHeap{
+				{window: window.IntervalWindow{Start: 8, End: 10}, timestamp: 9, elmBytes: []byte{3}, keyBytes: []byte("k")},
+				{window: window.IntervalWindow{Start: 0, End: 2}, timestamp: 1, elmBytes: []byte{1}, keyBytes: []byte("k")},
+				{window: window.IntervalWindow{Start: 6, End: 8}, timestamp: 7, elmBytes: []byte{2}, keyBytes: []byte("k")},
+			}
+			heap.Init(&pending)
+			if test.stateful {
+				em.StageStateful("dofn", nil)
+				ss.pendingByKeys = map[string]*dataAndTimers{"k": {elements: pending, timers: map[timerKey]timerTimes{}}}
+			} else {
+				ss.pending = pending
+			}
+
+			for _, s := range test.steps {
+				ss.mu.Lock()
+				toProcess, _, _, _, _, schedulable, _ := ss.kind.buildEventTimeBundle(ss, s.watermark)
+				ss.mu.Unlock()
+				var got []mtime.Time
+				for toProcess.Len() > 0 {
+					got = append(got, heap.Pop(&toProcess).(element).timestamp)
+				}
+				if !cmp.Equal(got, s.want) {
+					t.Errorf("buildEventTimeBundle(watermark=%v) = %v, want %v", s.watermark, got, s.want)
+				}
+				if len(s.want) == 0 && schedulable {
+					t.Errorf("buildEventTimeBundle(watermark=%v) is schedulable with only held data", s.watermark)
+				}
+			}
+			if got := len(ss.pending) + len(ss.pendingByKeys); got != 0 {
+				t.Errorf("pending elements or keys = %v, want 0", got)
+			}
+		})
+	}
+}
+
+// A stage after an aggregation can have pending elements ahead of its upstream
+// watermark: the aggregation advances its output watermark to its earliest
+// pending timestamp before it fires its windows. Every element in a bundle of
+// a stage with side inputs must have the side input data of its window.
+func TestStageState_SideInputs_BundleHasSideDataForItsWindows(t *testing.T) {
+	em := NewElementManager(Config{})
+	em.AddStage("gbk", []string{"input"}, []string{"grouped"}, nil)
+	em.AddStage("sideProducer", []string{"input"}, []string{"side"}, nil)
+	em.AddStage("dofn", []string{"grouped"}, nil, []LinkID{{Transform: "dofn", Global: "side", Local: "local"}})
+	dofn, sideProducer := em.stages["dofn"], em.stages["sideProducer"]
+
+	wins := []typex.Window{
+		window.IntervalWindow{Start: 0, End: 2},
+		window.IntervalWindow{Start: 6, End: 8},
+		window.IntervalWindow{Start: 8, End: 10},
+	}
+	var grouped []element
+	for i, w := range wins {
+		grouped = append(grouped, element{window: w, timestamp: w.MaxTimestamp(), elmBytes: []byte{byte(i)}})
+	}
+	var bundles int
+	genBundID := func() string {
+		bundles++
+		return fmt.Sprintf("bundle%v", bundles)
+	}
+	// setWatermarks sets the output watermarks of the two upstream stages.
+	setWatermarks := func(gbk, side mtime.Time) {
+		dofn.updateUpstreamWatermark("grouped", gbk)
+		sideProducer.mu.Lock()
+		sideProducer.output = side
+		sideProducer.mu.Unlock()
+	}
+	// startBundle starts a bundle if the stage is ready, and returns its elements
+	// and the side input data it would read.
+	startBundle := func() ([]element, map[typex.Window][][]byte) {
+		watermark, ready, _, _ := dofn.bundleReady(em, mtime.MinTimestamp)
+		if !ready {
+			return nil, nil
+		}
+		bundID, ok, _, _ := dofn.startEventTimeBundle(watermark, genBundID)
+		if !ok {
+			return nil, nil
+		}
+		return dofn.inprogress[bundID].es, dofn.GetSideData("dofn", "local", watermark)
+	}
+
+	// The aggregation fired all its windows, but its output watermark is still
+	// at its earliest pending timestamp. The side input is complete to there.
+	dofn.AddPending(em, grouped)
+	setWatermarks(0, 0)
+	if es, _ := startBundle(); len(es) != 0 {
+		t.Errorf("bundle at watermark 0 has %v elements, want none: their side input windows aren't ready", len(es))
+	}
+
+	// The side input arrives, and both watermarks advance to the end.
+	dofn.AddPendingSide(grouped, "dofn", "local")
+	setWatermarks(mtime.MaxTimestamp, mtime.MaxTimestamp)
+	es, sideData := startBundle()
+	if got, want := len(es), len(grouped); got != want {
+		t.Fatalf("bundle at the final watermark has %v elements, want %v", got, want)
+	}
+	for _, e := range es {
+		if len(sideData[e.window]) == 0 {
+			t.Errorf("element in window %v has no side input data", e.window)
+		}
+	}
+}
+
 func TestStageState_minPendingTimestamp(t *testing.T) {
 
 	newState := func() *stageState {
