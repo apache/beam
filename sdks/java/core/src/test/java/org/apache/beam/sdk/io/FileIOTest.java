@@ -453,7 +453,7 @@ public class FileIOTest implements Serializable {
   @Test
   public void testMatchPollFnTimestampCursorWatermark() throws Exception {
     Path dir = tmpFolder.newFolder("poll_watermark").toPath();
-    String pattern = dir.resolve("*").toString();
+    String pattern = dir.toAbsolutePath() + File.separator + "*";
 
     FileIO.MatchAll.MatchPollFn pollFn = new FileIO.MatchAll.MatchPollFn(Duration.ZERO);
     // Empty match advances watermark to poll time.
@@ -568,13 +568,13 @@ public class FileIOTest implements Serializable {
         p.apply(
             "match with timestamp cursor",
             FileIO.match()
-                .filepattern(watchDir.resolve("*").toString())
+                .filepattern(watchDir.toAbsolutePath() + File.separator + "*")
                 .continuously(
                     Duration.millis(100),
                     Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(2)))
                 .withTimestampCursor());
     PCollection<MatchResult.Metadata> matchAllLateness =
-        p.apply("create pattern", Create.of(latenessWatch.resolve("*").toString()))
+        p.apply("create pattern", Create.of(latenessWatch.toAbsolutePath() + File.separator + "*"))
             .apply(
                 "matchAll with timestamp cursor allowed lateness",
                 FileIO.matchAll()
