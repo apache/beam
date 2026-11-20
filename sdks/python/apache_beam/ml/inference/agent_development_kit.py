@@ -282,7 +282,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
     # Check for your specific session ID
     try:
       # Attempt to get the specific session
-      await runner.session_service.get_session(session_id)
+      await runner.session_service.get_session(session_id=session_id)
     except Exception as e:
       await runner.session_service.create_session(
           app_name=app_name,
