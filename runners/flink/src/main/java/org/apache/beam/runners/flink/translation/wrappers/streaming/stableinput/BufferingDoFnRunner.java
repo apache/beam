@@ -80,7 +80,42 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
         keyedStateBackend,
         null,
         null,
+        null,
         null);
+  }
+
+  /**
+   * Like {@link #create(DoFnRunner, String, org.apache.beam.sdk.coders.Coder,
+   * org.apache.beam.sdk.coders.Coder, OperatorStateBackend, KeyedStateBackend, int,
+   * SerializablePipelineOptions)}, but replayed timers get their key from {@code timerKeySupplier}.
+   * The supplier is called while the keyed state backend is set to the key the timer was buffered
+   * for. The buffered state does not contain the key of a timer.
+   */
+  public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(
+      DoFnRunner<InputT, OutputT> doFnRunner,
+      String stateName,
+      org.apache.beam.sdk.coders.Coder windowedInputCoder,
+      org.apache.beam.sdk.coders.Coder windowCoder,
+      OperatorStateBackend operatorStateBackend,
+      @Nullable KeyedStateBackend<Object> keyedStateBackend,
+      int maxConcurrentCheckpoints,
+      SerializablePipelineOptions pipelineOptions,
+      @Nullable Supplier<?> timerKeySupplier)
+      throws Exception {
+
+    return new BufferingDoFnRunner<>(
+        doFnRunner,
+        stateName,
+        windowedInputCoder,
+        windowCoder,
+        operatorStateBackend,
+        maxConcurrentCheckpoints,
+        pipelineOptions,
+        keyedStateBackend,
+        null,
+        null,
+        null,
+        keyedStateBackend != null ? timerKeySupplier : null);
   }
 
   public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(
@@ -108,7 +143,8 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
         keyedStateBackend,
         locker,
         keyedStateBackend != null ? keySelector : null,
-        finishBundleCallback);
+        finishBundleCallback,
+        null);
   }
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
@@ -152,6 +188,9 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
   /** Callable to notify about possibility to flush bundle. */
   private final @Nullable Runnable finishBundleCallback;
 
+  /** If non-null, provides the key of a replayed timer. See {@link #create}. */
+  private final @Nullable Supplier<?> timerKeySupplier;
+
   private BufferingDoFnRunner(
       DoFnRunner<InputT, OutputT> underlying,
       String stateName,
@@ -163,7 +202,8 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       @Nullable KeyedStateBackend keyedStateBackend,
       @Nullable Supplier<Locker> locker,
       @Nullable Function<InputT, Object> keySelector,
-      @Nullable Runnable finishBundleCallback)
+      @Nullable Runnable finishBundleCallback,
+      @Nullable Supplier<?> timerKeySupplier)
       throws Exception {
 
     Preconditions.checkArgument(
@@ -198,6 +238,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
     this.locker = locker;
     this.keySelector = keySelector;
     this.finishBundleCallback = finishBundleCallback;
+    this.timerKeySupplier = timerKeySupplier;
 
     Preconditions.checkArgument(
         keySelector == null || keyedStateBackend != null,
@@ -304,14 +345,19 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       BufferingElementsHandler bufferingElementsHandler =
           bufferingElementsHandlerFactory.get(toBeAckedId);
       try (Locker lock = locker != null ? locker.get() : null) {
-        final Iterator<BufferedElement> iterator =
-            bufferingElementsHandler.getElements().iterator();
+        final Iterator<BufferedElement> iterator = bufferingElementsHandler.getElements();
         boolean hasElements = iterator.hasNext();
         if (hasElements) {
           underlying.startBundle();
         }
         while (iterator.hasNext()) {
           BufferedElement bufferedElement = iterator.next();
+          if (timerKeySupplier != null && bufferedElement instanceof BufferedElements.Timer) {
+            // The key of a timer is not stored in the buffer. The handler has set the keyed state
+            // backend to the key the timer was buffered for.
+            bufferedElement =
+                ((BufferedElements.Timer<?>) bufferedElement).withKey(timerKeySupplier.get());
+          }
           bufferedElement.processWith(underlying);
         }
         if (hasElements) {

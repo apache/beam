@@ -100,7 +100,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -2528,6 +2532,234 @@ public class DoFnOperatorTest {
             greaterThanOrEqualTo(lastWatermark));
       }
     }
+  }
+
+  /**
+   * Ensures that elements buffered because of {@code @RequiresStableInput} are replayed under the
+   * key they were buffered for, also when several keys share a key group (heap state backend). See
+   * https://github.com/apache/beam/issues/41512.
+   */
+  @Test
+  public void testExactlyOnceBufferingKeepsKeyContextForKeysInSameKeyGroup() throws Exception {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setCheckpointingInterval(100L);
+    options.setCheckpointingMode("EXACTLY_ONCE");
+
+    TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
+    WindowedValues.FullWindowedValueCoder<KV<String, String>> windowedValueCoder =
+        WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE);
+
+    final String timerId = "timer";
+    final Instant timerTimestamp = new Instant(50);
+    DoFn<KV<String, String>, KV<String, String>> doFn =
+        new DoFn<KV<String, String>, KV<String, String>>() {
+          @TimerId(timerId)
+          private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          // Use RequiresStableInput to force buffering elements and fired timers
+          @RequiresStableInput
+          public void processElement(
+              @Element KV<String, String> element,
+              OutputReceiver<KV<String, String>> out,
+              @TimerId(timerId) Timer timer) {
+            out.output(element);
+            // Registered for the current key of the keyed state backend.
+            timer.set(timerTimestamp);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(@Key String key, OutputReceiver<KV<String, String>> out) {
+            out.output(KV.of(key, "timer"));
+          }
+        };
+
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
+        new DoFnOperator<>(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag, windowedValueCoder, new SerializablePipelineOptions(options)),
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            keyCoder,
+            keySelector,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    // maxParallelism 1: there is only one key group, so both keys are in the same key group.
+    OneInputStreamOperatorTestHarness<
+            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator, keySelector, keySelector.getProducedType(), 1, 1, 0);
+
+    testHarness.open();
+
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "a"), new Instant(10))));
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k2", "b"), new Instant(10))));
+
+    // Replays both buffered elements; each must set the timer for its own key.
+    testHarness.snapshot(1L, 0L);
+    doFnOperator.notifyCheckpointComplete(1L);
+
+    // Fires both timers, which are buffered until the next checkpoint completes.
+    testHarness.processWatermark(new Watermark(100));
+    testHarness.snapshot(2L, 0L);
+    doFnOperator.notifyCheckpointComplete(2L);
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        containsInAnyOrder(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "a"), new Instant(10)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k2", "b"), new Instant(10)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "timer"), timerTimestamp),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k2", "timer"), timerTimestamp)));
+
+    testHarness.close();
+  }
+
+  /**
+   * Ensures that a timer buffered because of {@code @RequiresStableInput} keeps its key when the
+   * state backend serializes it (RocksDB). See https://github.com/apache/beam/issues/41513.
+   */
+  @Test
+  public void testExactlyOnceBufferingKeepsTimerKeyWithRocksDb() throws Exception {
+    testExactlyOnceBufferingKeepsTimerKey(true, false);
+  }
+
+  /**
+   * Ensures that a timer buffered because of {@code @RequiresStableInput} keeps its key when it is
+   * replayed after a restore (heap state backend). See https://github.com/apache/beam/issues/41513.
+   */
+  @Test
+  public void testExactlyOnceBufferingKeepsTimerKeyAfterRestore() throws Exception {
+    testExactlyOnceBufferingKeepsTimerKey(false, true);
+  }
+
+  private void testExactlyOnceBufferingKeepsTimerKey(boolean useRocksDb, boolean restore)
+      throws Exception {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setCheckpointingInterval(100L);
+    options.setCheckpointingMode("EXACTLY_ONCE");
+
+    TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
+    WindowedValues.FullWindowedValueCoder<KV<String, String>> windowedValueCoder =
+        WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE);
+
+    final String timerId = "timer";
+    final Instant timerTimestamp = new Instant(50);
+    DoFn<KV<String, String>, KV<String, String>> doFn =
+        new DoFn<KV<String, String>, KV<String, String>>() {
+          @TimerId(timerId)
+          private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          // Use RequiresStableInput to force buffering elements and fired timers
+          @RequiresStableInput
+          public void processElement(@TimerId(timerId) Timer timer) {
+            timer.set(timerTimestamp);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(@Key String key, OutputReceiver<KV<String, String>> out) {
+            out.output(KV.of(key, "timer"));
+          }
+        };
+
+    Supplier<DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>>>
+        doFnOperatorSupplier =
+            () ->
+                new DoFnOperator<>(
+                    doFn,
+                    "stepName",
+                    windowedValueCoder,
+                    Collections.emptyMap(),
+                    outputTag,
+                    Collections.emptyList(),
+                    new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                        outputTag, windowedValueCoder, new SerializablePipelineOptions(options)),
+                    WindowingStrategy.globalDefault(),
+                    new HashMap<>(), /* side-input mapping */
+                    Collections.emptyList(), /* side inputs */
+                    options,
+                    keyCoder,
+                    keySelector,
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap());
+
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
+        doFnOperatorSupplier.get();
+    OneInputStreamOperatorTestHarness<
+            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator, keySelector, keySelector.getProducedType());
+    if (useRocksDb) {
+      testHarness.setStateBackend(newRocksDbStateBackend());
+    }
+    testHarness.open();
+
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "a"), new Instant(10))));
+    // Replays the buffered element, which sets the timer.
+    testHarness.snapshot(1L, 0L);
+    doFnOperator.notifyCheckpointComplete(1L);
+    // Fires the timer, which is buffered until checkpoint 2 completes.
+    testHarness.processWatermark(new Watermark(100));
+    OperatorSubtaskState backup = testHarness.snapshot(2L, 0L);
+
+    if (restore) {
+      // Like a failure: the old operator is not closed; a new one is restored from the snapshot.
+      doFnOperator = doFnOperatorSupplier.get();
+      testHarness =
+          new KeyedOneInputStreamOperatorTestHarness<>(
+              doFnOperator, keySelector, keySelector.getProducedType());
+      if (useRocksDb) {
+        testHarness.setStateBackend(newRocksDbStateBackend());
+      }
+      testHarness.initializeState(backup);
+      testHarness.open();
+    }
+
+    // Replays the buffered timer.
+    doFnOperator.notifyCheckpointComplete(2L);
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "timer"), timerTimestamp)));
+
+    testHarness.close();
+  }
+
+  /** Creates the RocksDB state backend by name, which works for Flink 1.x and 2.x alike. */
+  private static StateBackend newRocksDbStateBackend() throws Exception {
+    return StateBackendLoader.loadStateBackendFromConfig(
+        new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb"),
+        DoFnOperatorTest.class.getClassLoader(),
+        null);
   }
 
   @Test(expected = IllegalStateException.class)
