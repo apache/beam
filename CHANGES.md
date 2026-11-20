@@ -139,6 +139,7 @@
 ### API changes
 
 [comment]: # "Public facing interface changes that may introduce breaking change or change of behaviors"
+* (Java) JdbcIO schema inference now preserves declared precision and scale for JDBC `DECIMAL` columns using `FixedPrecisionNumeric`, matching `NUMERIC`. Previously these columns used plain `DECIMAL`; consumers of inferred schemas may need to handle the logical type. Columns with unspecified precision use plain `DECIMAL`, including drivers that report precision `0` ([#41520](https://github.com/apache/beam/issues/41520)).
 
 ### Upgrade compatibility
 
