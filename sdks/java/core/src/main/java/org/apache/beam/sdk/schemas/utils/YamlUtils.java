@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -148,7 +149,16 @@ public class YamlUtils {
                 fieldType);
         return toBeamRow((Map<String, Object>) yamlValue, nestedSchema, convertNamesToCamelCase);
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
-        return yamlValue;
+        FieldType keyType = Preconditions.checkNotNull(fieldType.getMapKeyType());
+        FieldType valueType = Preconditions.checkNotNull(fieldType.getMapValueType());
+        Map<Object, @Nullable Object> beamMap = new LinkedHashMap<>();
+        for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) yamlValue).entrySet()) {
+          beamMap.put(
+              Preconditions.checkNotNull(
+                  toBeamValue(field.withType(keyType), entry.getKey(), convertNamesToCamelCase)),
+              toBeamValue(field.withType(valueType), entry.getValue(), convertNamesToCamelCase));
+        }
+        return beamMap;
       } else if (fieldType.getTypeName() == Schema.TypeName.STRING) {
         return toJsonString(field, yamlValue);
       }

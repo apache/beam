@@ -67,6 +67,7 @@
 ## Bugfixes
 
 * (Java) Improved the error message when decoding with a ProtoCoder for the raw `com.google.protobuf.Message` type (for example inferred from a generic `T extends Message`): it now explains how to fix it instead of surfacing a `NoSuchMethodException` ([#19713](https://github.com/apache/beam/issues/19713)).
+* (Java) Fixed `Managed` configs failing with a `ClassCastException` when a map field such as `consumer_config_updates` or `catalog_properties` has an unquoted number or boolean value ([#41532](https://github.com/apache/beam/issues/41532)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
