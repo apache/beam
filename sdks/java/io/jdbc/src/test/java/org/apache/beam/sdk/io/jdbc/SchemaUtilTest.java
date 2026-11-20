@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.jdbc;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -39,6 +40,7 @@ import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
@@ -133,62 +135,67 @@ public class SchemaUtilTest {
   }
 
   @Test
-  public void testToBeamSchemaDecimalAndNumericPreservePrecisionAndScale() throws SQLException {
-    for (int jdbcType : new int[] {Types.DECIMAL, Types.NUMERIC}) {
+  public void testToBeamSchemaDecimalPreservesPrecisionAndScale() throws SQLException {
+    for (boolean nullable : new boolean[] {false, true}) {
+      for (int scale : new int[] {2, -2}) {
+        Schema schema = SchemaUtil.toBeamSchema(decimalMetadata(12, scale, nullable));
+        Schema.Field field =
+            SchemaTranslation.schemaFromProto(SchemaTranslation.schemaToProto(schema, false))
+                .getField("amount");
+
+        assertEquals(Schema.FieldType.DECIMAL.withNullable(nullable), field.getType());
+        assertEquals(
+            Integer.valueOf(12), field.getOptions().getValue(SchemaUtil.DECIMAL_PRECISION_OPTION));
+        assertEquals(
+            Integer.valueOf(scale), field.getOptions().getValue(SchemaUtil.DECIMAL_SCALE_OPTION));
+      }
+    }
+  }
+
+  @Test
+  public void testToBeamSchemaDecimalWithUnspecifiedPrecision() throws SQLException {
+    for (int precision : new int[] {0, -1, Integer.MAX_VALUE}) {
       for (boolean nullable : new boolean[] {false, true}) {
-        ResultSetMetaData metadata = numericMetadata(jdbcType, 12, 2, nullable);
         Schema expected =
-            Schema.builder()
-                .addField("amount", LogicalTypes.numeric(12, 2).withNullable(nullable))
-                .build();
+            Schema.of(Schema.Field.of("amount", Schema.FieldType.DECIMAL.withNullable(nullable)));
 
         assertEquals(
-            JDBCType.valueOf(jdbcType).toString(), expected, SchemaUtil.toBeamSchema(metadata));
+            "precision=" + precision,
+            expected,
+            SchemaUtil.toBeamSchema(decimalMetadata(precision, 0, nullable)));
       }
     }
   }
 
   @Test
-  public void testToBeamSchemaDecimalAndNumericWithUnspecifiedPrecision() throws SQLException {
-    for (int jdbcType : new int[] {Types.DECIMAL, Types.NUMERIC}) {
-      for (int precision : new int[] {0, -1, Integer.MAX_VALUE}) {
-        for (boolean nullable : new boolean[] {false, true}) {
-          ResultSetMetaData metadata = numericMetadata(jdbcType, precision, 0, nullable);
-          Schema expected =
-              Schema.builder()
-                  .addField("amount", Schema.FieldType.DECIMAL.withNullable(nullable))
-                  .build();
-
-          assertEquals(
-              JDBCType.valueOf(jdbcType) + " precision=" + precision,
-              expected,
-              SchemaUtil.toBeamSchema(metadata));
-        }
-      }
-    }
-  }
-
-  @Test
-  public void testBeamRowMapperInferredDecimalAndNumeric() throws Exception {
+  public void testBeamRowMapperAcceptsDecimalValuesOutsideDeclaredPrecision() throws Exception {
+    Schema schema = SchemaUtil.toBeamSchema(decimalMetadata(4, 2, true));
+    SchemaUtil.BeamRowMapper mapper = SchemaUtil.BeamRowMapper.of(schema);
     BigDecimal value = new BigDecimal("123.45");
-    for (int jdbcType : new int[] {Types.DECIMAL, Types.NUMERIC}) {
-      Schema schema = SchemaUtil.toBeamSchema(numericMetadata(jdbcType, 12, 2, true));
-      SchemaUtil.BeamRowMapper mapper = SchemaUtil.BeamRowMapper.of(schema);
-      ResultSet resultSet = mock(ResultSet.class);
-      when(resultSet.getBigDecimal(1)).thenReturn(value).thenReturn(null);
-      when(resultSet.wasNull()).thenReturn(false, true);
+    ResultSet resultSet = mock(ResultSet.class);
+    when(resultSet.getBigDecimal(1)).thenReturn(value).thenReturn(null);
+    when(resultSet.wasNull()).thenReturn(false, true);
 
-      assertEquals(Row.withSchema(schema).addValue(value).build(), mapper.mapRow(resultSet));
-      assertEquals(Row.withSchema(schema).addValue(null).build(), mapper.mapRow(resultSet));
-    }
+    assertEquals(value, mapper.mapRow(resultSet).getDecimal(0));
+    assertNull(mapper.mapRow(resultSet).getDecimal(0));
   }
 
-  private static ResultSetMetaData numericMetadata(
-      int jdbcType, int precision, int scale, boolean nullable) throws SQLException {
+  @Test
+  public void testInferredDecimalWithZeroScaleConvertsToAvro() throws SQLException {
+    Schema schema = SchemaUtil.toBeamSchema(decimalMetadata(12, 0, false));
+    BigDecimal value = BigDecimal.valueOf(123);
+    Row row = Row.withSchema(schema).addValue(value).build();
+
+    assertEquals(
+        value, AvroUtils.toBeamRowStrict(AvroUtils.toGenericRecord(row), schema).getDecimal(0));
+  }
+
+  private static ResultSetMetaData decimalMetadata(int precision, int scale, boolean nullable)
+      throws SQLException {
     ResultSetMetaData metadata = mock(ResultSetMetaData.class);
     when(metadata.getColumnCount()).thenReturn(1);
     when(metadata.getColumnLabel(1)).thenReturn("amount");
-    when(metadata.getColumnType(1)).thenReturn(jdbcType);
+    when(metadata.getColumnType(1)).thenReturn(Types.DECIMAL);
     when(metadata.getPrecision(1)).thenReturn(precision);
     when(metadata.getScale(1)).thenReturn(scale);
     when(metadata.isNullable(1))

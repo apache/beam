@@ -64,6 +64,9 @@ import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 public class SchemaUtil {
+  static final String DECIMAL_PRECISION_OPTION = "beam:option:jdbc:decimal_precision:v1";
+  static final String DECIMAL_SCALE_OPTION = "beam:option:jdbc:decimal_scale:v1";
+
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
    * ResultSet.
@@ -123,8 +126,7 @@ public class SchemaUtil {
       case DATE:
         return beamFieldOfType(LogicalTypes.JDBC_DATE_TYPE);
       case DECIMAL:
-      case NUMERIC:
-        return beamLogicalNumericField();
+        return beamDecimalField();
       case DOUBLE:
         return beamFieldOfType(Schema.FieldType.DOUBLE);
       case FLOAT:
@@ -139,6 +141,8 @@ public class SchemaUtil {
         return beamLogicalField(LONGVARCHAR.getName(), VariableString::of);
       case NCHAR:
         return beamLogicalField(NCHAR.getName(), FixedString::of);
+      case NUMERIC:
+        return beamLogicalNumericField();
       case NVARCHAR:
         return beamLogicalField(NVARCHAR.getName(), VariableString::of);
       case REAL:
@@ -208,6 +212,22 @@ public class SchemaUtil {
     };
   }
 
+  /** Preserves JDBC DECIMAL precision and scale as field options. */
+  private static BeamFieldConverter beamDecimalField() {
+    BeamFieldConverter decimalField = beamFieldOfType(FieldType.DECIMAL);
+    return (index, md) -> {
+      Schema.Field field = decimalField.create(index, md);
+      int precision = md.getPrecision(index);
+      if (precision <= 0 || precision == Integer.MAX_VALUE) {
+        return field;
+      }
+      return field.withOptions(
+          Schema.Options.builder()
+              .setOption(DECIMAL_PRECISION_OPTION, FieldType.INT32, precision)
+              .setOption(DECIMAL_SCALE_OPTION, FieldType.INT32, md.getScale(index)));
+    };
+  }
+
   /**
    * Converts numeric fields with specified precision and scale to {@link FixedPrecisionNumeric}. If
    * a precision of numeric field is not specified, then converts such field to {@link
@@ -216,7 +236,7 @@ public class SchemaUtil {
   private static BeamFieldConverter beamLogicalNumericField() {
     return (index, md) -> {
       int precision = md.getPrecision(index);
-      if (precision == Integer.MAX_VALUE || precision == -1 || precision == 0) {
+      if (precision == Integer.MAX_VALUE || precision == -1) {
         // If a precision is not specified, the column stores values as given (e.g. in Oracle DB)
         return Schema.Field.of(md.getColumnLabel(index), FieldType.DECIMAL)
             .withNullable(md.isNullable(index) == ResultSetMetaData.columnNullable);
