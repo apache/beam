@@ -681,7 +681,8 @@ public class WriteFilesTest {
                 elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
             .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
             .addElements(
-                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+                elements.get(20), Iterables.toArray(elements.subList(21, 28), String.class))
+            .addElements(elements.get(28), elements.get(29))
             .advanceWatermarkToInfinity();
 
     PCollectionView<String> sideInputView =
@@ -692,7 +693,10 @@ public class WriteFilesTest {
         new SimpleSink<>(getBaseOutputDirectory(), destinations, Compression.UNCOMPRESSED);
 
     WriteFiles<String, String, String> write =
-        WriteFiles.to(sink).withWindowedWrites().withNumShards(3).withDirectWriteByteThreshold(1L);
+        WriteFiles.to(sink)
+            .withWindowedWrites()
+            .withRunnerDeterminedSharding()
+            .withDirectWriteByteThreshold(50L);
     p.apply(testStream)
         .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
         .apply(write)

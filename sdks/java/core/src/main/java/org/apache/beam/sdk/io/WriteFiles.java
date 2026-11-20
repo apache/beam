@@ -1443,6 +1443,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         input.apply(
             "KeyedByDestinationHash",
             ParDo.of(new KeyByDestinationHash(input.getCoder(), destinationCoder))
+                .withSideInputs(getSideInputs())
                 .withOutputTags(shardTag, TupleTagList.of(BAD_RECORD_TAG)));
     addErrorCollection(shardedElements);
 
