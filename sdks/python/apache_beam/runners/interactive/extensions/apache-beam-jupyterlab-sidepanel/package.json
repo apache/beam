@@ -64,7 +64,7 @@
     "@rmwc/touch-target": "^14.3.5",
     "@xyflow/react": "^12.8.2",
     "dagre": "^0.8.5",
-    "lodash": "^4.17.21",
+    "lodash": "^4.18.0",
     "material-design-icons": "^3.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -107,7 +107,9 @@
   },
   "test": "jest",
   "resolutions": {
-    "@types/react": "^18.2.0"
+    "@types/react": "^18.2.0",
+    "minimatch@^9.0.4": "^11.0.1",
+    "sanitize-html": "^2.18.0"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

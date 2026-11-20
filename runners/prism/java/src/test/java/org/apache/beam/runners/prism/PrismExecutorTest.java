@@ -20,6 +20,10 @@ package org.apache.beam.runners.prism;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.prism.PrismPipelineOptions.JOB_PORT_FLAG_NAME;
 import static org.apache.beam.runners.prism.PrismRunnerTest.getLocalPrismBuildOrIgnoreTest;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -27,6 +31,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Rule;
@@ -42,6 +47,36 @@ public class PrismExecutorTest {
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
   @Rule public TestName testName = new TestName();
+
+  @Test
+  public void stopPreservesInterruptionWhileWaitingForExecutor() throws InterruptedException {
+    PrismExecutor executor = PrismExecutor.builder().setCommand("unused").build();
+    ExecutorService executorService = mock(ExecutorService.class);
+    when(executorService.awaitTermination(anyLong(), any())).thenThrow(new InterruptedException());
+    executor.executorService.shutdown();
+    executor.executorService = executorService;
+    try {
+      executor.stop();
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  public void stopPreservesInterruptionWhileWaitingForProcess() throws InterruptedException {
+    PrismExecutor executor = PrismExecutor.builder().setCommand("unused").build();
+    Process process = mock(Process.class);
+    when(process.isAlive()).thenReturn(true);
+    when(process.waitFor()).thenThrow(new InterruptedException());
+    executor.process = process;
+    try {
+      executor.stop();
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 
   @Test
   public void executeThenStop() throws IOException {

@@ -972,18 +972,43 @@ SqlNode TableClauseOpt(SqlNode tableRef, TableClause.Role role) :
     }
 }
 
+/**
+ * Parses the WITH clause of a table function call in FROM. Folds a CHANGES(...) call and its WITH
+ * clause into the name of the table it reads; see TableClause. (see also build.gradle)
+ */
+SqlNode ChangesCallOpt(SqlNode tableRef) :
+{
+    final Map<String, Object> withOptions = new LinkedHashMap<String, Object>();
+}
+{
+    [ AddTableOptions(withOptions) ]
+    {
+        return TableClause.foldChanges(tableRef, withOptions);
+    }
+}
+
 /** Parses a name component written by TableClause.encode(). */
 TableClause TableClauseEof() :
 {
     TableClause.Role role = TableClause.Role.READ;
     final String name;
+    final SqlIdentifier function;
+    final SqlNode tableRef;
     final Map<String, Object> withOptions = new LinkedHashMap<String, Object>();
 }
 {
-    [ <INTO> { role = TableClause.Role.WRITE; } ]
-    name = Identifier() AddTableOptions(withOptions) <EOF> {
-        return TableClause.create(name, role, withOptions);
-    }
+    (
+        [ <INTO> { role = TableClause.Role.WRITE; } ]
+        name = Identifier() AddTableOptions(withOptions) <EOF> {
+            return TableClause.create(name, role, withOptions);
+        }
+    |
+        function = CompoundTableIdentifier()
+        tableRef = ImplicitTableFunctionCallArgs(function)
+        [ AddTableOptions(withOptions) ] <EOF> {
+            return TableClause.readChanges(tableRef, withOptions);
+        }
+    )
 }
 
 /**

@@ -24,9 +24,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 import org.apache.beam.sdk.io.solace.broker.MessageProducer;
 import org.apache.beam.sdk.io.solace.broker.PublishResultHandler;
-import org.apache.beam.sdk.io.solace.data.Solace;
+import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
@@ -55,10 +56,15 @@ public abstract class MockProducer implements MessageProducer {
       List<Record> records,
       boolean useCorrelationKeyLatency,
       SerializableFunction<Record, Destination> destinationFn,
-      DeliveryMode deliveryMode) {
+      DeliveryMode deliveryMode,
+      Queue<PublishResult> resultsQueue) {
     for (Record record : records) {
       this.publishSingleMessage(
-          record, destinationFn.apply(record), useCorrelationKeyLatency, deliveryMode);
+          record,
+          destinationFn.apply(record),
+          useCorrelationKeyLatency,
+          deliveryMode,
+          resultsQueue);
     }
     return records.size();
   }
@@ -71,6 +77,13 @@ public abstract class MockProducer implements MessageProducer {
   @Override
   public void close() {}
 
+  private static Object correlationKey(
+      Record msg, boolean useCorrelationKeyLatency, Queue<PublishResult> resultsQueue) {
+    Long publishMonotonicNanos = useCorrelationKeyLatency ? System.nanoTime() : null;
+    return PublishResultHandler.correlationKey(
+        msg.getMessageId(), publishMonotonicNanos, resultsQueue);
+  }
+
   public static class MockSuccessProducer extends MockProducer {
     public MockSuccessProducer(PublishResultHandler handler) {
       super(handler);
@@ -81,17 +94,10 @@ public abstract class MockProducer implements MessageProducer {
         Record msg,
         Destination topicOrQueue,
         boolean useCorrelationKeyLatency,
-        DeliveryMode deliveryMode) {
+        DeliveryMode deliveryMode,
+        Queue<PublishResult> resultsQueue) {
       PUBLISHED_RECORDS.add(msg);
-      if (useCorrelationKeyLatency) {
-        handler.responseReceivedEx(
-            Solace.PublishResult.builder()
-                .setPublished(true)
-                .setMessageId(msg.getMessageId())
-                .build());
-      } else {
-        handler.responseReceivedEx(msg.getMessageId());
-      }
+      handler.responseReceivedEx(correlationKey(msg, useCorrelationKeyLatency, resultsQueue));
     }
   }
 
@@ -105,22 +111,12 @@ public abstract class MockProducer implements MessageProducer {
         Record msg,
         Destination topicOrQueue,
         boolean useCorrelationKeyLatency,
-        DeliveryMode deliveryMode) {
-      if (useCorrelationKeyLatency) {
-        handler.handleErrorEx(
-            Solace.PublishResult.builder()
-                .setPublished(false)
-                .setMessageId(msg.getMessageId())
-                .setError("Some error")
-                .build(),
-            new JCSMPException("Some JCSMPException"),
-            Instant.now().toEpochMilli());
-      } else {
-        handler.handleErrorEx(
-            msg.getMessageId(),
-            new JCSMPException("Some JCSMPException"),
-            Instant.now().toEpochMilli());
-      }
+        DeliveryMode deliveryMode,
+        Queue<PublishResult> resultsQueue) {
+      handler.handleErrorEx(
+          correlationKey(msg, useCorrelationKeyLatency, resultsQueue),
+          new JCSMPException("Some JCSMPException"),
+          Instant.now().toEpochMilli());
     }
   }
 
@@ -141,7 +137,9 @@ public abstract class MockProducer implements MessageProducer {
         Record msg,
         Destination topicOrQueue,
         boolean useCorrelationKeyLatency,
-        DeliveryMode deliveryMode) {
+        DeliveryMode deliveryMode,
+        Queue<PublishResult> resultsQueue) {
+      Object key = correlationKey(msg, useCorrelationKeyLatency, resultsQueue);
       new Thread(
               () -> {
                 try {
@@ -149,15 +147,7 @@ public abstract class MockProducer implements MessageProducer {
                 } catch (InterruptedException e) {
                   Thread.currentThread().interrupt();
                 }
-                if (useCorrelationKeyLatency) {
-                  handler.responseReceivedEx(
-                      Solace.PublishResult.builder()
-                          .setPublished(true)
-                          .setMessageId(msg.getMessageId())
-                          .build());
-                } else {
-                  handler.responseReceivedEx(msg.getMessageId());
-                }
+                handler.responseReceivedEx(key);
               })
           .start();
     }
@@ -173,7 +163,8 @@ public abstract class MockProducer implements MessageProducer {
         Record msg,
         Destination topicOrQueue,
         boolean useCorrelationKeyLatency,
-        DeliveryMode deliveryMode) {
+        DeliveryMode deliveryMode,
+        Queue<PublishResult> resultsQueue) {
       throw new RuntimeException("Simulated synchronous publish failure");
     }
   }

@@ -27,6 +27,23 @@ import (
 )
 
 func Test_preprocessor_preProcessGraph(t *testing.T) {
+	// A runner GroupByKey directly into another.
+	gbks := func() *pipepb.Components {
+		gbk := func(in, out string) *pipepb.PTransform {
+			return &pipepb.PTransform{
+				UniqueName: "gbk_" + in,
+				Spec:       &pipepb.FunctionSpec{Urn: urns.TransformGBK},
+				Inputs:     map[string]string{"i0": in},
+				Outputs:    map[string]string{"i0": out},
+			}
+		}
+		return &pipepb.Components{
+			Transforms: map[string]*pipepb.PTransform{
+				"gbk1": gbk("coll1", "coll2"),
+				"gbk2": gbk("coll2", "coll3"),
+			},
+		}
+	}
 	tests := []struct {
 		name  string
 		input *pipepb.Components
@@ -147,6 +164,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in": "coll1",
 						},
@@ -159,6 +177,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in1": "coll1",
 							"in2": "coll2",
@@ -172,6 +191,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 			wantStages: []*stage{
 				{
 					transforms:   []string{"e2", "e3"}, // e1 is ignored
+					envID:        "env1",
 					primaryInput: "coll1",
 					internalCols: []string{"coll2", "coll3"},
 				},
@@ -195,6 +215,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in": "coll1",
 						},
@@ -207,6 +228,7 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 						Spec: &pipepb.FunctionSpec{
 							Urn: "defaultUrn",
 						},
+						EnvironmentId: "env1",
 						Inputs: map[string]string{
 							"in1": "coll1",
 							"in2": "coll2",
@@ -217,6 +239,15 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name:  "runnerTransformsInOwnStages",
+			input: gbks(),
+			wantStages: []*stage{
+				{transforms: []string{"gbk1"}, primaryInput: "coll1",
+					outputs: []link{{Transform: "gbk1", Local: "i0", Global: "coll2"}}},
+				{transforms: []string{"gbk2"}, primaryInput: "coll2", internalCols: []string{"coll3"}},
+			},
+			wantComponents: gbks(),
 		},
 	}
 	for _, test := range tests {

@@ -1753,9 +1753,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       elif m2 == 0:
         return float(0)
       else:
-        return combined_n * math.sqrt(combined_n - 1) / (combined_n -
-                                                         2) * m3 / (
-                                                             m2**(3 / 2))
+        return n * math.sqrt(n - 1) / (n - 2) * m3 / (m2**(3 / 2))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
@@ -1827,12 +1825,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       elif m2 == 0:
         return float(0)
       else:
-        return (((combined_n + 1) * (combined_n) * (combined_n - 1)) /
-                ((combined_n - 2) *
-                 (combined_n - 3))) * (m4 /
-                                       (m2)**2) - ((3 * (combined_n - 1)**2) /
-                                                   ((combined_n - 2) *
-                                                    (combined_n - 3)))
+        return (((n + 1) * (n) * (n - 1)) /
+                ((n - 2) * (n - 3))) * (m4 / (m2)**2) - ((3 * (n - 1)**2) /
+                                                         ((n - 2) * (n - 3)))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
@@ -1966,10 +1961,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     a Beam-specific option that guarantees only one duplicate will be kept, but
     unlike ``"first"`` and ``"last"`` it makes no guarantees about _which_
     duplicate element is kept."""
-    # Re-use the DataFrame based duplcated, extract the series back out
+    # Re-use the DataFrame based duplicated
     df = self._wrap_in_df()
-
-    return df.duplicated(keep=keep)[df.columns[0]]
+    result = df.duplicated(keep=keep)
+    if self.name is not None:
+      return result.rename(self.name)
+    return result
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
@@ -1983,8 +1980,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     duplicate element is kept."""
     # Re-use the DataFrame based drop_duplicates, extract the series back out
     df = self._wrap_in_df()
-
-    return df.drop_duplicates(keep=keep)[df.columns[0]]
+    result = df.drop_duplicates(keep=keep)[df.columns[0]]
+    if self.name is None:
+      return result.rename(None)
+    return result
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
