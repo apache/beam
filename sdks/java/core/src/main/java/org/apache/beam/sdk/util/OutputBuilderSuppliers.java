@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.joda.time.Instant;
 
 /** Implementations of {@link OutputBuilderSupplier}. */
 @Internal
@@ -30,7 +31,17 @@ public class OutputBuilderSuppliers {
     return new OutputBuilderSupplier() {
       @Override
       public <T> WindowedValues.Builder<T> builder(T value) {
-        return WindowedValues.builder(templateValue).withValue(value);
+        return WindowedValues.builder(templateValue, value);
+      }
+
+      @Override
+      public <T> WindowedValue<T> build(T value) {
+        return WindowedValues.ofWithCurrentContext(templateValue, value);
+      }
+
+      @Override
+      public <T> WindowedValue<T> buildWithTimestamp(T value, Instant timestamp) {
+        return WindowedValues.ofWithCurrentContext(templateValue, value, timestamp);
       }
     };
   }

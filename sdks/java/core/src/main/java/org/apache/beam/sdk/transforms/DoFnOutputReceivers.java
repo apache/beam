@@ -33,8 +33,8 @@ import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
-import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
@@ -58,6 +58,28 @@ public class DoFnOutputReceivers {
     }
 
     @Override
+    public void output(Row output) {
+      T converted = schemaCoder.getFromRowFunction().apply(output);
+      WindowedValue<T> windowedValue = builderSupplier.build(converted);
+      if (tag == null) {
+        ((DoFn<?, T>.WindowedContext) context).outputWindowedValue(windowedValue);
+      } else {
+        context.outputWindowedValue(tag, windowedValue);
+      }
+    }
+
+    @Override
+    public void outputWithTimestamp(Row output, Instant timestamp) {
+      T converted = schemaCoder.getFromRowFunction().apply(output);
+      WindowedValue<T> windowedValue = builderSupplier.buildWithTimestamp(converted, timestamp);
+      if (tag == null) {
+        ((DoFn<?, T>.WindowedContext) context).outputWindowedValue(windowedValue);
+      } else {
+        context.outputWindowedValue(tag, windowedValue);
+      }
+    }
+
+    @Override
     public OutputBuilder<Row> builder(Row value) {
       // assigning to final variable allows static analysis to know it
       // will not change between now and when receiver is invoked
@@ -65,7 +87,6 @@ public class DoFnOutputReceivers {
       if (tag == null) {
         return builderSupplier
             .builder(value)
-            .setValue(value)
             .setReceiver(
                 rowWithMetadata -> {
                   ((DoFn<?, T>.WindowedContext) context)
@@ -109,8 +130,18 @@ public class DoFnOutputReceivers {
     }
 
     @Override
+    public void output(T output) {
+      output(builderSupplier.build(output));
+    }
+
+    @Override
+    public void outputWithTimestamp(T output, Instant timestamp) {
+      output(builderSupplier.buildWithTimestamp(output, timestamp));
+    }
+
+    @Override
     public OutputBuilder<T> builder(T value) {
-      return WindowedValues.builder(builderSupplier.builder(value)).setReceiver(this);
+      return builderSupplier.builder(value).setReceiver(this);
     }
 
     @Override

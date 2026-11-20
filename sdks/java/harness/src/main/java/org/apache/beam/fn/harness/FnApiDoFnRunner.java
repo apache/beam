@@ -1871,8 +1871,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputBuilder<OutputT> builder(OutputT value) {
-      return WindowedValues.builder(currentElement)
-          .withValue(value)
+      return WindowedValues.builder(currentElement, value)
           .setReceiver(
               windowedValue -> {
                 checkTimestamp(windowedValue.getTimestamp());
@@ -1903,7 +1902,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      builder(output).setValue(output).setTimestamp(timestamp).output();
+      checkTimestamp(timestamp);
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.ofWithCurrentContext(currentElement, output, timestamp));
     }
 
     @Override
@@ -1912,7 +1914,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      builder(output).setTimestamp(timestamp).setWindows(windows).setPaneInfo(paneInfo).output();
+      checkTimestamp(timestamp);
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.ofWithCurrentContext(
+              currentElement, output, timestamp, windows, paneInfo));
     }
 
     @Override
@@ -2106,9 +2112,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   mainOutputSchemaCoder.getFromRowFunction();
 
               @Override
+              public void output(Row value) {
+                ProcessBundleContextBase.this.outputWindowedValue(
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value)));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWindowedValue(
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value), timestamp));
+              }
+
+              @Override
               public OutputBuilder<Row> builder(Row value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.builder(currentElement, value)
                     .setReceiver(
                         windowedRow ->
                             ProcessBundleContextBase.this.outputWindowedValue(
@@ -2141,9 +2160,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             }
             return new OutputReceiver<T>() {
               @Override
+              public void output(T value) {
+                ProcessBundleContextBase.this.outputWindowedValue(
+                    tag, WindowedValues.ofWithCurrentContext(currentElement, value));
+              }
+
+              @Override
+              public void outputWithTimestamp(T value, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWindowedValue(
+                    tag, WindowedValues.ofWithCurrentContext(currentElement, value, timestamp));
+              }
+
+              @Override
               public OutputBuilder<T> builder(T value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.builder(currentElement, value)
                     .setReceiver(
                         windowedValue ->
                             ProcessBundleContextBase.this.outputWindowedValue(tag, windowedValue));
@@ -2174,9 +2204,24 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   ((SchemaCoder) outputCoder).getFromRowFunction();
 
               @Override
+              public void output(Row value) {
+                ProcessBundleContextBase.this.outputWindowedValue(
+                    tag,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value)));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWindowedValue(
+                    tag,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value), timestamp));
+              }
+
+              @Override
               public OutputBuilder<Row> builder(Row value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.builder(currentElement, value)
                     .setReceiver(
                         windowedRow ->
                             ProcessBundleContextBase.this.outputWindowedValue(
