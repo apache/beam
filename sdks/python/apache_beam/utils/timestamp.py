@@ -24,9 +24,11 @@ For internal use only; no backwards-compatibility guarantees.
 # mypy: disallow-untyped-defs
 
 import datetime
+import functools
 import re
 import time
 import zoneinfo
+from typing import TYPE_CHECKING
 from typing import Optional
 from typing import Union
 from typing import overload
@@ -37,6 +39,9 @@ from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
 from apache_beam.portability import common_urns
+
+if TYPE_CHECKING:
+  import pyarrow
 
 # types compatible with Timestamp.of()
 TimestampTypes = Union[int, float, 'Timestamp']
@@ -652,3 +657,211 @@ class Duration(object):
 # The minimum granularity / interval expressible in a Timestamp / Duration
 # object.
 TIME_GRANULARITY = Duration(micros=1)
+
+_SECONDS_PER_DAY = 86400
+_EPOCH_ORDINAL = datetime.date(1970, 1, 1).toordinal()
+# Arrow timestamp units, coarsest first, with the precision each one holds.
+_ARROW_UNIT_PRECISIONS = {'s': 0, 'ms': 3, 'us': 6, 'ns': 9}
+
+
+@functools.total_ordering
+class DateTime(object):
+  """A date and wall-clock time with no time zone, at a precision from 0 to 9.
+
+  This is the Python type for Beam's ``datetime:v1`` logical type, which Java
+  holds as a ``LocalDateTime``.
+
+  It stores the days since 1970-01-01 and the time since midnight, in units of
+  ``10**-precision`` seconds, as integers. It currently has no arithmetic. To
+  compute with a value, convert it with ``to_datetime()`` or ``to_arrow()``.
+  """
+  MICROS_PRECISION = 6
+  NANOS_PRECISION = 9
+
+  def __init__(
+      self,
+      epoch_day: int = 0,
+      time_of_day: int = 0,
+      precision: int = MICROS_PRECISION) -> None:
+    for name, value in (('epoch_day', epoch_day),
+                        ('time_of_day', time_of_day),
+                        ('precision', precision)):
+      if not isinstance(value, int):
+        raise TypeError(
+            'Cannot interpret %s %s as %s.' % (value, type(value), name))
+    if not 0 <= precision <= DateTime.NANOS_PRECISION:
+      raise ValueError(
+          'DateTime precision must be between 0 and %d (inclusive), '
+          'but was %d.' % (DateTime.NANOS_PRECISION, precision))
+    days, self._time_of_day = divmod(
+        time_of_day, _SECONDS_PER_DAY * _POW_10[precision])
+    self._epoch_day = epoch_day + days
+    self._precision = precision
+
+  def epoch_day(self) -> int:
+    """Returns the number of days since 1970-01-01."""
+    return self._epoch_day
+
+  def time_of_day(self) -> int:
+    """Returns the time since midnight, in units of 10**-precision seconds."""
+    return self._time_of_day
+
+  def precision(self) -> int:
+    """Returns the precision of this DateTime."""
+    return self._precision
+
+  def _total(self, precision: int) -> int:
+    """Returns the time since 1970-01-01T00:00 in units of 10**-precision s.
+
+    ``precision`` must be at least this value's precision, so scaling up is
+    always exact.
+    """
+    return (
+        self._epoch_day * _SECONDS_PER_DAY * _POW_10[precision] +
+        self._time_of_day * _POW_10[precision - self._precision])
+
+  def to_precision(
+      self, precision: int, allow_lossy_conversion: bool = False) -> 'DateTime':
+    """Returns this DateTime converted to the given precision.
+
+    A finer precision is always exact. A coarser one raises ValueError when it
+    would drop digits. With allow_lossy_conversion=True, it floors the value
+    instead.
+    """
+    if precision == self._precision:
+      return self
+    if not 0 <= precision <= DateTime.NANOS_PRECISION:
+      raise ValueError(
+          'DateTime precision must be between 0 and %d (inclusive), '
+          'but was %d.' % (DateTime.NANOS_PRECISION, precision))
+    if precision > self._precision:
+      return DateTime(
+          self._epoch_day,
+          self._time_of_day * _POW_10[precision - self._precision],
+          precision)
+    scale = _POW_10[self._precision - precision]
+    if self._time_of_day % scale and not allow_lossy_conversion:
+      raise ValueError(
+          '%r cannot be represented exactly at precision %d. Set '
+          'allow_lossy_conversion=True to truncate it.' % (self, precision))
+    return DateTime(self._epoch_day, self._time_of_day // scale, precision)
+
+  @classmethod
+  def from_datetime(cls, dt: datetime.datetime) -> 'DateTime':
+    """Creates a DateTime from a naive ``datetime.datetime``.
+
+    The result has microsecond precision. A ``pandas.Timestamp`` that carries
+    nanoseconds gets nanosecond precision, so none of its digits are lost.
+    """
+    if not isinstance(dt, datetime.datetime):
+      raise TypeError(
+          'Cannot interpret %s %s as a datetime.datetime.' % (dt, type(dt)))
+    if dt.tzinfo is not None:
+      raise ValueError(
+          '%s has a time zone, which makes it an instant. Use Timestamp for '
+          'instants.' % dt)
+    epoch_day = dt.toordinal() - _EPOCH_ORDINAL
+    seconds = dt.hour * 3600 + dt.minute * 60 + dt.second
+    micros = seconds * _POW_10[DateTime.MICROS_PRECISION] + dt.microsecond
+    nanosecond = getattr(dt, 'nanosecond', 0)
+    if nanosecond:
+      return cls(
+          epoch_day, micros * 1000 + nanosecond, DateTime.NANOS_PRECISION)
+    return cls(epoch_day, micros, DateTime.MICROS_PRECISION)
+
+  def _midnight(self) -> datetime.datetime:
+    try:
+      return datetime.datetime.fromordinal(self._epoch_day + _EPOCH_ORDINAL)
+    except (ValueError, OverflowError) as e:
+      raise ValueError(
+          'Day %d since 1970-01-01 is outside the years 1 to 9999 that '
+          'datetime supports.' % self._epoch_day) from e
+
+  def to_datetime(
+      self, allow_lossy_conversion: bool = False) -> datetime.datetime:
+    """Returns this DateTime as a naive ``datetime.datetime``.
+
+    ``datetime.datetime`` stops at microseconds. A DateTime with a finer
+    precision needs allow_lossy_conversion=True, which floors the value to the
+    microsecond. Years outside 1 to 9999 raise ValueError.
+    """
+    if (self._precision > DateTime.MICROS_PRECISION and
+        not allow_lossy_conversion):
+      raise ValueError(
+          'Converting %r to datetime truncates it to microseconds. Set '
+          'allow_lossy_conversion=True to allow this conversion.' % self)
+    micros = self.to_precision(
+        DateTime.MICROS_PRECISION, allow_lossy_conversion=True)._time_of_day
+    return self._midnight() + datetime.timedelta(microseconds=micros)
+
+  @classmethod
+  def from_arrow(cls, scalar: 'pyarrow.TimestampScalar') -> 'DateTime':
+    """Creates a DateTime from a pyarrow timestamp with no time zone.
+
+    The units ``s``, ``ms``, ``us`` and ``ns`` give precisions 0, 3, 6 and 9.
+    """
+    import pyarrow as pa
+    # The messages name the scalar's type, because formatting the scalar itself
+    # calls as_py(), which fails past year 9999.
+    if not isinstance(scalar, pa.TimestampScalar):
+      raise TypeError(
+          'Expected a pyarrow TimestampScalar, but got %s.' % type(scalar))
+    if scalar.type.tz is not None:
+      raise ValueError(
+          'A pyarrow %s has a time zone, which makes it an instant. Use '
+          'Timestamp for instants.' % scalar.type)
+    if not scalar.is_valid:
+      raise ValueError('Cannot create a DateTime from a null timestamp.')
+    return cls(0, scalar.value, _ARROW_UNIT_PRECISIONS[scalar.type.unit])
+
+  def to_arrow(self) -> 'pyarrow.TimestampScalar':
+    """Returns this DateTime as a pyarrow timestamp with no time zone.
+
+    The unit is the coarsest one that holds this precision. Arrow counts units
+    in 64 bits, so nanosecond values only reach the years 1677 to 2262.
+    """
+    import pyarrow as pa
+    unit, unit_precision = next(
+        (unit, unit_precision)
+        for unit, unit_precision in _ARROW_UNIT_PRECISIONS.items()
+        if self._precision <= unit_precision)
+    try:
+      return pa.scalar(self._total(unit_precision), type=pa.timestamp(unit))
+    except OverflowError as e:
+      raise ValueError(
+          '%r does not fit in a pyarrow timestamp[%s].' % (self, unit)) from e
+
+  def isoformat(self) -> str:
+    """Returns ``YYYY-MM-DDTHH:MM:SS``, plus the fraction when it's non-zero.
+
+    The fraction has as many digits as the precision. Years outside 1 to 9999
+    raise ValueError.
+    """
+    seconds, fraction = divmod(self._time_of_day, _POW_10[self._precision])
+    result = (self._midnight() +
+              datetime.timedelta(seconds=seconds)).isoformat()
+    if fraction:
+      result += '.%0*d' % (self._precision, fraction)
+    return result
+
+  def __repr__(self) -> str:
+    try:
+      return 'DateTime(%s)' % self.isoformat()
+    except ValueError:
+      return 'DateTime(epoch_day=%d, time_of_day=%d, precision=%d)' % (
+          self._epoch_day, self._time_of_day, self._precision)
+
+  def __eq__(self, other: object) -> bool:
+    if not isinstance(other, DateTime):
+      return NotImplemented
+    precision = max(self._precision, other._precision)
+    return self._total(precision) == other._total(precision)
+
+  def __lt__(self, other: object) -> bool:
+    if not isinstance(other, DateTime):
+      return NotImplemented
+    precision = max(self._precision, other._precision)
+    return self._total(precision) < other._total(precision)
+
+  def __hash__(self) -> int:
+    return hash(self._total(DateTime.NANOS_PRECISION))

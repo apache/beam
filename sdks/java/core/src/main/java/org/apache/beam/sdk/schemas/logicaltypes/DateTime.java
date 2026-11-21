@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 
@@ -36,29 +40,72 @@ import org.apache.beam.sdk.values.Row;
  * that represents incrementing count of days where day 0 is 1970-01-01 (ISO). Time field is the
  * same as the base type of {@link Time}, which is a Long that represents a count of time in
  * nanoseconds.
+ *
+ * <p>The precision is the number of digits in the fraction of a second, from 0 to 9, and defaults
+ * to 6. {@link #toBaseType} refuses a value with finer digits.
  */
 public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
-  public static final String IDENTIFIER = "beam:logical_type:datetime:v1";
+  // The UID from before DateTime had a precision, so instances that earlier versions serialized
+  // still deserialize.
+  private static final long serialVersionUID = -3033263475478247643L;
+
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.DATETIME
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
   public static final String DATE_FIELD_NAME = "Date";
   public static final String TIME_FIELD_NAME = "Time";
   public static final Schema DATETIME_SCHEMA =
       Schema.builder().addInt64Field(DATE_FIELD_NAME).addInt64Field(TIME_FIELD_NAME).build();
+
+  static final int MAX_PRECISION = 9;
+  static final int DEFAULT_PRECISION = 6;
+
+  public static final DateTime MILLIS = DateTime.of(3);
+  public static final DateTime MICROS = DateTime.of(6);
+  public static final DateTime NANOS = DateTime.of(9);
+
+  private final int precision;
+  private final int scalingFactor;
+
+  /** A DateTime with the default precision, 6. */
+  public DateTime() {
+    this(DEFAULT_PRECISION);
+  }
+
+  private DateTime(int precision) {
+    checkArgument(
+        precision >= 0 && precision <= MAX_PRECISION,
+        "DateTime precision must be between 0 and %s (inclusive), but was %s.",
+        MAX_PRECISION,
+        precision);
+    this.precision = precision;
+    this.scalingFactor = (int) Math.pow(10, MAX_PRECISION - precision);
+  }
+
+  public static DateTime of(int precision) {
+    return new DateTime(precision);
+  }
+
+  // Instances that earlier versions serialized have neither field set, and they meant micros.
+  private Object readResolve() {
+    return scalingFactor == 0 ? MICROS : this;
+  }
 
   @Override
   public String getIdentifier() {
     return IDENTIFIER;
   }
 
-  // unused
   @Override
   public Schema.FieldType getArgumentType() {
-    return Schema.FieldType.STRING;
+    return Schema.FieldType.INT32;
   }
 
-  // unused
   @Override
-  public String getArgument() {
-    return "";
+  public Integer getArgument() {
+    return precision;
   }
 
   @Override
@@ -68,21 +115,35 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
 
   @Override
   public Row toBaseType(LocalDateTime input) {
+    long nanoOfDay = input.toLocalTime().toNanoOfDay();
+    checkState(
+        nanoOfDay % scalingFactor == 0,
+        "DateTime logical type was configured with precision %s, but encountered %s, which has "
+            + "finer digits.",
+        precision,
+        input);
     return Row.withSchema(DATETIME_SCHEMA)
-        .addValues(input.toLocalDate().toEpochDay(), input.toLocalTime().toNanoOfDay())
+        .addValues(input.toLocalDate().toEpochDay(), nanoOfDay)
         .build();
   }
 
   @Override
   public LocalDateTime toInputType(Row base) {
+    long nanoOfDay =
+        checkArgumentNotNull(
+            base.getInt64(TIME_FIELD_NAME),
+            "While trying to convert to LocalDateTime: Row missing time field");
+    checkArgument(
+        nanoOfDay % scalingFactor == 0,
+        "While trying to convert to LocalDateTime: time field %s has digits finer than precision "
+            + "%s. This likely indicates data corruption or a precision mismatch.",
+        nanoOfDay,
+        precision);
     return LocalDateTime.of(
         LocalDate.ofEpochDay(
             checkArgumentNotNull(
                 base.getInt64(DATE_FIELD_NAME),
                 "While trying to convert to LocalDateTime: Row missing date field")),
-        LocalTime.ofNanoOfDay(
-            checkArgumentNotNull(
-                base.getInt64(TIME_FIELD_NAME),
-                "While trying to convert to LocalDateTime: Row missing time field")));
+        LocalTime.ofNanoOfDay(nanoOfDay));
   }
 }

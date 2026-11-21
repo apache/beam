@@ -52,6 +52,7 @@ from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.typehints.testing.strategies import named_fields
+from apache_beam.utils.timestamp import DateTime
 from apache_beam.utils.timestamp import Timestamp
 
 # Simplify to collections.abc implementation once Python 3.11 is deprecated.
@@ -900,6 +901,89 @@ class ParameterizedTimestampTest(unittest.TestCase):
             schemas.ParameterizedTimestampShortRepresentation))
     with self.assertRaises(ValueError):
       schemas.LogicalType.from_runner_api(proto)
+
+
+class DateTimeLogicalTypeTest(unittest.TestCase):
+  def test_typehints(self):
+    logical_type = typing_to_runner_api(DateTime).logical_type
+    self.assertEqual(logical_type.urn, 'beam:logical_type:datetime:v1')
+    # Precision 6, the same type as Java's SqlTypes.DATETIME.
+    self.assertEqual(logical_type.argument_type.atomic_type, schema_pb2.INT32)
+    self.assertEqual(logical_type.argument.atomic_value.int32, 6)
+    self.assertEqual(
+        [(f.name, f.type.atomic_type)
+         for f in logical_type.representation.row_type.schema.fields],
+        [('Date', schema_pb2.INT64), ('Time', schema_pb2.INT64)])
+    # datetime.datetime fields keep their pickled encoding.
+    self.assertEqual(
+        typing_to_runner_api(datetime.datetime).logical_type.urn,
+        schemas.PYTHON_ANY_URN)
+
+  def test_from_runner_api_argument_shapes(self):
+    def from_proto(argument_type=None, argument=None):
+      proto = schema_pb2.LogicalType(
+          urn='beam:logical_type:datetime:v1',
+          representation=typing_to_runner_api(schemas.DateTimeRepresentation))
+      if argument_type is not None:
+        proto.argument_type.CopyFrom(
+            schema_pb2.FieldType(atomic_type=argument_type))
+        proto.argument.CopyFrom(schema_pb2.FieldValue(atomic_value=argument))
+      return schemas.LogicalType.from_runner_api(proto)
+
+    # Older SDKs send a STRING "" argument, or none, and both mean micros.
+    self.assertEqual(from_proto().argument(), 6)
+    self.assertEqual(
+        from_proto(schema_pb2.STRING,
+                   schema_pb2.AtomicTypeValue(string='')).argument(),
+        6)
+    nanos = from_proto(schema_pb2.INT32, schema_pb2.AtomicTypeValue(int32=9))
+    self.assertIsInstance(nanos, schemas.DateTimeLogicalType)
+    self.assertEqual(nanos.argument(), 9)
+    self.assertEqual(
+        nanos.to_language_type(
+            schemas.DateTimeRepresentation(np.int64(0), np.int64(1))),
+        DateTime(0, 1, 9))
+    with self.assertRaises(ValueError):
+      from_proto(schema_pb2.INT32, schema_pb2.AtomicTypeValue(int32=10))
+    with self.assertRaises(ValueError):
+      from_proto(schema_pb2.STRING, schema_pb2.AtomicTypeValue(string='6'))
+
+  def test_explicit_precision(self):
+    for precision, time_of_day, time in [
+        (3, 51_254_123, 51_254_123_000_000),
+        (6, 51_254_123_456, 51_254_123_456_000),
+        (9, 51_254_123_456_789, 51_254_123_456_789),
+    ]:
+      logical_type = schemas.DateTimeLogicalType(precision)
+      value = DateTime(18487, time_of_day, precision)
+      self.assertEqual(
+          logical_type.to_representation_type(value), (18487, time))
+      back = logical_type.to_language_type(
+          schemas.DateTimeRepresentation(np.int64(18487), np.int64(time)))
+      self.assertEqual(back, value)
+      self.assertEqual(back.precision(), precision)
+
+    micros = schemas.DateTimeLogicalType(6)
+    self.assertEqual(
+        micros.to_representation_type(DateTime(18487, 51_254_123, 3)),
+        (18487, 51_254_123_000_000))
+    with self.assertRaises(ValueError):
+      micros.to_representation_type(DateTime(18487, 51_254_123_456_789, 9))
+    # Java never sends a time outside the day, or digits finer than the
+    # precision.
+    for logical_type in [schemas.DateTimeLogicalType(), micros]:
+      for time in [-1, 86_400 * 10**9]:
+        with self.assertRaises(ValueError):
+          logical_type.to_language_type(
+              schemas.DateTimeRepresentation(np.int64(0), np.int64(time)))
+    with self.assertRaises(ValueError):
+      schemas.DateTimeLogicalType(3).to_language_type(
+          schemas.DateTimeRepresentation(np.int64(0), np.int64(1)))
+
+  def test_rejects_non_datetime_values(self):
+    with self.assertRaisesRegex(TypeError, 'from_datetime'):
+      schemas.DateTimeLogicalType().to_representation_type(
+          datetime.datetime(2020, 8, 13))
 
 
 class HypothesisTest(unittest.TestCase):

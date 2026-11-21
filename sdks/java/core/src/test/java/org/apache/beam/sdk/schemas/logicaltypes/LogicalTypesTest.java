@@ -21,9 +21,13 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
@@ -507,5 +511,40 @@ public class LogicalTypesTest {
 
     Row maxRow = Row.withSchema(schema).addValue(nearMax).build();
     assertEquals(nearMax, maxRow.getLogicalTypeValue(0, Instant.class));
+  }
+
+  @Test
+  public void testDateTimePrecision() {
+    LocalDateTime nanos = LocalDateTime.of(2020, 8, 13, 14, 14, 14, 123_456_789);
+    assertEquals(nanos, DateTime.NANOS.toInputType(DateTime.NANOS.toBaseType(nanos)));
+    // SqlTypes.DATETIME is micros, so it refuses finer digits, as Timestamp does.
+    assertEquals(6, (int) SqlTypes.DATETIME.getArgument());
+    assertThrows(IllegalStateException.class, () -> SqlTypes.DATETIME.toBaseType(nanos));
+    Row micros = SqlTypes.DATETIME.toBaseType(nanos.withNano(123_456_000));
+    assertEquals(51_254_123_456_000L, (long) micros.getInt64(DateTime.TIME_FIELD_NAME));
+    // Finer digits arriving to decode mean corrupt data.
+    Row corrupt =
+        Row.withSchema(DateTime.DATETIME_SCHEMA).addValues(18487L, 51_254_123_456_001L).build();
+    assertThrows(IllegalArgumentException.class, () -> SqlTypes.DATETIME.toInputType(corrupt));
+    assertThrows(IllegalArgumentException.class, () -> DateTime.of(10));
+    assertThrows(IllegalArgumentException.class, () -> DateTime.of(-1));
+  }
+
+  @Test
+  public void testDateTimeReadsPreviouslySerializedForm() throws Exception {
+    // A DateTime that Beam 2.77 Java-serialized, before DateTime had a precision. Flink savepoints
+    // and serialized coders hold this form.
+    byte[] serialized =
+        Base64.getDecoder()
+            .decode(
+                "rO0ABXNyADFvcmcuYXBhY2hlLmJlYW0uc2RrLnNjaGVtYXMubG9naWNhbHR5cGVzLkRhdGVUaW1l"
+                    + "1eeu8KHzxyUCAAB4cA==");
+    DateTime dateTime;
+    try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(serialized))) {
+      dateTime = (DateTime) in.readObject();
+    }
+    assertEquals(6, (int) dateTime.getArgument());
+    LocalDateTime micros = LocalDateTime.of(2020, 8, 13, 14, 14, 14, 123_456_000);
+    assertEquals(micros, dateTime.toInputType(dateTime.toBaseType(micros)));
   }
 }
