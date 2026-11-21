@@ -96,7 +96,6 @@ class _TFRecordUtil(object):
   """
   _LEN_STRUCT = struct.Struct('<Q')
   _CRC_STRUCT = struct.Struct('<I')
-  _HEADER_STRUCT = struct.Struct('<QI')
 
   @classmethod
   def _masked_crc32c(cls, value, crc32c_fn=_default_crc32c_fn):
@@ -129,13 +128,13 @@ class _TFRecordUtil(object):
       value: A bytes object representing content of the record.
     """
     encoded_length = cls._LEN_STRUCT.pack(len(value))
-    pack_crc = cls._CRC_STRUCT.pack
     file_handle.write(
-        b''.join((
+        b''.join([
             encoded_length,
-            pack_crc(cls._masked_crc32c(encoded_length)),
+            cls._CRC_STRUCT.pack(cls._masked_crc32c(encoded_length)),
             value,
-            pack_crc(cls._masked_crc32c(value)))))
+            cls._CRC_STRUCT.pack(cls._masked_crc32c(value))
+        ]))
 
   @classmethod
   def read_record(cls, file_handle):
@@ -158,7 +157,7 @@ class _TFRecordUtil(object):
       raise ValueError(
           'Not a valid TFRecord. Fewer than %d bytes: %s' %
           (buf_length_expected, codecs.encode(buf, 'hex')))
-    length, length_mask_expected = cls._HEADER_STRUCT.unpack(buf)
+    length, length_mask_expected = struct.unpack('<QI', buf)
     length_mask_actual = cls._masked_crc32c(buf[:8])
     if length_mask_actual != length_mask_expected:
       raise ValueError(
