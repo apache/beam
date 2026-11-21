@@ -239,7 +239,7 @@ func TestPersistBundle_ContinuationResidualWatermark(t *testing.T) {
 					Data:        []Residual{{Element: encodeElement(t, info, mtime.MinTimestamp)}},
 				}
 				if test.report {
-					residuals.MinOutputWatermarks = map[string]mtime.Time{"sink_in": mtime.Time(1000 * (round + 1))}
+					residuals.Data[0].OutputWatermarks = map[string]mtime.Time{"sink_in": mtime.Time(1000 * (round + 1))}
 				}
 				em.PersistBundle(rb, nil, TentativeData{}, info, residuals)
 			}
@@ -252,6 +252,61 @@ func TestPersistBundle_ContinuationResidualWatermark(t *testing.T) {
 				t.Errorf("src.OutputWatermark() = %v, want it to follow the reported estimate", got)
 			}
 		})
+	}
+}
+
+// TestPersistBundle_SplitPrimaryHoldsWatermark splits a running SDF bundle.
+// The split-off residual finishes first and reports a later watermark estimate.
+// The stage's output watermark must still wait for the original bundle (the
+// primary), or the primary's output reaches the next stage as late data.
+func TestPersistBundle_SplitPrimaryHoldsWatermark(t *testing.T) {
+	info := continuationInfo(t, false)
+	ctx, cancelFn := context.WithCancelCause(context.Background())
+	defer cancelFn(nil)
+
+	em := NewElementManager(Config{})
+	em.AddStage("impulse", nil, []string{"src_in"}, nil)
+	em.AddStage("src", []string{"src_in"}, []string{"sink_in"}, nil)
+	em.AddStage("sink", []string{"sink_in"}, nil, nil)
+	em.Impulse("impulse")
+
+	var i int
+	ch := em.Bundles(ctx, cancelFn, func() string {
+		defer func() { i++ }()
+		return fmt.Sprintf("%v", i)
+	})
+	src, sink := em.stages["src"], em.stages["sink"]
+
+	primary := <-ch
+	em.ReturnResiduals(primary, 1, info, Residuals{
+		Data: []Residual{{Element: encodeElement(t, info, mtime.MinTimestamp)}},
+	})
+	residual := <-ch
+	const primaryOutput, estimate = mtime.Time(1000), mtime.Time(5000)
+	em.PersistBundle(residual, nil, TentativeData{}, info, Residuals{
+		TransformID: "src",
+		InputID:     "i0",
+		Data: []Residual{{
+			Element:          encodeElement(t, info, mtime.MinTimestamp),
+			OutputWatermarks: map[string]mtime.Time{"sink_in": estimate},
+		}},
+	})
+	src.updateWatermarks(em)
+	sink.updateWatermarks(em)
+	if got := src.OutputWatermark(); got != mtime.MinTimestamp {
+		t.Errorf("src.OutputWatermark() = %v while the primary is still running, want %v", got, mtime.MinTimestamp)
+	}
+
+	td := TentativeData{}
+	td.WriteData("sink_in", encodeElement(t, info, primaryOutput))
+	em.PersistBundle(primary, map[string]PColInfo{"sink_in": info}, td, info, Residuals{})
+	src.updateWatermarks(em)
+	sink.updateWatermarks(em)
+	if got := sink.InputWatermark(); got > primaryOutput {
+		t.Errorf("sink.InputWatermark() = %v, already past the primary's output at %v", got, primaryOutput)
+	}
+	if got := src.OutputWatermark(); got != estimate {
+		t.Errorf("src.OutputWatermark() = %v after the primary finished, want the residual's estimate %v", got, estimate)
 	}
 }
 
