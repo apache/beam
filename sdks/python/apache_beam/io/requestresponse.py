@@ -328,12 +328,21 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
     self._should_backoff = should_backoff
     self._repeater = repeater
     self._throttler = throttler
+    self._exception_handling_args: Optional[dict[str, Any]] = None
+
+  def with_exception_handling(self, **kwargs):
+    self._exception_handling_args = kwargs
+    return self
 
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
-    return requests | beam.ParDo(
+    pardo = beam.ParDo(
         _CallDoFn(self._caller, self._timeout, self._repeater, self._throttler))
+    if self._exception_handling_args is not None:
+      return requests | pardo.with_exception_handling(
+          **self._exception_handling_args)
+    return requests | pardo
 
 
 class _CallDoFn(beam.DoFn):
@@ -790,6 +799,11 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     self._cache = cache
     self._throttler = throttler
     self._batching_kwargs = self._caller.batch_elements_kwargs()
+    self._exception_handling_args: Optional[dict[str, Any]] = None
+
+  def with_exception_handling(self, **kwargs):
+    self._exception_handling_args = kwargs
+    return self
 
   def expand(
       self,
@@ -818,24 +832,38 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     if isinstance(self._throttler, DefaultThrottler):
       # DefaultThrottler applies throttling in the DoFn of
       # Call PTransform.
-      responses = (
-          inputs
-          | _Call(
-              caller=self._caller,
-              timeout=self._timeout,
-              should_backoff=self._should_backoff,
-              repeater=self._repeater,
-              throttler=self._throttler))
+      call_transform = _Call(
+          caller=self._caller,
+          timeout=self._timeout,
+          should_backoff=self._should_backoff,
+          repeater=self._repeater,
+          throttler=self._throttler)
     else:
       # No throttling mechanism. The requests are made to the external source
       # as they come.
-      responses = (
-          inputs
-          | _Call(
-              caller=self._caller,
-              timeout=self._timeout,
-              should_backoff=self._should_backoff,
-              repeater=self._repeater))
+      call_transform = _Call(
+          caller=self._caller,
+          timeout=self._timeout,
+          should_backoff=self._should_backoff,
+          repeater=self._repeater)
+
+    errors = None
+    if self._exception_handling_args is not None:
+      main_tag = self._exception_handling_args.get('main_tag', 'good')
+      dead_letter_tag = self._exception_handling_args.get(
+          'dead_letter_tag', 'bad')
+      call_result = inputs | call_transform.with_exception_handling(
+          **self._exception_handling_args)
+      responses = call_result[main_tag]
+      errors = call_result[dead_letter_tag]
+      if self._batching_kwargs:
+        errors = (
+            errors
+            | "FlattenBatchErrors" >> beam.FlatMap(
+                lambda x: [(r, x[1])
+                           for r in x[0]] if isinstance(x[0], list) else [x]))
+    else:
+      responses = inputs | call_transform
 
     # if batching is enabled then handle accordingly.
     if self._batching_kwargs:
@@ -844,6 +872,9 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     if self._cache:
       # write to cache.
       _ = responses | self._cache.get_write()
-      return (cached_responses, responses) | beam.Flatten()
+      responses = (cached_responses, responses) | beam.Flatten()
+
+    if errors is not None:
+      return {main_tag: responses, dead_letter_tag: errors}  # type: ignore[return-value]
 
     return responses

@@ -17,14 +17,40 @@
 
 import logging
 import unittest
+from typing import Any
 
 import apache_beam as beam
+from apache_beam.io.requestresponse import NoOpsRepeater
+from apache_beam.io.requestresponse import UserCodeTimeoutException
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment import EnrichmentSourceHandler
   from apache_beam.transforms.enrichment import cross_join
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
+
+
+class _StaticDictHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+  def __init__(self, data: dict, key_field: str = 'id', timeout_keys=()):
+    self._data = data
+    self._key_field = key_field
+    self._timeout_keys = set(timeout_keys)
+
+  def get_output_schema(self):
+    return [('value', str), ('cost', float)]
+
+  def __call__(self, request: beam.Row, *args, **kwargs):
+    key = request._asdict()[self._key_field]
+    if key in self._timeout_keys:
+      raise UserCodeTimeoutException(f'Simulated RPC timeout for key={key}')
+    matched = self._data.get(key)
+    if matched is None:
+      return request, beam.Row()
+    return request, beam.Row(**matched)
 
 
 class TestEnrichmentTransform(unittest.TestCase):
@@ -34,6 +60,157 @@ class TestEnrichmentTransform(unittest.TestCase):
     expected = beam.Row(id=1, key='city', value='durham')
     output = cross_join(left, right)
     self.assertEqual(expected, output)
+
+  def test_cross_join_with_prefix(self):
+    left = {'id': 1, 'value': 'original'}
+    right = {'value': 'durham', 'cost': 10.5}
+    expected = beam.Row(
+        id=1, value='original', ref_value='durham', ref_cost=10.5)
+    output = cross_join(left, right, prefix='ref_')
+    self.assertEqual(expected, output)
+
+  def test_invalid_on_miss_raises(self):
+    handler = _StaticDictHandler({1: {'value': 'a', 'cost': 1.0}})
+    with self.assertRaises(ValueError):
+      Enrichment(handler, on_miss='invalid_mode')
+
+  def test_on_miss_dlq_without_exception_handling_raises(self):
+    handler = _StaticDictHandler({1: {'value': 'a', 'cost': 1.0}})
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create([beam.Row(id=1)]) | Enrichment(
+            handler, on_miss='dlq')
+
+  def test_on_miss_null_left_join_and_prefix(self):
+    handler = _StaticDictHandler({1: {'value': 'durham', 'cost': 9.5}})
+    inputs = [beam.Row(id=1, value='left1'), beam.Row(id=2, value='left2')]
+    expected = [
+        beam.Row(id=1, value='left1', sku_value='durham', sku_cost=9.5),
+        beam.Row(id=2, value='left2', sku_value=None, sku_cost=None),
+    ]
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | beam.Create(inputs)
+          | Enrichment(handler, on_miss='null', prefix='sku_'))
+      assert_that(res, equal_to(expected))
+
+
+  def test_on_miss_null_schemaless_miss_first_is_stable(self):
+    class _SchemaLessHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+      def __call__(self, request: beam.Row, *args, **kwargs):
+        if request.id == 2:
+          return request, beam.Row(lookup_score=0.9)
+        return request, beam.Row()
+
+    handler = _SchemaLessHandler()
+    # Miss before any hit: without a static schema the unmatched row keeps
+    # only its input fields, and that must not change after a later hit.
+    inputs_miss_first = [beam.Row(id=1), beam.Row(id=2)]
+    expected_miss_first = [
+        beam.Row(id=1),
+        beam.Row(id=2, lookup_score=0.9),
+    ]
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | 'CreateMissFirst' >> beam.Create(inputs_miss_first)
+          | 'EnrichMissFirst' >> Enrichment(handler, on_miss='null'))
+      assert_that(res, equal_to(expected_miss_first), label='MissFirst')
+
+    inputs_hit_first = [beam.Row(id=2), beam.Row(id=1)]
+    expected_hit_first = [
+        beam.Row(id=2, lookup_score=0.9),
+        beam.Row(id=1),
+    ]
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | 'CreateHitFirst' >> beam.Create(inputs_hit_first)
+          | 'EnrichHitFirst' >> Enrichment(handler, on_miss='null'))
+      assert_that(res, equal_to(expected_hit_first), label='HitFirst')
+
+  def test_on_miss_drop_inner_join(self):
+    handler = _StaticDictHandler({1: {'value': 'durham', 'cost': 9.5}})
+    inputs = [beam.Row(id=1), beam.Row(id=2)]
+    expected = [beam.Row(id=1, value='durham', cost=9.5)]
+    with beam.Pipeline() as p:
+      res = p | beam.Create(inputs) | Enrichment(handler, on_miss='drop')
+      assert_that(res, equal_to(expected))
+
+  def test_on_miss_fail_raises(self):
+    handler = _StaticDictHandler({1: {'value': 'durham', 'cost': 9.5}})
+    inputs = [beam.Row(id=1), beam.Row(id=2)]
+    with self.assertRaises(Exception):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create(inputs) | Enrichment(handler, on_miss='fail')
+
+  def test_on_miss_dlq_and_rpc_timeout_routing(self):
+    handler = _StaticDictHandler(
+        {1: {
+            'value': 'durham', 'cost': 9.5
+        }},
+        timeout_keys={3},
+    )
+    inputs = [beam.Row(id=1), beam.Row(id=2), beam.Row(id=3)]
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create(inputs)
+          | Enrichment(
+              handler,
+              on_miss='dlq',
+              repeater=NoOpsRepeater(),
+          ).with_exception_handling(
+              main_tag='good', dead_letter_tag='failed_enrichment'))
+      assert_that(
+          result['good'],
+          equal_to([beam.Row(id=1, value='durham', cost=9.5)]),
+          label='CheckGood',
+      )
+      assert_that(
+          result['failed_enrichment'] | beam.Map(lambda x: x[0]),
+          equal_to([beam.Row(id=2), beam.Row(id=3)]),
+          label='CheckDLQ',
+      )
+
+  def test_join_fn_exception_routed_to_dlq_and_column_names_schema(self):
+    class _ColNamesHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+      column_names = ['extra']
+
+      def __call__(self, request: beam.Row, *args, **kwargs):
+        if request.id == 1:
+          return request, beam.Row(extra='ok')
+        return request, beam.Row()
+
+    def _failing_join(left, right):
+      if left.get('id') == 1:
+        raise RuntimeError('join failure')
+      return cross_join(left, right)
+
+    handler = _ColNamesHandler()
+    enrichment = Enrichment(handler, on_miss='null')
+    self.assertEqual(enrichment._get_handler_schema(), [('extra', Any)])
+
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | beam.Create([beam.Row(id=1), beam.Row(id=2)])
+          | Enrichment(
+              handler,
+              join_fn=_failing_join,
+              on_miss='null',
+          ).with_exception_handling(main_tag='good', dead_letter_tag='errors'))
+      assert_that(
+          res['good'],
+          equal_to([beam.Row(id=2, extra=None)]),
+          label='CheckGoodJoin',
+      )
+      assert_that(
+          res['errors'] | beam.Map(lambda x: x[0]),
+          equal_to([beam.Row(id=1)]),
+          label='CheckJoinDLQ',
+      )
 
 
 if __name__ == '__main__':
