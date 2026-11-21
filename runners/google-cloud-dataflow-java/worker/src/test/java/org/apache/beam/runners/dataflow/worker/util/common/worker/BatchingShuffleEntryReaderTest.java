@@ -21,14 +21,19 @@ import static com.google.api.client.util.Lists.newArrayList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.junit.Before;
@@ -138,5 +143,88 @@ public final class BatchingShuffleEntryReaderTest {
     verify(batchReader).read(NEXT_START_POSITION, END_POSITION);
     verify(batchReader).read(SECOND_NEXT_START_POSITION, END_POSITION);
     verifyNoMoreInteractions(batchReader);
+  }
+
+  @Test
+  @SuppressWarnings("JdkObsolete")
+  public void readerHandlesNonRandomAccessBatchAndCopies() throws Exception {
+    ShuffleEntry e1 = newShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e2 = newShuffleEntry(KEY, SKEY, VALUE);
+    LinkedList<ShuffleEntry> linked = new LinkedList<>();
+    linked.add(e1);
+    linked.add(e2);
+    when(batchReader.read(START_POSITION, END_POSITION))
+        .thenReturn(new ShuffleBatchReader.Batch(linked, null));
+
+    Reiterator<ShuffleEntry> it = reader.read(START_POSITION, END_POSITION);
+    Reiterator<ShuffleEntry> copyBeforeRead = it.copy();
+    assertThat(it.next(), equalTo(e1));
+    Reiterator<ShuffleEntry> copyMid = it.copy();
+    assertThat(it.next(), equalTo(e2));
+    assertThat(it.hasNext(), equalTo(false));
+    Reiterator<ShuffleEntry> copyAfterEof = it.copy();
+    assertThat(copyAfterEof.hasNext(), equalTo(false));
+    try {
+      copyAfterEof.next();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException expected) {
+    }
+
+    assertThat(copyMid.next(), equalTo(e2));
+    assertThat(copyMid.hasNext(), equalTo(false));
+    assertThat(newArrayList(copyBeforeRead), contains(e1, e2));
+  }
+
+  @Test
+  public void readerCopiesAtBatchBoundaryAndThrowsOnEmptyStream() throws Exception {
+    ShuffleEntry e1 = newShuffleEntry(KEY, SKEY, VALUE);
+    ShuffleEntry e2 = newShuffleEntry(KEY, SKEY, VALUE);
+    when(batchReader.read(START_POSITION, END_POSITION))
+        .thenReturn(
+            new ShuffleBatchReader.Batch(Collections.singletonList(e1), NEXT_START_POSITION));
+    when(batchReader.read(NEXT_START_POSITION, END_POSITION))
+        .thenReturn(new ShuffleBatchReader.Batch(Collections.singletonList(e2), null));
+
+    Reiterator<ShuffleEntry> it = reader.read(START_POSITION, END_POSITION);
+    // Call next() directly without calling hasNext() first.
+    assertThat(it.next(), equalTo(e1));
+    // Now at batch boundary (nextIndex == currentSize, nextStartPosition != null).
+    Reiterator<ShuffleEntry> boundaryCopy = it.copy();
+    assertThat(it.next(), equalTo(e2));
+    assertThat(it.hasNext(), equalTo(false));
+    assertThat(boundaryCopy.next(), equalTo(e2));
+    assertThat(boundaryCopy.hasNext(), equalTo(false));
+
+    when(batchReader.read(END_POSITION, END_POSITION))
+        .thenReturn(new ShuffleBatchReader.Batch(Collections.emptyList(), null));
+    Reiterator<ShuffleEntry> emptyIt = reader.read(END_POSITION, END_POSITION);
+    try {
+      emptyIt.next();
+      fail("Expected NoSuchElementException on empty stream");
+    } catch (NoSuchElementException expected) {
+    }
+  }
+
+  @Test
+  public void readerExceptionPropagation() throws Exception {
+    IOException ioEx = new IOException("boom");
+    when(batchReader.read(START_POSITION, END_POSITION)).thenThrow(ioEx);
+    Reiterator<ShuffleEntry> it = reader.read(START_POSITION, END_POSITION);
+    try {
+      it.hasNext();
+      fail("Expected RuntimeException wrapping IOException");
+    } catch (RuntimeException expected) {
+      assertSame(ioEx, expected.getCause());
+    }
+
+    IllegalStateException runtimeEx = new IllegalStateException("direct");
+    when(batchReader.read(NEXT_START_POSITION, END_POSITION)).thenThrow(runtimeEx);
+    Reiterator<ShuffleEntry> it2 = reader.read(NEXT_START_POSITION, END_POSITION);
+    try {
+      it2.next();
+      fail("Expected direct IllegalStateException");
+    } catch (IllegalStateException expected) {
+      assertSame(runtimeEx, expected);
+    }
   }
 }

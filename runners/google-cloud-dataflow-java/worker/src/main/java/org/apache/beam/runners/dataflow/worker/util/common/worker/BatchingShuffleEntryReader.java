@@ -49,51 +49,68 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
   @Override
   public Reiterator<ShuffleEntry> read(
       @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
-    return new ShuffleReadIterator(startPosition, endPosition);
+    return new ShuffleReadIterator(batchReader, startPosition, endPosition);
   }
 
   /** ShuffleReadIterator iterates over a (potentially huge) sequence of shuffle entries. */
-  private final class ShuffleReadIterator implements Reiterator<ShuffleEntry> {
+  private static final class ShuffleReadIterator implements Reiterator<ShuffleEntry> {
+    private final ShuffleBatchReader batchReader;
     // Shuffle service returns entries in pages. If the response contains a
     // non-null nextStartPosition, we have to ask for more pages. The response
     // with null nextStartPosition signifies the end of stream.
     private final @Nullable ShufflePosition endPosition;
     private @Nullable ShufflePosition nextStartPosition;
 
-    /** The most recently read batch. */
-    ShuffleBatchReader.@Nullable Batch currentBatch;
-
-    /** Random-access list view of the most recently read batch and index of the next element. */
+    /** Random-access list view of the most recently read batch, its cached size, and index. */
     private @Nullable List<ShuffleEntry> currentEntries;
 
+    private int currentSize;
     private int nextIndex;
 
     ShuffleReadIterator(
-        @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
+        ShuffleBatchReader batchReader,
+        @Nullable ShufflePosition startPosition,
+        @Nullable ShufflePosition endPosition) {
+      this.batchReader = batchReader;
       this.nextStartPosition = startPosition;
       this.endPosition = endPosition;
     }
 
     private ShuffleReadIterator(ShuffleReadIterator it) {
+      this.batchReader = it.batchReader;
       this.endPosition = it.endPosition;
       this.nextStartPosition = it.nextStartPosition;
-      this.currentBatch = it.currentBatch;
       this.currentEntries = it.currentEntries;
+      this.currentSize = it.currentSize;
       this.nextIndex = it.nextIndex;
     }
 
     @Override
     public boolean hasNext() {
+      if (nextIndex < currentSize) {
+        return true;
+      }
+      return fillAndHasNext();
+    }
+
+    private boolean fillAndHasNext() {
       fillEntriesIfNeeded();
       // TODO: Report API errors to the caller using checked
       // exceptions.
-      return nextIndex < currentEntries.size();
+      return nextIndex < currentSize;
     }
 
     @Override
     public ShuffleEntry next() throws NoSuchElementException {
+      if (nextIndex < currentSize) {
+        return currentEntries.get(nextIndex++);
+      }
+      return fillAndNext();
+    }
+
+    private ShuffleEntry fillAndNext() {
       fillEntriesIfNeeded();
-      if (nextIndex >= currentEntries.size()) {
+      if (nextIndex >= currentSize) {
         throw new NoSuchElementException();
       }
       return currentEntries.get(nextIndex++);
@@ -110,38 +127,33 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
     }
 
     private void fillEntriesIfNeeded() {
-      if (currentEntries != null && nextIndex < currentEntries.size()) {
-        // Has more records in the current page, or error.
-        return;
-      }
-
       if (currentEntries != null && nextStartPosition == null) {
         // End of stream.
-        checkState(nextIndex >= currentEntries.size());
+        checkState(nextIndex >= currentSize);
         return;
       }
 
       do {
         fillEntries();
-      } while (nextIndex >= currentEntries.size() && nextStartPosition != null);
+      } while (nextIndex >= currentSize && nextStartPosition != null);
     }
 
     private void fillEntries() {
       try {
         ShuffleBatchReader.Batch batch = batchReader.read(nextStartPosition, endPosition);
-        nextStartPosition = batch.nextStartPosition;
-        List<ShuffleEntry> batchEntries = batch.entries;
-        currentEntries =
+        List<ShuffleEntry> batchEntries = checkNotNull(batch.entries);
+        List<ShuffleEntry> entriesView =
             batchEntries instanceof RandomAccess ? batchEntries : new ArrayList<>(batchEntries);
+        int entriesSize = entriesView.size();
+        nextStartPosition = batch.nextStartPosition;
+        currentEntries = entriesView;
+        currentSize = entriesSize;
         nextIndex = 0;
-        currentBatch = batch;
       } catch (RuntimeException | OutOfMemoryError e) {
         throw e;
       } catch (Throwable t) {
         throw new RuntimeException(t);
       }
-
-      checkState(currentEntries != null);
     }
   }
 

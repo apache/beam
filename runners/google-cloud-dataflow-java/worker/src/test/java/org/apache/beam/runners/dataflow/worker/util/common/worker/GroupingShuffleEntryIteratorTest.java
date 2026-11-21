@@ -20,16 +20,21 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Observer;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -40,6 +45,8 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -279,13 +286,24 @@ public class GroupingShuffleEntryIteratorTest {
   @Test
   public void testReiterationCopyAndPartialSkip() throws Exception {
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
-    entries.add(shuffleEntry("k1", "v11"));
-    entries.add(shuffleEntry("k2", "v21"));
-    entries.add(shuffleEntry("k2", "v22"));
-    entries.add(shuffleEntry("k2", "v23"));
-    entries.add(shuffleEntry("k3", "v31"));
-    entries.add(shuffleEntry("k3", "v32"));
-    entries.add(shuffleEntry("k4", "v41"));
+    ShuffleEntry k1v1 = shuffleEntry("k1", "v11");
+    ShuffleEntry k2v1 = shuffleEntry("k2", "v21");
+    ShuffleEntry k2v2 = shuffleEntry("k2", "v22");
+    ShuffleEntry k2v3 = shuffleEntry("k2", "v23");
+    ShuffleEntry k3v1 = shuffleEntry("k3", "v31");
+    ShuffleEntry k3v2 = shuffleEntry("k3", "v32");
+    ShuffleEntry k4v1 = shuffleEntry("k4", "v41");
+    entries.add(k1v1);
+    entries.add(k2v1);
+    entries.add(k2v2);
+    entries.add(k2v3);
+    entries.add(k3v1);
+    entries.add(k3v2);
+    entries.add(k4v1);
+
+    long expectedTotalBytes = entries.stream().mapToLong(ShuffleEntry::length).sum();
+    long[] notifyTotals = new long[1];
+    ArrayList<Long> committed = new ArrayList<>();
 
     ShuffleEntryReader reader =
         new ShuffleEntryReader() {
@@ -302,41 +320,63 @@ public class GroupingShuffleEntryIteratorTest {
     iterator =
         new GroupingShuffleEntryIterator(reader, START_POSITION, END_POSITION) {
           @Override
-          protected void notifyElementRead(long byteSize) {}
+          protected void notifyElementRead(long byteSize) {
+            notifyTotals[0] += byteSize;
+          }
 
           @Override
-          protected void commitBytesRead(long bytes) {}
+          protected void commitBytesRead(long bytes) {
+            committed.add(bytes);
+          }
         };
 
-    // Key 1 (single value): reiterate twice and copy before consuming first element.
+    // Key 1 (single value): copy before reading, read twice, copy after exhaustion.
     assertTrue(iterator.advance());
     assertEquals("k1", iterator.getCurrent().key.toStringUtf8());
     Reiterator<ShuffleEntry> k1First = iterator.getCurrent().values.iterator();
     Reiterator<ShuffleEntry> k1CopyBeforeNext = k1First.copy();
+    assertTrue(k1First.hasNext());
+    Reiterator<ShuffleEntry> k1CopyAfterHasNext = k1First.copy();
     assertEquals("v11", k1First.next().getValue().toStringUtf8());
     assertFalse(k1First.hasNext());
+    // Copy AFTER exhaustion (valuesIterator donated and nulled out).
+    Reiterator<ShuffleEntry> k1ExhaustedCopy = k1First.copy();
+    assertFalse(k1ExhaustedCopy.hasNext());
+    try {
+      k1ExhaustedCopy.next();
+      fail("Expected NoSuchElementException");
+    } catch (NoSuchElementException expected) {
+    }
+    assertEquals("v11", k1CopyAfterHasNext.next().getValue().toStringUtf8());
+    assertFalse(k1CopyAfterHasNext.hasNext());
     assertEquals("v11", k1CopyBeforeNext.next().getValue().toStringUtf8());
     assertFalse(k1CopyBeforeNext.hasNext());
     Reiterator<ShuffleEntry> k1Second = iterator.getCurrent().values.iterator();
     assertEquals("v11", k1Second.next().getValue().toStringUtf8());
     assertFalse(k1Second.hasNext());
 
-    // Key 2 (3 values): copy mid-key after first element, then skip rest before advancing.
+    // Key 2 (3 values): read ONLY v21 (do NOT exhaust any copy) so advance() genuinely takes
+    // the same-key skip loop in GroupingShuffleEntryIterator.advance().
     assertTrue(iterator.advance());
     assertEquals("k2", iterator.getCurrent().key.toStringUtf8());
     Reiterator<ShuffleEntry> k2Iter = iterator.getCurrent().values.iterator();
     assertEquals("v21", k2Iter.next().getValue().toStringUtf8());
     Reiterator<ShuffleEntry> k2MidCopy = k2Iter.copy();
-    assertEquals("v22", k2MidCopy.next().getValue().toStringUtf8());
-    assertEquals("v23", k2MidCopy.next().getValue().toStringUtf8());
-    assertFalse(k2MidCopy.hasNext());
-    // Original k2Iter was not drained; advance() must skip remaining k2 entries cleanly.
 
     // Key 3 (2 values): completely unconsumed values iterable.
     assertTrue(iterator.advance());
     assertEquals("k3", iterator.getCurrent().key.toStringUtf8());
 
-    // Key 4 (1 value): fully consumed.
+    // Draining the older k2 iterators AFTER parent advanced past k2 must yield v22, v23 cleanly
+    // and must NOT corrupt parent.shuffleIterator positioned at k3.
+    assertEquals("v22", k2Iter.next().getValue().toStringUtf8());
+    assertEquals("v23", k2Iter.next().getValue().toStringUtf8());
+    assertFalse(k2Iter.hasNext());
+    assertEquals("v22", k2MidCopy.next().getValue().toStringUtf8());
+    assertEquals("v23", k2MidCopy.next().getValue().toStringUtf8());
+    assertFalse(k2MidCopy.hasNext());
+
+    // Key 4 (1 value): advance() skips unconsumed k3 entries and lands on k4.
     assertTrue(iterator.advance());
     assertEquals("k4", iterator.getCurrent().key.toStringUtf8());
     Reiterator<ShuffleEntry> k4Iter = iterator.getCurrent().values.iterator();
@@ -344,5 +384,145 @@ public class GroupingShuffleEntryIteratorTest {
     assertFalse(k4Iter.hasNext());
 
     assertFalse(iterator.advance());
+    // Advancing again after finished stays false and doesn't commit extra bytes.
+    assertFalse(iterator.advance());
+
+    // Every ShuffleEntry must be reported to notifyElementRead exactly once.
+    assertEquals(expectedTotalBytes, notifyTotals[0]);
+    // Committed totals: [0 (before k1), k1, k2, k3, k4].
+    assertEquals(
+        Arrays.asList(
+            0L,
+            (long) k1v1.length(),
+            (long) k2v1.length() + k2v2.length() + k2v3.length(),
+            (long) k3v1.length() + k3v2.length(),
+            (long) k4v1.length()),
+        committed);
+  }
+
+  @Test
+  public void testEmptyKeyEmptyStreamSplitAndObserver() throws Exception {
+    // Empty input stream.
+    ShuffleEntryReader emptyReader =
+        new ShuffleEntryReader() {
+          @Override
+          public Reiterator<ShuffleEntry> read(
+              @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
+            return new ListReiterator<>(new ArrayList<>(), 0);
+          }
+
+          @Override
+          public void close() {}
+        };
+    ArrayList<Long> emptyCommitted = new ArrayList<>();
+    GroupingShuffleEntryIterator emptyIter =
+        new GroupingShuffleEntryIterator(emptyReader, START_POSITION, END_POSITION) {
+          @Override
+          protected void notifyElementRead(long byteSize) {
+            fail("No entries to read");
+          }
+
+          @Override
+          protected void commitBytesRead(long bytes) {
+            emptyCommitted.add(bytes);
+          }
+        };
+    assertFalse(emptyIter.advance());
+    assertEquals(Collections.singletonList(0L), emptyCommitted);
+
+    // Zero-byte key (ByteString.EMPTY), fast-forward, dynamic split stop before k2, and observer.
+    ShuffleEntry eEmpty1 =
+        new ShuffleEntry(
+            ByteArrayShufflePosition.of("a".getBytes(StandardCharsets.UTF_8)),
+            ByteString.EMPTY,
+            ByteString.EMPTY,
+            ByteString.copyFromUtf8("v1"));
+    ShuffleEntry eEmpty2 =
+        new ShuffleEntry(
+            ByteArrayShufflePosition.of("b".getBytes(StandardCharsets.UTF_8)),
+            ByteString.EMPTY,
+            ByteString.EMPTY,
+            ByteString.copyFromUtf8("v22"));
+    ShuffleEntry eSplit =
+        new ShuffleEntry(
+            ByteArrayShufflePosition.of("z".getBytes(StandardCharsets.UTF_8)),
+            ByteString.copyFromUtf8("k2"),
+            ByteString.EMPTY,
+            ByteString.copyFromUtf8("v3"));
+    ArrayList<ShuffleEntry> entries = new ArrayList<>();
+    entries.add(eEmpty1);
+    entries.add(eEmpty2);
+    entries.add(eSplit);
+
+    ShuffleEntryReader reader =
+        new ShuffleEntryReader() {
+          @Override
+          public Reiterator<ShuffleEntry> read(
+              @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {
+            return new ListReiterator<>(entries, 0);
+          }
+
+          @Override
+          public void close() {}
+        };
+    ArrayList<Long> committed = new ArrayList<>();
+    GroupingShuffleEntryIterator it =
+        new GroupingShuffleEntryIterator(
+            reader,
+            ByteArrayShufflePosition.of("0".getBytes(StandardCharsets.UTF_8)),
+            ByteArrayShufflePosition.of("zz".getBytes(StandardCharsets.UTF_8))) {
+          @Override
+          protected void notifyElementRead(long byteSize) {}
+
+          @Override
+          protected void commitBytesRead(long bytes) {
+            committed.add(bytes);
+          }
+        };
+
+    assertTrue(it.advance());
+    assertEquals(0, it.getCurrent().key.size());
+    ArrayList<Long> observed = new ArrayList<>();
+    @SuppressWarnings("deprecation")
+    Observer observer = (o, arg) -> observed.add((Long) arg);
+    ((ElementByteSizeObservableIterable<?, ?>) it.getCurrent().values).addObserver(observer);
+    Reiterator<ShuffleEntry> values = it.getCurrent().values.iterator();
+    assertEquals("v1", values.next().getValue().toStringUtf8());
+    // Copy must still forward progress through original iterator's observer.
+    Reiterator<ShuffleEntry> valuesCopy = values.copy();
+    assertEquals("v22", valuesCopy.next().getValue().toStringUtf8());
+    assertFalse(valuesCopy.hasNext());
+    assertEquals(Arrays.asList((long) eEmpty1.length(), (long) eEmpty2.length()), observed);
+
+    // Removing the observer turns off notifications on subsequent reiterations/elements.
+    Reiterator<ShuffleEntry> values2 = it.getCurrent().values.iterator();
+    @SuppressWarnings("deprecation")
+    ElementByteSizeObservableIterator<?> observable2 =
+        (ElementByteSizeObservableIterator<?>) values2;
+    ArrayList<Long> secondObserved = new ArrayList<>();
+    @SuppressWarnings("deprecation")
+    Observer observer2 = (o, arg) -> secondObserved.add((Long) arg);
+    observable2.addObserver(observer2);
+    assertEquals("v1", values2.next().getValue().toStringUtf8());
+    observable2.deleteObserver(observer2);
+    assertEquals("v22", values2.next().getValue().toStringUtf8());
+    assertFalse(values2.hasNext());
+    assertEquals(Collections.singletonList((long) eEmpty1.length()), secondObserved);
+
+    Reiterator<ShuffleEntry> values3 = it.getCurrent().values.iterator();
+    ElementByteSizeObservableIterator<?> observable3 =
+        (ElementByteSizeObservableIterator<?>) values3;
+    ArrayList<Long> thirdObserved = new ArrayList<>();
+    observable3.addObserver((o, arg) -> thirdObserved.add((Long) arg));
+    observable3.deleteObservers();
+    assertEquals("v1", values3.next().getValue().toStringUtf8());
+    assertEquals("v22", values3.next().getValue().toStringUtf8());
+    assertTrue(thirdObserved.isEmpty());
+
+    // Split BEFORE "z" so the buffered nextKeyEntry is rejected by rangeTracker.
+    assertTrue(
+        it.trySplitAtPosition(ByteArrayShufflePosition.of("m".getBytes(StandardCharsets.UTF_8))));
+    assertFalse(it.advance());
+    assertEquals(Arrays.asList(0L, (long) eEmpty1.length() + eEmpty2.length()), committed);
   }
 }

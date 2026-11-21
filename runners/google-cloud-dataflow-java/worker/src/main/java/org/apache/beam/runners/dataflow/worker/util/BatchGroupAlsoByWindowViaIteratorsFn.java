@@ -18,17 +18,22 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.PriorityQueue;
+import java.util.Set;
 import org.apache.beam.runners.core.PeekingReiterator;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
@@ -40,9 +45,8 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -95,165 +99,255 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
     K key = element.getKey();
     // This iterable is required to be in order of increasing timestamps
     Iterable<WindowedValue<V>> value = element.getValue();
-    PeekingReiterator<WindowedValue<V>> iterator;
+    PeekingReiterator<WindowedValue<V>> iterator = createPeekingIterator(value);
 
-    if (value instanceof Collection) {
-      iterator =
-          new PeekingReiterator<>(
-              new ListReiterator<WindowedValue<V>>(
-                  new ArrayList<WindowedValue<V>>((Collection<WindowedValue<V>>) value), 0));
-    } else if (value instanceof Reiterable) {
-      iterator = new PeekingReiterator<>(((Reiterable<WindowedValue<V>>) value).iterator());
-    } else {
-      throw new IllegalArgumentException(
-          "Input to GroupAlsoByWindowsDoFn must be a Collection or Reiterable");
-    }
-
-    // Inline single-window slot avoids allocating ArrayListMultimap and its key iterator for
-    // GlobalWindows and FixedWindows (where at most one window is active at a time).
+    // Inline single-window slot avoids allocating any active-window collection for GlobalWindows
+    // and non-overlapping FixedWindows (where at most one window is active at a time).
     BoundedWindow singleActiveWindow = null;
     long singleActiveMaxTsMillis = 0L;
-    ListMultimap<Instant, BoundedWindow> windows = null;
+    @Nullable ActiveWindows activeWindows = null;
 
     while (iterator.hasNext()) {
       WindowedValue<V> e = iterator.peek();
-      long elemTsMillis = e.getTimestamp().getMillis();
-      // Since elements arrive in non-decreasing timestamp order, a single active window whose
-      // maxTimestamp is already before elemTsMillis has expired and cannot match this or any
-      // subsequent element; clear it now so non-overlapping windows (e.g. FixedWindows) never
-      // promote to ArrayListMultimap.
-      if (windows == null && singleActiveWindow != null && singleActiveMaxTsMillis < elemTsMillis) {
-        singleActiveWindow = null;
-      }
+      Instant elemTs = e.getTimestamp();
+      long elemTsMillis = elemTs.getMillis();
+      boolean needsCopy = false;
+      BoundedWindow singleWindow = null;
+      Collection<? extends BoundedWindow> multiWindows = null;
       if (e instanceof WindowedValues.SingleWindowedValue) {
-        BoundedWindow window = ((WindowedValues.SingleWindowedValue) e).getWindow();
-        boolean alreadyActive;
-        long windowMaxTsMillis;
-        if (windows == null) {
-          alreadyActive = singleActiveWindow != null && singleActiveWindow.equals(window);
-          if (!alreadyActive) {
-            windowMaxTsMillis = maxTimestampMillis(window);
-            if (singleActiveWindow == null) {
-              singleActiveWindow = window;
-              singleActiveMaxTsMillis = windowMaxTsMillis;
+        singleWindow = checkNotNull(((WindowedValues.SingleWindowedValue) e).getWindow());
+      } else {
+        Collection<? extends BoundedWindow> elemWindows = e.getWindows();
+        if (elemWindows.size() == 1) {
+          singleWindow = checkNotNull(elemWindows.iterator().next());
+        } else if (!elemWindows.isEmpty()) {
+          multiWindows = elemWindows;
+        }
+      }
+
+      if (singleWindow != null) {
+        if (activeWindows == null) {
+          if (singleActiveWindow == null) {
+            long maxTsMillis = maxTimestampMillis(singleWindow);
+            singleActiveWindow = singleWindow;
+            singleActiveMaxTsMillis = maxTsMillis;
+            needsCopy = emitWindow(key, singleWindow, maxTsMillis, elemTs, iterator, output);
+          } else if (singleActiveWindow != singleWindow
+              && !singleActiveWindow.equals(singleWindow)) {
+            long maxTsMillis = maxTimestampMillis(singleWindow);
+            if (singleActiveMaxTsMillis < elemTsMillis) {
+              // Prior active window expired before elemTs and didn't match this window; replace
+              // in place so non-overlapping windows (e.g. FixedWindows) never allocate
+              // ActiveWindows.
+              singleActiveWindow = singleWindow;
+              singleActiveMaxTsMillis = maxTsMillis;
             } else {
-              windows = ArrayListMultimap.create();
-              windows.put(new Instant(singleActiveMaxTsMillis), singleActiveWindow);
-              windows.put(new Instant(windowMaxTsMillis), window);
+              activeWindows =
+                  promoteToActiveWindows(
+                      singleActiveWindow, singleActiveMaxTsMillis, singleWindow, maxTsMillis);
               singleActiveWindow = null;
             }
-          } else {
-            windowMaxTsMillis = singleActiveMaxTsMillis;
+            needsCopy = emitWindow(key, singleWindow, maxTsMillis, elemTs, iterator, output);
           }
         } else {
-          Instant maxTs = window.maxTimestamp();
-          windowMaxTsMillis = maxTs.getMillis();
-          alreadyActive = windows.containsEntry(maxTs, window);
-          if (!alreadyActive) {
-            windows.put(maxTs, window);
-          }
+          needsCopy =
+              emitIfAbsentInActiveWindows(
+                  key, singleWindow, elemTs, iterator, activeWindows, output);
         }
-        if (!alreadyActive) {
-          @SuppressWarnings("unchecked")
-          W typedWindow = (W) window;
-          output.output(
-              WindowedValues.of(
-                  KV.of(
-                      key,
-                      (Iterable<V>) new WindowReiterable<V>(iterator, window, windowMaxTsMillis)),
-                  strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
-                  window,
-                  PaneInfo.ON_TIME_AND_ONLY_FIRING));
-        }
-      } else {
-        for (BoundedWindow window : e.getWindows()) {
-          // If this window is not already in the active set, emit a new WindowReiterable
-          // corresponding to this window, starting at this element in the input Reiterable.
-          boolean alreadyActive;
-          long windowMaxTsMillis;
-          if (windows == null) {
-            alreadyActive = singleActiveWindow != null && singleActiveWindow.equals(window);
-            if (!alreadyActive) {
-              windowMaxTsMillis = maxTimestampMillis(window);
-              if (singleActiveWindow == null) {
-                singleActiveWindow = window;
-                singleActiveMaxTsMillis = windowMaxTsMillis;
-              } else {
-                windows = ArrayListMultimap.create();
-                windows.put(new Instant(singleActiveMaxTsMillis), singleActiveWindow);
-                windows.put(new Instant(windowMaxTsMillis), window);
-                singleActiveWindow = null;
-              }
-            } else {
-              windowMaxTsMillis = singleActiveMaxTsMillis;
-            }
-          } else {
-            Instant maxTs = window.maxTimestamp();
-            windowMaxTsMillis = maxTs.getMillis();
-            alreadyActive = windows.containsEntry(maxTs, window);
-            if (!alreadyActive) {
-              windows.put(maxTs, window);
-            }
-          }
-          if (!alreadyActive) {
-            // This window was produced by strategy.getWindowFn()
-            @SuppressWarnings("unchecked")
-            W typedWindow = (W) window;
-            // Iterating through the WindowReiterable may advance iterator as an optimization
-            // for as long as it detects that there are no new windows.
-            output.output(
-                WindowedValues.of(
-                    KV.of(
-                        key,
-                        (Iterable<V>) new WindowReiterable<V>(iterator, window, windowMaxTsMillis)),
-                    strategy.getTimestampCombiner().assign(typedWindow, e.getTimestamp()),
-                    window,
-                    PaneInfo.ON_TIME_AND_ONLY_FIRING));
-          }
-        }
+      } else if (multiWindows != null) {
+        activeWindows =
+            ensureActiveWindows(activeWindows, singleActiveWindow, singleActiveMaxTsMillis);
+        singleActiveWindow = null;
+        needsCopy =
+            processMultipleWindows(key, multiWindows, elemTs, iterator, activeWindows, output);
       }
       if (!iterator.hasNext()) {
         break;
       }
-      // Copy the iterator in case the next DoFn cached its version of the iterator instead
-      // of immediately iterating through it.
-      // And, only advance the iterator if the consuming operation hasn't done so.
-      iterator = iterator.copy();
-      if (iterator.hasNext() && iterator.peek() == e) {
+      boolean sameElement = iterator.peek() == e;
+      if (needsCopy) {
+        // An emitted WindowReiterable or its first WindowReiterator still aliases iterator.
+        // Detach before advancing so delayed/partial consumers remain at the right position.
+        iterator = iterator.copy();
+      }
+      if (sameElement) {
         iterator.next();
       }
 
-      // Remove all windows with maxTimestamp behind the current timestamp.
-      if (windows == null) {
+      // Remove all windows with maxTimestamp behind the current element's timestamp.
+      if (activeWindows == null) {
         if (singleActiveWindow != null && singleActiveMaxTsMillis < elemTsMillis) {
           singleActiveWindow = null;
         }
       } else {
-        Iterator<Instant> windowIterator = windows.keys().iterator();
-        while (windowIterator.hasNext() && windowIterator.next().isBefore(e.getTimestamp())) {
-          windowIterator.remove();
-        }
+        activeWindows.expireBefore(elemTsMillis);
       }
     }
   }
 
+  private static <V> PeekingReiterator<WindowedValue<V>> createPeekingIterator(
+      Iterable<WindowedValue<V>> value) {
+    if (value instanceof Collection) {
+      return new PeekingReiterator<>(
+          new ListReiterator<WindowedValue<V>>(
+              new ArrayList<WindowedValue<V>>((Collection<WindowedValue<V>>) value), 0));
+    } else if (value instanceof Reiterable) {
+      return new PeekingReiterator<>(((Reiterable<WindowedValue<V>>) value).iterator());
+    } else {
+      throw new IllegalArgumentException(
+          "Input to GroupAlsoByWindowsDoFn must be a Collection or Reiterable");
+    }
+  }
+
+  private boolean emitIfAbsentInActiveWindows(
+      K key,
+      BoundedWindow window,
+      Instant elemTs,
+      PeekingReiterator<WindowedValue<V>> iterator,
+      ActiveWindows activeWindows,
+      WindowedValueReceiver<KV<K, Iterable<V>>> output)
+      throws Exception {
+    if (activeWindows.contains(window)) {
+      return false;
+    }
+    long maxTsMillis = maxTimestampMillis(window);
+    activeWindows.add(window, maxTsMillis);
+    return emitWindow(key, window, maxTsMillis, elemTs, iterator, output);
+  }
+
+  private boolean emitWindow(
+      K key,
+      BoundedWindow window,
+      long windowMaxTsMillis,
+      Instant elemTs,
+      PeekingReiterator<WindowedValue<V>> iterator,
+      WindowedValueReceiver<KV<K, Iterable<V>>> output)
+      throws Exception {
+    // This window was produced by strategy.getWindowFn()
+    @SuppressWarnings("unchecked")
+    W typedWindow = (W) window;
+    // Iterating through the WindowReiterable may advance iterator as an optimization
+    // for as long as it detects that there are no new windows.
+    WindowReiterable<V> reiterable = new WindowReiterable<>(iterator, window, windowMaxTsMillis);
+    output.output(
+        WindowedValues.of(
+            KV.of(key, (Iterable<V>) reiterable),
+            strategy.getTimestampCombiner().assign(typedWindow, elemTs),
+            window,
+            PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    return reiterable.consumeParentAliasCheck();
+  }
+
+  private static ActiveWindows promoteToActiveWindows(
+      BoundedWindow existingWindow,
+      long existingMaxTsMillis,
+      BoundedWindow newWindow,
+      long newMaxTsMillis) {
+    ActiveWindows active = new ActiveWindows();
+    active.add(existingWindow, existingMaxTsMillis);
+    active.add(newWindow, newMaxTsMillis);
+    return active;
+  }
+
+  private static ActiveWindows ensureActiveWindows(
+      @Nullable ActiveWindows activeWindows,
+      @Nullable BoundedWindow singleActiveWindow,
+      long singleActiveMaxTsMillis) {
+    if (activeWindows != null) {
+      return activeWindows;
+    }
+    ActiveWindows created = new ActiveWindows();
+    if (singleActiveWindow != null) {
+      created.add(singleActiveWindow, singleActiveMaxTsMillis);
+    }
+    return created;
+  }
+
+  private boolean processMultipleWindows(
+      K key,
+      Collection<? extends BoundedWindow> elemWindows,
+      Instant elemTs,
+      PeekingReiterator<WindowedValue<V>> iterator,
+      ActiveWindows activeWindows,
+      WindowedValueReceiver<KV<K, Iterable<V>>> output)
+      throws Exception {
+    boolean needsCopy = false;
+    for (BoundedWindow window : elemWindows) {
+      if (!activeWindows.contains(window)) {
+        long maxTsMillis = maxTimestampMillis(window);
+        activeWindows.add(window, maxTsMillis);
+        if (emitWindow(key, window, maxTsMillis, elemTs, iterator, output)) {
+          needsCopy = true;
+        }
+      }
+    }
+    return needsCopy;
+  }
+
   private static long maxTimestampMillis(BoundedWindow window) {
-    if (window instanceof org.apache.beam.sdk.transforms.windowing.IntervalWindow) {
-      return ((org.apache.beam.sdk.transforms.windowing.IntervalWindow) window).end().getMillis()
-          - 1L;
+    // Exact class check avoids bypassing overridden maxTimestamp() on IntervalWindow subclasses,
+    // and subtractExact preserves IntervalWindow.maxTimestamp()'s ArithmeticException at MIN_VALUE.
+    if (window.getClass() == IntervalWindow.class) {
+      return Math.subtractExact(((IntervalWindow) window).end().getMillis(), 1L);
     }
     return window.maxTimestamp().getMillis();
+  }
+
+  /**
+   * Multi-window active set used only when more than one window is active concurrently (e.g. {@code
+   * SlidingWindows}). Membership lookup via {@link HashSet#contains} avoids allocating {@link
+   * Instant}/{@link org.joda.time.Duration} objects per element, and {@link PriorityQueue}
+   * guarantees exact min-timestamp expiry ordering.
+   */
+  private static final class ActiveWindows {
+    private static final class WindowExpiry {
+      final BoundedWindow window;
+      final long maxTimestampMillis;
+
+      WindowExpiry(BoundedWindow window, long maxTimestampMillis) {
+        this.window = window;
+        this.maxTimestampMillis = maxTimestampMillis;
+      }
+    }
+
+    private static final Comparator<WindowExpiry> BY_MAX_TIMESTAMP =
+        Comparator.comparingLong(e -> e.maxTimestampMillis);
+
+    private final Set<BoundedWindow> active = new HashSet<>();
+    private final PriorityQueue<WindowExpiry> byMaxTimestamp =
+        new PriorityQueue<>(BY_MAX_TIMESTAMP);
+
+    boolean contains(BoundedWindow window) {
+      return active.contains(window);
+    }
+
+    void add(BoundedWindow window, long maxTimestampMillis) {
+      if (active.add(window)) {
+        byMaxTimestamp.add(new WindowExpiry(window, maxTimestampMillis));
+      }
+    }
+
+    void expireBefore(long timestampMillis) {
+      WindowExpiry head;
+      while ((head = byMaxTimestamp.peek()) != null && head.maxTimestampMillis < timestampMillis) {
+        byMaxTimestamp.poll();
+        active.remove(head.window);
+      }
+    }
   }
 
   /**
    * {@link Reiterable} representing a view of all elements in a base {@link Reiterator} that are in
    * a given window.
    */
-  private static class WindowReiterable<V>
+  private static final class WindowReiterable<V>
       extends ElementByteSizeObservableIterable<V, WindowReiterator<V>> implements Reiterable<V> {
     private PeekingReiterator<WindowedValue<V>> baseIterator;
     private final BoundedWindow window;
     private final long windowMaxTimestampMillis;
+    private boolean sharedWithParent = true;
+    private boolean trackingParentAlias = true;
+    private @Nullable WindowReiterator<V> firstIterator;
 
     public WindowReiterable(
         PeekingReiterator<WindowedValue<V>> baseIterator,
@@ -264,6 +358,21 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       this.windowMaxTimestampMillis = windowMaxTimestampMillis;
     }
 
+    /**
+     * Checks whether this reiterable or the first {@link WindowReiterator} handed to the caller
+     * still holds an un-detached alias to {@code processElement()}'s iterator, and clears the
+     * temporary reference so delayed iteration cannot retain it.
+     */
+    boolean consumeParentAliasCheck() {
+      trackingParentAlias = false;
+      if (sharedWithParent) {
+        return true;
+      }
+      WindowReiterator<V> first = firstIterator;
+      firstIterator = null;
+      return first != null && first.aliasesParent();
+    }
+
     @Override
     public WindowReiterator<V> iterator() {
       return createIterator();
@@ -272,12 +381,21 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
     @Override
     protected WindowReiterator<V> createIterator() {
       // We don't copy the baseIterator when creating the first WindowReiterator
-      // so that the WindowReiterator can advance the baseIterator.  We have to
+      // so that the WindowReiterator can advance the baseIterator. We have to
       // make a copy afterwards so that future calls to iterator() will start
-      // at the right spot.
+      // at the right spot (and subsequent iterators are already detached from
+      // the parent processElement() iterator).
+      boolean wasShared = sharedWithParent;
       WindowReiterator<V> result =
-          new WindowReiterator<V>(baseIterator, window, windowMaxTimestampMillis, false, false);
+          new WindowReiterator<V>(
+              baseIterator, window, windowMaxTimestampMillis, false, false, !wasShared);
       baseIterator = baseIterator.copy();
+      if (wasShared) {
+        if (trackingParentAlias) {
+          firstIterator = result;
+        }
+        sharedWithParent = false;
+      }
       return result;
     }
 
@@ -290,31 +408,44 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   /**
    * The {@link Reiterator} used by {@link BatchGroupAlsoByWindowViaIteratorsFn.WindowReiterable}.
    */
-  private static class WindowReiterator<V> extends ElementByteSizeObservableIterator<V>
+  private static final class WindowReiterator<V> extends ElementByteSizeObservableIterator<V>
       implements Reiterator<V> {
-    private PeekingReiterator<WindowedValue<V>> iterator;
+    private @Nullable PeekingReiterator<WindowedValue<V>> iterator;
     private final BoundedWindow window;
     private final long windowMaxTimestampMillis;
     private boolean positioned;
     private boolean hasValid;
+    // Once true, iterator is independent of processElement()'s shared PeekingReiterator so we no
+    // longer need to copy on cross-window or multi-window elements.
+    private boolean detached;
 
     private WindowReiterator(
-        PeekingReiterator<WindowedValue<V>> iterator,
+        @Nullable PeekingReiterator<WindowedValue<V>> iterator,
         BoundedWindow window,
         long windowMaxTimestampMillis,
         boolean positioned,
-        boolean hasValid) {
+        boolean hasValid,
+        boolean detached) {
       this.iterator = iterator;
       this.window = window;
       this.windowMaxTimestampMillis = windowMaxTimestampMillis;
       this.positioned = positioned;
       this.hasValid = hasValid;
+      this.detached = detached;
+    }
+
+    boolean aliasesParent() {
+      return !detached && iterator != null;
     }
 
     @Override
     public Reiterator<V> copy() {
+      PeekingReiterator<WindowedValue<V>> iter = this.iterator;
+      if (iter == null) {
+        return new WindowReiterator<V>(null, window, windowMaxTimestampMillis, true, false, true);
+      }
       return new WindowReiterator<V>(
-          iterator.copy(), window, windowMaxTimestampMillis, positioned, hasValid);
+          iter.copy(), window, windowMaxTimestampMillis, positioned, hasValid, true);
     }
 
     @Override
@@ -322,6 +453,9 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       if (!positioned) {
         hasValid = skipToValidElement();
         positioned = true;
+        if (!hasValid) {
+          iterator = null;
+        }
       }
       return hasValid;
     }
@@ -331,8 +465,12 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       if (!hasNext()) {
         throw new NoSuchElementException("No next item in window");
       }
+      PeekingReiterator<WindowedValue<V>> iter = this.iterator;
+      if (iter == null) {
+        throw new NoSuchElementException("No next item in window");
+      }
       positioned = false;
-      return iterator.next().getValue();
+      return iter.next().getValue();
     }
 
     @Override
@@ -346,8 +484,12 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
      */
     @SuppressWarnings("ReferenceEquality")
     private boolean skipToValidElement() {
-      while (iterator.hasNext()) {
-        WindowedValue<V> peek = iterator.peek();
+      PeekingReiterator<WindowedValue<V>> iter = this.iterator;
+      if (iter == null) {
+        return false;
+      }
+      while (iter.hasNext()) {
+        WindowedValue<V> peek = iter.peek();
         if (peek.getTimestamp().getMillis() > windowMaxTimestampMillis) {
           // We are past the end of this window, so there can't be any more
           // elements in this iterator.
@@ -358,21 +500,26 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
           if (peekWindow == window || window.equals(peekWindow)) {
             return true;
           }
-          // We have reached a new window; copy the iterator so we don't keep advancing
-          // the outer loop in processElement.
-          iterator = iterator.copy();
-          iterator.next();
+          // We have reached a new window; detach once from processElement()'s iterator.
+          if (!detached) {
+            iter = iter.copy();
+            this.iterator = iter;
+            detached = true;
+          }
+          iter.next();
         } else {
           Collection<? extends BoundedWindow> peekWindows = peek.getWindows();
           boolean contains = peekWindows.contains(window);
-          if (!(peekWindows.size() == 1 && contains)) {
-            // We have reached new windows; we need to copy the iterator so we don't
-            // keep advancing the outer loop in processElement.
-            iterator = iterator.copy();
+          if (!detached && (!contains || peekWindows.size() != 1)) {
+            // We have reached a different or multi-window element; detach once from
+            // processElement()'s iterator.
+            iter = iter.copy();
+            this.iterator = iter;
+            detached = true;
           }
           if (!contains) {
             // The next element is not in the right window: skip it.
-            iterator.next();
+            iter.next();
           } else {
             // The next element is in the right window.
             return true;
@@ -384,7 +531,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   }
 
   /** {@link Reiterator} that wraps a {@link List}. */
-  private static class ListReiterator<T> implements Reiterator<T> {
+  private static final class ListReiterator<T> implements Reiterator<T> {
     private List<T> list;
     private int index;
 

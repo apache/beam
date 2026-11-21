@@ -45,6 +45,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Observer;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -76,6 +77,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
@@ -989,5 +991,158 @@ public class GroupingShuffleReaderTest {
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP1, 48L);
     expectedReadBytesMap.put(MOCK_ORIGINAL_NAME_FOR_EXECUTING_STEP2, 32L);
     expectShuffleReadCounterEquals(shuffleReadCounterFactory, expectedReadBytesMap);
+  }
+
+  @Test
+  public void testSlowStateTransitionFallbackAndObserverNotification() throws Exception {
+    // Enabling time_per_element_counter forces directStateTransition == false (uses enterState()).
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--experiments=" + DataflowElementExecutionTracker.TIME_PER_ELEMENT_EXPERIMENT)
+            .create();
+    BatchModeExecutionContext context = BatchModeExecutionContext.forTesting(options, "testStage");
+    assertFalse(context.getExecutionStateTracker().supportsDirectTransition());
+
+    TestShuffleReader shuffleReader = new TestShuffleReader();
+    byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), 7);
+    byte[] v1 = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), 100);
+    byte[] v2 = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), 200);
+    ShuffleEntry e1 = newShuffleEntry(fabricatePosition(0, key), key, EMPTY_BYTE_ARRAY, v1);
+    ShuffleEntry e2 = newShuffleEntry(fabricatePosition(1, key), key, EMPTY_BYTE_ARRAY, v2);
+    shuffleReader.addEntry(e1);
+    shuffleReader.addEntry(e2);
+
+    GroupingShuffleReader<Integer, Integer> reader =
+        new GroupingShuffleReader<>(
+            options,
+            null,
+            null,
+            null,
+            WindowedValues.getFullCoder(
+                KvCoder.of(
+                    BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
+                IntervalWindow.getCoder()),
+            context,
+            TestOperationContext.create(),
+            null,
+            false);
+
+    ExecutionStateTracker.ExecutionState initialState =
+        context.getExecutionStateTracker().getCurrentState();
+    try (GroupingShuffleReaderIterator<Integer, Integer> iter = reader.iterator(shuffleReader)) {
+      assertTrue(iter.start());
+      assertEquals(initialState, context.getExecutionStateTracker().getCurrentState());
+      Reiterator<Integer> vals = iter.getCurrent().getValue().getValue().iterator();
+      List<Long> observedBytes = new ArrayList<>();
+      @SuppressWarnings("deprecation")
+      Observer observer = (o, arg) -> observedBytes.add((Long) arg);
+      ((ElementByteSizeObservableIterator<?>) vals).addObserver(observer);
+      assertTrue(vals.hasNext());
+      assertEquals(Integer.valueOf(100), vals.next());
+      assertTrue(vals.hasNext());
+      assertEquals(Integer.valueOf(200), vals.next());
+      assertFalse(vals.hasNext());
+      assertEquals(Arrays.asList((long) e1.length(), (long) e2.length()), observedBytes);
+
+      // Verify deleteObserver / deleteObservers reset notification flag cleanly.
+      Reiterator<Integer> vals2 = iter.getCurrent().getValue().getValue().iterator();
+      List<Long> secondObserved = new ArrayList<>();
+      @SuppressWarnings("deprecation")
+      Observer observer2 = (o, arg) -> secondObserved.add((Long) arg);
+      ElementByteSizeObservableIterator<?> obsIter2 = (ElementByteSizeObservableIterator<?>) vals2;
+      obsIter2.addObserver(observer2);
+      assertEquals(Integer.valueOf(100), vals2.next());
+      obsIter2.deleteObserver(observer2);
+      assertEquals(Integer.valueOf(200), vals2.next());
+      assertEquals(1, secondObserved.size());
+
+      Reiterator<Integer> vals3 = iter.getCurrent().getValue().getValue().iterator();
+      List<Long> thirdObserved = new ArrayList<>();
+      ElementByteSizeObservableIterator<?> obsIter3 = (ElementByteSizeObservableIterator<?>) vals3;
+      obsIter3.addObserver((o, arg) -> thirdObserved.add((Long) arg));
+      obsIter3.deleteObservers();
+      assertEquals(Integer.valueOf(100), vals3.next());
+      assertEquals(Integer.valueOf(200), vals3.next());
+      assertTrue(thirdObserved.isEmpty());
+
+      assertFalse(iter.advance());
+      assertEquals(initialState, context.getExecutionStateTracker().getCurrentState());
+    }
+  }
+
+  @Test
+  public void testDirectStateTransitionRestoresStateAndPreservesPrimaryException()
+      throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BatchModeExecutionContext context = BatchModeExecutionContext.forTesting(options, "testStage");
+    ExecutionStateTracker tracker = context.getExecutionStateTracker();
+    assertTrue(tracker.supportsDirectTransition());
+
+    // Enter a previous state whose onActivate(false) throws a secondary exception on rollback.
+    ExecutionStateTracker.ExecutionState throwingPrevState =
+        new ExecutionStateTracker.ExecutionState("outer") {
+          @Override
+          public void onActivate(boolean pushing) {
+            if (!pushing) {
+              throw new IllegalStateException("secondary rollback failure");
+            }
+          }
+
+          @Override
+          public void takeSample(long millisSinceLastSample) {}
+
+          @Override
+          public void reportLull(Thread trackedThread, long millis) {}
+        };
+    ExecutionStateTracker.ExecutionState normalPrev =
+        new ExecutionStateTracker.ExecutionState("safe") {
+          @Override
+          public void takeSample(long millisSinceLastSample) {}
+
+          @Override
+          public void reportLull(Thread trackedThread, long millis) {}
+        };
+    tracker.enterStateDirect(normalPrev);
+
+    TestShuffleReader shuffleReader = new TestShuffleReader();
+    byte[] key = CoderUtils.encodeToByteArray(BigEndianIntegerCoder.of(), 7);
+    // Truncated 4-byte BigEndianIntegerCoder value triggers EOFException during decode in next().
+    byte[] badValue = new byte[] {1};
+    shuffleReader.addEntry(
+        newShuffleEntry(fabricatePosition(0, key), key, EMPTY_BYTE_ARRAY, badValue));
+
+    GroupingShuffleReader<Integer, Integer> reader =
+        new GroupingShuffleReader<>(
+            options,
+            null,
+            null,
+            null,
+            WindowedValues.getFullCoder(
+                KvCoder.of(
+                    BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
+                IntervalWindow.getCoder()),
+            context,
+            TestOperationContext.create(),
+            null,
+            false);
+
+    try (GroupingShuffleReaderIterator<Integer, Integer> iter = reader.iterator(shuffleReader)) {
+      assertTrue(iter.start());
+      assertEquals(normalPrev, tracker.getCurrentState());
+
+      // Now make throwingPrevState active so rollback on decode failure suppresses its exception.
+      tracker.enterStateDirect(throwingPrevState);
+      Reiterator<Integer> vals = iter.getCurrent().getValue().getValue().iterator();
+      try {
+        vals.next();
+        fail("Expected RuntimeException from truncated BigEndianIntegerCoder input");
+      } catch (RuntimeException expected) {
+        assertEquals(1, expected.getSuppressed().length);
+        assertEquals("secondary rollback failure", expected.getSuppressed()[0].getMessage());
+      }
+      assertEquals(throwingPrevState, tracker.getCurrentState());
+    } finally {
+      tracker.reset();
+    }
   }
 }

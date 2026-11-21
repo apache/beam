@@ -29,6 +29,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.NoSuchElementException;
+import java.util.Observer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -203,13 +204,13 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
     /** The iterator over shuffle entries, grouped by common key. */
     private final GroupingShuffleEntryIterator groups;
 
-    private long currentGroupSize = 0L;
+    long currentGroupSize = 0L;
 
     private final ShuffleReadCounter shuffleReadCounter;
 
-    private final ExecutionStateTracker tracker;
-    private final ExecutionState readState;
-    private final boolean directStateTransition;
+    final ExecutionStateTracker tracker;
+    final ExecutionState readState;
+    final boolean directStateTransition;
     private WindowedValue<KV<K, Reiterable<V>>> current;
 
     /**
@@ -219,7 +220,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
      * as a fail-safe to ensure that no further records are processed, especially when there may be
      * hot keys with many values.
      */
-    private final AtomicBoolean aborted = new AtomicBoolean(false);
+    final AtomicBoolean aborted = new AtomicBoolean(false);
 
     public GroupingShuffleReaderIterator(
         final GroupingShuffleReader<K, V> parentReader, ShuffleEntryReader entryReader) {
@@ -280,23 +281,35 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       return advance();
     }
 
+    void exitStateDirectSuppressing(@Nullable ExecutionState previous, Throwable primary) {
+      try {
+        tracker.exitStateDirect(previous);
+      } catch (Throwable suppressed) {
+        if (suppressed != primary) {
+          primary.addSuppressed(suppressed);
+        }
+      }
+    }
+
     @Override
     public boolean advance() throws IOException {
       boolean hasNext;
       if (directStateTransition) {
-        ExecutionState previous = tracker.enterStateDirect(readState);
+        @Nullable ExecutionState previous = tracker.enterStateDirect(readState);
         try {
           hasNext = groups.advance();
-        } finally {
-          tracker.exitStateDirect(previous);
+          if (!hasNext) {
+            current = null;
+          }
+        } catch (Throwable t) {
+          exitStateDirectSuppressing(previous, t);
+          throw t;
         }
+        tracker.exitStateDirect(previous);
       } else {
-        try (Closeable read = tracker.enterState(readState)) {
-          hasNext = groups.advance();
-        }
+        hasNext = advanceSlow();
       }
       if (!hasNext) {
-        current = null;
         return false;
       }
 
@@ -304,9 +317,18 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       parentReader.executionContext.setKey(key);
       current =
           new ValueInEmptyWindows<>(
-              KV.<K, Reiterable<V>>of(
-                  key, new ValuesIterable(groups.getCurrent().values, aborted)));
+              KV.<K, Reiterable<V>>of(key, new ValuesIterable(groups.getCurrent().values)));
       return true;
+    }
+
+    private boolean advanceSlow() throws IOException {
+      try (Closeable read = tracker.enterState(readState)) {
+        boolean hasNext = groups.advance();
+        if (!hasNext) {
+          current = null;
+        }
+        return hasNext;
+      }
     }
 
     @Override
@@ -387,20 +409,18 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
      */
     private final class ValuesIterable extends ElementByteSizeObservableIterable<V, ValuesIterator>
         implements Reiterable<V> {
-      // N.B. This class is *not* static; it uses the valueCoder from
-      // its enclosing GroupingShuffleReader.
+      // N.B. This class is *not* static; it uses the enclosing GroupingShuffleReaderIterator's
+      // valueCoder, state tracker, and aborted flag.
 
       private final Reiterable<ShuffleEntry> base;
-      private final AtomicBoolean aborted;
 
-      public ValuesIterable(Reiterable<ShuffleEntry> base, AtomicBoolean aborted) {
+      public ValuesIterable(Reiterable<ShuffleEntry> base) {
         this.base = checkNotNull(base);
-        this.aborted = aborted;
       }
 
       @Override
       public ValuesIterator iterator() {
-        return new ValuesIterator(base.iterator(), aborted);
+        return new ValuesIterator(base.iterator());
       }
 
       @Override
@@ -415,37 +435,64 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
      */
     private final class ValuesIterator extends ElementByteSizeObservableIterator<V>
         implements Reiterator<V> {
-      // N.B. This class is *not* static; it uses the valueCoder from
-      // its enclosing GroupingShuffleReader.
+      // N.B. This class is *not* static; it uses the enclosing GroupingShuffleReaderIterator's
+      // valueCoder, state tracker, and aborted flag.
 
       private final Reiterator<ShuffleEntry> base;
 
-      private final AtomicBoolean aborted;
+      // Tracks whether any java.util.Observer is attached so the common zero-observer path skips
+      // Observable's synchronized setChanged()/notifyObservers() and Long autoboxing.
+      private volatile boolean hasObservers;
 
       private boolean atFirstValue = true;
 
-      public ValuesIterator(Reiterator<ShuffleEntry> base, AtomicBoolean aborted) {
+      public ValuesIterator(Reiterator<ShuffleEntry> base) {
         this.base = checkNotNull(base);
-        this.aborted = aborted;
       }
 
-      private ValuesIterator(
-          Reiterator<ShuffleEntry> base, AtomicBoolean aborted, boolean atFirstValue) {
+      private ValuesIterator(Reiterator<ShuffleEntry> base, boolean atFirstValue) {
         this.base = checkNotNull(base);
-        this.aborted = aborted;
         this.atFirstValue = atFirstValue;
+      }
+
+      @Override
+      @SuppressWarnings("deprecation")
+      public synchronized void addObserver(Observer o) {
+        super.addObserver(o);
+        hasObservers = countObservers() > 0;
+      }
+
+      @Override
+      @SuppressWarnings("deprecation")
+      public synchronized void deleteObserver(Observer o) {
+        super.deleteObserver(o);
+        hasObservers = countObservers() > 0;
+      }
+
+      @Override
+      public synchronized void deleteObservers() {
+        super.deleteObservers();
+        hasObservers = false;
       }
 
       @Override
       public boolean hasNext() {
         if (directStateTransition) {
-          ExecutionState previous = tracker.enterStateDirect(readState);
+          @Nullable ExecutionState previous = tracker.enterStateDirect(readState);
+          boolean hasMore;
           try {
-            return base.hasNext();
-          } finally {
-            tracker.exitStateDirect(previous);
+            hasMore = base.hasNext();
+          } catch (Throwable t) {
+            exitStateDirectSuppressing(previous, t);
+            throw t;
           }
+          tracker.exitStateDirect(previous);
+          return hasMore;
         }
+        return hasNextSlow();
+      }
+
+      private boolean hasNextSlow() {
         try (Closeable read = tracker.enterState(readState)) {
           return base.hasNext();
         } catch (IOException e) {
@@ -464,13 +511,21 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         }
         atFirstValue = false;
         if (directStateTransition) {
-          ExecutionState previous = tracker.enterStateDirect(readState);
+          @Nullable ExecutionState previous = tracker.enterStateDirect(readState);
+          V value;
           try {
-            return nextInternal();
-          } finally {
-            tracker.exitStateDirect(previous);
+            value = nextInternal();
+          } catch (Throwable t) {
+            exitStateDirectSuppressing(previous, t);
+            throw t;
           }
+          tracker.exitStateDirect(previous);
+          return value;
         }
+        return nextSlow();
+      }
+
+      private V nextSlow() {
         try (Closeable read = tracker.enterState(readState)) {
           return nextInternal();
         } catch (IOException e) {
@@ -486,7 +541,9 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         // notify the bytes that have been read so far.
         long groupSize = currentGroupSize;
         currentGroupSize = 0L;
-        notifyValueReturned(groupSize);
+        if (hasObservers) {
+          notifyValueReturned(groupSize);
+        }
         try {
           if (parentReader.secondaryKeyCoder != null) {
             InputStream bais = entry.getSecondaryKey().newInput();
@@ -516,7 +573,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public ValuesIterator copy() {
-        return new ValuesIterator(base.copy(), aborted, atFirstValue);
+        return new ValuesIterator(base.copy(), atFirstValue);
       }
     }
   }
