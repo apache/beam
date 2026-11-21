@@ -1672,16 +1672,15 @@ class WindowedValueCoderImpl(StreamCoderImpl):
       # Should never be here.
       # TODO(robertwb): Remove when coders are set correctly.
       return 0, [(value, self._value_coder)]
-    wv = value  # type cast
     value_estimated_size, observables = (
         self._value_coder.get_estimated_size_and_observables(
-            wv.value, nested=nested))
+            value.value, nested=nested))
     # Timestamp is always encoded as an 8-byte big-endian uint64; avoid
-    # accessing wv.timestamp which lazily allocates a Timestamp object.
+    # accessing value.timestamp which lazily allocates a Timestamp object.
     estimated_size = (
         value_estimated_size + 8 +
-        self._windows_coder.estimate_size(wv.windows, nested=True) +
-        self._pane_info_coder.estimate_size(wv.pane_info, nested=True))
+        self._windows_coder.estimate_size(value.windows, nested=True) +
+        self._pane_info_coder.estimate_size(value.pane_info, nested=True))
     return estimated_size, observables
 
 
