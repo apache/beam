@@ -86,7 +86,7 @@ class MetricName(object):
     self._cached_hash: Optional[int] = None
 
   def __eq__(self, other):
-    return self is other or (
+    return (
         self.namespace == other.namespace and self.name == other.name and
         self.urn == other.urn and self.labels == other.labels)
 
@@ -100,10 +100,8 @@ class MetricName(object):
 
   def __hash__(self):
     if self._cached_hash is None:
-      self._cached_hash = hash(
-          (self.namespace, self.name, self.urn) +
-          tuple(self.labels.items())) if self.labels else hash(
-              (self.namespace, self.name, self.urn))
+      self._cached_hash = hash((self.namespace, self.name, self.urn) +
+                               tuple(self.labels.items()))
     return self._cached_hash
 
   def fast_name(self):
