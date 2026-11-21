@@ -111,7 +111,7 @@
 * [Beam SQL] Added a live view to the SQL shell. A streaming (unbounded) SELECT shows its rows as they arrive, with an `op` column for each row's change kind ([#41313](https://github.com/apache/beam/issues/41313)).
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
-* (Java/Python) Added DateTime as a new portable logical type (`datetime:v1`). Java `DateTime` takes a precision (`DateTime.of(p)`, `MILLIS`, `MICROS`, `NANOS`), which defaults to 6. Python maps it to the new `apache_beam.utils.timestamp.DateTime`.
+* (Java/Python) Added DateTime as a new portable logical type (`datetime:v1`). Java `DateTime` takes a precision (`DateTime.of(p)`, `MILLIS`, `MICROS`, `NANOS`), which defaults to 6. Python maps it to the new `apache_beam.utils.timestamp.DateTime` ([#41550](https://github.com/apache/beam/pull/41550)).
 
 ### Performance
 
@@ -129,7 +129,7 @@
 
 [comment]: # "generic breaking changes if not covered in following sections."
 * (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
-* (Java) `SqlTypes.DATETIME` is now `DateTime` with precision 6, so a `LocalDateTime` with digits below a microsecond throws instead of being stored. Use `DateTime.NANOS` for those values.
+* (Java) `SqlTypes.DATETIME` is now `DateTime` with precision 6, so a `LocalDateTime` with digits below a microsecond throws instead of being stored. Use `DateTime.NANOS` for those values ([#41550](https://github.com/apache/beam/pull/41550)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ### Package upgrades
