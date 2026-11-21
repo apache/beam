@@ -183,16 +183,7 @@ cdef class ByteCountingOutputStream(OutputStream):
   cpdef write_bigendian_int16(self, libc.stdint.int16_t _):
     self.count += 2
 
-  cpdef write_bigendian_double(self, double _):
-    self.count += 8
-
-  cpdef write_bigendian_float(self, float _):
-    self.count += 4
-
   cpdef size_t get_count(self):
-    return self.count
-
-  cpdef size_t size(self) except? -1:
     return self.count
 
   cpdef bytes get(self):
