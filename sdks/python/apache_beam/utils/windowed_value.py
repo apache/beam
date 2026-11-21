@@ -439,12 +439,8 @@ class _IntervalWindowBase(object):
     # Cut off window at start/end timestamps for comparison purposes since some
     # portable runners do this already, and timestamps outside of the bands of
     # Min/Max timestamps are functionally equal to Min/Max.
-    start = self._start_micros
-    if start < _MIN_TIMESTAMP_MICROS:
-      start = _MIN_TIMESTAMP_MICROS
-    end = self._end_micros
-    if end > _MAX_TIMESTAMP_MICROS:
-      end = _MAX_TIMESTAMP_MICROS
+    start = max(self._start_micros, _MIN_TIMESTAMP_MICROS)
+    end = min(self._end_micros, _MAX_TIMESTAMP_MICROS)
     return hash((start, end))
 
   def __eq__(self, other):
@@ -459,18 +455,10 @@ class _IntervalWindowBase(object):
     # Cut off window at start/end timestamps for comparison purposes since some
     # portable runners do this already, and timestamps outside of the bands of
     # Min/Max timestamps are functionally equal to Min/Max.
-    self_start = (
-        _MIN_TIMESTAMP_MICROS
-        if self._start_micros < _MIN_TIMESTAMP_MICROS else self._start_micros)
-    self_end = (
-        _MAX_TIMESTAMP_MICROS
-        if self._end_micros > _MAX_TIMESTAMP_MICROS else self._end_micros)
-    other_start = (
-        _MIN_TIMESTAMP_MICROS
-        if other._start_micros < _MIN_TIMESTAMP_MICROS else other._start_micros)
-    other_end = (
-        _MAX_TIMESTAMP_MICROS
-        if other._end_micros > _MAX_TIMESTAMP_MICROS else other._end_micros)
+    self_start = max(self._start_micros, _MIN_TIMESTAMP_MICROS)
+    self_end = min(self._end_micros, _MAX_TIMESTAMP_MICROS)
+    other_start = max(other._start_micros, _MIN_TIMESTAMP_MICROS)
+    other_end = min(other._end_micros, _MAX_TIMESTAMP_MICROS)
 
     return (self_start == other_start and self_end == other_end)
 
