@@ -298,7 +298,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private static void seqlockBackoff(int attempt) {
       if (attempt < 16) {
         Thread.onSpinWait();
-      } else if (attempt < 32) {
+      } else if (attempt < 32 || Thread.currentThread().isInterrupted()) {
+        // LockSupport.parkNanos returns immediately while the interrupt flag is set; yield
+        // instead to avoid busy-spinning without clearing the interrupt status.
         Thread.yield();
       } else {
         LockSupport.parkNanos(SEQLOCK_PARK_NANOS);
@@ -591,7 +593,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         buf[idx] = created;
       }
       // Publish count after populating slot (and replacing buffer when resizing) so lock-free
-      // readers observing stepStatsCount <= i+1 always see a non-null entry in stepStatsBuffer.
+      // readers observing i < stepStatsCount always see a non-null entry in stepStatsBuffer.
       this.stepStatsCount = idx + 1;
       stepStatsByName.put(userStepName, created);
       return created;
@@ -797,7 +799,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         if (activatedStreaming) {
           clearActiveMessage();
         }
-        exitStateDirect(previous);
+        try {
+          exitStateDirect(previous);
+        } catch (Throwable suppressed) {
+          t.addSuppressed(suppressed);
+        }
         throw t;
       }
 

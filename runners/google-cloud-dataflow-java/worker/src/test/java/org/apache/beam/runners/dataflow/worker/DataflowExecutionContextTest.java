@@ -517,6 +517,15 @@ public class DataflowExecutionContextTest {
     tracker.setActiveSeqForTesting(1L);
     assertFalse(tracker.getActiveMessageMetadata().isPresent());
 
+    // Backing off on an interrupted reader thread must not clear its interrupt status.
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(tracker.getActiveMessageMetadata().isPresent());
+      assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+
     // reset() must heal odd parity and strictly advance activeSeq to an even value > 1.
     tracker.reset();
     long healedSeq = tracker.getActiveSeqForTesting();
@@ -637,7 +646,14 @@ public class DataflowExecutionContextTest {
             ExecutionStateSampler.newForTest(), null, null, options, "work-rollback");
     StreamingModeExecutionState baseState =
         new StreamingModeExecutionState(
-            NameContextsForTests.nameContextForTest(), "other", null, NoopProfileScope.NOOP);
+            NameContextsForTests.nameContextForTest(), "other", null, NoopProfileScope.NOOP) {
+          @Override
+          public void onActivate(boolean pushing) {
+            if (!pushing) {
+              throw new IllegalStateException("secondary activate failure");
+            }
+          }
+        };
     tracker.enterStateDirect(baseState);
 
     // Return a real NameContext for the streaming active-step update, then return null for
@@ -660,7 +676,10 @@ public class DataflowExecutionContextTest {
       tracker.enterState(failingState);
       Assert.fail("Expected NullPointerException from elementExecutionTracker.enter()");
     } catch (NullPointerException expected) {
-      // Expected failure during elementExecutionTracker.enter(null).
+      Throwable[] suppressed = expected.getSuppressed();
+      Assert.assertEquals(1, suppressed.length);
+      Assert.assertTrue(suppressed[0] instanceof IllegalStateException);
+      Assert.assertEquals("secondary activate failure", suppressed[0].getMessage());
     }
 
     Assert.assertSame(baseState, tracker.getCurrentState());
