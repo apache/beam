@@ -37,7 +37,6 @@ import enum
 import itertools
 import json
 import logging
-import operator
 import pickle
 from io import BytesIO
 from typing import TYPE_CHECKING
@@ -1940,15 +1939,6 @@ class RowCoderImpl(StreamCoderImpl):
         isinstance(self.constructor, type) and
         issubclass(self.constructor, tuple) and
         getattr(self.constructor, '_fields', None) == tuple(self.field_names))
-    if self.num_fields == 1:
-      self._field0_name = self.field_names[0]
-      self._attr_getter = None
-    elif self.num_fields > 1:
-      self._field0_name = None
-      self._attr_getter = operator.attrgetter(*self.field_names)
-    else:
-      self._field0_name = None
-      self._attr_getter = None
     self.encoding_positions = list(range(len(self.schema.fields)))
     if self.schema.encoding_positions_set:
       # should never be duplicate encoding positions.
@@ -1975,14 +1965,7 @@ class RowCoderImpl(StreamCoderImpl):
         opt.value.atomic_value.boolean for opt in self.schema.options)
 
   def encode_to_stream(self, value, out, nested):
-    if self._constructor_is_tuple and type(value) is self.constructor:
-      attrs = value
-    elif self.num_fields == 1:
-      attrs = (getattr(value, self._field0_name), )
-    elif self.num_fields > 1:
-      attrs = self._attr_getter(value)
-    else:
-      attrs = ()
+    attrs = [getattr(value, name) for name in self.field_names]
 
     if not self.static_encoding:
       out.write_var_int64(self.num_fields)
