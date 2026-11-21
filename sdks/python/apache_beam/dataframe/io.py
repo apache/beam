@@ -646,11 +646,28 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
           f'Cannot safely index records from {len(path_indices)} files '
           f'of size {readable_file.metadata.size_in_bytes} '
           f'as their product is greater than 2^63.')
+    # The restriction is measured in bytes of the file as stored, but a
+    # compressed file is read through a decompressing handle whose positions
+    # are in uncompressed bytes, so it cannot be restricted by byte range. The
+    # restriction that starts at the beginning reads the whole file and any
+    # other restriction is empty.
+    compressed = (
+        self.incremental and
+        io.filesystem.CompressionTypes.detect_compression_type(
+            readable_file.metadata.path)
+        != io.filesystem.CompressionTypes.UNCOMPRESSED)
+    if compressed and tracker.current_restriction().start > 0:
+      tracker.try_claim(tracker.current_restriction().stop)
+      return
+    if compressed and tracker.current_restriction().stop > 0:
+      # Claim the start before reading, so that a split cannot also give the
+      # file to the residual restriction.
+      tracker.try_claim(0)
     start_index = (
         tracker.current_restriction().start +
         path_indices[readable_file.metadata.path] * indices_per_file)
     with readable_file.open() as handle:
-      if self.incremental:
+      if self.incremental and not compressed:
         # TODO(robertwb): We could consider trying to get progress for
         # non-incremental sources that are read linearly, as long as they
         # don't try to seek.  This could be deceptive as progress would
@@ -674,7 +691,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
         if self.filename_column:
           df[self.filename_column] = readable_file.metadata.path
         yield _shift_range_index(start_index, df)
-      if not self.incremental:
+      if not self.incremental or compressed:
         # Satisfy the SDF contract by claiming the whole range.
         # Do this after emitting the frames to avoid advancing progress to 100%
         # prior to that.
