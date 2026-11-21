@@ -609,8 +609,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
     """
     # If elements in `batch` are provided as a dictionaries from key to Tensors
     return sum(
-        el.element_size() * el.nelement() for tensor in batch
-        for el in tensor.values())
+        (el.element_size() for tensor in batch for el in tensor.values()))
 
   def get_metrics_namespace(self) -> str:
     """
