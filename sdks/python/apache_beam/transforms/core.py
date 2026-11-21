@@ -22,7 +22,6 @@
 import concurrent.futures
 import copy
 import inspect
-import itertools
 import logging
 import numbers
 import random
@@ -3653,11 +3652,9 @@ class GroupBy(PTransform):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
       return self._key_fields[0][1]
     else:
-      field_names = tuple(name for name, _ in self._key_fields)
-      key_exprs = tuple(expr for _, expr in self._key_fields)
-      return lambda element: tuple.__new__(
-          _dynamic_named_tuple('Key', field_names),
-          (expr(element) for expr in key_exprs))
+      key_type = self._key_type
+      key_exprs = [expr for _, expr in self._key_fields]
+      return lambda element: key_type(*(expr(element) for expr in key_exprs))
 
   def _key_type_hint(self, input_type):
     if not self._force_tuple_keys and len(self._key_fields) == 1:
@@ -3750,9 +3747,8 @@ class _GroupAndAggregate(PTransform):
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
         | "MapTuple(<lambda at core.py:3565>)" >> MapTuple(
-            lambda key, value: tuple.__new__(
-                _dynamic_named_tuple('Result', result_fields), itertools.chain(
-                    key, value))))
+            lambda key, value: _dynamic_named_tuple('Result', result_fields)
+            (*(key + value))))
 
 
 class Select(PTransform):
@@ -3848,7 +3844,7 @@ class Partition(PTransformWithSideInputs):
             '%d not in [0, %d)' % (partition, n))
       # Each input is directed into the output that corresponds to the
       # selected partition.
-      return [pvalue.TaggedOutput(str(partition), element)]
+      yield pvalue.TaggedOutput(str(partition), element)
 
   def make_fn(self, fn, has_side_inputs):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
