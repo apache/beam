@@ -694,8 +694,7 @@ class BytesCoderImpl(CoderImpl):
 
     # value might be of type np.bytes if passed from encode_batch, and cython
     # does not recognize it as bytes.
-    if type(value) is not bytes and is_compiled and isinstance(value,
-                                                               np.bytes_):
+    if is_compiled and isinstance(value, np.bytes_):
       value = bytes(value)
 
     out.write(value, nested)
