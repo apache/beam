@@ -21,6 +21,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml.yaml_combine import _SqlCombineTransform
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 DATA = [
@@ -89,6 +90,61 @@ class YamlCombineTest(unittest.TestCase):
           equal_to([
               beam.Row(c=410),
           ]))
+
+  def test_no_keys_omitted(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create(DATA)
+      result = elements | YamlTransform(
+          '''
+          type: Combine
+          config:
+            combine:
+              c: sum
+          ''')
+      assert_that(
+          result | beam.Map(lambda x: beam.Row(**x._asdict())),
+          equal_to([
+              beam.Row(c=410),
+          ]))
+
+  def test_sql_combine_query_generation(self):
+    queries = []
+    pcoll = beam.Pipeline() | beam.Create(DATA)
+
+    # With grouping keys: GROUP BY clause must be generated.
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        group_by=['a'],
+        combine={'total_c': {
+            'fn': {
+                'type': 'sum'
+            }, 'value': 'c'
+        }})
+    self.assertEqual(
+        queries[-1], 'SELECT a, sum(c) as total_c FROM PCOLLECTION GROUP BY a')
+
+    # Without grouping keys (group_by=[]): GROUP BY clause must be omitted.
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        group_by=[],
+        combine={'total_c': {
+            'fn': {
+                'type': 'sum'
+            }, 'value': 'c'
+        }})
+    self.assertEqual(queries[-1], 'SELECT sum(c) as total_c FROM PCOLLECTION')
+
+    # With omitted grouping keys (group_by=None): GROUP BY clause must be omitted.
+    _ = pcoll | _SqlCombineTransform(
+        lambda q: queries.append(q) or beam.Map(lambda x: x),
+        group_by=None,
+        combine={'total_c': {
+            'fn': {
+                'type': 'sum'
+            }, 'value': 'c'
+        }})
+    self.assertEqual(queries[-1], 'SELECT sum(c) as total_c FROM PCOLLECTION')
 
   def test_multiple_combines(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
