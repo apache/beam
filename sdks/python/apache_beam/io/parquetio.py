@@ -422,8 +422,6 @@ class _ParquetUtils(object):
   @staticmethod
   def find_first_row_group_index(pf, start_offset):
     num_row_groups = _ParquetUtils.get_number_of_row_groups(pf)
-    if start_offset <= 0:
-      return 0 if num_row_groups > 0 else -1
     lo = 0
     hi = num_row_groups
     while lo < hi:
