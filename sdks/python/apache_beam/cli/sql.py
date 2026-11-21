@@ -499,11 +499,17 @@ def _validated_dep_version(env_var: str, default: str) -> str:
 
 
 def _dep_xml(group_id: str, artifact_id: str, version_expr: str) -> str:
+  # `beam-sdks-java-extensions-sql-jdbc` already bundles Conscrypt (native
+  # libraries included). Exclude transitive `org.conscrypt:*` artifacts so the
+  # shaded uber-JAR never mixes two Conscrypt versions on ARM (#41486).
   return (
       '    <dependency>'
       f'<groupId>{xml_escape(group_id)}</groupId>'
       f'<artifactId>{xml_escape(artifact_id)}</artifactId>'
-      f'<version>{version_expr}</version></dependency>')
+      f'<version>{version_expr}</version>'
+      '<exclusions><exclusion><groupId>org.conscrypt</groupId>'
+      '<artifactId>*</artifactId></exclusion></exclusions>'
+      '</dependency>')
 
 
 def _render_pom(version, runner_key, ios):

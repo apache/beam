@@ -230,8 +230,17 @@ class SqlShellTest(unittest.TestCase):
         sql._resolve_version(None)
 
   def test_pom_rendering_and_list_flags_online_and_offline(self):
-    pom_xml = sql._render_pom('2.79.0', 'direct', ['delta', 'iceberg'])
-    ET.fromstring(pom_xml)
+    pom_xml = sql._render_pom('2.79.0', 'dataflow', ['delta', 'iceberg'])
+    root = ET.fromstring(pom_xml)
+    ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+    pom_deps = root.findall('./m:dependencies/m:dependency', ns)
+    self.assertGreaterEqual(len(pom_deps), 12)
+    for dep_el in pom_deps:
+      excl_pairs = [(
+          ex.findtext('m:groupId', default='', namespaces=ns),
+          ex.findtext('m:artifactId', default='', namespaces=ns))
+                    for ex in dep_el.findall('./m:exclusions/m:exclusion', ns)]
+      self.assertIn(('org.conscrypt', '*'), excl_pairs)
     self.assertIn('beam-sdks-java-extensions-sql-delta', pom_xml)
     self.assertIn('beam-sdks-java-extensions-sql-iceberg', pom_xml)
     self.assertIn('<Multi-Release>true</Multi-Release>', pom_xml)
