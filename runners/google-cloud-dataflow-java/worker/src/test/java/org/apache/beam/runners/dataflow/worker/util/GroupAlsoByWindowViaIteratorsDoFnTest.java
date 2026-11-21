@@ -517,4 +517,49 @@ public class GroupAlsoByWindowViaIteratorsDoFnTest {
       return new CountingListReiterator<>(list, index, copyCount);
     }
   }
+
+  @Test
+  public void testSecondIteratorExhaustionDoesNotReleaseFirstIteratorParentAlias()
+      throws Exception {
+    IntervalWindow w0 = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow w1 = new IntervalWindow(new Instant(10), new Instant(20));
+    List<WindowedValue<String>> inputs =
+        Arrays.asList(
+            WindowedValues.of("a1", new Instant(1), w0, PaneInfo.NO_FIRING),
+            WindowedValues.of("a2", new Instant(2), w0, PaneInfo.NO_FIRING),
+            WindowedValues.of("b1", new Instant(11), w1, PaneInfo.NO_FIRING));
+    BatchGroupAlsoByWindowViaIteratorsFn<String, String, IntervalWindow> fn =
+        new BatchGroupAlsoByWindowViaIteratorsFn<>(
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(10))));
+
+    List<Reiterator<String>> pausedFirst = new ArrayList<>();
+    List<String> w0CopyRest = new ArrayList<>();
+    List<String> w0SecondPass = new ArrayList<>();
+    List<String> w1Vals = new ArrayList<>();
+    fn.processElement(
+        KV.of("k", asReiterable(inputs)),
+        null,
+        null,
+        null,
+        wv -> {
+          Reiterable<String> reiterable = (Reiterable<String>) wv.getValue().getValue();
+          if (pausedFirst.isEmpty()) {
+            // Pause first iterator mid-window (still holding alias to parent iterator).
+            Reiterator<String> first = reiterable.iterator();
+            assertEquals("a1", first.next());
+            pausedFirst.add(first);
+            // Exhausting a copy or a second iterator MUST NOT clear the parent alias flag.
+            first.copy().forEachRemaining(w0CopyRest::add);
+            reiterable.iterator().forEachRemaining(w0SecondPass::add);
+          } else {
+            reiterable.iterator().forEachRemaining(w1Vals::add);
+          }
+        });
+    assertEquals(Collections.singletonList("a2"), w0CopyRest);
+    assertEquals(Arrays.asList("a1", "a2"), w0SecondPass);
+    assertEquals(Collections.singletonList("b1"), w1Vals);
+    List<String> remaining = new ArrayList<>();
+    pausedFirst.get(0).forEachRemaining(remaining::add);
+    assertEquals(Collections.singletonList("a2"), remaining);
+  }
 }

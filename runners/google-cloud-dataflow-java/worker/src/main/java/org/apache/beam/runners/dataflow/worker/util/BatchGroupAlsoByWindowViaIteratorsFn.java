@@ -235,7 +235,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
             strategy.getTimestampCombiner().assign(typedWindow, elemTs),
             window,
             PaneInfo.ON_TIME_AND_ONLY_FIRING));
-    return reiterable.consumeParentAliasCheck();
+    return reiterable.isParentAliased();
   }
 
   private static ActiveWindows promoteToActiveWindows(
@@ -346,8 +346,11 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
     private final BoundedWindow window;
     private final long windowMaxTimestampMillis;
     private boolean sharedWithParent = true;
-    private boolean trackingParentAlias = true;
-    private @Nullable WindowReiterator<V> firstIterator;
+    // Remains true while either this reiterable or its first WindowReiterator still shares
+    // processElement()'s un-copied PeekingReiterator. Updated directly by the first
+    // WindowReiterator instead of holding a WindowReiterator reference here so C2 escape
+    // analysis can still scalar-replace the iterator inside eager consumers.
+    boolean parentAliased = true;
 
     public WindowReiterable(
         PeekingReiterator<WindowedValue<V>> baseIterator,
@@ -358,19 +361,8 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       this.windowMaxTimestampMillis = windowMaxTimestampMillis;
     }
 
-    /**
-     * Checks whether this reiterable or the first {@link WindowReiterator} handed to the caller
-     * still holds an un-detached alias to {@code processElement()}'s iterator, and clears the
-     * temporary reference so delayed iteration cannot retain it.
-     */
-    boolean consumeParentAliasCheck() {
-      trackingParentAlias = false;
-      if (sharedWithParent) {
-        return true;
-      }
-      WindowReiterator<V> first = firstIterator;
-      firstIterator = null;
-      return first != null && first.aliasesParent();
+    boolean isParentAliased() {
+      return parentAliased;
     }
 
     @Override
@@ -385,17 +377,16 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       // make a copy afterwards so that future calls to iterator() will start
       // at the right spot (and subsequent iterators are already detached from
       // the parent processElement() iterator).
-      boolean wasShared = sharedWithParent;
       WindowReiterator<V> result =
           new WindowReiterator<V>(
-              baseIterator, window, windowMaxTimestampMillis, false, false, !wasShared);
+              baseIterator,
+              window,
+              windowMaxTimestampMillis,
+              false,
+              false,
+              sharedWithParent ? this : null);
       baseIterator = baseIterator.copy();
-      if (wasShared) {
-        if (trackingParentAlias) {
-          firstIterator = result;
-        }
-        sharedWithParent = false;
-      }
+      sharedWithParent = false;
       return result;
     }
 
@@ -415,9 +406,11 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
     private final long windowMaxTimestampMillis;
     private boolean positioned;
     private boolean hasValid;
-    // Once true, iterator is independent of processElement()'s shared PeekingReiterator so we no
-    // longer need to copy on cross-window or multi-window elements.
-    private boolean detached;
+    // Non-null only for the first WindowReiterator while its iterator still aliases the parent
+    // PeekingReiterator from processElement() (or a shared sibling WindowReiterable). Cleared on
+    // the first detach or exhaustion so we copy at most once per window and hold zero reference
+    // after draining.
+    private @Nullable WindowReiterable<V> parentAliasOwner;
 
     private WindowReiterator(
         @Nullable PeekingReiterator<WindowedValue<V>> iterator,
@@ -425,27 +418,23 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
         long windowMaxTimestampMillis,
         boolean positioned,
         boolean hasValid,
-        boolean detached) {
+        @Nullable WindowReiterable<V> parentAliasOwner) {
       this.iterator = iterator;
       this.window = window;
       this.windowMaxTimestampMillis = windowMaxTimestampMillis;
       this.positioned = positioned;
       this.hasValid = hasValid;
-      this.detached = detached;
-    }
-
-    boolean aliasesParent() {
-      return !detached && iterator != null;
+      this.parentAliasOwner = parentAliasOwner;
     }
 
     @Override
     public Reiterator<V> copy() {
       PeekingReiterator<WindowedValue<V>> iter = this.iterator;
       if (iter == null) {
-        return new WindowReiterator<V>(null, window, windowMaxTimestampMillis, true, false, true);
+        return new WindowReiterator<V>(null, window, windowMaxTimestampMillis, true, false, null);
       }
       return new WindowReiterator<V>(
-          iter.copy(), window, windowMaxTimestampMillis, positioned, hasValid, true);
+          iter.copy(), window, windowMaxTimestampMillis, positioned, hasValid, null);
     }
 
     @Override
@@ -453,9 +442,6 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       if (!positioned) {
         hasValid = skipToValidElement();
         positioned = true;
-        if (!hasValid) {
-          iterator = null;
-        }
       }
       return hasValid;
     }
@@ -493,7 +479,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
         if (peek.getTimestamp().getMillis() > windowMaxTimestampMillis) {
           // We are past the end of this window, so there can't be any more
           // elements in this iterator.
-          return false;
+          break;
         }
         if (peek instanceof WindowedValues.SingleWindowedValue) {
           BoundedWindow peekWindow = ((WindowedValues.SingleWindowedValue) peek).getWindow();
@@ -501,21 +487,25 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
             return true;
           }
           // We have reached a new window; detach once from processElement()'s iterator.
-          if (!detached) {
+          WindowReiterable<V> owner = parentAliasOwner;
+          if (owner != null) {
             iter = iter.copy();
             this.iterator = iter;
-            detached = true;
+            owner.parentAliased = false;
+            parentAliasOwner = null;
           }
           iter.next();
         } else {
           Collection<? extends BoundedWindow> peekWindows = peek.getWindows();
           boolean contains = peekWindows.contains(window);
-          if (!detached && (!contains || peekWindows.size() != 1)) {
+          WindowReiterable<V> owner = parentAliasOwner;
+          if (owner != null && (!contains || peekWindows.size() != 1)) {
             // We have reached a different or multi-window element; detach once from
             // processElement()'s iterator.
             iter = iter.copy();
             this.iterator = iter;
-            detached = true;
+            owner.parentAliased = false;
+            parentAliasOwner = null;
           }
           if (!contains) {
             // The next element is not in the right window: skip it.
@@ -525,6 +515,12 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
             return true;
           }
         }
+      }
+      this.iterator = null;
+      WindowReiterable<V> owner = parentAliasOwner;
+      if (owner != null) {
+        owner.parentAliased = false;
+        parentAliasOwner = null;
       }
       return false;
     }
