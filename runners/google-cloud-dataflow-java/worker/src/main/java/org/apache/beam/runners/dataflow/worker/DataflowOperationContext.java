@@ -111,25 +111,27 @@ public class DataflowOperationContext implements OperationContext {
     abortState = newExecutionState(ExecutionStateTracker.ABORT_STATE_NAME);
 
     ProcessScope resolvedScope = null;
-    if (executionStateTracker.getClass() == DataflowExecutionStateTracker.class) {
-      DataflowExecutionStateTracker dfTracker =
-          (DataflowExecutionStateTracker) executionStateTracker;
-      if (dfTracker.supportsFastProcessElementTransition()) {
-        if (dfTracker.isStreaming()
-            && processElementState.isProcessElementState
-            && processElementState instanceof DataflowExecutionState) {
-          NameContext stepName = ((DataflowExecutionState) processElementState).getStepName();
-          String userName = stepName != null ? stepName.userName() : null;
-          if (userName != null) {
-            resolvedScope =
-                new StreamingProcessScope(dfTracker, dfTracker.getOrCreateStepStats(userName));
+    if (executionStateTracker != null && processElementState != null) {
+      if (executionStateTracker.getClass() == DataflowExecutionStateTracker.class) {
+        DataflowExecutionStateTracker dfTracker =
+            (DataflowExecutionStateTracker) executionStateTracker;
+        if (dfTracker.supportsFastProcessElementTransition()) {
+          if (dfTracker.isStreaming()
+              && processElementState instanceof DataflowExecutionState
+              && processElementState.isProcessElementState) {
+            NameContext stepName = ((DataflowExecutionState) processElementState).getStepName();
+            String userName = stepName != null ? stepName.userName() : null;
+            if (userName != null) {
+              resolvedScope =
+                  new StreamingProcessScope(dfTracker, dfTracker.getOrCreateStepStats(userName));
+            }
+          } else {
+            resolvedScope = new DirectProcessScope();
           }
-        } else {
-          resolvedScope = new DirectProcessScope();
         }
+      } else if (executionStateTracker.supportsDirectTransition()) {
+        resolvedScope = new DirectProcessScope();
       }
-    } else if (executionStateTracker.supportsDirectTransition()) {
-      resolvedScope = new DirectProcessScope();
     }
     this.processScope = resolvedScope;
   }
@@ -196,14 +198,23 @@ public class DataflowOperationContext implements OperationContext {
     public Closeable enter() {
       if (!inUse) {
         inUse = true;
-        previous = executionStateTracker.enterStateDirect(processElementState);
-        return this;
+        try {
+          previous = executionStateTracker.enterStateDirect(processElementState);
+          return this;
+        } catch (Throwable t) {
+          inUse = false;
+          previous = null;
+          throw t;
+        }
       }
       return executionStateTracker.enterState(processElementState);
     }
 
     @Override
     public void close() {
+      if (!inUse) {
+        return;
+      }
       ExecutionState prev = previous;
       previous = null;
       inUse = false;
@@ -226,14 +237,23 @@ public class DataflowOperationContext implements OperationContext {
     public Closeable enter() {
       if (!inUse) {
         inUse = true;
-        previous = tracker.enterStreamingProcessDirect(processElementState, stepStats);
-        return this;
+        try {
+          previous = tracker.enterStreamingProcessDirect(processElementState, stepStats);
+          return this;
+        } catch (Throwable t) {
+          inUse = false;
+          previous = null;
+          throw t;
+        }
       }
       return tracker.enterState(processElementState);
     }
 
     @Override
     public void close() {
+      if (!inUse) {
+        return;
+      }
       ExecutionState prev = previous;
       previous = null;
       inUse = false;

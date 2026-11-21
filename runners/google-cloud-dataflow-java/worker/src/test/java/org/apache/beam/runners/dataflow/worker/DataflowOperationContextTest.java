@@ -24,6 +24,7 @@ import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.START_S
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -39,8 +40,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext.BatchModeExecutionStateRegistry;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -48,6 +52,7 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInit
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -203,6 +208,135 @@ public class DataflowOperationContextTest {
       assertThat(stateTracker.getCurrentState(), sameInstance(startState));
 
       start.close();
+    }
+
+    @Test
+    public void enterProcessDoubleCloseIsIdempotent() throws IOException {
+      Closeable start = operationContext.enterStart();
+      Closeable process = operationContext.enterProcess();
+      assertThat(stateTracker.getCurrentState(), sameInstance(processState));
+
+      process.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(startState));
+      long transitionsAfterFirstClose = stateTracker.getNumTransitions();
+
+      // Second close must not wipe currentState to null or record an extra transition.
+      process.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(startState));
+      assertThat(stateTracker.getNumTransitions(), equalTo(transitionsAfterFirstClose));
+
+      start.close();
+    }
+
+    @Test
+    public void enterProcessExceptionInActivateDoesNotLeakInUse() throws IOException {
+      Mockito.doThrow(new RuntimeException("boom")).doNothing().when(profileScope).activate();
+
+      try {
+        operationContext.enterProcess();
+        fail("Expected exception from profileScope.activate()");
+      } catch (RuntimeException expected) {
+        assertThat(expected.getMessage(), equalTo("boom"));
+      }
+
+      // Restore state and verify subsequent enterProcess still reuses the scope cleanly.
+      stateTracker.exitStateDirect(otherState);
+      Closeable first = operationContext.enterProcess();
+      first.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(otherState));
+
+      Closeable second = operationContext.enterProcess();
+      assertThat(second, sameInstance(first));
+      second.close();
+      assertThat(stateTracker.getCurrentState(), sameInstance(otherState));
+    }
+
+    @Test
+    public void streamingProcessScopeDoubleCloseAndExceptionRecovery() throws IOException {
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+              .as(DataflowWorkerHarnessOptions.class);
+      options.setStreaming(true);
+
+      DataflowExecutionStateTracker streamingTracker =
+          new DataflowExecutionStateTracker(
+              ExecutionStateSampler.newForTest(), otherState, counterFactory, options, "work-1");
+      DataflowOperationContext streamingOp =
+          new DataflowOperationContext(
+              counterFactory,
+              NameContextsForTests.nameContextForTest(),
+              metricsContainer,
+              streamingTracker,
+              stateRegistry);
+
+      Closeable start = streamingOp.enterStart();
+      Closeable process = streamingOp.enterProcess();
+      process.close();
+      assertThat(streamingTracker.getCurrentState(), sameInstance(startState));
+      long transitions = streamingTracker.getNumTransitions();
+      assertThat(
+          streamingTracker
+              .getProcessingTimesByStepCopy()
+              .get(NameContextsForTests.USER_NAME)
+              .getCount(),
+          equalTo(1L));
+
+      // Double close must be a no-op.
+      process.close();
+      assertThat(streamingTracker.getCurrentState(), sameInstance(startState));
+      assertThat(streamingTracker.getNumTransitions(), equalTo(transitions));
+      assertThat(
+          streamingTracker
+              .getProcessingTimesByStepCopy()
+              .get(NameContextsForTests.USER_NAME)
+              .getCount(),
+          equalTo(1L));
+
+      // Exception during activate must reset inUse so subsequent calls reuse the scope.
+      Mockito.doThrow(new RuntimeException("streaming boom"))
+          .doNothing()
+          .when(profileScope)
+          .activate();
+      try {
+        streamingOp.enterProcess();
+        fail("Expected exception from profileScope.activate()");
+      } catch (RuntimeException expected) {
+        assertThat(expected.getMessage(), equalTo("streaming boom"));
+      }
+      streamingTracker.exitStateDirect(startState);
+
+      Closeable afterFailure = streamingOp.enterProcess();
+      assertThat(afterFailure, sameInstance(process));
+      afterFailure.close();
+      assertThat(streamingTracker.getCurrentState(), sameInstance(startState));
+      start.close();
+    }
+
+    @Test
+    public void constructorHandlesNullTrackerAndNullProcessState() {
+      // Null executionStateTracker should not throw in the constructor.
+      new DataflowOperationContext(
+          counterFactory,
+          NameContextsForTests.nameContextForTest(),
+          metricsContainer,
+          null,
+          stateRegistry);
+
+      // Mock registry returning null processElementState should not throw in the constructor.
+      DataflowExecutionStateRegistry nullStateRegistry = mock(DataflowExecutionStateRegistry.class);
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+              .as(DataflowWorkerHarnessOptions.class);
+      options.setStreaming(true);
+      DataflowExecutionStateTracker streamingTracker =
+          new DataflowExecutionStateTracker(
+              ExecutionStateSampler.newForTest(), otherState, counterFactory, options, "work-2");
+      new DataflowOperationContext(
+          counterFactory,
+          NameContextsForTests.nameContextForTest(),
+          metricsContainer,
+          streamingTracker,
+          nullStateRegistry);
     }
   }
 

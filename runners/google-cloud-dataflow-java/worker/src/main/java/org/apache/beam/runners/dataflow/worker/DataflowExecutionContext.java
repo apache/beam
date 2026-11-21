@@ -272,6 +272,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private static final long NANOS_PER_MILLI = 1_000_000L;
     private static final StepProcessingStats[] EMPTY_STEP_STATS = new StepProcessingStats[0];
 
+    private static final AtomicLongFieldUpdater<DataflowExecutionStateTracker> ACTIVE_SEQ_UPDATER =
+        AtomicLongFieldUpdater.newUpdater(DataflowExecutionStateTracker.class, "activeSeq");
     private static final AtomicReferenceFieldUpdater<DataflowExecutionStateTracker, String>
         ACTIVE_STEP_NAME_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(
@@ -280,6 +282,15 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         ACTIVE_START_NANOS_UPDATER =
             AtomicLongFieldUpdater.newUpdater(
                 DataflowExecutionStateTracker.class, "activeStartNanos");
+
+    @SuppressWarnings("ThreadPriorityCheck") // Seqlock reader backoff for a preempted writer.
+    private static void seqlockBackoff(int attempt) {
+      if (attempt < 16) {
+        Thread.onSpinWait();
+      } else {
+        Thread.yield();
+      }
+    }
 
     /**
      * Lock-free per-step processing time summary written exclusively by the tracked execution
@@ -366,15 +377,24 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       }
 
       @Nullable IntSummaryStatistics snapshot() {
-        for (int attempt = 0; attempt < 8; attempt++) {
+        int attempt = 0;
+        while (true) {
           long s1 = seq;
           if ((s1 & 1L) != 0L) {
+            seqlockBackoff(attempt);
+            if (attempt < 16) {
+              attempt++;
+            }
             continue;
           }
           long c = count;
           if (c == 0L) {
             if (seq == s1) {
               return null;
+            }
+            seqlockBackoff(attempt);
+            if (attempt < 16) {
+              attempt++;
             }
             continue;
           }
@@ -384,19 +404,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           if (seq == s1 && lo <= hi) {
             return new IntSummaryStatistics(c, lo, hi, total);
           }
+          seqlockBackoff(attempt);
+          if (attempt < 16) {
+            attempt++;
+          }
         }
-        long c = count;
-        if (c == 0L) {
-          return null;
-        }
-        int lo = min;
-        int hi = max;
-        long total = sum;
-        if (lo > hi) {
-          lo = 0;
-          hi = 0;
-        }
-        return new IntSummaryStatistics(c, lo, hi, total);
       }
     }
 
@@ -409,13 +421,16 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final boolean isSimpleStateTransition;
     private final boolean supportsFastProcessTransition;
 
-    // Published via release stores in order (activeStartNanos -> activeStepName) so a concurrent
-    // reader acquiring activeStepName before reading activeStartNanos can never attribute an older
-    // step's start time to a newly entered step.
+    // Sequence lock guarding (activeStepName, activeStartNanos). Even activeSeq = stable,
+    // odd activeSeq = update in progress. Strictly monotonic across updates and reset() so
+    // concurrent readers never observe torn pairs or ABA across fused steps / repeated elements /
+    // resets.
+    private volatile long activeSeq = 0L;
     private volatile @Nullable String activeStepName = null;
     private volatile long activeStartNanos = 0L;
 
     // Non-volatile shadows exclusively accessed by the execution thread (or under lock in reset()).
+    private long localActiveSeq = 0L;
     private @Nullable StepProcessingStats localActiveStepStats = null;
     private long localActiveStartNanos = 0L;
     private @Nullable String lastLookupStepName = null;
@@ -501,8 +516,10 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       super.reset();
       localActiveStepStats = null;
       localActiveStartNanos = 0L;
+      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
       ACTIVE_STEP_NAME_UPDATER.lazySet(this, null);
       ACTIVE_START_NANOS_UPDATER.lazySet(this, 0L);
+      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
       lastLookupStepName = null;
       lastLookupStepStats = null;
       StepProcessingStats[] statsArr = this.stepStatsArray;
@@ -549,20 +566,25 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (elapsedNanos < NANOS_PER_MILLI) {
         stats.recordZeroMillis();
       } else {
-        stats.record((int) (elapsedNanos / NANOS_PER_MILLI));
+        stats.record((int) Math.min(elapsedNanos / NANOS_PER_MILLI, Integer.MAX_VALUE));
       }
     }
 
     private void setActiveMessage(StepProcessingStats stepStats, long startNanos) {
+      String stepName = stepStats.stepName;
       localActiveStepStats = stepStats;
       localActiveStartNanos = startNanos;
+      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
+      ACTIVE_STEP_NAME_UPDATER.lazySet(this, stepName);
       ACTIVE_START_NANOS_UPDATER.lazySet(this, startNanos);
-      ACTIVE_STEP_NAME_UPDATER.lazySet(this, stepStats.stepName);
+      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
     }
 
     private void clearActiveMessage() {
       localActiveStepStats = null;
+      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
       ACTIVE_STEP_NAME_UPDATER.lazySet(this, null);
+      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
     }
 
     /**
@@ -691,7 +713,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return super.enterState(newState);
       }
       final boolean isDataflowProcessElementState =
-          newState.isProcessElementState && newState instanceof DataflowExecutionState;
+          newState instanceof DataflowExecutionState && newState.isProcessElementState;
       if (!isDataflowProcessElementState) {
         return super.enterState(newState);
       }
@@ -752,24 +774,38 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return Stopwatch.createStarted(ticker);
     }
 
-    @SuppressWarnings("ReferenceEquality")
     public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
-      for (int attempt = 0; attempt < 4; attempt++) {
+      int attempt = 0;
+      while (true) {
+        long s1 = activeSeq;
+        if ((s1 & 1L) != 0L) {
+          seqlockBackoff(attempt);
+          if (attempt < 16) {
+            attempt++;
+          }
+          continue;
+        }
         String stepName = activeStepName;
         if (stepName == null) {
-          return Optional.empty();
+          if (activeSeq == s1) {
+            return Optional.empty();
+          }
+          seqlockBackoff(attempt);
+          if (attempt < 16) {
+            attempt++;
+          }
+          continue;
         }
         long startNanos = activeStartNanos;
-        if (activeStepName == stepName) {
+        if (activeSeq == s1) {
           return Optional.of(
               ActiveMessageMetadata.create(stepName, createStopwatchStartedAt(startNanos)));
         }
+        seqlockBackoff(attempt);
+        if (attempt < 16) {
+          attempt++;
+        }
       }
-      String stepName = activeStepName;
-      if (stepName == null) {
-        return Optional.empty();
-      }
-      return Optional.of(ActiveMessageMetadata.create(stepName, Stopwatch.createStarted()));
     }
 
     public Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {

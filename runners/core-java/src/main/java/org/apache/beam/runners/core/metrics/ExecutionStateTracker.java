@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -297,15 +298,18 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>Uses an exact class check so subclasses or test spies/mocks that override {@link
    * #enterState(ExecutionState)} are not bypassed unless they explicitly opt in.
    */
+  @Internal
   public boolean supportsDirectTransition() {
     return getClass() == ExecutionStateTracker.class;
   }
 
   /**
-   * Allocation-free counterpart to {@link #enterState(ExecutionState)}. Callers must only invoke
-   * this when {@link #supportsDirectTransition()} returns {@code true}, and must pair it with
-   * {@link #exitStateDirect(ExecutionState)} passing the returned previous state.
+   * Allocation-free counterpart to {@link #enterState(ExecutionState)}. External callers must only
+   * invoke this when {@link #supportsDirectTransition()} returns {@code true}; subclasses may also
+   * invoke it directly from their own state-transition methods. Must be paired with {@link
+   * #exitStateDirect(ExecutionState)} passing the returned previous state.
    */
+  @Internal
   public final @Nullable ExecutionState enterStateDirect(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
@@ -321,6 +325,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Allocation-free counterpart to closing the {@link Closeable} returned by {@link
    * #enterState(ExecutionState)}.
    */
+  @Internal
   public final void exitStateDirect(@Nullable ExecutionState previous) {
     localCurrentState = previous;
     CURRENT_STATE_UPDATER.lazySet(this, previous);
@@ -334,8 +339,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Indicates that the execution thread has entered the {@code newState}. Returns a {@link
    * Closeable} that should be called when that state is completed.
    *
-   * <p>This must be the only place where transitions are updated, and always called from the
-   * execution thread.
+   * <p>State transitions are only updated here and via {@link #enterStateDirect}/{@link
+   * #exitStateDirect}, and must always be called from the execution thread.
    */
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
