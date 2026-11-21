@@ -146,8 +146,9 @@ type ElementEncoder = coder.ElementEncoder
 // ElementDecoder encapsulates being able to decode an element from a reader.
 type ElementDecoder = coder.ElementDecoder
 
-// Init is the hook that all user code must call after flags processing and
-// other static initialization, for now.
+// Init initializes the Beam SDK after flags processing and other static
+// initialization. Call it before constructing a pipeline. Registration
+// functions must be called before Init, conventionally from init functions.
 func Init() {
 	runtime.Init()
 }

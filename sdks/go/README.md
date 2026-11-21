@@ -31,6 +31,13 @@ verify that it works by running the corresponding Java example.
 
 The examples are normal Go programs and are most easily run directly.
 They are parameterized by Go flags.
+
+Every Go pipeline must call `beam.Init()` after parsing command-line flags and
+before constructing the pipeline. Registration functions such as
+`beam.RegisterType` and `beam.RegisterDoFn` must be called before initialization,
+usually from package `init` functions. The examples in this directory show the
+expected order.
+
 For example, to run wordcount on the Go direct runner do:
 
 ```bash

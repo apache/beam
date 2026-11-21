@@ -29,6 +29,10 @@ import (
 )
 
 func Example_gettingStarted() {
+	// Initialize Beam after parsing command-line flags and before constructing
+	// the pipeline. Registration functions must run before initialization.
+	beam.Init()
+
 	// In order to start creating the pipeline for execution, a Pipeline object is needed.
 	p := beam.NewPipeline()
 	s := p.Root()
