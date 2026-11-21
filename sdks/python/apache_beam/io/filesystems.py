@@ -125,7 +125,7 @@ class FileSystems(object):
     match_result = FileSystems.URI_SCHEMA_PATTERN.match(path.strip())
     if match_result is None:
       return None
-    return match_result.group('scheme')
+    return match_result.groupdict()['scheme']
 
   @staticmethod
   def get_filesystem(path):
