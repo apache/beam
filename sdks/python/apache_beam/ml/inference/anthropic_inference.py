@@ -115,13 +115,12 @@ def message_from_string(
     client: the Anthropic client instance.
     inference_args: additional arguments passed to the messages.create call.
       Common args include 'max_tokens', 'system', 'temperature', 'top_p'.
+      AnthropicModelHandler sets max_tokens to 1024 unless it is given.
   """
-  max_tokens = inference_args.pop('max_tokens', 1024)
   responses = []
   for prompt in batch:
     response = client.messages.create(
         model=model_name,
-        max_tokens=max_tokens,
         messages=[{
             "role": "user", "content": prompt
         }],
@@ -146,14 +145,10 @@ def message_from_conversation(
     client: the Anthropic client instance.
     inference_args: additional arguments passed to the messages.create call.
   """
-  max_tokens = inference_args.pop('max_tokens', 1024)
   responses = []
   for messages in batch:
     response = client.messages.create(
-        model=model_name,
-        max_tokens=max_tokens,
-        messages=messages,
-        **inference_args)
+        model=model_name, messages=messages, **inference_args)
     responses.append(response)
   return responses
 
@@ -249,6 +244,12 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
     self.system = system
     self.output_config = output_config
 
+    self._default_inference_args = {'max_tokens': 1024}
+    if system is not None:
+      self._default_inference_args['system'] = system
+    if output_config is not None:
+      self._default_inference_args['output_config'] = output_config
+
     super().__init__(
         namespace='AnthropicModelHandler',
         retry_filter=_retry_on_appropriate_error,
@@ -276,8 +277,8 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
   ) -> Iterable[PredictionResult]:
     """Sends a prediction request to the Anthropic API.
 
-    Handler-level system and output_config are injected into
-    inference_args before calling the request function. Per-request
+    Handler-level defaults (max_tokens, system and output_config) are merged
+    with inference_args before calling the request function. Per-request
     values in inference_args take precedence over handler-level values.
 
     Args:
@@ -289,11 +290,6 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
     Returns:
       An iterable of PredictionResults.
     """
-    if inference_args is None:
-      inference_args = {}
-    if self.system is not None and 'system' not in inference_args:
-      inference_args['system'] = self.system
-    if self.output_config is not None and 'output_config' not in inference_args:
-      inference_args['output_config'] = self.output_config
+    inference_args = {**self._default_inference_args, **(inference_args or {})}
     responses = self.request_fn(self.model_name, batch, model, inference_args)
     return utils._convert_to_result(batch, responses, self.model_name)
