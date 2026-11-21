@@ -267,12 +267,11 @@ progress:
 				var residuals []engine.Residual
 				for _, rr := range sr.GetResidualRoots() {
 					ba := rr.GetApplication()
-					residuals = append(residuals, engine.Residual{Element: ba.GetElement()})
+					residuals = append(residuals, engine.Residual{Element: ba.GetElement(), OutputWatermarks: outputWatermarks(ba)})
 					if len(ba.GetElement()) == 0 {
 						slog.LogAttrs(context.TODO(), slog.LevelError, "returned empty residual application", slog.Any("bundle", rb))
 						panic("sdk returned empty residual application")
 					}
-					// TODO what happens to output watermarks on splits?
 				}
 				if len(sr.GetChannelSplits()) != 1 {
 					slog.Warn("received non-single channel split", "bundle", rb)
@@ -321,9 +320,7 @@ progress:
 	}
 
 	// ProcessContinuation residuals are rescheduled after the specified delay.
-	residuals := engine.Residuals{
-		MinOutputWatermarks: map[string]mtime.Time{},
-	}
+	var residuals engine.Residuals
 	for _, rr := range resp.GetResidualRoots() {
 		ba := rr.GetApplication()
 		if len(ba.GetElement()) == 0 {
@@ -343,18 +340,11 @@ progress:
 			panic("sdk returned inconsistent residual application input : got = " + ba.GetInputId() + " want = " + residuals.InputID)
 		}
 
-		for col, wm := range ba.GetOutputWatermarks() {
-			cur, ok := residuals.MinOutputWatermarks[col]
-			if !ok {
-				cur = mtime.MaxTimestamp
-			}
-			residuals.MinOutputWatermarks[col] = mtime.Min(mtime.FromTime(wm.AsTime()), cur)
-		}
-
 		residuals.Data = append(residuals.Data, engine.Residual{
-			Element: ba.GetElement(),
-			Delay:   rr.GetRequestedTimeDelay().AsDuration(),
-			Bounded: ba.GetIsBounded() == pipepb.IsBounded_BOUNDED,
+			Element:          ba.GetElement(),
+			Delay:            rr.GetRequestedTimeDelay().AsDuration(),
+			Bounded:          ba.GetIsBounded() == pipepb.IsBounded_BOUNDED,
+			OutputWatermarks: outputWatermarks(ba),
 		})
 	}
 	if l := len(residuals.Data); l == 0 {
@@ -371,6 +361,19 @@ progress:
 	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil
+}
+
+// outputWatermarks returns a residual's output watermarks as mtime values, or
+// nil if the SDK reported none.
+func outputWatermarks(ba *fnpb.BundleApplication) map[string]mtime.Time {
+	if len(ba.GetOutputWatermarks()) == 0 {
+		return nil
+	}
+	wms := make(map[string]mtime.Time, len(ba.GetOutputWatermarks()))
+	for col, wm := range ba.GetOutputWatermarks() {
+		wms[col] = mtime.FromTime(wm.AsTime())
+	}
+	return wms
 }
 
 func getSideInputs(t *pipepb.PTransform) (map[string]*pipepb.SideInput, error) {
