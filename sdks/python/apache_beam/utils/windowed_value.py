@@ -40,9 +40,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.timestamp import TimestampTypes  # pylint: disable=unused-import
 
-_MIN_TIMESTAMP_MICROS = MIN_TIMESTAMP.micros
-_MAX_TIMESTAMP_MICROS = MAX_TIMESTAMP.micros
-_MAX_INT64_SECONDS = _MAX_TIMESTAMP_MICROS // 1000000
+_MAX_INT64_SECONDS = MAX_TIMESTAMP.micros // 1000000
 
 if TYPE_CHECKING:
   from apache_beam.transforms.window import BoundedWindow
@@ -411,8 +409,8 @@ class _IntervalWindowBase(object):
         self._start_micros = self._start_object.micros
       except OverflowError:
         self._start_micros = (
-            _MIN_TIMESTAMP_MICROS
-            if self._start_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
+            MIN_TIMESTAMP.micros
+            if self._start_object.micros < 0 else MAX_TIMESTAMP.micros)
     else:
       self._start_object = None
 
@@ -427,8 +425,8 @@ class _IntervalWindowBase(object):
         self._end_micros = self._end_object.micros
       except OverflowError:
         self._end_micros = (
-            _MIN_TIMESTAMP_MICROS
-            if self._end_object.micros < 0 else _MAX_TIMESTAMP_MICROS)
+            MIN_TIMESTAMP.micros
+            if self._end_object.micros < 0 else MAX_TIMESTAMP.micros)
     else:
       self._end_object = None
 
