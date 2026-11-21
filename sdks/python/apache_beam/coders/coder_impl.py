@@ -1720,8 +1720,14 @@ class ParamWindowedValueCoderImpl(WindowedValueCoderImpl):
       # Should never be here.
       # TODO(robertwb): Remove when coders are set correctly.
       return 0, [(value, self._value_coder)]
-    return self._value_coder.get_estimated_size_and_observables(
-        value.value, nested=nested)
+    estimated_size = 0
+    observables = []
+    value_estimated_size, value_observables = (
+        self._value_coder.get_estimated_size_and_observables(
+            value.value, nested=nested))
+    estimated_size += value_estimated_size
+    observables += value_observables
+    return estimated_size, observables
 
 
 class LengthPrefixCoderImpl(StreamCoderImpl):
