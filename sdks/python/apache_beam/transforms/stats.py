@@ -552,8 +552,6 @@ class _QuantileState(object):
     """
     if elements:
       self.unbuffered_elements.extend(elements)
-    if len(self.unbuffered_elements) < self.spec.buffer_size:
-      return
     num_new_buffers = len(self.unbuffered_elements) // self.spec.buffer_size
     for idx in range(num_new_buffers):
       to_buffer = sorted(
@@ -586,8 +584,6 @@ class _QuantileState(object):
       else:
         self.unbuffered_elements.extend(elements[0])
         self.unbuffered_weights.extend(elements[1])
-    if len(self.unbuffered_elements) < self.spec.buffer_size:
-      return
     num_new_buffers = len(self.unbuffered_elements) // self.spec.buffer_size
     argsort_key = self.spec.get_argsort_key(self.unbuffered_elements)
     for idx in range(num_new_buffers):
