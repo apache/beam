@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "java": "Abacn"
+  },
   "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
