@@ -23,6 +23,8 @@ import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,13 +33,11 @@ import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.LockSupport;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
-import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
@@ -271,60 +271,86 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
     private static final long NANOS_PER_MILLI = 1_000_000L;
     private static final StepProcessingStats[] EMPTY_STEP_STATS = new StepProcessingStats[0];
+    private static final int MAX_ACTIVE_METADATA_ATTEMPTS = 64;
+    private static final long SEQLOCK_PARK_NANOS = 10_000L;
 
-    private static final AtomicLongFieldUpdater<DataflowExecutionStateTracker> ACTIVE_SEQ_UPDATER =
-        AtomicLongFieldUpdater.newUpdater(DataflowExecutionStateTracker.class, "activeSeq");
-    private static final AtomicReferenceFieldUpdater<DataflowExecutionStateTracker, String>
-        ACTIVE_STEP_NAME_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(
-                DataflowExecutionStateTracker.class, String.class, "activeStepName");
-    private static final AtomicLongFieldUpdater<DataflowExecutionStateTracker>
-        ACTIVE_START_NANOS_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(
-                DataflowExecutionStateTracker.class, "activeStartNanos");
+    private static final VarHandle ACTIVE_SEQ;
+    private static final VarHandle ACTIVE_STEP_NAME;
+    private static final VarHandle ACTIVE_START_NANOS;
+
+    static {
+      try {
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        ACTIVE_SEQ =
+            lookup.findVarHandle(DataflowExecutionStateTracker.class, "activeSeq", long.class);
+        ACTIVE_STEP_NAME =
+            lookup.findVarHandle(
+                DataflowExecutionStateTracker.class, "activeStepName", String.class);
+        ACTIVE_START_NANOS =
+            lookup.findVarHandle(
+                DataflowExecutionStateTracker.class, "activeStartNanos", long.class);
+      } catch (ReflectiveOperationException e) {
+        throw new ExceptionInInitializerError(e);
+      }
+    }
 
     @SuppressWarnings("ThreadPriorityCheck") // Seqlock reader backoff for a preempted writer.
     private static void seqlockBackoff(int attempt) {
       if (attempt < 16) {
         Thread.onSpinWait();
-      } else {
+      } else if (attempt < 32) {
         Thread.yield();
+      } else {
+        LockSupport.parkNanos(SEQLOCK_PARK_NANOS);
       }
     }
 
     /**
      * Lock-free per-step processing time summary written exclusively by the tracked execution
-     * thread (via release stores) and snapshotted by concurrent heartbeat/lull/completion reader
-     * threads via a sequence lock.
+     * thread via {@link VarHandle} release/opaque stores and snapshotted by concurrent
+     * heartbeat/lull/completion reader threads via a sequence lock.
+     *
+     * <p>Without duplicate shadow fields this object is ~48 bytes (fitting in a single 64-byte
+     * cache line under compressed OOPs).
      */
     static final class StepProcessingStats {
-      private static final AtomicLongFieldUpdater<StepProcessingStats> SEQ_UPDATER =
-          AtomicLongFieldUpdater.newUpdater(StepProcessingStats.class, "seq");
-      private static final AtomicLongFieldUpdater<StepProcessingStats> COUNT_UPDATER =
-          AtomicLongFieldUpdater.newUpdater(StepProcessingStats.class, "count");
-      private static final AtomicLongFieldUpdater<StepProcessingStats> SUM_UPDATER =
-          AtomicLongFieldUpdater.newUpdater(StepProcessingStats.class, "sum");
-      private static final AtomicIntegerFieldUpdater<StepProcessingStats> MIN_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(StepProcessingStats.class, "min");
-      private static final AtomicIntegerFieldUpdater<StepProcessingStats> MAX_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(StepProcessingStats.class, "max");
+      private static final VarHandle SEQ;
+      private static final VarHandle COUNT;
+      private static final VarHandle SUM;
+      private static final VarHandle MIN;
+      private static final VarHandle MAX;
+
+      static {
+        try {
+          MethodHandles.Lookup lookup = MethodHandles.lookup();
+          SEQ = lookup.findVarHandle(StepProcessingStats.class, "seq", long.class);
+          COUNT = lookup.findVarHandle(StepProcessingStats.class, "count", long.class);
+          SUM = lookup.findVarHandle(StepProcessingStats.class, "sum", long.class);
+          MIN = lookup.findVarHandle(StepProcessingStats.class, "min", int.class);
+          MAX = lookup.findVarHandle(StepProcessingStats.class, "max", int.class);
+        } catch (ReflectiveOperationException e) {
+          throw new ExceptionInInitializerError(e);
+        }
+      }
 
       final String stepName;
 
-      // Non-volatile shadows exclusively accessed by the execution thread (or under tracker lock
-      // during reset).
-      private long localSeq;
-      private long localCount;
-      private long localSum;
-      private int localMin = Integer.MAX_VALUE;
-      private int localMax = Integer.MIN_VALUE;
-
-      // Volatile fields written via lazySet (store-release) by the execution thread and read by
-      // concurrent reader threads. Even seq = stable, odd seq = multi-field update in progress.
+      // Single-writer fields accessed via plain VarHandle.get() by the execution thread (no
+      // duplicate shadow copies) and via acquire/opaque loads by concurrent reader threads.
+      // Even seq = stable, odd seq = multi-field update in progress.
+      @SuppressWarnings("UnusedVariable")
       private volatile long seq;
+
+      @SuppressWarnings("UnusedVariable")
       private volatile long count;
+
+      @SuppressWarnings("UnusedVariable")
       private volatile long sum;
+
+      @SuppressWarnings("UnusedVariable")
       private volatile int min = Integer.MAX_VALUE;
+
+      @SuppressWarnings("UnusedVariable")
       private volatile int max = Integer.MIN_VALUE;
 
       StepProcessingStats(String stepName) {
@@ -333,79 +359,81 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
 
       void recordZeroMillis() {
         // Common fast path: once min <= 0 <= max is established, sum/min/max do not change for a
-        // 0 ms element, so only count needs a single release store.
-        if (localMin <= 0 && localMax >= 0) {
-          COUNT_UPDATER.lazySet(this, ++localCount);
+        // 0 ms element, so only count needs a single release store (no seqlock bump).
+        if ((int) MIN.get(this) <= 0 && (int) MAX.get(this) >= 0) {
+          COUNT.setRelease(this, (long) COUNT.get(this) + 1L);
           return;
         }
         record(0);
       }
 
       void record(int processingTimeMillis) {
-        long nextSeq = ++localSeq;
-        SEQ_UPDATER.lazySet(this, nextSeq);
-        long newCount = ++localCount;
-        COUNT_UPDATER.lazySet(this, newCount);
+        long s = (long) SEQ.get(this);
+        SEQ.setOpaque(this, s + 1L);
+        VarHandle.storeStoreFence();
+        COUNT.setOpaque(this, (long) COUNT.get(this) + 1L);
         if (processingTimeMillis != 0) {
-          long newSum = localSum + processingTimeMillis;
-          localSum = newSum;
-          SUM_UPDATER.lazySet(this, newSum);
+          SUM.setOpaque(this, (long) SUM.get(this) + processingTimeMillis);
         }
-        if (processingTimeMillis < localMin) {
-          localMin = processingTimeMillis;
-          MIN_UPDATER.lazySet(this, processingTimeMillis);
+        if (processingTimeMillis < (int) MIN.get(this)) {
+          MIN.setOpaque(this, processingTimeMillis);
         }
-        if (processingTimeMillis > localMax) {
-          localMax = processingTimeMillis;
-          MAX_UPDATER.lazySet(this, processingTimeMillis);
+        if (processingTimeMillis > (int) MAX.get(this)) {
+          MAX.setOpaque(this, processingTimeMillis);
         }
-        SEQ_UPDATER.lazySet(this, ++localSeq);
+        SEQ.setRelease(this, s + 2L);
       }
 
       void reset() {
-        long nextSeq = ++localSeq;
-        SEQ_UPDATER.lazySet(this, nextSeq);
-        localCount = 0L;
-        localSum = 0L;
-        localMin = Integer.MAX_VALUE;
-        localMax = Integer.MIN_VALUE;
-        COUNT_UPDATER.lazySet(this, 0L);
-        SUM_UPDATER.lazySet(this, 0L);
-        MIN_UPDATER.lazySet(this, Integer.MAX_VALUE);
-        MAX_UPDATER.lazySet(this, Integer.MIN_VALUE);
-        SEQ_UPDATER.lazySet(this, ++localSeq);
+        // Cold path: seed from volatile seq so cross-thread reset() strictly advances past any
+        // previously published sequence and heals odd parity.
+        long s = (long) SEQ.getVolatile(this);
+        long odd = (s & 1L) != 0L ? s + 2L : s + 1L;
+        SEQ.setVolatile(this, odd);
+        COUNT.setVolatile(this, 0L);
+        SUM.setVolatile(this, 0L);
+        MIN.setVolatile(this, Integer.MAX_VALUE);
+        MAX.setVolatile(this, Integer.MIN_VALUE);
+        SEQ.setVolatile(this, odd + 1L);
+      }
+
+      @VisibleForTesting
+      long getSeqForTesting() {
+        return (long) SEQ.getVolatile(this);
       }
 
       @Nullable IntSummaryStatistics snapshot() {
         int attempt = 0;
         while (true) {
-          long s1 = seq;
+          long s1 = (long) SEQ.getAcquire(this);
           if ((s1 & 1L) != 0L) {
             seqlockBackoff(attempt);
-            if (attempt < 16) {
+            if (attempt < 32) {
               attempt++;
             }
             continue;
           }
-          long c = count;
+          long c = (long) COUNT.getOpaque(this);
           if (c == 0L) {
-            if (seq == s1) {
+            VarHandle.loadLoadFence();
+            if ((long) SEQ.getOpaque(this) == s1) {
               return null;
             }
             seqlockBackoff(attempt);
-            if (attempt < 16) {
+            if (attempt < 32) {
               attempt++;
             }
             continue;
           }
-          long total = sum;
-          int lo = min;
-          int hi = max;
-          if (seq == s1 && lo <= hi) {
+          long total = (long) SUM.getOpaque(this);
+          int lo = (int) MIN.getOpaque(this);
+          int hi = (int) MAX.getOpaque(this);
+          VarHandle.loadLoadFence();
+          if ((long) SEQ.getOpaque(this) == s1 && lo <= hi) {
             return new IntSummaryStatistics(c, lo, hi, total);
           }
           seqlockBackoff(attempt);
-          if (attempt < 16) {
+          if (attempt < 32) {
             attempt++;
           }
         }
@@ -422,29 +450,34 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final boolean supportsFastProcessTransition;
 
     // Sequence lock guarding (activeStepName, activeStartNanos). Even activeSeq = stable,
-    // odd activeSeq = update in progress. Strictly monotonic across updates and reset() so
-    // concurrent readers never observe torn pairs or ABA across fused steps / repeated elements /
-    // resets.
+    // odd activeSeq = update in progress. Strictly monotonic across setActiveMessage() and
+    // reset() so concurrent readers never observe torn pairs or ABA across fused steps, repeated
+    // elements, or resets. clearActiveMessage() only clears activeStepName with a release store
+    // (leaving activeStartNanos intact), so it needs no activeSeq bump.
+    @SuppressWarnings("UnusedVariable")
     private volatile long activeSeq = 0L;
+
+    @SuppressWarnings("UnusedVariable")
     private volatile @Nullable String activeStepName = null;
+
+    @SuppressWarnings("UnusedVariable")
     private volatile long activeStartNanos = 0L;
 
-    // Non-volatile shadows exclusively accessed by the execution thread (or under lock in reset()).
-    private long localActiveSeq = 0L;
+    // Execution-thread-only references (reset under tracker monitor lock in reset()).
     private @Nullable StepProcessingStats localActiveStepStats = null;
-    private long localActiveStartNanos = 0L;
     private @Nullable String lastLookupStepName = null;
     private @Nullable StepProcessingStats lastLookupStepStats = null;
 
     /** Clock used to either provide real system time or mocked to virtualize time for testing. */
     private final Clock clock;
 
-    // Registered step stats: map guarded by this only on one-time registration; copy-on-write
-    // array enables lock-free iteration on reads and lock-free lookup on enterState().
-    @GuardedBy("this")
-    private final Map<String, StepProcessingStats> stepStatsByName = new HashMap<>();
-
-    private volatile StepProcessingStats[] stepStatsArray = EMPTY_STEP_STATS;
+    // Registered step stats: mutations are synchronized in getOrCreateStepStats(). Concurrent
+    // map enables O(1) lock-free lookup on enterState(); geometrically resized buffer plus
+    // monotonic volatile count enables lock-free iteration in getProcessingTimesByStepCopy().
+    private final ConcurrentHashMap<String, StepProcessingStats> stepStatsByName =
+        new ConcurrentHashMap<>();
+    private volatile StepProcessingStats[] stepStatsBuffer = EMPTY_STEP_STATS;
+    private volatile int stepStatsCount = 0;
 
     private static final Logger LOG = LoggerFactory.getLogger(DataflowExecutionStateTracker.class);
 
@@ -515,17 +548,31 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     public synchronized void reset() {
       super.reset();
       localActiveStepStats = null;
-      localActiveStartNanos = 0L;
-      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
-      ACTIVE_STEP_NAME_UPDATER.lazySet(this, null);
-      ACTIVE_START_NANOS_UPDATER.lazySet(this, 0L);
-      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
+      // Seed from volatile activeSeq so cross-thread reset() without deactivate() strictly
+      // advances past any previously published sequence and heals odd parity.
+      long s = (long) ACTIVE_SEQ.getVolatile(this);
+      long odd = (s & 1L) != 0L ? s + 2L : s + 1L;
+      ACTIVE_SEQ.setVolatile(this, odd);
+      ACTIVE_STEP_NAME.setVolatile(this, (String) null);
+      ACTIVE_START_NANOS.setVolatile(this, 0L);
+      ACTIVE_SEQ.setVolatile(this, odd + 1L);
       lastLookupStepName = null;
       lastLookupStepStats = null;
-      StepProcessingStats[] statsArr = this.stepStatsArray;
-      for (int i = 0; i < statsArr.length; i++) {
-        statsArr[i].reset();
+      int count = this.stepStatsCount;
+      StepProcessingStats[] statsBuf = this.stepStatsBuffer;
+      for (int i = 0; i < count; i++) {
+        statsBuf[i].reset();
       }
+    }
+
+    @VisibleForTesting
+    long getActiveSeqForTesting() {
+      return (long) ACTIVE_SEQ.getVolatile(this);
+    }
+
+    @VisibleForTesting
+    void setActiveSeqForTesting(long seq) {
+      ACTIVE_SEQ.setVolatile(this, seq);
     }
 
     synchronized StepProcessingStats getOrCreateStepStats(String userStepName) {
@@ -534,11 +581,19 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return existing;
       }
       StepProcessingStats created = new StepProcessingStats(userStepName);
+      int idx = this.stepStatsCount;
+      StepProcessingStats[] buf = this.stepStatsBuffer;
+      if (idx == buf.length) {
+        buf = Arrays.copyOf(buf, Math.max(4, buf.length << 1));
+        buf[idx] = created;
+        this.stepStatsBuffer = buf;
+      } else {
+        buf[idx] = created;
+      }
+      // Publish count after populating slot (and replacing buffer when resizing) so lock-free
+      // readers observing stepStatsCount <= i+1 always see a non-null entry in stepStatsBuffer.
+      this.stepStatsCount = idx + 1;
       stepStatsByName.put(userStepName, created);
-      StepProcessingStats[] oldArr = this.stepStatsArray;
-      StepProcessingStats[] newArr = Arrays.copyOf(oldArr, oldArr.length + 1);
-      newArr[oldArr.length] = created;
-      this.stepStatsArray = newArr;
       return created;
     }
 
@@ -547,22 +602,17 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (userStepName == lastLookupStepName && lastLookupStepStats != null) {
         return lastLookupStepStats;
       }
-      StepProcessingStats[] arr = this.stepStatsArray;
-      for (int i = 0; i < arr.length; i++) {
-        StepProcessingStats candidate = arr[i];
-        if (candidate.stepName == userStepName || candidate.stepName.equals(userStepName)) {
-          lastLookupStepName = userStepName;
-          lastLookupStepStats = candidate;
-          return candidate;
-        }
+      StepProcessingStats stats = stepStatsByName.get(userStepName);
+      if (stats == null) {
+        stats = getOrCreateStepStats(userStepName);
       }
-      StepProcessingStats stats = getOrCreateStepStats(userStepName);
       lastLookupStepName = userStepName;
       lastLookupStepStats = stats;
       return stats;
     }
 
-    private static void recordElapsedNanos(StepProcessingStats stats, long elapsedNanos) {
+    @VisibleForTesting
+    static void recordElapsedNanos(StepProcessingStats stats, long elapsedNanos) {
       if (elapsedNanos < NANOS_PER_MILLI) {
         stats.recordZeroMillis();
       } else {
@@ -573,18 +623,21 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private void setActiveMessage(StepProcessingStats stepStats, long startNanos) {
       String stepName = stepStats.stepName;
       localActiveStepStats = stepStats;
-      localActiveStartNanos = startNanos;
-      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
-      ACTIVE_STEP_NAME_UPDATER.lazySet(this, stepName);
-      ACTIVE_START_NANOS_UPDATER.lazySet(this, startNanos);
-      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
+      long s = (long) ACTIVE_SEQ.get(this);
+      ACTIVE_SEQ.setOpaque(this, s + 1L);
+      VarHandle.storeStoreFence();
+      ACTIVE_STEP_NAME.setOpaque(this, stepName);
+      ACTIVE_START_NANOS.setOpaque(this, startNanos);
+      ACTIVE_SEQ.setRelease(this, s + 2L);
     }
 
     private void clearActiveMessage() {
+      // Single release store clearing activeStepName without bumping activeSeq: activeStartNanos is
+      // left untouched so concurrent readers see either Optional.empty() (after clear) or the
+      // complete prior (stepName, activeStartNanos) pair (before clear) without any risk of tearing
+      // or ABA. The next setActiveMessage() or reset() bumps activeSeq odd before modifying either.
       localActiveStepStats = null;
-      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
-      ACTIVE_STEP_NAME_UPDATER.lazySet(this, null);
-      ACTIVE_SEQ_UPDATER.lazySet(this, ++localActiveSeq);
+      ACTIVE_STEP_NAME.setRelease(this, (String) null);
     }
 
     /**
@@ -598,7 +651,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       long nowNanos = System.nanoTime();
       StepProcessingStats prevActive = localActiveStepStats;
       if (prevActive != null) {
-        recordElapsedNanos(prevActive, nowNanos - localActiveStartNanos);
+        recordElapsedNanos(prevActive, nowNanos - (long) ACTIVE_START_NANOS.get(this));
       }
       setActiveMessage(stepStats, nowNanos);
       return previous;
@@ -611,7 +664,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     final void exitStreamingProcessDirect(@Nullable ExecutionState previous) {
       StepProcessingStats active = localActiveStepStats;
       if (active != null) {
-        recordElapsedNanos(active, System.nanoTime() - localActiveStartNanos);
+        recordElapsedNanos(active, System.nanoTime() - (long) ACTIVE_START_NANOS.get(this));
         clearActiveMessage();
       }
       exitStateDirect(previous);
@@ -718,31 +771,41 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         return super.enterState(newState);
       }
       DataflowExecutionState newDFState = (DataflowExecutionState) newState;
-      final ExecutionState previous = enterStateDirect(newState);
-      if (isStreaming) {
-        NameContext stepName = newDFState.getStepName();
-        String userName = stepName != null ? stepName.userName() : null;
-        if (userName != null) {
-          StepProcessingStats stepStats = getStepStatsFast(userName);
-          long nowNanos = System.nanoTime();
-          StepProcessingStats prevActive = localActiveStepStats;
-          if (prevActive != null) {
-            recordElapsedNanos(prevActive, nowNanos - localActiveStartNanos);
-          }
-          setActiveMessage(stepStats, nowNanos);
-        }
-      }
       final boolean trackElementExecution =
           elementExecutionTracker != ElementExecutionTracker.NO_OP_INSTANCE;
-      if (trackElementExecution) {
-        elementExecutionTracker.enter(newDFState.getStepName());
+      final ExecutionState previous = enterStateDirect(newState);
+      boolean activatedStreaming = false;
+      try {
+        if (isStreaming) {
+          NameContext stepName = newDFState.getStepName();
+          String userName = stepName != null ? stepName.userName() : null;
+          if (userName != null) {
+            StepProcessingStats stepStats = getStepStatsFast(userName);
+            long nowNanos = System.nanoTime();
+            StepProcessingStats prevActive = localActiveStepStats;
+            if (prevActive != null) {
+              recordElapsedNanos(prevActive, nowNanos - (long) ACTIVE_START_NANOS.get(this));
+            }
+            setActiveMessage(stepStats, nowNanos);
+            activatedStreaming = true;
+          }
+        }
+        if (trackElementExecution) {
+          elementExecutionTracker.enter(newDFState.getStepName());
+        }
+      } catch (Throwable t) {
+        if (activatedStreaming) {
+          clearActiveMessage();
+        }
+        exitStateDirect(previous);
+        throw t;
       }
 
       return () -> {
         if (isStreaming) {
           StepProcessingStats active = localActiveStepStats;
           if (active != null) {
-            recordElapsedNanos(active, System.nanoTime() - localActiveStartNanos);
+            recordElapsedNanos(active, System.nanoTime() - (long) ACTIVE_START_NANOS.get(this));
             clearActiveMessage();
           }
         }
@@ -775,48 +838,44 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     }
 
     public Optional<ActiveMessageMetadata> getActiveMessageMetadata() {
-      int attempt = 0;
-      while (true) {
-        long s1 = activeSeq;
+      // Bound retries so a fast-transitioning streaming stage or preempted writer cannot starve
+      // Windmill heartbeat threads; if activeSeq advances continuously across 64 attempts, no
+      // single element is stuck/slow.
+      for (int attempt = 0; attempt < MAX_ACTIVE_METADATA_ATTEMPTS; attempt++) {
+        long s1 = (long) ACTIVE_SEQ.getAcquire(this);
         if ((s1 & 1L) != 0L) {
           seqlockBackoff(attempt);
-          if (attempt < 16) {
-            attempt++;
-          }
           continue;
         }
-        String stepName = activeStepName;
+        String stepName = (String) ACTIVE_STEP_NAME.getOpaque(this);
         if (stepName == null) {
-          if (activeSeq == s1) {
+          VarHandle.loadLoadFence();
+          if ((long) ACTIVE_SEQ.getOpaque(this) == s1) {
             return Optional.empty();
           }
           seqlockBackoff(attempt);
-          if (attempt < 16) {
-            attempt++;
-          }
           continue;
         }
-        long startNanos = activeStartNanos;
-        if (activeSeq == s1) {
+        long startNanos = (long) ACTIVE_START_NANOS.getOpaque(this);
+        VarHandle.loadLoadFence();
+        if ((long) ACTIVE_SEQ.getOpaque(this) == s1) {
           return Optional.of(
               ActiveMessageMetadata.create(stepName, createStopwatchStartedAt(startNanos)));
         }
         seqlockBackoff(attempt);
-        if (attempt < 16) {
-          attempt++;
-        }
       }
+      return Optional.empty();
     }
 
     public Map<String, IntSummaryStatistics> getProcessingTimesByStepCopy() {
-      StepProcessingStats[] statsArray = this.stepStatsArray;
-      if (statsArray.length == 0) {
+      int count = this.stepStatsCount;
+      if (count == 0) {
         return new HashMap<>();
       }
-      Map<String, IntSummaryStatistics> processingTimesCopy =
-          new HashMap<>(Math.max(4, statsArray.length * 2));
-      for (int i = 0; i < statsArray.length; i++) {
-        StepProcessingStats stats = statsArray[i];
+      StepProcessingStats[] statsBuf = this.stepStatsBuffer;
+      Map<String, IntSummaryStatistics> processingTimesCopy = new HashMap<>(Math.max(4, count * 2));
+      for (int i = 0; i < count; i++) {
+        StepProcessingStats stats = statsBuf[i];
         IntSummaryStatistics snapshot = stats.snapshot();
         if (snapshot != null) {
           processingTimesCopy.put(stats.stepName, snapshot);

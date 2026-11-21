@@ -24,8 +24,11 @@ import static org.apache.beam.runners.core.metrics.ExecutionStateTracker.START_S
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -230,6 +233,7 @@ public class DataflowOperationContextTest {
 
     @Test
     public void enterProcessExceptionInActivateDoesNotLeakInUse() throws IOException {
+      long transitionsBefore = stateTracker.getNumTransitions();
       Mockito.doThrow(new RuntimeException("boom")).doNothing().when(profileScope).activate();
 
       try {
@@ -239,8 +243,10 @@ public class DataflowOperationContextTest {
         assertThat(expected.getMessage(), equalTo("boom"));
       }
 
-      // Restore state and verify subsequent enterProcess still reuses the scope cleanly.
-      stateTracker.exitStateDirect(otherState);
+      // currentState must be automatically rolled back to otherState with no transition recorded.
+      assertThat(stateTracker.getCurrentState(), sameInstance(otherState));
+      assertThat(stateTracker.getNumTransitions(), equalTo(transitionsBefore));
+
       Closeable first = operationContext.enterProcess();
       first.close();
       assertThat(stateTracker.getCurrentState(), sameInstance(otherState));
@@ -292,7 +298,8 @@ public class DataflowOperationContextTest {
               .getCount(),
           equalTo(1L));
 
-      // Exception during activate must reset inUse so subsequent calls reuse the scope.
+      // Exception during activate must roll back state and reset inUse so subsequent calls reuse
+      // the scope without altering active metadata or completed step stats.
       Mockito.doThrow(new RuntimeException("streaming boom"))
           .doNothing()
           .when(profileScope)
@@ -303,13 +310,171 @@ public class DataflowOperationContextTest {
       } catch (RuntimeException expected) {
         assertThat(expected.getMessage(), equalTo("streaming boom"));
       }
-      streamingTracker.exitStateDirect(startState);
+      assertThat(streamingTracker.getCurrentState(), sameInstance(startState));
+      assertThat(streamingTracker.getNumTransitions(), equalTo(transitions));
+      assertFalse(streamingTracker.getActiveMessageMetadata().isPresent());
+      assertThat(
+          streamingTracker
+              .getProcessingTimesByStepCopy()
+              .get(NameContextsForTests.USER_NAME)
+              .getCount(),
+          equalTo(1L));
 
       Closeable afterFailure = streamingOp.enterProcess();
       assertThat(afterFailure, sameInstance(process));
       afterFailure.close();
       assertThat(streamingTracker.getCurrentState(), sameInstance(startState));
       start.close();
+    }
+
+    @Test
+    public void enterProcessDoesNotBypassSpyDataflowExecutionStateTracker() throws IOException {
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+              .as(DataflowWorkerHarnessOptions.class);
+      options.setStreaming(true);
+      DataflowExecutionStateTracker realTracker =
+          new DataflowExecutionStateTracker(
+              ExecutionStateSampler.newForTest(), otherState, counterFactory, options, "work-spy");
+      DataflowExecutionStateTracker spyTracker = spy(realTracker);
+      assertFalse(spyTracker.supportsDirectTransition());
+      assertFalse(spyTracker.supportsFastProcessElementTransition());
+
+      DataflowOperationContext op =
+          new DataflowOperationContext(
+              counterFactory,
+              NameContextsForTests.nameContextForTest(),
+              metricsContainer,
+              spyTracker,
+              stateRegistry);
+      try (Closeable c = op.enterProcess()) {
+        assertThat(spyTracker.getCurrentState(), sameInstance(processState));
+      }
+      verify(spyTracker).enterState(processState);
+    }
+
+    @Test
+    public void streamingProcessScopeHandlesNullUserStepName() throws IOException {
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+              .as(DataflowWorkerHarnessOptions.class);
+      options.setStreaming(true);
+      DataflowExecutionStateTracker streamingTracker =
+          new DataflowExecutionStateTracker(
+              ExecutionStateSampler.newForTest(),
+              otherState,
+              counterFactory,
+              options,
+              "work-null-user");
+      NameContext namedStep = NameContext.create("STAGE", "orig", "sys", "OuterUserStep");
+      NameContext unnamedStep = NameContext.create("STAGE", "orig2", "sys2", null);
+
+      DataflowOperationContext namedOp =
+          new DataflowOperationContext(
+              counterFactory, namedStep, metricsContainer, streamingTracker, stateRegistry);
+      DataflowOperationContext unnamedOp =
+          new DataflowOperationContext(
+              counterFactory, unnamedStep, metricsContainer, streamingTracker, stateRegistry);
+
+      // Standalone null-userName step reuses its Closeable without setting active metadata.
+      Closeable firstUnnamed;
+      try (Closeable c = unnamedOp.enterProcess()) {
+        firstUnnamed = c;
+        assertFalse(streamingTracker.getActiveMessageMetadata().isPresent());
+      }
+      assertTrue(streamingTracker.getProcessingTimesByStepCopy().isEmpty());
+
+      // Nested inside a named step: entering the unnamed step preserves the outer active step, and
+      // closing it records and clears the outer active step (matching enterState() semantics).
+      try (Closeable outer = namedOp.enterProcess()) {
+        assertTrue(streamingTracker.getActiveMessageMetadata().isPresent());
+        assertThat(
+            streamingTracker.getActiveMessageMetadata().get().userStepName(),
+            equalTo("OuterUserStep"));
+        try (Closeable inner = unnamedOp.enterProcess()) {
+          assertThat(inner, sameInstance(firstUnnamed));
+          assertTrue(streamingTracker.getActiveMessageMetadata().isPresent());
+          assertThat(
+              streamingTracker.getActiveMessageMetadata().get().userStepName(),
+              equalTo("OuterUserStep"));
+        }
+        assertFalse(streamingTracker.getActiveMessageMetadata().isPresent());
+        assertThat(
+            streamingTracker.getProcessingTimesByStepCopy().get("OuterUserStep").getCount(),
+            equalTo(1L));
+      }
+      assertThat(
+          streamingTracker.getProcessingTimesByStepCopy().get("OuterUserStep").getCount(),
+          equalTo(1L));
+    }
+
+    @Test
+    public void streamingSharedUserStepNameReusesStepStats() throws IOException {
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+              .as(DataflowWorkerHarnessOptions.class);
+      options.setStreaming(true);
+      DataflowExecutionStateTracker streamingTracker =
+          new DataflowExecutionStateTracker(
+              ExecutionStateSampler.newForTest(),
+              otherState,
+              counterFactory,
+              options,
+              "work-shared-name");
+
+      DataflowOperationContext opA =
+          new DataflowOperationContext(
+              counterFactory,
+              NameContext.create("STAGE", "origA", "sysA", "SharedUserStep"),
+              metricsContainer,
+              streamingTracker,
+              stateRegistry);
+      DataflowOperationContext opB =
+          new DataflowOperationContext(
+              counterFactory,
+              NameContext.create("STAGE", "origB", "sysB", "SharedUserStep"),
+              metricsContainer,
+              streamingTracker,
+              stateRegistry);
+
+      try (Closeable c = opA.enterProcess()) {}
+      try (Closeable c = opB.enterProcess()) {}
+
+      assertThat(streamingTracker.getProcessingTimesByStepCopy().size(), equalTo(1));
+      assertThat(
+          streamingTracker.getProcessingTimesByStepCopy().get("SharedUserStep").getCount(),
+          equalTo(2L));
+    }
+
+    @Test
+    public void timePerElementExperimentDelegatesToEnterState() throws IOException {
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.fromArgs(
+                  "--experiments=enable_streaming_engine,"
+                      + DataflowElementExecutionTracker.TIME_PER_ELEMENT_EXPERIMENT)
+              .as(DataflowWorkerHarnessOptions.class);
+      options.setStreaming(true);
+      DataflowExecutionStateTracker tracker =
+          new DataflowExecutionStateTracker(
+              ExecutionStateSampler.newForTest(), otherState, counterFactory, options, "work-tpe");
+      assertFalse(tracker.supportsDirectTransition());
+      assertFalse(tracker.supportsFastProcessElementTransition());
+
+      DataflowOperationContext op =
+          new DataflowOperationContext(
+              counterFactory,
+              NameContextsForTests.nameContextForTest(),
+              metricsContainer,
+              tracker,
+              stateRegistry);
+      Closeable first = op.enterProcess();
+      first.close();
+      Closeable second = op.enterProcess();
+      assertThat(second, Matchers.not(sameInstance(first)));
+      second.close();
+      assertThat(
+          tracker.getProcessingTimesByStepCopy().get(NameContextsForTests.USER_NAME).getCount(),
+          equalTo(2L));
     }
 
     @Test

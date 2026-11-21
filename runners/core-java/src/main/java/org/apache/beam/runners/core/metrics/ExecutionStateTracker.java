@@ -21,13 +21,12 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -50,14 +49,22 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
 
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
   private static final long BUNDLE_LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(10);
-  private static final AtomicIntegerFieldUpdater<ExecutionStateTracker> SAMPLING_UPDATER =
-      AtomicIntegerFieldUpdater.newUpdater(ExecutionStateTracker.class, "sampling");
-  private static final AtomicReferenceFieldUpdater<ExecutionStateTracker, ExecutionState>
-      CURRENT_STATE_UPDATER =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ExecutionStateTracker.class, ExecutionState.class, "currentState");
-  private static final AtomicLongFieldUpdater<ExecutionStateTracker> NUM_TRANSITIONS_UPDATER =
-      AtomicLongFieldUpdater.newUpdater(ExecutionStateTracker.class, "numTransitions");
+  private static final VarHandle SAMPLING;
+  private static final VarHandle CURRENT_STATE;
+  private static final VarHandle NUM_TRANSITIONS;
+
+  static {
+    try {
+      MethodHandles.Lookup lookup = MethodHandles.lookup();
+      SAMPLING = lookup.findVarHandle(ExecutionStateTracker.class, "sampling", int.class);
+      CURRENT_STATE =
+          lookup.findVarHandle(ExecutionStateTracker.class, "currentState", ExecutionState.class);
+      NUM_TRANSITIONS =
+          lookup.findVarHandle(ExecutionStateTracker.class, "numTransitions", long.class);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 
   public static final String START_STATE_NAME = "start";
   public static final String PROCESS_STATE_NAME = "process";
@@ -125,17 +132,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /**
    * The current state of the thread managed by this {@link ExecutionStateTracker}.
    *
-   * <p>This variable is written by the Execution thread via release stores ({@link
-   * #CURRENT_STATE_UPDATER}), and read by the sampling and progress reporting threads, thus it
-   * being marked volatile.
+   * <p>This variable is read via plain {@link VarHandle#get} and written via release stores ({@link
+   * VarHandle#setRelease}) by the execution thread, and read as volatile by the sampling and
+   * progress reporting threads.
    */
   private volatile @Nullable ExecutionState currentState;
-
-  /**
-   * Non-volatile shadow of {@link #currentState}, exclusively accessed by the execution thread (and
-   * reset under {@code synchronized}) to avoid volatile read/fence overhead on transitions.
-   */
-  private @Nullable ExecutionState localCurrentState;
 
   @SuppressWarnings("UnusedVariable")
   private volatile int sampling = 0;
@@ -143,17 +144,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
    *
-   * <p>This variable is written by the Execution thread via release stores ({@link
-   * #NUM_TRANSITIONS_UPDATER}), and read by the sampling and progress reporting threads, thus it
-   * being marked volatile.
+   * <p>This variable is read via plain {@link VarHandle#get} and written via release stores ({@link
+   * VarHandle#setRelease}) by the execution thread, and read as volatile by the sampling and
+   * progress reporting threads.
    */
   private volatile long numTransitions = 0;
-
-  /**
-   * Non-volatile shadow of {@link #numTransitions}, exclusively accessed by the execution thread
-   * (and reset under {@code synchronized}).
-   */
-  private long localNumTransitions = 0;
 
   /**
    * The number of milliseconds since the {@link ExecutionStateTracker} transitioned state.
@@ -185,8 +180,6 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
       CURRENT_TRACKERS.remove(trackedThread.getId());
       trackedThread = null;
     }
-    localCurrentState = null;
-    localNumTransitions = 0;
     currentState = null;
     numTransitions = 0;
     millisSinceLastTransition = 0;
@@ -313,11 +306,15 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   public final @Nullable ExecutionState enterStateDirect(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
-    final ExecutionState previous = localCurrentState;
-    localCurrentState = newState;
-    CURRENT_STATE_UPDATER.lazySet(this, newState);
-    newState.onActivate(true);
-    NUM_TRANSITIONS_UPDATER.lazySet(this, ++localNumTransitions);
+    final ExecutionState previous = (ExecutionState) CURRENT_STATE.get(this);
+    CURRENT_STATE.setRelease(this, newState);
+    try {
+      newState.onActivate(true);
+    } catch (Throwable t) {
+      CURRENT_STATE.setRelease(this, previous);
+      throw t;
+    }
+    NUM_TRANSITIONS.setRelease(this, (long) NUM_TRANSITIONS.get(this) + 1L);
     return previous;
   }
 
@@ -327,9 +324,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    */
   @Internal
   public final void exitStateDirect(@Nullable ExecutionState previous) {
-    localCurrentState = previous;
-    CURRENT_STATE_UPDATER.lazySet(this, previous);
-    NUM_TRANSITIONS_UPDATER.lazySet(this, ++localNumTransitions);
+    CURRENT_STATE.setRelease(this, previous);
+    NUM_TRANSITIONS.setRelease(this, (long) NUM_TRANSITIONS.get(this) + 1L);
     if (previous != null) {
       previous.onActivate(false);
     }
@@ -388,11 +384,11 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    *     all of that time should be associated with this tracker.
    */
   public void takeSample(long millisSinceLastSample) {
-    if (SAMPLING_UPDATER.compareAndSet(this, 0, 1)) {
+    if (SAMPLING.compareAndSet(this, 0, 1)) {
       try {
         takeSampleOnce(millisSinceLastSample);
       } finally {
-        SAMPLING_UPDATER.set(this, 0);
+        SAMPLING.setVolatile(this, 0);
       }
     }
   }
