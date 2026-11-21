@@ -356,6 +356,7 @@ include(":vendor:calcite-1_40_0")
 include(":vendor:guava-32_1_2-jre")
 include(":website")
 include(":runners:google-cloud-dataflow-java:worker")
+include(":runners:google-cloud-dataflow-java:worker:jmh")
 include(":runners:google-cloud-dataflow-java:worker:windmill")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
