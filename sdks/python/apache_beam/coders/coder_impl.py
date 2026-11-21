@@ -1221,10 +1221,10 @@ class AvroCoderImpl(SimpleCoderImpl):
 class TupleCoderImpl(AbstractComponentCoderImpl):
   """A coder for tuple objects."""
   def _extract_components(self, value):
-    return value if isinstance(value, (tuple, list)) else tuple(value)
+    return tuple(value)
 
   def _construct_from_components(self, components):
-    return components if type(components) is tuple else tuple(components)
+    return tuple(components)
 
 
 class _ConcatSequence(object):
