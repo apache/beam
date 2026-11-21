@@ -27,8 +27,19 @@ import pytz
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
+from apache_beam.utils.timestamp import DateTime
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  import pandas
+except ImportError:
+  pandas = None
+
+try:
+  import pyarrow
+except ImportError:
+  pyarrow = None
 
 
 class TimestampTest(unittest.TestCase):
@@ -477,6 +488,134 @@ class DurationTest(unittest.TestCase):
     actual_dur_proto = Duration.to_proto(dur)
     expected_dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
     self.assertEqual(actual_dur_proto, expected_dur_proto)
+
+
+class DateTimeTest(unittest.TestCase):
+  def test_constructor(self):
+    dt = DateTime(epoch_day=18487, time_of_day=51254123456789, precision=9)
+    self.assertEqual((dt.epoch_day(), dt.time_of_day(), dt.precision()),
+                     (18487, 51254123456789, 9))
+    self.assertEqual(DateTime().precision(), DateTime.MICROS_PRECISION)
+
+    # A time of day past midnight carries into the next day, and a negative
+    # one borrows from the previous day.
+    carried = DateTime(0, 86_400_500, 3)
+    self.assertEqual((carried.epoch_day(), carried.time_of_day()), (1, 500))
+    borrowed = DateTime(0, -1, 6)
+    self.assertEqual((borrowed.epoch_day(), borrowed.time_of_day()),
+                     (-1, 86_399_999_999))
+
+    with self.assertRaises(ValueError):
+      DateTime(0, 0, precision=10)
+    with self.assertRaises(ValueError):
+      DateTime(0, 0, precision=-1)
+    with self.assertRaises(TypeError):
+      DateTime(0, 1.5)  # type: ignore[arg-type]
+
+  def test_equality_hash_and_order(self):
+    self.assertEqual(DateTime(1, 500, 3), DateTime(1, 500_000_000, 9))
+    self.assertEqual(
+        hash(DateTime(1, 500, 3)), hash(DateTime(1, 500_000_000, 9)))
+    self.assertNotEqual(DateTime(1, 1, 9), DateTime(1, 0, 6))
+    self.assertGreater(DateTime(1, 1, 9), DateTime(1, 0, 6))
+    self.assertLess(DateTime(-1, 86_399_999_999_999, 9), DateTime(0, 0, 0))
+    # Comparing with a datetime.datetime takes an explicit conversion.
+    self.assertNotEqual(DateTime(0), datetime.datetime(1970, 1, 1))
+
+  def test_precision_conversion(self):
+    self.assertEqual(
+        DateTime(0, 123, 3).to_precision(9).time_of_day(), 123_000_000)
+    nanos = DateTime(-1, 86_399_999_999_999, 9)
+    with self.assertRaises(ValueError):
+      nanos.to_precision(6)
+    floored = nanos.to_precision(6, allow_lossy_conversion=True)
+    self.assertEqual((floored.epoch_day(), floored.time_of_day()),
+                     (-1, 86_399_999_999))
+    with self.assertRaises(ValueError):
+      nanos.to_precision(10)
+
+  def test_datetime_conversions(self):
+    for dt, expected in [
+        (datetime.datetime(1970, 1, 1), DateTime(0, 0)),
+        (datetime.datetime(1969, 12, 31, 23, 59, 59, 999999),
+         DateTime(-1, 86_399_999_999)),
+        (datetime.datetime.min, DateTime(-719162, 0)),
+        (datetime.datetime.max, DateTime(2932896, 86_399_999_999)),
+    ]:
+      self.assertEqual(DateTime.from_datetime(dt), expected)
+      self.assertEqual(DateTime.from_datetime(dt).precision(), 6)
+      self.assertEqual(expected.to_datetime(), dt)
+
+    with self.assertRaises(ValueError):
+      DateTime.from_datetime(
+          datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
+    with self.assertRaises(TypeError):
+      DateTime.from_datetime(datetime.date(2020, 1, 1))  # type: ignore[arg-type]
+
+    nanos = DateTime(18487, 51254123456789, 9)
+    with self.assertRaises(ValueError):
+      nanos.to_datetime()
+    self.assertEqual(
+        nanos.to_datetime(allow_lossy_conversion=True),
+        datetime.datetime(2020, 8, 13, 14, 14, 14, 123456))
+    # Java can send year 10000, which datetime.datetime cannot hold.
+    with self.assertRaises(ValueError):
+      DateTime(2932897, 0).to_datetime()
+
+  @unittest.skipIf(pandas is None, 'pandas is not installed')
+  def test_from_datetime_keeps_pandas_nanoseconds(self):
+    dt = DateTime.from_datetime(
+        pandas.Timestamp('2020-08-13T14:14:14.123456789'))
+    self.assertEqual(dt, DateTime(18487, 51254123456789, 9))
+    self.assertEqual(dt.precision(), 9)
+
+  @unittest.skipIf(pyarrow is None, 'pyarrow is not installed')
+  def test_arrow_conversions(self):
+    for dt, unit, value, back_precision in [
+        (DateTime(18487, 51254, 0), 's', 1597328054, 0),
+        (DateTime(18487, 51254123, 3), 'ms', 1597328054123, 3),
+        (DateTime(18487, 512541234, 4), 'us', 1597328054123400, 6),
+        (DateTime(18487, 51254123456, 6), 'us', 1597328054123456, 6),
+        (DateTime(18487, 51254123456789, 9), 'ns', 1597328054123456789, 9),
+    ]:
+      scalar = dt.to_arrow()
+      self.assertEqual(scalar.type, pyarrow.timestamp(unit))
+      self.assertEqual(scalar.value, value)
+      back = DateTime.from_arrow(scalar)
+      self.assertEqual(back, dt)
+      self.assertEqual(back.precision(), back_precision)
+
+    self.assertEqual(
+        DateTime.from_arrow(pyarrow.scalar(-1, type=pyarrow.timestamp('ns'))),
+        DateTime(-1, 86_399_999_999_999, 9))
+    # Past year 9999, so the error message mustn't format the value itself.
+    with self.assertRaises(ValueError):
+      DateTime.from_arrow(
+          pyarrow.scalar(3 * 10**17, type=pyarrow.timestamp('us', tz='UTC')))
+    with self.assertRaises(ValueError):
+      DateTime.from_arrow(pyarrow.scalar(None, type=pyarrow.timestamp('us')))
+    with self.assertRaises(TypeError):
+      DateTime.from_arrow(pyarrow.scalar(1))
+    # Arrow's nanosecond timestamps stop in 2262.
+    with self.assertRaises(ValueError):
+      DateTime(2932897, 0, 9).to_arrow()
+
+  def test_repr(self):
+    self.assertEqual(
+        repr(DateTime(18487, 51254123456, 6)),
+        'DateTime(2020-08-13T14:14:14.123456)')
+    self.assertEqual(
+        repr(DateTime(18487, 51254123, 3)), 'DateTime(2020-08-13T14:14:14.123)')
+    self.assertEqual(
+        repr(DateTime(18487, 51254 * 10**9, 9)),
+        'DateTime(2020-08-13T14:14:14)')
+    self.assertEqual(
+        DateTime(-1, 86_399_999_999).isoformat(), '1969-12-31T23:59:59.999999')
+    with self.assertRaises(ValueError):
+      DateTime(2932897, 0).isoformat()
+    self.assertEqual(
+        repr(DateTime(2932897, 0)),
+        'DateTime(epoch_day=2932897, time_of_day=0, precision=6)')
 
 
 if __name__ == '__main__':

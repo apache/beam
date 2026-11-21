@@ -26,6 +26,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import DateTime
 from apache_beam.utils.timestamp import Timestamp
 
 
@@ -53,7 +54,10 @@ class ManagedIcebergIT(unittest.TestCase):
         float_=(num + float(num) / 100),
         arr_=[num, num, num],
         date_=datetime.date.today() - datetime.timedelta(days=num),
-        timestamp_=Timestamp(123 * num, 456 * num))
+        timestamp_=Timestamp(123 * num, 456 * num),
+        datetime_=DateTime.from_datetime(
+            datetime.datetime(2020, 8, 13, 14, 14, 14) +
+            datetime.timedelta(days=num, microseconds=num)))
 
   def test_write_read_pipeline(self):
     biglake_catalog_props = {

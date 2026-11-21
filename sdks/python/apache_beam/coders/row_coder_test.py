@@ -37,6 +37,7 @@ from apache_beam.typehints.schemas import _SCHEMA_OPTION_STATIC_ENCODING
 from apache_beam.typehints.schemas import _static_encoding_option_pb2
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.utils.timestamp import DateTime
 from apache_beam.utils.timestamp import Timestamp
 
 Person = typing.NamedTuple(
@@ -258,6 +259,59 @@ class RowCoderTest(unittest.TestCase):
         decoded = coder.decode(coder.encode(test_case))
         self.assertEqual(test_case, decoded)
         self.assertEqual(decoded.event_time.precision(), precision)
+
+  def test_java_datetime_bytes(self):
+    # Bytes from the Java SDK's RowCoder for a SqlTypes.DATETIME field, read
+    # with the schema older SDKs send, minus the Java-serialized payload. Their
+    # STRING "" argument means micros.
+    schema = schema_pb2.Schema(
+        id="java_datetime",
+        fields=[
+            schema_pb2.Field(
+                name="f_datetime",
+                type=schema_pb2.FieldType(
+                    logical_type=schema_pb2.LogicalType(
+                        urn="beam:logical_type:datetime:v1",
+                        representation=schema_pb2.FieldType(
+                            row_type=schema_pb2.RowType(
+                                schema=schema_pb2.Schema(
+                                    id="java_datetime_repr",
+                                    fields=[
+                                        schema_pb2.Field(
+                                            name="Date",
+                                            type=schema_pb2.FieldType(
+                                                atomic_type=schema_pb2.INT64)),
+                                        schema_pb2.Field(
+                                            name="Time",
+                                            type=schema_pb2.FieldType(
+                                                atomic_type=schema_pb2.INT64)),
+                                    ]))),
+                        argument_type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                        argument=schema_pb2.FieldValue(
+                            atomic_value=schema_pb2.AtomicTypeValue(
+                                string=''))))),
+        ])
+    coder = RowCoder(schema)
+    for encoded, expected in [
+        # 2020-08-13T14:14:14.123456
+        (b'\x01\x00\x02\x00\xb7\x90\x01\x80\xcc\xc9\xbe\xd8\xd3\x0b',
+         DateTime(18487, 51254123456, 6)),
+        # 1969-12-31T23:59:59.999999
+        (
+            b'\x01\x00\x02\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01'
+            b'\x98\xf8\xbb\x8a\xc9\xd2\x13',
+            DateTime(-1, 86399999999, 6)),
+        # 0001-01-01T00:00
+        (b'\x01\x00\x02\x00\xc6\x8d\xd4\xff\xff\xff\xff\xff\xff\x01\x00',
+         DateTime(-719162, 0, 6)),
+        # +10000-01-01T00:00, past what datetime.datetime can hold
+        (b'\x01\x00\x02\x00\xa1\x81\xb3\x01\x00', DateTime(2932897, 0, 6)),
+    ]:
+      decoded = coder.decode(encoded)
+      self.assertEqual(decoded.f_datetime, expected)
+      self.assertEqual(decoded.f_datetime.precision(), expected.precision())
+      self.assertEqual(coder.encode(decoded), encoded)
 
   def test_row_coder_negative_varint(self):
     schema = schema_pb2.Schema(

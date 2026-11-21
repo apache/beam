@@ -34,6 +34,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes         <-----> BYTES
   Buffer        ------> BYTES
   Timestamp     <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  DateTime      <-----> LogicalType(urn="beam:logical_type:datetime:v1")
   datetime.date <-----> LogicalType(urn="beam:logical_type:date:v1")
   datetime.time <-----> LogicalType(urn="beam:logical_type:time:v1")
   Decimal       <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
@@ -104,6 +105,7 @@ from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
+from apache_beam.utils.timestamp import DateTime
 from apache_beam.utils.timestamp import Timestamp
 
 # Simplify to collections.abc implementation once Python 3.11 is deprecated.
@@ -1237,6 +1239,87 @@ class Date(NoArgumentLogicalType[datetime.date, np.int64]):
   def to_language_type(self, value):
     # type: (np.int64) -> datetime.date
     return self.EPOCH + datetime.timedelta(days=value)
+
+
+DateTimeRepresentation = NamedTuple(
+    'DateTimeRepresentation', [('Date', np.int64), ('Time', np.int64)])
+
+_NANOS_PER_DAY = 86400 * 10**9
+
+
+@LogicalType._register_internal
+class DateTimeLogicalType(LogicalType[DateTime,
+                                      DateTimeRepresentation,
+                                      np.int32]):
+  """Logical type for ``DateTime``, a date and wall-clock time with no zone.
+
+  ``Date`` counts days since 1970-01-01. ``Time`` counts nanoseconds since
+  midnight, whatever the precision.
+
+  The argument is a precision from 0 to 9 and defaults to 6, like Java's
+  ``SqlTypes.DATETIME``.
+  """
+  def __init__(
+      self, precision: Optional[Union[int, np.integer, str]] = None) -> None:
+    # Older SDKs send a STRING "" argument, or none, and both mean micros.
+    if precision is None or precision == '':
+      precision = DateTime.MICROS_PRECISION
+    # The argument arrives as np.int32 when decoded from a schema proto.
+    if not isinstance(precision, (int, np.integer)):
+      raise ValueError(
+          'DateTime precision must be an integer, but was %r.' % (precision, ))
+    precision = int(precision)
+    if not 0 <= precision <= DateTime.NANOS_PRECISION:
+      raise ValueError(
+          'DateTime precision must be between 0 and %d (inclusive), '
+          'but was %d.' % (DateTime.NANOS_PRECISION, precision))
+    self._precision = precision
+
+  @classmethod
+  def urn(cls):
+    return common_urns.datetime.urn
+
+  @classmethod
+  def language_type(cls):
+    return DateTime
+
+  @classmethod
+  def representation_type(cls):
+    return DateTimeRepresentation
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self._precision
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
+
+  def to_representation_type(self, value: DateTime) -> DateTimeRepresentation:
+    if not isinstance(value, DateTime):
+      raise TypeError(
+          'Expected a DateTime, but got %r. Use DateTime.from_datetime to '
+          'convert a datetime.datetime.' % (value, ))
+    value = value.to_precision(self._precision)
+    return DateTimeRepresentation(
+        value.epoch_day(),
+        value.to_precision(DateTime.NANOS_PRECISION).time_of_day())
+
+  def to_language_type(self, value) -> DateTime:
+    nanos = int(value.Time)
+    if not 0 <= nanos < _NANOS_PER_DAY:
+      raise ValueError(
+          'Invalid Time %d for DateTime: it must count nanoseconds within a '
+          'day.' % nanos)
+    scale = 10**(DateTime.NANOS_PRECISION - self._precision)
+    if nanos % scale:
+      raise ValueError(
+          'Invalid Time %d for DateTime with precision %d.' %
+          (nanos, self._precision))
+    return DateTime(int(value.Date), nanos // scale, self._precision)
 
 
 @LogicalType._register_internal
