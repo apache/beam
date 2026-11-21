@@ -61,6 +61,8 @@ cdef class ScopedState(object):
   cdef int32_t old_state_index
   cdef readonly MetricsContainer metrics_container
 
+  cpdef set_metrics_container(self, metrics_container)
+
   cpdef __enter__(self)
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback)

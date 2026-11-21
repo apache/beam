@@ -87,6 +87,9 @@ class ScopedState(object):
     self.nsecs = 0
     self.metrics_container = metrics_container
 
+  def set_metrics_container(self, metrics_container):
+    self.metrics_container = metrics_container
+
   def sampled_seconds(self) -> float:
     return 1e-9 * self.nsecs
 

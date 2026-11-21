@@ -156,7 +156,9 @@ class StateSampler(statesampler_impl.StateSampler):
         step_name=name_context.metrics_name(),
         io_target=io_target)
     if counter_name in self._states_by_name:
-      return self._states_by_name[counter_name]
+      state = self._states_by_name[counter_name]
+      state.set_metrics_container(metrics_container)
+      return state
     else:
       output_counter = self._counter_factory.get_counter(
           counter_name, Counter.SUM)
