@@ -45,6 +45,12 @@ __all__ = ['FileBasedSink']
 _LOGGER = logging.getLogger(__name__)
 
 
+def _escape_glob(path):
+  """Returns a pattern that matches only `path`, even if it contains
+  the glob characters `*`, `?` or `[`."""
+  return re.sub(r'([*?[])', r'[\1]', path)
+
+
 class FileBasedSink(iobase.Sink):
   """A sink to a GCS or local files.
 
@@ -252,14 +258,16 @@ class FileBasedSink(iobase.Sink):
       window_utc = (
           '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
           w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
+    # Only the shard name part is a glob. The prefix and suffix must match
+    # literally, or pre_finalize could delete unrelated files.
     return ''.join([
-        self.file_path_prefix.get(),
+        _escape_glob(self.file_path_prefix.get()),
         self.shard_name_glob_format % dict(
             num_shards=num_shards,
             uuid=(uuid.uuid4()),
             window=w,
             window_utc=window_utc),
-        self.file_name_suffix.get()
+        _escape_glob(self.file_name_suffix.get())
     ])
 
   def pre_finalize(self, init_result, writer_results):
@@ -307,7 +315,8 @@ class FileBasedSink(iobase.Sink):
     if not writer_results:
       return [], [], [], 0
 
-    src_glob = FileSystems.join(FileSystems.split(writer_results[0])[0], '*')
+    src_glob = FileSystems.join(
+        _escape_glob(FileSystems.split(writer_results[0])[0]), '*')
     dst_glob = self._get_final_name_glob(num_shards, window)
     src_glob_files = set(
         file_metadata.path for mr in FileSystems.match([src_glob])
