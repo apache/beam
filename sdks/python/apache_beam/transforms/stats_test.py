@@ -321,6 +321,29 @@ class ApproximateQuantilesTest(unittest.TestCase):
           equal_to([[3., 0.6720000000000002, 0., -0.6720000000000002, -3.]]),
           label="checkWeightedReversedQuantilesGlobally")
 
+  def test_weighted_quantiles_do_not_depend_on_weight_scale(self):
+    with TestPipeline() as p:
+      for scale in (0.001, 0.5, 1, 1000):
+        uniform = (
+            p | 'Create uniform %s' % scale >> Create([(i, scale)
+                                                       for i in range(101)])
+            | 'Uniform %s' % scale >> beam.ApproximateQuantiles.Globally(
+                5, weighted=True))
+        assert_that(
+            uniform,
+            equal_to([[0, 25, 50, 75, 100]]),
+            label='checkUniform%s' % scale)
+        # The example from the ApproximateQuantiles docstring.
+        skewed = (
+            p | 'Create skewed %s' % scale >> Create(
+                [(i, scale if i < 10 else scale * 1e-5) for i in range(101)])
+            | 'Skewed %s' % scale >> beam.ApproximateQuantiles.Globally(
+                5, weighted=True))
+        assert_that(
+            skewed,
+            equal_to([[0, 2, 5, 7, 100]]),
+            label='checkSkewed%s' % scale)
+
   def test_quantiles_per_key(self):
     with TestPipeline() as p:
       data = self._kv_data
