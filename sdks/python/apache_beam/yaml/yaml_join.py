@@ -57,20 +57,34 @@ def _validate_type(type, pcolls):
         f'it must be one of the following: "inner", "outer", "left", "right"')
 
 
+def _extract_field_names(pcoll):
+  element_type = getattr(pcoll, 'element_type', None)
+  if element_type is None or element_type is Any:
+    return None
+  try:
+    from apache_beam.typehints.schemas import named_fields_from_element_type
+    return {name for name, _ in named_fields_from_element_type(element_type)}
+  except Exception:
+    pass
+  raw_fields = getattr(element_type, '_fields', None)
+  if raw_fields:
+    if all(isinstance(field, tuple) for field in raw_fields):
+      return set(dict(raw_fields).keys())
+    return set(raw_fields)
+  return None
+
+
 def _validate_equalities(equalities, pcolls):
   error_prefix = f'Invalid value "{equalities}" for "equalities".'
 
   valid_cols = {
-      name: set(
-          dict(fields).keys() if fields and all(
-              isinstance(field, tuple) for field in fields) else fields)
+      name: _extract_field_names(pcoll)
       for (name, pcoll) in pcolls.items()
-      for fields in [getattr(pcoll.element_type, '_fields', [])]
   }
 
   if isinstance(equalities, str):
     for cols in valid_cols.values():
-      if equalities not in cols:
+      if cols is not None and equalities not in cols:
         raise ValueError(
             f'{error_prefix} When "equalities" is a str, '
             f'it must be a field name that exists in all the specified inputs.')
@@ -94,7 +108,8 @@ def _validate_equalities(equalities, pcolls):
       if pcoll_tag not in pcolls:
         raise ValueError(
             f'{error_prefix} "{pcoll_tag}" is not a specified alias in "input"')
-      if col not in valid_cols[pcoll_tag]:
+      cols = valid_cols[pcoll_tag]
+      if cols is not None and col not in cols:
         raise ValueError(
             f'{error_prefix} "{col}" is not a valid field in "{pcoll_tag}".')
 
