@@ -1537,6 +1537,49 @@ public class BigQueryUtilsTest {
     assertEquals(123456789, ((java.time.Instant) row9.getValue("ts")).getNano());
   }
 
+  @Test
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  public void testToBeamRow_nanosInstant_utcSuffix() {
+    Schema schema = Schema.builder().addLogicalTypeField("ts", new NanosInstant()).build();
+
+    // BigQuery format with " UTC" suffix
+    String timestamp = "2024-08-10 16:52:07.123456789 UTC";
+
+    Row beamRow = BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", timestamp));
+
+    java.time.Instant actual = (java.time.Instant) beamRow.getValue("ts");
+    assertEquals(2024, actual.atZone(java.time.ZoneOffset.UTC).getYear());
+    assertEquals(8, actual.atZone(java.time.ZoneOffset.UTC).getMonthValue());
+    assertEquals(10, actual.atZone(java.time.ZoneOffset.UTC).getDayOfMonth());
+    assertEquals(16, actual.atZone(java.time.ZoneOffset.UTC).getHour());
+    assertEquals(52, actual.atZone(java.time.ZoneOffset.UTC).getMinute());
+    assertEquals(7, actual.atZone(java.time.ZoneOffset.UTC).getSecond());
+    assertEquals(123456789, actual.getNano());
+  }
+
+  @Test
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  public void testToBeamRow_nanosInstant_variablePrecision() {
+    // Test that different decimal place counts are handled
+    Schema schema = Schema.builder().addLogicalTypeField("ts", new NanosInstant()).build();
+
+    // 3 decimal places
+    Row row3 =
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10 16:52:07.123 UTC"));
+    assertEquals(123000000, ((java.time.Instant) row3.getValue("ts")).getNano());
+
+    // 6 decimal places
+    Row row6 =
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456 UTC"));
+    assertEquals(123456000, ((java.time.Instant) row6.getValue("ts")).getNano());
+
+    // 9 decimal places
+    Row row9 =
+        BigQueryUtils.toBeamRow(
+            schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456789 UTC"));
+    assertEquals(123456789, ((java.time.Instant) row9.getValue("ts")).getNano());
+  }
+
   /** Computes expected epoch seconds from an ISO-8601 timestamp. */
   private static long expectedSeconds(String isoTimestamp) {
     return java.time.Instant.parse(isoTimestamp).getEpochSecond();

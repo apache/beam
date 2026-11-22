@@ -843,9 +843,8 @@ public class BigQueryUtils {
           java.time.format.DateTimeFormatter localDateTimeFormatter =
               (0 == localDateTime.getNano()) ? ISO_LOCAL_DATE_TIME : BIGQUERY_DATETIME_FORMATTER;
           return localDateTimeFormatter.format(localDateTime);
-        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
-          return BigQueryAvroUtils.formatTimestamp((java.time.Instant) fieldValue);
-        } else if (NanosInstant.IDENTIFIER.equals(identifier)) {
+        } else if (Timestamp.IDENTIFIER.equals(identifier)
+            || NanosInstant.IDENTIFIER.equals(identifier)) {
           return BigQueryAvroUtils.formatTimestamp((java.time.Instant) fieldValue);
         } else if ("Enum".equals(identifier)) {
           return fieldType
@@ -948,7 +947,8 @@ public class BigQueryUtils {
         } catch (NumberFormatException e) {
           return java.time.Instant.parse(jsonBQString);
         }
-      } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
+      } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)
+          || fieldType.isLogicalType(NanosInstant.IDENTIFIER)) {
         if (!jsonBQString.contains("UTC")) {
           BigDecimal bd = new BigDecimal(jsonBQString);
           long seconds = bd.longValue();

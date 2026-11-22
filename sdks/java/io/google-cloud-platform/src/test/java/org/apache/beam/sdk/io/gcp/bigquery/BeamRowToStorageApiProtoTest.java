@@ -47,6 +47,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
@@ -77,6 +78,14 @@ public class BeamRowToStorageApiProtoTest {
   private static final Schema TIMESTAMP_NANOS_ARRAY_SCHEMA =
       Schema.builder()
           .addField("timestampNanosArray", FieldType.array(FieldType.logicalType(Timestamp.NANOS)))
+          .build();
+  private static final Schema NANOS_INSTANT_SCHEMA =
+      Schema.builder()
+          .addField("nanosInstant", FieldType.logicalType(new NanosInstant()).withNullable(true))
+          .build();
+  private static final Schema NANOS_INSTANT_ARRAY_SCHEMA =
+      Schema.builder()
+          .addField("nanosInstantArray", FieldType.array(FieldType.logicalType(new NanosInstant())))
           .build();
   private static final EnumerationType TEST_ENUM =
       EnumerationType.create("ONE", "TWO", "RED", "BLUE");
@@ -666,6 +675,70 @@ public class BeamRowToStorageApiProtoTest {
     DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, row, null, -1);
 
     FieldDescriptor field = descriptor.findFieldByName("timestampnanos");
+    DynamicMessage picos = (DynamicMessage) msg.getField(field);
+    Descriptor picosDesc = field.getMessageType();
+
+    assertEquals(
+        TEST_INSTANT_NANOS.getEpochSecond(), picos.getField(picosDesc.findFieldByName("seconds")));
+    assertEquals(
+        TEST_INSTANT_NANOS.getNano() * 1000L,
+        picos.getField(picosDesc.findFieldByName("picoseconds")));
+  }
+
+  @Test
+  public void testNanosInstantSchema() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NANOS_INSTANT_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testNanosInstantArraySchema() {
+    com.google.cloud.bigquery.storage.v1.TableSchema protoSchema =
+        BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NANOS_INSTANT_ARRAY_SCHEMA);
+
+    assertEquals(1, protoSchema.getFieldsCount());
+    TableFieldSchema field = protoSchema.getFields(0);
+    assertEquals(TableFieldSchema.Type.TIMESTAMP, field.getType());
+    assertEquals(
+        com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REPEATED, field.getMode());
+    assertEquals(12L, field.getTimestampPrecision().getValue());
+  }
+
+  @Test
+  public void testNanosInstantDescriptor() throws Exception {
+    DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NANOS_INSTANT_SCHEMA),
+            true,
+            false);
+
+    FieldDescriptorProto field = descriptor.getField(0);
+    assertEquals("nanosinstant", field.getName());
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, field.getType());
+    assertEquals("TimestampPicos", field.getTypeName());
+  }
+
+  @Test
+  public void testNanosInstantMessage() throws Exception {
+    Row row =
+        Row.withSchema(NANOS_INSTANT_SCHEMA)
+            .withFieldValue("nanosInstant", TEST_INSTANT_NANOS)
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NANOS_INSTANT_SCHEMA),
+            true,
+            false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, row, null, -1);
+
+    FieldDescriptor field = descriptor.findFieldByName("nanosinstant");
     DynamicMessage picos = (DynamicMessage) msg.getField(field);
     Descriptor picosDesc = field.getMessageType();
 
