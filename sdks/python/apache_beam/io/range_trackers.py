@@ -126,6 +126,8 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_attempted_record_start = record_start
       if record_start >= self.stop_position():
         return False
+      if self._last_record_start == -1:
+        self._start_offset = record_start
       self._offset_of_last_split_point = record_start
       self._last_record_start = record_start
       self._split_points_seen += 1
