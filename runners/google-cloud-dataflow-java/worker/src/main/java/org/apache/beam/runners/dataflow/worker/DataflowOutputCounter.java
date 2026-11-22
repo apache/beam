@@ -51,6 +51,8 @@ public class DataflowOutputCounter implements ElementCounter {
   // interface checks (`instanceof SingleWindowedValue` followed by `checkcast WindowedValue` in
   // SimpleParDoFn.processElement) across concurrent worker threads, while avoiding
   // TimestampedValueInSingleWindow.getWindows()'s per-element Collections.singletonList allocation.
+  //
+  // TODO: Once Beam is on JDK 24, we can revert to the simpler instanceof call.
   private static final Class<?> VALUE_IN_GLOBAL_WINDOW_CLASS =
       WindowedValues.valueInGlobalWindow(null).getClass();
   private static final Class<?> TIMESTAMPED_VALUE_IN_GLOBAL_WINDOW_CLASS =
