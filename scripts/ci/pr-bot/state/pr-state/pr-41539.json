@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "java": "kennknowles"
+  },
   "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
