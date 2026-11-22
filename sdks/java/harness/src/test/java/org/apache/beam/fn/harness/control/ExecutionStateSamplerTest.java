@@ -32,9 +32,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
@@ -897,5 +902,51 @@ public class ExecutionStateSamplerTest {
             PipelineOptionsFactory.create(), clock, mockOnTimeoutExceededCallback);
     assertThat(sampler.getUserSpecifiedLullTimeMsForRestart(), equalTo(0L));
     assertThat(sampler.getUserSpecifiedTimeoutForRestart(), equalTo(false));
+  }
+
+  @Test
+  public void testConcurrentStartResetAndSampling() throws Exception {
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(
+            PipelineOptionsFactory.fromArgs("--experiments=state_sampling_period_millis=5")
+                .create(),
+            System::currentTimeMillis,
+            mockOnTimeoutExceededCallback);
+    int numThreads = 16;
+    int iterations = 500;
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    try {
+      List<Future<?>> futures = new ArrayList<>(numThreads);
+      for (int t = 0; t < numThreads; t++) {
+        final int threadId = t;
+        futures.add(
+            executor.submit(
+                () -> {
+                  ExecutionStateTracker tracker = sampler.create();
+                  ExecutionState state =
+                      tracker.create(
+                          "short-" + threadId,
+                          "transform-" + threadId,
+                          "unique-" + threadId,
+                          "process");
+                  Map<String, ByteString> monitoringData = new HashMap<>();
+                  for (int i = 0; i < iterations; i++) {
+                    tracker.start("bundle-" + threadId + "-" + i);
+                    state.activate();
+                    state.deactivate();
+                    monitoringData.clear();
+                    tracker.updateFinalMonitoringData(monitoringData);
+                    tracker.reset();
+                    assertNull(tracker.getStatus());
+                  }
+                }));
+      }
+      for (Future<?> future : futures) {
+        future.get(30, TimeUnit.SECONDS);
+      }
+    } finally {
+      sampler.stop();
+      executor.shutdownNow();
+    }
   }
 }

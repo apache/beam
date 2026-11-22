@@ -79,16 +79,26 @@ public class MetricsMap<K, T> implements Serializable {
     return Iterables.unmodifiableIterable(metrics.values());
   }
 
+  /** Returns {@code true} if this map contains no metric entries. */
+  public boolean isEmpty() {
+    return metrics.isEmpty();
+  }
+
   /** Operates on each value in the metric map. * */
   public void forEachValue(Consumer<T> c) {
-    metrics.forEach(
-        (k, v) -> {
-          c.accept(v);
-        });
+    if (metrics.isEmpty()) {
+      return;
+    }
+    for (T value : metrics.values()) {
+      c.accept(value);
+    }
   }
 
   /** Operates on each entry in the metric map. * */
   public void forEach(BiConsumer<K, T> c) {
+    if (metrics.isEmpty()) {
+      return;
+    }
     metrics.forEach(c);
   }
 

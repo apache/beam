@@ -95,6 +95,27 @@ public class MetricsMapTest {
     Assert.assertNotEquals(metricsMap.hashCode(), differentMetrics.hashCode());
   }
 
+  @Test
+  public void testIsEmptyAndForEach() {
+    Assert.assertTrue(metricsMap.isEmpty());
+    AtomicLong visited = new AtomicLong();
+    metricsMap.forEachValue(v -> visited.incrementAndGet());
+    metricsMap.forEach((k, v) -> visited.incrementAndGet());
+    Assert.assertEquals(0L, visited.get());
+
+    metricsMap.get("foo").set(3L);
+    metricsMap.get("bar").set(7L);
+    Assert.assertFalse(metricsMap.isEmpty());
+
+    AtomicLong valueSum = new AtomicLong();
+    metricsMap.forEachValue(v -> valueSum.addAndGet(v.get()));
+    Assert.assertEquals(10L, valueSum.get());
+
+    AtomicLong entrySum = new AtomicLong();
+    metricsMap.forEach((k, v) -> entrySum.addAndGet(v.get()));
+    Assert.assertEquals(10L, entrySum.get());
+  }
+
   private static Matcher<Map.Entry<String, AtomicLong>> hasEntry(
       final String key, final AtomicLong value) {
     return new TypeSafeMatcher<Entry<String, AtomicLong>>() {
