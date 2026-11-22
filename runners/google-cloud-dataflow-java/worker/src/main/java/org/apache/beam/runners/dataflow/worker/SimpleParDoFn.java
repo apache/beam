@@ -123,12 +123,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   @SuppressWarnings("unchecked")
   public void processElement(Object untypedElem) throws Exception {
     if (helpers.fnRunner == null) {
-      // If we need to run reallyStartBundle in here, we need to make sure to switch the state
-      // sampler into the start state.
-      try (Closeable start = helpers.operationContext.enterStart()) {
-        helpers.reallyStartBundle();
-        onStartKey();
-      }
+      lazyStartBundle();
     }
     helpers.outputsPerElementTracker.onProcessElement();
 
@@ -138,35 +133,45 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     helpers.outputsPerElementTracker.onProcessElementSuccess();
   }
 
-  protected void onProcessWindowedValue(WindowedValue<InputT> elem) {
-    boolean hasState = helpers.hasState();
+  private void lazyStartBundle() throws Exception {
+    // If we need to run reallyStartBundle in here, we need to make sure to switch the state
+    // sampler into the start state.
+    try (Closeable start = helpers.operationContext.enterStart()) {
+      helpers.reallyStartBundle();
+      onStartKey();
+    }
+  }
 
+  protected void onProcessWindowedValue(WindowedValue<InputT> elem) {
     if (sideInputProcessor != null) {
-      Collection<W> windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
-      for (Iterator<? extends WindowedValue<InputT>> it =
-              sideInputProcessor.handleProcessElement(elem);
-          it.hasNext(); ) {
-        WindowedValue<InputT> toProcess = it.next();
-        helpers.fnRunner.processElement(toProcess);
-        if (hasState) {
-          windowsProcessed.addAll((Collection<W>) toProcess.getWindows());
-          // If the element was blocked, don't register a cleanup timer. The timer will be
-          // registered
-          // when the window is unblocked ensuring that it is not processed until the element is.
-        }
-      }
+      processWithSideInputs(elem);
+      return;
+    }
+    helpers.fnRunner.processElement(elem);
+    if (helpers.hasState()) {
+      helpers.registerStateCleanup(
+          (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(), elem);
+    }
+  }
+
+  private void processWithSideInputs(WindowedValue<InputT> elem) {
+    boolean hasState = helpers.hasState();
+    Collection<W> windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
+    for (Iterator<? extends WindowedValue<InputT>> it =
+            sideInputProcessor.handleProcessElement(elem);
+        it.hasNext(); ) {
+      WindowedValue<InputT> toProcess = it.next();
+      helpers.fnRunner.processElement(toProcess);
       if (hasState) {
-        helpers.registerStateCleanup(
-            (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
-            windowsProcessed);
+        windowsProcessed.addAll((Collection<W>) toProcess.getWindows());
+        // If the element was blocked, don't register a cleanup timer. The timer will be
+        // registered when the window is unblocked ensuring that it is not processed until the
+        // element is.
       }
-    } else {
-      helpers.fnRunner.processElement(elem);
-      if (hasState) {
-        helpers.registerStateCleanup(
-            (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(),
-            (Collection<W>) elem.getWindows());
-      }
+    }
+    if (hasState) {
+      helpers.registerStateCleanup(
+          (WindowingStrategy<?, W>) helpers.activeFnInfo.getWindowingStrategy(), windowsProcessed);
     }
   }
 

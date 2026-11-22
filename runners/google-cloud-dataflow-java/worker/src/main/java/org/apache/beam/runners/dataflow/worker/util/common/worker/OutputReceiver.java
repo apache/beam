@@ -21,76 +21,119 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Receiver that forwards each input it receives to each of a list of output Receivers.
  * Additionally, it invokes output counters who track size information for elements passing through.
  */
 public class OutputReceiver implements Receiver {
-  private static final Receiver[] EMPTY_RECEIVERS = new Receiver[0];
-  private static final ElementCounter[] EMPTY_COUNTERS = new ElementCounter[0];
+  private final List<@Nullable Receiver> outputs = new ArrayList<>(2);
+  private final HashMap<String, ElementCounter> outputCounters = new LinkedHashMap<>(4);
 
-  private final List<Receiver> outputs = new ArrayList<>();
-  private final HashMap<String, ElementCounter> outputCounters = new LinkedHashMap<>();
-  private Receiver[] outputsArray = EMPTY_RECEIVERS;
-  private ElementCounter[] outputCountersArray = EMPTY_COUNTERS;
+  // Pre-resolved dispatch state maintained on addOutput / addOutputCounter so the dominant
+  // 1-counter / 1-receiver hot path avoids iterator allocations, array indirections, and bounds
+  // checks. When count == 0 both are null; when count == 1 single* is non-null; when count >= 2
+  // multiple* holds the compact non-null snapshot array.
+  private @Nullable Receiver singleOutput;
+  private Receiver @Nullable [] multipleOutputs;
+  private @Nullable ElementCounter singleCounter;
+  private ElementCounter @Nullable [] multipleCounters;
 
   /** Adds a new receiver that this OutputReceiver forwards to. */
-  public void addOutput(Receiver receiver) {
+  public void addOutput(@Nullable Receiver receiver) {
     outputs.add(receiver);
-    outputsArray = outputs.toArray(new Receiver[0]);
+    if (receiver == null) {
+      return;
+    }
+    if (multipleOutputs != null) {
+      int len = multipleOutputs.length;
+      Receiver[] updated = new Receiver[len + 1];
+      System.arraycopy(multipleOutputs, 0, updated, 0, len);
+      updated[len] = receiver;
+      multipleOutputs = updated;
+    } else if (singleOutput == null) {
+      singleOutput = receiver;
+    } else {
+      multipleOutputs = new Receiver[] {singleOutput, receiver};
+      singleOutput = null;
+    }
   }
 
   public void addOutputCounter(ElementCounter outputCounter) {
-    outputCounters.put(Integer.toString(outputCounters.size()), outputCounter);
-    outputCountersArray = outputCounters.values().toArray(new ElementCounter[0]);
+    addOutputCounter(Integer.toString(outputCounters.size()), outputCounter);
   }
 
   public void addOutputCounter(String counterName, ElementCounter outputCounter) {
-    outputCounters.put(counterName, outputCounter);
-    outputCountersArray = outputCounters.values().toArray(new ElementCounter[0]);
+    outputCounters.put(counterName, Objects.requireNonNull(outputCounter));
+    int size = outputCounters.size();
+    if (size == 1) {
+      singleCounter = outputCounter;
+      multipleCounters = null;
+    } else {
+      singleCounter = null;
+      multipleCounters = outputCounters.values().toArray(new ElementCounter[0]);
+    }
   }
 
   @Override
   public void process(Object elem) throws Exception {
-    ElementCounter[] counters = this.outputCountersArray;
-    int numCounters = counters.length;
-    if (numCounters == 1) {
-      counters[0].update(elem);
+    ElementCounter counter = this.singleCounter;
+    ElementCounter @Nullable [] counters = null;
+    if (counter != null) {
+      counter.update(elem);
     } else {
-      for (int i = 0; i < numCounters; i++) {
-        counters[i].update(elem);
+      counters = this.multipleCounters;
+      if (counters != null) {
+        updateMultipleCounters(counters, elem);
       }
     }
 
     // Fan-out.
-    Receiver[] outs = this.outputsArray;
-    int numOuts = outs.length;
-    if (numOuts == 1) {
-      Receiver out = outs[0];
-      if (out != null) {
-        out.process(elem);
-      }
+    Receiver out = this.singleOutput;
+    if (out != null) {
+      out.process(elem);
     } else {
-      for (int i = 0; i < numOuts; i++) {
-        Receiver out = outs[i];
-        if (out != null) {
-          out.process(elem);
-        }
+      Receiver[] outs = this.multipleOutputs;
+      if (outs != null) {
+        processMultipleOutputs(outs, elem);
       }
     }
 
-    if (numCounters == 1) {
-      counters[0].finishLazyUpdate(elem);
-    } else {
-      for (int i = 0; i < numCounters; i++) {
-        counters[i].finishLazyUpdate(elem);
-      }
+    if (counter != null) {
+      counter.finishLazyUpdate(elem);
+    } else if (counters != null) {
+      finishLazyMultipleCounters(counters, elem);
     }
   }
 
+  private static void updateMultipleCounters(ElementCounter[] counters, Object elem)
+      throws Exception {
+    for (int i = 0; i < counters.length; i++) {
+      counters[i].update(elem);
+    }
+  }
+
+  private static void processMultipleOutputs(Receiver[] outs, Object elem) throws Exception {
+    for (int i = 0; i < outs.length; i++) {
+      outs[i].process(elem);
+    }
+  }
+
+  private static void finishLazyMultipleCounters(ElementCounter[] counters, Object elem) {
+    for (int i = 0; i < counters.length; i++) {
+      counters[i].finishLazyUpdate(elem);
+    }
+  }
+
+  /**
+   * Returns a snapshot copy of the registered output counters keyed by counter name. Callers must
+   * use {@link #addOutputCounter} to register new counters; mutating the returned map does not
+   * affect this receiver.
+   */
   public HashMap<String, ElementCounter> getOutputCounters() {
-    return this.outputCounters;
+    return new LinkedHashMap<>(this.outputCounters);
   }
 
   /** Invoked by tests only. */
@@ -99,7 +142,7 @@ public class OutputReceiver implements Receiver {
   }
 
   /** Invoked by tests only. */
-  public Receiver getOnlyReceiver() {
+  public @Nullable Receiver getOnlyReceiver() {
     if (outputs.size() != 1) {
       throw new AssertionError("only one receiver expected");
     }
