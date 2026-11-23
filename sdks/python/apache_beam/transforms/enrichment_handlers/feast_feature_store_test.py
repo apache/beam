@@ -18,6 +18,7 @@ import os
 import unittest
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -67,6 +68,7 @@ class TestFeastFeatureStoreHandler(unittest.TestCase):
       )
 
 
+@pytest.mark.uses_feast
 class TestFeastFeatureStoreHandlerUnit(unittest.TestCase):
   """CPU-only unit tests that mock out GCS and the Feast feature store."""
   _MODULE = 'apache_beam.transforms.enrichment_handlers.feast_feature_store'
@@ -85,7 +87,7 @@ class TestFeastFeatureStoreHandlerUnit(unittest.TestCase):
     handler = self._build_handler(
         feature_names=['x'], entity_row_fn=lambda row: {'user_id': row.id})
     self.assertEqual(
-        handler.get_cache_key(beam.Row(id=5)), 'entity_id: user_id: 5')
+        handler.get_cache_key(beam.Row(id=5)), "entity_id: [('user_id', 5)]")
 
   def test_get_cache_key_with_compound_entity_row_fn(self):
     # Compound (multi-entity) mappings must produce a stable, order-independent
@@ -97,7 +99,18 @@ class TestFeastFeatureStoreHandlerUnit(unittest.TestCase):
         })
     self.assertEqual(
         handler.get_cache_key(beam.Row(id=5, country='US')),
-        'entity_id: country: US, user_id: 5')
+        "entity_id: [('country', 'US'), ('user_id', 5)]")
+
+  def test_get_cache_key_with_entity_row_fn_is_unambiguous(self):
+    # Values are rendered with repr(), so an int and its string form, or a
+    # string value containing the separator, cannot share a cache key.
+    handler = self._build_handler(
+        feature_names=['x'], entity_row_fn=lambda row: row.entities)
+    entity_dicts = [
+        dict(a=1), dict(a='1'), dict(a='1, b: 2'), dict(a='1', b='2')
+    ]
+    keys = [handler.get_cache_key(beam.Row(entities=e)) for e in entity_dicts]
+    self.assertEqual(len(set(keys)), len(keys))
 
   def test_call_raises_when_features_missing_and_level_raise(self):
     handler = self._build_handler(
@@ -125,6 +138,20 @@ class TestFeastFeatureStoreHandlerUnit(unittest.TestCase):
     with self.assertLogs(feast_feature_store._LOGGER, level='WARNING') as logs:
       _, response = handler(beam.Row(user_id=1))
     self.assertTrue(any('state' in message for message in logs.output))
+    self.assertIsNone(response.state)
+
+  def test_call_is_silent_when_features_missing_and_level_quiet(self):
+    handler = self._build_handler(
+        entity_id='user_id',
+        feature_names=['state'],
+        exception_level=ExceptionLevel.QUIET)
+    handler.features = ['state']
+    handler.store = mock.MagicMock()
+    handler.store.get_online_features.return_value.to_dict.return_value = {
+        'user_id': [1], 'state': [None]
+    }
+    with self.assertNoLogs(feast_feature_store._LOGGER, level='WARNING'):
+      _, response = handler(beam.Row(user_id=1))
     self.assertIsNone(response.state)
 
   def test_call_does_not_warn_when_features_present(self):
@@ -177,6 +204,7 @@ class TestFeastFeatureStoreHandlerUnit(unittest.TestCase):
           feature_service_name='missing_service', entity_id='user_id')
       with self.assertRaises(RuntimeError):
         handler.__enter__()
+    self.assertIsNone(handler.store)
     self.assertEqual(len(downloaded), 1)
     self.assertFalse(os.path.exists(downloaded[0]))
 

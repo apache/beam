@@ -159,6 +159,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
         self.features = self.store.get_feature_service(
             self.feature_service_name)
       except Exception:
+        self.store = None
         self._remove_local_repo_path()
         raise RuntimeError(
             'Could not find the feature service %s for the feature '
@@ -227,9 +228,8 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
       # Build the cache key from the entity key/value pairs returned by
       # `entity_row_fn`. The returned mapping may use entity names that are not
       # columns on the input row, so we must not index back into the request.
-      # Sorting keeps the key stable and collision-free for compound
-      # (multi-entity) mappings.
-      key = ', '.join(
-          '%s: %s' % (name, entity_dict[name]) for name in sorted(entity_dict))
-      return 'entity_id: %s' % key
+      # Sorting keeps the key stable for compound (multi-entity) mappings, and
+      # repr() keeps values unambiguous (e.g. 1 vs '1', or a string value that
+      # contains a separator).
+      return 'entity_id: %r' % (sorted(entity_dict.items()), )
     return 'entity_id: %s' % request._asdict()[self.entity_id]
