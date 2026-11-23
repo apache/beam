@@ -341,9 +341,9 @@ class AccountKeysPolicyComplianceCheck:
         extracted_secrets = [f"{self._denormalize_account_email(account['account_id'])}-key" for account in file_service_accounts]
 
         # Check for managed secrets that are not declared
-        undeclared_secret_count = sum(1 for secret in managed_secrets if secret not in extracted_secrets)
-        if undeclared_secret_count:
-            msg = f"{undeclared_secret_count} managed secret(s) in Secret Manager are not declared in the service account keys file."
+        undeclared_count = sum(1 for item in managed_secrets if item not in extracted_secrets)
+        if undeclared_count:
+            msg = f"{undeclared_count} managed secret(s) in Secret Manager are not declared in the service account keys file."
             compliance_issues.append(msg)
             self.logger.warning(msg)
 
