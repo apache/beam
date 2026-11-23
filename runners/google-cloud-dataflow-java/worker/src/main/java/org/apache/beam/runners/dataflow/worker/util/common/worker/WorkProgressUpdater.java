@@ -26,6 +26,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,9 +43,6 @@ import org.slf4j.LoggerFactory;
 // Very likely real potential for bugs - https://github.com/apache/beam/issues/19274
 @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
 @NotThreadSafe
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class WorkProgressUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(WorkProgressUpdater.class);
 
@@ -67,10 +65,11 @@ public abstract class WorkProgressUpdater {
   private static final long DEFAULT_MAX_REPORTING_INTERVAL_MILLIS = 10 * 60 * 1000;
 
   /**
-   * Worker providing the work progress updates. This is a volatile variable because the worker
-   * thread sets it while the progress updater thread reads it.
+   * Worker providing the work progress updates, or {@code null} while the batch worker is still
+   * creating it. This is a volatile variable because the worker thread sets it while the progress
+   * updater thread reads it.
    */
-  protected volatile WorkExecutor worker = null;
+  protected volatile @Nullable WorkExecutor worker = null;
 
   /** Requested periodic checkpoint period. */
   private final int checkpointPeriodSec;
@@ -111,13 +110,13 @@ public abstract class WorkProgressUpdater {
    * update, or {@code null} if there is nothing to report (if no dynamic split happened since the
    * last progress update).
    */
-  protected NativeReader.DynamicSplitResult dynamicSplitResultToReport;
+  protected NativeReader.@Nullable DynamicSplitResult dynamicSplitResultToReport;
 
   /**
    * @param checkpointPeriodSec the desired amount of time in seconds between periodic checkpoints;
    *     if no periodic checkpoints are desired then pass {@link Integer#MAX_VALUE}
    */
-  public WorkProgressUpdater(WorkExecutor worker, int checkpointPeriodSec) {
+  public WorkProgressUpdater(@Nullable WorkExecutor worker, int checkpointPeriodSec) {
     this(
         worker,
         checkpointPeriodSec,
@@ -137,7 +136,7 @@ public abstract class WorkProgressUpdater {
    */
   @VisibleForTesting
   protected WorkProgressUpdater(
-      WorkExecutor worker,
+      @Nullable WorkExecutor worker,
       int checkpointPeriodSec,
       ScheduledExecutorService executor,
       Clock clock) {
@@ -286,10 +285,11 @@ public abstract class WorkProgressUpdater {
    */
   @GuardedBy("executor")
   protected boolean tryCheckpointIfNeeded() {
-    if (checkpointState == CheckpointState.CHECKPOINT_REQUESTED && worker != null) {
+    WorkExecutor currentWorker = worker;
+    if (checkpointState == CheckpointState.CHECKPOINT_REQUESTED && currentWorker != null) {
       LOG.debug("Trying to checkpoint for work item {}.", workString());
       try {
-        NativeReader.DynamicSplitResult checkpointPos = worker.requestCheckpoint();
+        NativeReader.DynamicSplitResult checkpointPos = currentWorker.requestCheckpoint();
         if (checkpointPos != null) {
           LOG.debug("Successful checkpoint for work item {} at {}.", workString(), checkpointPos);
           dynamicSplitResultToReport = checkpointPos;
@@ -315,7 +315,11 @@ public abstract class WorkProgressUpdater {
       throw oom;
     } catch (InterruptedException e) {
       LOG.info("Cancelling workitem execution: {}", workString(), e);
-      worker.abort();
+      // the batch worker reports progress while the executor is still being created, before
+      // there is a worker to abort
+      if (worker != null) {
+        worker.abort();
+      }
     } catch (Throwable e) {
       LOG.error("Error reporting workitem progress update to Dataflow service: ", e);
     }
@@ -337,7 +341,7 @@ public abstract class WorkProgressUpdater {
   }
 
   @VisibleForTesting
-  public NativeReader.DynamicSplitResult getDynamicSplitResultToReport() {
+  public NativeReader.@Nullable DynamicSplitResult getDynamicSplitResultToReport() {
     return dynamicSplitResultToReport;
   }
 
