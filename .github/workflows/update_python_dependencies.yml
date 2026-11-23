@@ -25,11 +25,7 @@ on:
   - cron: "0 0 * * 0"
   workflow_dispatch:
 permissions:
-  contents: write
-  pull-requests: write
-  checks: read
-  issues: read
-  statuses: read
+  contents: read
 
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
@@ -63,13 +59,16 @@ jobs:
     needs: set-properties
     name: Update Python Dependencies
     timeout-minutes: 180
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+        uses: $/.github/actions/setup-environment-action
         with:
           python-version: |
             3.11
@@ -82,11 +81,11 @@ jobs:
           # generatePythonRequirementsAll does not use tox.
           tox-cache: false
       - name: Update Python Dependencies
-        uses: ./.github/actions/gradle-command-self-hosted-action
+        uses: $/.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:container:generatePythonRequirementsAll
       - name: Install gh cli
-        uses: ./.github/actions/setup-gh-cli-linux
+        uses: $/.github/actions/setup-gh-cli-linux
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
