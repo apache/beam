@@ -26,7 +26,9 @@ import org.apache.beam.sdk.io.iceberg.TableCache;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.util.StructLikeUtil;
 import org.apache.iceberg.util.StructProjection;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -40,12 +42,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class OverlapRange {
   private final Schema recordIdSchema;
   private final StructProjection recordIdProjection;
+  // the PK in Iceberg's internal form (e.g. a date as days since epoch), which idComp expects
+  private final InternalRecordWrapper recordId;
   private final Comparator<StructLike> idComp;
 
   private OverlapRange(
       Schema recordIdSchema, StructProjection recordIdProjection, Comparator<StructLike> idComp) {
     this.recordIdSchema = recordIdSchema;
     this.recordIdProjection = recordIdProjection;
+    this.recordId = new InternalRecordWrapper(recordIdSchema.asStruct());
     this.idComp = idComp;
   }
 
@@ -59,8 +64,9 @@ final class OverlapRange {
         scanConfig.recordIdSchema(), projection, scanConfig.recordIdComparator());
   }
 
-  StructProjection recordIdProjection() {
-    return recordIdProjection;
+  /** The PK of the record last passed to {@link #contains}, in Iceberg's internal form. */
+  StructLike recordIdProjection() {
+    return recordId;
   }
 
   Schema recordIdSchema() {
@@ -72,7 +78,9 @@ final class OverlapRange {
     if (beamBound == null) {
       return null;
     }
-    return IcebergUtils.beamRowToIcebergRecord(recordIdSchema, beamBound);
+    // copied, so comparisons don't convert the bound again each time
+    return StructLikeUtil.copy(
+        recordId.copyFor(IcebergUtils.beamRowToIcebergRecord(recordIdSchema, beamBound)));
   }
 
   /**
@@ -90,12 +98,11 @@ final class OverlapRange {
    * <p>If either bound is null, we conservatively assume it falls within the overlap.
    */
   boolean contains(Record rec, @Nullable StructLike lower, @Nullable StructLike upper) {
-    checkStateNotNull(recordIdProjection).wrap(rec);
+    recordId.wrap(checkStateNotNull(recordIdProjection).wrap(rec));
 
     if (lower == null || upper == null) {
       return true;
     }
-    return idComp.compare(recordIdProjection, lower) >= 0
-        && idComp.compare(recordIdProjection, upper) <= 0;
+    return idComp.compare(recordId, lower) >= 0 && idComp.compare(recordId, upper) <= 0;
   }
 }
