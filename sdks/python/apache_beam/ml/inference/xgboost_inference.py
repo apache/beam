@@ -41,8 +41,7 @@ __all__ = [
     'XGBoostModelHandler',
     'XGBoostModelHandlerNumpy',
     'XGBoostModelHandlerPandas',
-    'XGBoostModelHandlerSciPy',
-    'XGBoostModelHandlerDatatable'
+    'XGBoostModelHandlerSciPy'
 ]
 
 XGBoostInferenceFn = Callable[[
