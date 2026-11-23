@@ -561,7 +561,7 @@ class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
 
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   # Probability of compacting persisted bag accumulators on blind-write commits.
-  _BLIND_WRITE_COMPACT_PROBABILITY = 0.02
+  _BLIND_WRITE_COMPACT_PROBABILITY = 0.1
 
   def __init__(
       self,
