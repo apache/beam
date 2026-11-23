@@ -290,7 +290,7 @@ class KeyService:
         for resource_id, key_ids in deletion_entries:
             matched_account_id = configured_accounts.get(resource_id)
             account_label = matched_account_id if matched_account_id is not None else "unconfigured-account"
-            target_account = matched_account_id if matched_account_id is not None else resource_id
+            target_account = matched_account_id if matched_account_id is not None else resource_id.removesuffix("-key")
             try:
                 for key_id in key_ids:
                     if dry_run:
