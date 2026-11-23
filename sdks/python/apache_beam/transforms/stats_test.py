@@ -323,7 +323,7 @@ class ApproximateQuantilesTest(unittest.TestCase):
 
   def test_weighted_quantiles_do_not_depend_on_weight_scale(self):
     with TestPipeline() as p:
-      for scale in (0.001, 0.5, 1, 1000):
+      for scale in (0.001, 0.3, 0.5, 1, 1000):
         uniform = (
             p | 'Create uniform %s' % scale >> Create([(i, scale)
                                                        for i in range(101)])
@@ -343,6 +343,13 @@ class ApproximateQuantilesTest(unittest.TestCase):
             skewed,
             equal_to([[0, 2, 5, 7, 100]]),
             label='checkSkewed%s' % scale)
+        # The cumulative weight of element 5 is exactly half of the total.
+        tie = (
+            p | 'Create tie %s' % scale >> Create([(i, scale)
+                                                   for i in range(12)])
+            | 'Tie %s' % scale >> beam.ApproximateQuantiles.Globally(
+                3, weighted=True))
+        assert_that(tie, equal_to([[0, 5, 11]]), label='checkTie%s' % scale)
 
   def test_quantiles_per_key(self):
     with TestPipeline() as p:

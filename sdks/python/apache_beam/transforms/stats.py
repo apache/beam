@@ -987,8 +987,12 @@ class ApproximateQuantilesCombineFn(CombineFn):
     if self._spec.weighted:
       # Weights don't count elements, so the -1 below would make the result
       # depend on the scale of the weights. The k-th quantile is the first
-      # element whose cumulative weight is greater than k * step.
-      offset = step
+      # element whose cumulative weight reaches k * step. _interpolate moves
+      # past elements whose cumulative weight is <= its target, so the target
+      # is pulled back by a tiny fraction of the total weight. This picks the
+      # same element for an exact tie at any scale, even when float rounding
+      # puts the cumulative weight just below or above k * step.
+      offset = step - total_weight * 1e-9
     else:
       offset = (total_weight - 1) / (self._num_quantiles - 1)
 
