@@ -171,6 +171,14 @@ class NoInputAnnotation(beam.DoFn):
     yield [element * 2 for element in batch]
 
 
+class NoInputBatchType(beam.DoFn):
+  def process_batch(self, batch, *args, **kwargs):
+    yield [element * 2 for element in batch]
+
+  def get_input_batch_type(self, input_element_type):
+    return None
+
+
 class MismatchedBatchProducingDoFn(beam.DoFn):
   """A DoFn that produces batches from both process and process_batch, with
   mismatched return types (one yields floats, the other ints). Should yield
@@ -219,6 +227,16 @@ class BatchDoFnTest(unittest.TestCase):
 
     with self.assertRaisesRegex(TypeError, r'NoInputAnnotation.process_batch'):
       _ = pc | beam.ParDo(NoInputAnnotation())
+
+  def test_no_input_batch_type_raises(self):
+    p = beam.Pipeline()
+    pc = p | beam.Create([1, 2, 3])
+
+    with self.assertRaisesRegex(
+        TypeError,
+        r'process_batch method on .*NoInputBatchType.* does not have an '
+        r'input type annotation'):
+      _ = pc | beam.ParDo(NoInputBatchType())
 
   def test_unsupported_dofn_param_raises(self):
     class BadParam(beam.DoFn):

@@ -1715,8 +1715,8 @@ class ParDo(PTransformWithSideInputs):
 
       if input_batch_type is None:
         raise TypeError(
-            "process_batch method on {self.fn!r} does not have "
-            "an input type annoation")
+            f"process_batch method on {self.fn!r} does not have "
+            "an input type annotation")
 
       try:
         # Generate a batch converter to convert between the input type and the
@@ -1739,7 +1739,7 @@ class ParDo(PTransformWithSideInputs):
         # TODO: Mention process method in this error
         raise TypeError(
             f"process_batch method on {self.fn!r} does not have "
-            "a return type annoation")
+            "a return type annotation")
 
       # Generate a batch converter to convert between the output type and the
       # (batch) output type of process_batch

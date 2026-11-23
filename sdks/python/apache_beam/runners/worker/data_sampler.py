@@ -274,7 +274,7 @@ class DataSampler:
     except KeyError:
       _LOGGER.warning(
           f'Out-of-bounds access for transform "{transform_id}" ' +
-          'and output "{output_index}" OutputSampler. This may ' +
+          f'and output "{output_index}" OutputSampler. This may ' +
           'indicate that the transform was improperly ' +
           'initialized with the DataSampler.')
       return None
