@@ -454,15 +454,17 @@ public class FileIOTest implements Serializable {
   public void testMatchPollFnTimestampCursorWatermark() throws Exception {
     Path dir = tmpFolder.newFolder("poll_watermark").toPath();
     String pattern = dir.toAbsolutePath() + File.separator + "*";
+    Duration idleDelta = Duration.standardSeconds(10);
 
-    FileIO.MatchAll.MatchPollFn pollFn = new FileIO.MatchAll.MatchPollFn(Duration.ZERO);
-    // Empty match advances watermark to poll time.
+    FileIO.MatchAll.MatchPollFn pollFn = new FileIO.MatchAll.MatchPollFn(Duration.ZERO, idleDelta);
+    // Empty match advances watermark to poll time minus idleWatermarkDelta.
     KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> empty =
         pollFn.poll(pattern, new Instant(4000000L));
     assertTrue(empty.getKey().isEmpty());
-    assertEquals(new Instant(4000000L), empty.getValue());
+    assertEquals(new Instant(4000000L).minus(idleDelta), empty.getValue());
 
-    // Newer match holds watermark at newest mtime and timestamps outputs by mtime.
+    // Newer match advances watermark to newest mtime minus allowedLateness (not delayed by
+    // idleWatermarkDelta) and timestamps outputs by mtime.
     writeFileWithMtime(dir.resolve("a"), 1234000L);
     writeFileWithMtime(dir.resolve("b"), 2345000L);
     KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> first =
@@ -475,27 +477,33 @@ public class FileIOTest implements Serializable {
     assertEquals(new Instant(1234000L), timestampsByFile.get("a"));
     assertEquals(new Instant(2345000L), timestampsByFile.get("b"));
 
-    // Quiet poll releases watermark to poll time; a newer match holds again; future mtime is
-    // capped.
-    assertEquals(new Instant(6000000L), pollFn.poll(pattern, new Instant(6000000L)).getValue());
+    // Quiet poll releases watermark to poll time minus idleWatermarkDelta; a newer match holds at
+    // newest mtime; future mtime is capped at poll time.
+    assertEquals(
+        new Instant(6000000L).minus(idleDelta),
+        pollFn.poll(pattern, new Instant(6000000L)).getValue());
     writeFileWithMtime(dir.resolve("c"), 3456000L);
     assertEquals(new Instant(3456000L), pollFn.poll(pattern, new Instant(7000000L)).getValue());
     writeFileWithMtime(dir.resolve("future"), 9000000L);
     assertEquals(new Instant(8000000L), pollFn.poll(pattern, new Instant(8000000L)).getValue());
 
-    // Watermark delta shifts watermark back, survives serialization, and saturates at min
-    // timestamp.
-    Duration delta = Duration.standardSeconds(30);
-    FileIO.MatchAll.MatchPollFn deltaPollFn =
-        SerializableUtils.clone(new FileIO.MatchAll.MatchPollFn(delta));
+    // Allowed lateness shifts both active and quiet watermarks back, survives serialization, and
+    // saturates at min timestamp.
+    Duration lateness = Duration.standardSeconds(30);
+    FileIO.MatchAll.MatchPollFn latenessPollFn =
+        SerializableUtils.clone(new FileIO.MatchAll.MatchPollFn(lateness, lateness));
     assertEquals(
-        new Instant(5000000L).minus(delta),
-        deltaPollFn.poll(pattern, new Instant(5000000L)).getValue());
-    FileIO.MatchAll.MatchPollFn hugeDeltaPollFn =
-        new FileIO.MatchAll.MatchPollFn(Duration.millis(Long.MAX_VALUE));
+        new Instant(5000000L).minus(lateness),
+        latenessPollFn.poll(pattern, new Instant(5000000L)).getValue());
+    assertEquals(
+        new Instant(6000000L).minus(lateness),
+        latenessPollFn.poll(pattern, new Instant(6000000L)).getValue());
+    FileIO.MatchAll.MatchPollFn hugeLatenessPollFn =
+        new FileIO.MatchAll.MatchPollFn(
+            Duration.millis(Long.MAX_VALUE), Duration.millis(Long.MAX_VALUE));
     assertEquals(
         BoundedWindow.TIMESTAMP_MIN_VALUE,
-        hugeDeltaPollFn.poll(pattern, new Instant(5000000L)).getValue());
+        hugeLatenessPollFn.poll(pattern, new Instant(5000000L)).getValue());
   }
 
   private static class StageTimestampCursorFilesFn

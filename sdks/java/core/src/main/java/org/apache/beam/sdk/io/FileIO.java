@@ -842,14 +842,16 @@ public class FileIO {
         SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
       Duration pollInterval = getConfiguration().getWatchInterval();
       @Nullable Duration allowedLateness = getConfiguration().getTimestampCursorAllowedLateness();
-      @Nullable Duration watermarkDelta = null;
+      @Nullable Duration idleWatermarkDelta = null;
       if (allowedLateness != null) {
-        watermarkDelta =
+        idleWatermarkDelta =
             pollInterval.isLongerThan(allowedLateness) ? pollInterval : allowedLateness;
       }
       Watch.Growth<String, MatchResult.Metadata, KeyT> watch =
           Watch.growthOf(
-                  Contextful.of(new MatchPollFn(watermarkDelta), Requirements.empty()), outputKeyFn)
+                  Contextful.of(
+                      new MatchPollFn(allowedLateness, idleWatermarkDelta), Requirements.empty()),
+                  outputKeyFn)
               .withPollInterval(pollInterval)
               .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
       if (allowedLateness != null) {
@@ -891,18 +893,24 @@ public class FileIO {
     @VisibleForTesting
     static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
       // Null when timestamp cursor is disabled (elements carry poll time). When non-null, elements
-      // carry file last-modified time and the watermark is delayed by this delta to absorb clock
-      // skew and allowed lateness.
-      private final @Nullable Duration watermarkDelta;
+      // carry file last-modified time.
+      private final @Nullable Duration allowedLateness;
+      // Watermark delay applied to local poll time when no newer files are found
+      // (max(pollInterval, allowedLateness)) to absorb local-to-filesystem clock skew.
+      private final @Nullable Duration idleWatermarkDelta;
 
       // Best-effort watermark tracking (not deduplication, which lives in Watch's checkpointed
       // restriction): remembers the greatest last-modified time seen so far so a poll that
       // discovers newer files holds the watermark at the filesystem clock, while a quiet poll
-      // releases it to poll time minus watermarkDelta.
+      // releases it to poll time minus idleWatermarkDelta.
       private transient @Nullable Instant newestMtime;
 
-      MatchPollFn(@Nullable Duration watermarkDelta) {
-        this.watermarkDelta = watermarkDelta;
+      MatchPollFn(@Nullable Duration allowedLateness, @Nullable Duration idleWatermarkDelta) {
+        checkArgument(
+            (allowedLateness == null) == (idleWatermarkDelta == null),
+            "allowedLateness and idleWatermarkDelta must either both be null or both be non-null");
+        this.allowedLateness = allowedLateness;
+        this.idleWatermarkDelta = idleWatermarkDelta;
       }
 
       private synchronized boolean updateNewestMtime(Instant candidate) {
@@ -930,7 +938,7 @@ public class FileIO {
         List<MatchResult.Metadata> metadataList =
             FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata();
         List<TimestampedValue<MatchResult.Metadata>> outputs = new ArrayList<>(metadataList.size());
-        if (watermarkDelta == null) {
+        if (allowedLateness == null) {
           for (MatchResult.Metadata metadata : metadataList) {
             outputs.add(TimestampedValue.of(metadata, now));
           }
@@ -947,13 +955,17 @@ public class FileIO {
         }
 
         // A poll that turned up a newer last-modified time has just read the filesystem clock, so
-        // hold the watermark there (capped at the poll time). A poll that found nothing newer
-        // takes the poll time so a quiet directory does not stall downstream event-time windows.
-        // Delay by watermarkDelta to account for clock skew and allowed lateness.
+        // advance to min(newest, now) - allowedLateness. A poll that found nothing newer advances
+        // to now - idleWatermarkDelta so quiet directories do not stall downstream windows while
+        // absorbing local-to-filesystem clock skew.
         boolean foundNewer = newest != null && updateNewestMtime(newest);
-        Instant baseWatermark =
-            (foundNewer && newest != null && newest.isBefore(now)) ? newest : now;
-        Instant watermark = saturatingMinus(baseWatermark, watermarkDelta);
+        Instant watermark;
+        if (foundNewer && newest != null) {
+          Instant cappedNewest = newest.isBefore(now) ? newest : now;
+          watermark = saturatingMinus(cappedNewest, allowedLateness);
+        } else {
+          watermark = saturatingMinus(now, idleWatermarkDelta);
+        }
         return KV.of(outputs, watermark);
       }
 
