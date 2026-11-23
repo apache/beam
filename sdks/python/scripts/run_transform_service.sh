@@ -76,7 +76,36 @@ TEMP_DIR=/tmp
 case $STARTSTOP in
   start)
     echo "Starting the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
-    java -jar $TRANSFORM_SERVICE_LAUNCHER_JAR --project_name $GROUP_ID --port $EXTERNAL_PORT --beam_version $BEAM_VERSION_DOCKER --command up  >$TEMP_DIR/$FILE_BASE-java1.log 2>&1 </dev/null
+
+    LAUNCH_LOG="$TEMP_DIR/$FILE_BASE-java1.log"
+
+    if ! java -jar "$TRANSFORM_SERVICE_LAUNCHER_JAR" \
+        --project_name "$GROUP_ID" \
+        --port "$EXTERNAL_PORT" \
+        --beam_version "$BEAM_VERSION_DOCKER" \
+        --command up >"$LAUNCH_LOG" 2>&1 </dev/null; then
+
+      echo "=== Transform Service startup failed ==="
+      cat "$LAUNCH_LOG"
+      echo "=== Docker container status ==="
+      docker ps -a \
+        --filter "label=com.docker.compose.project=$GROUP_ID" \
+        --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}' \
+        || true
+
+      echo "=== Docker container logs ==="
+      while IFS= read -r container; do
+        [ -n "$container" ] || continue
+
+        echo "=== Container: $container ==="
+        docker logs --tail 200 "$container" 2>&1 || true
+
+      done < <(
+        docker ps -aq \
+          --filter "label=com.docker.compose.project=$GROUP_ID"
+      )
+      exit 1
+    fi
     ;;
   stop)
     echo "Stopping the transform service for project $GROUP_ID at port $EXTERNAL_PORT for Beam version $BEAM_VERSION_DOCKER  transform service startup jar is $TRANSFORM_SERVICE_LAUNCHER_JAR"
