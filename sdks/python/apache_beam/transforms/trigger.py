@@ -391,7 +391,13 @@ class AfterProcessingTime(TriggerFn):
     self.delay = delay
 
   def __repr__(self):
-    return 'AfterProcessingTime(delay=%d)' % self.delay
+    return 'AfterProcessingTime(delay=%s)' % self.delay
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.delay == other.delay
+
+  def __hash__(self):
+    return hash((type(self), self.delay))
 
   def on_element(self, element, window, context):
     if not context.get_state(self.STATE_TAG):
@@ -419,15 +425,17 @@ class AfterProcessingTime(TriggerFn):
 
   @staticmethod
   def from_runner_api(proto, context):
-    return AfterProcessingTime(
-        delay=(
-            proto.after_processing_time.timestamp_transforms[0].delay.
-            delay_millis) // 1000)
+    delay_millis = (
+        proto.after_processing_time.timestamp_transforms[0].delay.delay_millis)
+    # Keep a delay of whole seconds an int, and the fraction otherwise.
+    if delay_millis % 1000 == 0:
+      return AfterProcessingTime(delay=delay_millis // 1000)
+    return AfterProcessingTime(delay=delay_millis / 1000)
 
   def to_runner_api(self, context):
     delay_proto = beam_runner_api_pb2.TimestampTransform(
         delay=beam_runner_api_pb2.TimestampTransform.Delay(
-            delay_millis=self.delay * 1000))
+            delay_millis=round(self.delay * 1000)))
     return beam_runner_api_pb2.Trigger(
         after_processing_time=beam_runner_api_pb2.Trigger.AfterProcessingTime(
             timestamp_transforms=[delay_proto]))

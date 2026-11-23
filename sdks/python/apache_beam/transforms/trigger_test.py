@@ -547,11 +547,26 @@ class RunnerApiTest(unittest.TestCase):
                        AfterWatermark(early=AfterCount(1000),
                                       late=AfterCount(1)),
                        Repeatedly(AfterCount(100)),
-                       trigger.OrFinally(AfterCount(3), AfterCount(10))):
+                       trigger.OrFinally(AfterCount(3), AfterCount(10)),
+                       AfterProcessingTime(10),
+                       AfterWatermark(early=AfterProcessingTime(0.5))):
       context = pipeline_context.PipelineContext()
       self.assertEqual(
           trigger_fn,
           TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
+
+  def test_after_processing_time_encoding(self):
+    context = pipeline_context.PipelineContext()
+    for delay, delay_millis in ((10, 10000), (0.5, 500), (1.5, 1500)):
+      trigger_fn = AfterProcessingTime(delay)
+      proto = trigger_fn.to_runner_api(context)
+      self.assertEqual(
+          proto.after_processing_time.timestamp_transforms[0].delay.
+          delay_millis,
+          delay_millis)
+      decoded = TriggerFn.from_runner_api(proto, context)
+      self.assertEqual(decoded, trigger_fn)
+      self.assertEqual(repr(decoded), 'AfterProcessingTime(delay=%s)' % delay)
 
 
 class ContinuationTriggerTest(unittest.TestCase):
