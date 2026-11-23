@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import glob
 import logging
 import os
 import re
@@ -48,7 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 def _escape_glob(path):
   """Returns a pattern that matches only `path`, even if it contains
   the glob characters `*`, `?` or `[`."""
-  return re.sub(r'([*?[])', r'[\1]', path)
+  return glob.escape(path)
 
 
 def _delete_literal(paths):
@@ -266,23 +267,28 @@ class FileBasedSink(iobase.Sink):
     ])
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
-  def _get_final_name_glob(self, num_shards, w=None):
+  def _get_final_name_glob(self, num_shards, w=None, escape=True):
     if w is None or isinstance(w, window.GlobalWindow):
       window_utc = None
     else:
       window_utc = (
           '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
           w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
-    # Only the shard name part is a glob. The prefix and suffix must match
-    # literally, or pre_finalize could delete unrelated files.
+    prefix = self.file_path_prefix.get()
+    suffix = self.file_name_suffix.get()
+    if escape:
+      # Only the shard name part is a glob. The prefix and suffix must match
+      # literally, or pre_finalize could delete unrelated files.
+      prefix = _escape_glob(prefix)
+      suffix = _escape_glob(suffix)
     return ''.join([
-        _escape_glob(self.file_path_prefix.get()),
+        prefix,
         self.shard_name_glob_format % dict(
             num_shards=num_shards,
             uuid=(uuid.uuid4()),
             window=w,
             window_utc=window_utc),
-        _escape_glob(self.file_name_suffix.get())
+        suffix
     ])
 
   def pre_finalize(self, init_result, writer_results):
@@ -365,7 +371,9 @@ class FileBasedSink(iobase.Sink):
       src_files.append(src)
       dst_files.append(dst)
 
-    self._report_sink_lineage(dst_glob, dst_files)
+    # Lineage records the output path as written, without the escapes.
+    self._report_sink_lineage(
+        self._get_final_name_glob(num_shards, window, escape=False), dst_files)
     return src_files, dst_files, delete_files, num_skipped
 
   def _report_sink_lineage(self, dst_glob, dst_files):
@@ -481,7 +489,7 @@ class FileBasedSink(iobase.Sink):
           num_skipped)
 
     try:
-      FileSystems.delete([init_result])
+      _delete_literal([init_result])
     except IOError:
       # This error is not serious, we simply log it.
       _LOGGER.info('Unable to delete file: %s', init_result)

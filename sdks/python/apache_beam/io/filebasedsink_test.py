@@ -163,7 +163,13 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
 
     shard1 = temp_path + '-00000-of-00002.output'
     shard2 = temp_path + '-00001-of-00002.output'
-    self.assertEqual(self._write_and_finalize(sink), [shard1, shard2])
+    with mock.patch.object(sink,
+                           '_report_sink_lineage',
+                           wraps=sink._report_sink_lineage) as report_lineage:
+      self.assertEqual(self._write_and_finalize(sink), [shard1, shard2])
+    # Lineage gets the output path as written, not the escaped glob.
+    self.assertEqual(
+        report_lineage.call_args[0][0], temp_path + '-*-of-00002.output')
     self.assertEqual(open(shard1).read(), '[start][a][b][end]')
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
     for other_file in other_files:
@@ -174,6 +180,10 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertEqual(open(shard1).read(), '[start][a][b][end]')
     for other_file in other_files:
       self.assertEqual(open(other_file).read(), 'other')
+    # The temporary directory is removed too.
+    self.assertCountEqual(
+        os.listdir(temp_dir),
+        [os.path.basename(path) for path in [shard1, shard2] + other_files])
 
   def test_file_sink_directory_with_glob_characters(self):
     temp_dir = os.path.join(self._new_tempdir(), 'run[1]')
@@ -191,6 +201,10 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     # Writing again replaces the shards.
     self.assertEqual(self._write_and_finalize(sink), [shard1, shard2])
     self.assertEqual(open(shard1).read(), '[start][a][b][end]')
+    # The temporary directory is removed too.
+    self.assertCountEqual(
+        os.listdir(temp_dir),
+        ['out-00000-of-00002.output', 'out-00001-of-00002.output'])
 
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
