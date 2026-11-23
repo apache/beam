@@ -130,12 +130,13 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.error(f"Failed to retrieve keys for service account '{account_email}': {e}")
             return []
 
-    def _get_verified_keys_from_secret_manager(self, secret_name: str) -> List[str]:
+    def _get_verified_keys_from_secret_manager(self, secret_name: str, account_email: str = "") -> List[str]:
         """
         Retrieves the list of verified keys for a given service account from Secret Manager.
 
         Args:
             secret_name (str): The name of the secret to retrieve keys for.
+            account_email (str): Non-sensitive service account identifier for logging.
 
         Returns:
             List[str]: A list of key IDs for the verified keys associated with the service account.
@@ -153,7 +154,7 @@ class AccountKeysPolicyComplianceCheck:
                     verified_keys.append(key_id)
             return verified_keys
         except Exception as e:
-            self.logger.error(f"Failed to retrieve verified keys from Secret Manager for secret '{secret_name}': {e}")
+            self.logger.error(f"Failed to retrieve verified keys from Secret Manager for service account '{account_email}': {e}")
             return []
 
     def _get_all_live_service_accounts(self) -> List[str]:
@@ -200,12 +201,13 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.error(f"Failed to retrieve secrets for project {self.project_id}: {e}")
             raise
 
-    def _get_all_secret_authorized_users(self, secret_id: str) -> List[str]:
+    def _get_all_secret_authorized_users(self, secret_id: str, account_id: str = "") -> List[str]:
         """
         Retrieves a list of all users who have access to the secrets in the Secret Manager.
 
         Args:
             secret_id (str): The ID of the secret to check access for.
+            account_id (str): Non-sensitive service account ID for logging.
         Returns:
             List[str]: A list of email addresses for all users authorized to access the secrets.
         """
@@ -214,10 +216,12 @@ class AccountKeysPolicyComplianceCheck:
 
         try:
             policy = self.secret_client.get_iam_policy(request={"resource": resource_name})
-            self.logger.debug(f"Retrieved IAM policy for secret '{secret_id}': {policy}")
+            self.logger.debug(
+                f"Retrieved IAM policy with {len(policy.bindings)} binding(s) for service account '{account_id}'"
+            )
 
             if not policy.bindings:
-                self.logger.warning(f"No IAM bindings found for secret '{secret_id}'.")
+                self.logger.warning(f"No IAM bindings found for service account '{account_id}'.")
                 return []
             
             authorized_users = []
@@ -228,7 +232,7 @@ class AccountKeysPolicyComplianceCheck:
             
             return authorized_users
         except Exception as e:
-            self.logger.error(f"Failed to get IAM policy for secret '{secret_id}': {e}")
+            self.logger.error(f"Failed to get IAM policy for service account '{account_id}': {e}")
             raise
 
     def _read_service_account_keys(self) -> ServiceAccountsConfig:
@@ -327,7 +331,7 @@ class AccountKeysPolicyComplianceCheck:
                 secret_name = f"{self._denormalize_account_email(service_account)}-key"
                 legal_keys = []
                 if secret_name in managed_secrets:
-                    legal_keys = self._get_verified_keys_from_secret_manager(secret_name)
+                    legal_keys = self._get_verified_keys_from_secret_manager(secret_name, service_account)
                 unmanaged_keys = set(iam_keys) - set(legal_keys)
                 for unmanaged_key in unmanaged_keys:
                     msg = f"IAC_DRIFT_SA_KEY: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
@@ -337,12 +341,11 @@ class AccountKeysPolicyComplianceCheck:
         extracted_secrets = [f"{self._denormalize_account_email(account['account_id'])}-key" for account in file_service_accounts]
 
         # Check for managed secrets that are not declared
-        for secret in managed_secrets:
-            if secret not in extracted_secrets:
-                masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
-                msg = f"Managed secret '{masked_secret}' is not declared in the service account keys file."
-                compliance_issues.append(msg)
-                self.logger.warning(msg)
+        undeclared_secret_count = sum(1 for secret in managed_secrets if secret not in extracted_secrets)
+        if undeclared_secret_count:
+            msg = f"{undeclared_secret_count} managed secret(s) in Secret Manager are not declared in the service account keys file."
+            compliance_issues.append(msg)
+            self.logger.warning(msg)
 
         # Check for each managed secret if it has the correct permissions
         for account in file_service_accounts:
@@ -352,7 +355,7 @@ class AccountKeysPolicyComplianceCheck:
                 continue
                 
             authorized_users = [user["email"] for user in account["authorized_users"]]
-            actual_users = [self._denormalize_username(user) for user in self._get_all_secret_authorized_users(secret_name)]
+            actual_users = [self._denormalize_username(user) for user in self._get_all_secret_authorized_users(secret_name, account["account_id"])]
             
             # Sort both lists for proper comparison
             authorized_users.sort()
@@ -479,18 +482,7 @@ class AccountKeysPolicyComplianceCheck:
         managed_secrets = self._get_all_live_managed_secrets()
         extracted_secrets = [f"{self._denormalize_account_email(account['account_id'])}-key" for account in file_service_accounts]
 
-        # Check for managed secrets that are not declared, if not, add them
-        for secret in managed_secrets:
-            if secret not in extracted_secrets:
-                masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
-                self.logger.info(f"Managed secret '{masked_secret}' is not declared in the service account keys file, adding it")
-                file_service_accounts.append({
-                    "account_id": secret.strip("-key"),
-                    "display_name": self._normalize_account_email(secret.strip("-key")),
-                    "authorized_users": []
-                })
-
-        # Check for each managed secret if it has the correct permissions
+        # Check for each existing managed secret if it has the correct permissions
         for account in file_service_accounts:
             secret_name = f"{self._denormalize_account_email(account['account_id'])}-key"
             if secret_name not in managed_secrets:
@@ -499,25 +491,44 @@ class AccountKeysPolicyComplianceCheck:
             authorized_users = sorted([user["email"] for user in account["authorized_users"]])
 
             if not authorized_users:
-                self.logger.info(f"Managed secret '{account}' is new, skipping permission check")
+                self.logger.info(f"Managed secret for account '{account['account_id']}' is new, skipping permission check")
                 continue
 
-            actual_users_normalized = sorted(self._get_all_secret_authorized_users(secret_name))
+            actual_users_normalized = sorted(self._get_all_secret_authorized_users(secret_name, account["account_id"]))
             actual_users = sorted([self._denormalize_username(user) for user in actual_users_normalized])
 
             if authorized_users != actual_users:
-                self.logger.info(f"Managed secret '{account}' does not have the correct permissions, updating it")
+                self.logger.info(f"Managed secret for account '{account['account_id']}' does not have the correct permissions, updating it")
                 account["authorized_users"] = [{"email": user} for user in actual_users]
+
+        # Check for managed secrets that are not declared, if not, add them
+        undeclared_accounts: List[ServiceAccount] = []
+        for secret in managed_secrets:
+            if secret not in extracted_secrets:
+                derived_account_id = secret.removesuffix("-key")
+                undeclared_accounts.append({
+                    "account_id": derived_account_id,
+                    "display_name": self._normalize_account_email(derived_account_id),
+                    "authorized_users": []
+                })
+        if undeclared_accounts:
+            self.logger.info(
+                f"Adding {len(undeclared_accounts)} undeclared managed secret entry/entries to the service account keys file"
+            )
+            file_service_accounts.extend(undeclared_accounts)
 
         # Remove duplicates based on account_id
         seen_accounts = set()
         deduplicated_accounts = []
+        removed_duplicates = 0
         for account in file_service_accounts:
             if account["account_id"] not in seen_accounts:
                 seen_accounts.add(account["account_id"])
                 deduplicated_accounts.append(account)
             else:
-                self.logger.info(f"Removing duplicate entry for account '{account['account_id']}'")
+                removed_duplicates += 1
+        if removed_duplicates:
+            self.logger.info(f"Removed {removed_duplicates} duplicate service account entry/entries")
 
         self._to_yaml_file(deduplicated_accounts, self.service_account_keys_file, header_info="Service Account Keys")
 
