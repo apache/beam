@@ -104,30 +104,47 @@ runs:
           --filter "label=com.github.repo=${GITHUB_REPOSITORY}" \
           --filter "dangling=true" | xargs -r docker volume rm || true
 
-    - name: Start docker:dind
+    - id: start-dind
+      name: Start docker:dind
+      env:
+        INPUT_CONTAINER_NAME: ${{ inputs.container-name }}
+        INPUT_BIND_ADDRESS: ${{ inputs.bind-address }}
+        INPUT_PORT: ${{ inputs.port }}
+        INPUT_STORAGE_DRIVER: ${{ inputs.storage-driver }}
+        INPUT_TMPFS_RUN_SIZE: ${{ inputs.tmpfs-run-size }}
+        INPUT_TMPFS_VARRUN_SIZE: ${{ inputs.tmpfs-varrun-size }}
+        INPUT_HEALTH_INTERVAL: ${{ inputs.health-interval }}
+        INPUT_HEALTH_RETRIES: ${{ inputs.health-retries }}
+        INPUT_HEALTH_START_PERIOD: ${{ inputs.health-start-period }}
+        INPUT_ADDITIONAL_DOCKERD_ARGS: ${{ inputs.additional-dockerd-args }}
+        INPUT_USE_HOST_NETWORK: ${{ inputs.use-host-network }}
+        INPUT_EPHEMERAL_VOLUMES: ${{ inputs.ephemeral-volumes }}
+        INPUT_STORAGE_VOLUME: ${{ inputs.storage-volume }}
+        INPUT_EXECROOT_VOLUME: ${{ inputs.execroot-volume }}
+        INPUT_DIND_IMAGE: ${{ inputs.dind-image }}
       shell: bash
       run: |
         # (Your original 'Start docker:dind' script is perfect here - no changes needed)
         set -euo pipefail
-        NAME="${{ inputs.container-name || 'dind-daemon' }}"
-        BIND="${{ inputs.bind-address || '127.0.0.1' }}"
-        PORT="${{ inputs.port || '2375' }}"
-        SD="${{ inputs.storage-driver || 'overlay2' }}"
-        TRS="${{ inputs.tmpfs-run-size || '1g' }}"
-        TVRS="${{ inputs.tmpfs-varrun-size || '1g' }}"
-        HI="${{ inputs.health-interval || '2s' }}"
-        HR="${{ inputs.health-retries || '60' }}"
-        HSP="${{ inputs.health-start-period || '10s' }}"
-        EXTRA="${{ inputs.additional-dockerd-args }}"
-        USE_HOST_NET="${{ inputs.use-host-network || 'false' }}"
+        NAME="${INPUT_CONTAINER_NAME:-dind-daemon}"
+        BIND="${INPUT_BIND_ADDRESS:-127.0.0.1}"
+        PORT="${INPUT_PORT:-2375}"
+        SD="${INPUT_STORAGE_DRIVER:-overlay2}"
+        TRS="${INPUT_TMPFS_RUN_SIZE:-1g}"
+        TVRS="${INPUT_TMPFS_VARRUN_SIZE:-1g}"
+        HI="${INPUT_HEALTH_INTERVAL:-2s}"
+        HR="${INPUT_HEALTH_RETRIES:-60}"
+        HSP="${INPUT_HEALTH_START_PERIOD:-10s}"
+        EXTRA="${INPUT_ADDITIONAL_DOCKERD_ARGS:-}"
+        USE_HOST_NET="${INPUT_USE_HOST_NETWORK:-false}"
 
-        if [[ "${{ inputs.ephemeral-volumes }}" == "true" ]]; then
+        if [[ "${INPUT_EPHEMERAL_VOLUMES:-}" == "true" ]]; then
           SUFFIX="${GITHUB_RUN_ID:-0}-${GITHUB_RUN_ATTEMPT:-0}-${GITHUB_JOB:-job}"
           STORAGE_VOL="dind-storage-${SUFFIX}"
           EXECROOT_VOL="dind-execroot-${SUFFIX}"
         else
-          STORAGE_VOL="${{ inputs.storage-volume || 'dind-storage' }}"
-          EXECROOT_VOL="${{ inputs.execroot-volume || 'dind-execroot' }}"
+          STORAGE_VOL="${INPUT_STORAGE_VOLUME:-dind-storage}"
+          EXECROOT_VOL="${INPUT_EXECROOT_VOLUME:-dind-execroot}"
         fi
 
         docker volume create --name "${STORAGE_VOL}" --label "com.github.dind=1" --label "com.github.repo=${GITHUB_REPOSITORY}" >/dev/null
@@ -145,7 +162,7 @@ runs:
           PUBLISH_ARGS=""
         fi
 
-        IMAGE="${{ inputs.dind-image || 'docker:27-dind' }}"
+        IMAGE="${INPUT_DIND_IMAGE:-docker:27-dind}"
 
         docker run -d --privileged --name "$NAME" \
           --cgroupns=host \
@@ -169,20 +186,25 @@ runs:
             --exec-root=/execroot ${EXTRA}
 
         {
-          echo "STORAGE_VOL=${STORAGE_VOL}"
-          echo "EXECROOT_VOL=${EXECROOT_VOL}"
-        } >> "$GITHUB_ENV"
+          echo "storage_volume=${STORAGE_VOL}"
+          echo "execroot_volume=${EXECROOT_VOL}"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Wait for DinD daemon
+      env:
+        INPUT_CONTAINER_NAME: ${{ inputs.container-name }}
+        INPUT_BIND_ADDRESS: ${{ inputs.bind-address }}
+        INPUT_PORT: ${{ inputs.port }}
+        INPUT_WAIT_TIMEOUT: ${{ inputs.wait-timeout }}
       shell: bash
       run: |
         set -euo pipefail
-        NAME="${{ inputs.container-name || 'dind-daemon' }}"
-        HOST="${{ inputs.bind-address || '127.0.0.1' }}"
-        PORT="${{ inputs.port || '2375' }}"
-        TIMEOUT="${{ inputs.wait-timeout || '180' }}"
+        NAME="${INPUT_CONTAINER_NAME:-dind-daemon}"
+        HOST="${INPUT_BIND_ADDRESS:-127.0.0.1}"
+        PORT="${INPUT_PORT:-2375}"
+        TIMEOUT="${INPUT_WAIT_TIMEOUT:-180}"
         echo "Waiting for Docker-in-Docker to be ready..."
-        if ! timeout ${TIMEOUT}s bash -c 'until docker -H "tcp://'"${HOST}"':'"${PORT}"'" info >/dev/null 2>&1; do sleep 2; done'; then
+        if ! timeout "${TIMEOUT}s" bash -c 'until docker -H "tcp://${1}:${2}" info >/dev/null 2>&1; do sleep 2; done' _ "${HOST}" "${PORT}"; then
           echo "::error::DinD failed to start within ${TIMEOUT}s."
           docker logs "$NAME" || true
           exit 1
@@ -191,10 +213,15 @@ runs:
         docker -H "tcp://${HOST}:${PORT}" info --format 'Daemon OK → OS={{.OperatingSystem}} Version={{.ServerVersion}}'
 
     - id: set-output
+      env:
+        INPUT_BIND_ADDRESS: ${{ inputs.bind-address }}
+        INPUT_PORT: ${{ inputs.port }}
+        STORAGE_VOL: ${{ steps.start-dind.outputs.storage_volume }}
+        EXECROOT_VOL: ${{ steps.start-dind.outputs.execroot_volume }}
       shell: bash
       run: |
-        HOST="${{ inputs.bind-address || '127.0.0.1' }}"
-        PORT="${{ inputs.port || '2375' }}"
+        HOST="${INPUT_BIND_ADDRESS:-127.0.0.1}"
+        PORT="${INPUT_PORT:-2375}"
         echo "docker-host=tcp://${HOST}:${PORT}" >> "$GITHUB_OUTPUT"
         echo "storage_volume=${STORAGE_VOL:-}" >> "$GITHUB_OUTPUT"
         echo "execroot_volume=${EXECROOT_VOL:-}" >> "$GITHUB_OUTPUT"
@@ -203,19 +230,22 @@ runs:
 
     - name: Cleanup DinD Environment
       if: ${{ inputs.cleanup-dind-on-start == 'true' }}
+      env:
+        DIND_HOST: ${{ steps.set-output.outputs.docker-host }}
       shell: bash
       run: |
         echo "Performing initial cleanup of DinD environment..."
-        DIND_HOST="${{ steps.set-output.outputs.docker-host }}"
         docker -H "${DIND_HOST}" system prune -af --volumes
         docker -H "${DIND_HOST}" image prune -af
 
     - id: discover-ip
       name: Discover DinD Container IP
+      env:
+        INPUT_CONTAINER_NAME: ${{ inputs.container-name }}
       shell: bash
       run: |
         set -euo pipefail
-        NAME="${{ inputs.container-name || 'dind-daemon' }}"
+        NAME="${INPUT_CONTAINER_NAME:-dind-daemon}"
 
         # Use host daemon to inspect the DinD container
         nm=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$NAME")
@@ -279,7 +309,17 @@ runs:
 
     - name: Export Environment Variables
       if: ${{ inputs.export-gh-env == 'true' }}
+      env:
+        EXPORT_DOCKER_HOST: ${{ steps.set-output.outputs.docker-host }}
+        EXPORT_DIND_IP: ${{ steps.discover-ip.outputs.dind-ip }}
       shell: bash
       run: |
-        echo "DOCKER_HOST=${{ steps.set-output.outputs.docker-host }}" >> "$GITHUB_ENV"
-        echo "DIND_IP=${{ steps.discover-ip.outputs.dind-ip }}" >> "$GITHUB_ENV"
+        set -euo pipefail
+        if [[ "${EXPORT_DOCKER_HOST}" == *$'\n'* || "${EXPORT_DOCKER_HOST}" == *$'\r'* || "${EXPORT_DIND_IP}" == *$'\n'* || "${EXPORT_DIND_IP}" == *$'\r'* ]]; then
+          echo "::error::Invalid newline in DOCKER_HOST or DIND_IP."
+          exit 1
+        fi
+        {
+          echo "DOCKER_HOST=${EXPORT_DOCKER_HOST}"
+          echo "DIND_IP=${EXPORT_DIND_IP}"
+        } >> "$GITHUB_ENV"
