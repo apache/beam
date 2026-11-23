@@ -37,6 +37,7 @@ import * as testing from "../src/apache_beam/testing/assert";
 import * as windowings from "../src/apache_beam/transforms/windowings";
 import * as pardo from "../src/apache_beam/transforms/pardo";
 import { withName } from "../src/apache_beam/transforms";
+import { extractName } from "../src/apache_beam/transforms/transform";
 import * as service from "../src/apache_beam/utils/service";
 import { MultiPipelineRunner } from "../src/apache_beam/testing/multi_pipeline_runner";
 
@@ -176,9 +177,9 @@ export function suite(runner: beam.Runner = directRunner()) {
                 {
                   myCounter: pardo.counter("myCounter"),
                   myDist: pardo.distribution("myDist"),
-                }
-              )
-            )
+                },
+              ),
+            ),
           )
           .apply(testing.assertDeepEqual([1, 4, 9]));
       });
@@ -195,7 +196,7 @@ export function suite(runner: beam.Runner = directRunner()) {
       await runner.run((root) => {
         const input = root.apply(beam.create([1, 2, 1]));
         const sideInput = root.apply(
-          beam.withName("createSide", beam.create([4]))
+          beam.withName("createSide", beam.create([4])),
         );
         input
           .map((e, context) => e / context.side.lookup(), {
@@ -210,7 +211,7 @@ export function suite(runner: beam.Runner = directRunner()) {
         const input = root.apply(beam.create([1, 2, 1]));
         // TODO: Can this type be inferred?
         const sideInput: beam.PCollection<{ sum: number }> = input.apply(
-          beam.groupGlobally().combining((e) => e, combiners.sum, "sum")
+          beam.groupGlobally().combining((e) => e, combiners.sum, "sum"),
         );
         input
           .map((e, context) => e / context.side.lookup().sum, {
@@ -242,15 +243,15 @@ export function suite(runner: beam.Runner = directRunner()) {
                 },
                 // This is the context to pass as the second argument.
                 // At each element, window.get() will return the associated window.
-                { window: pardo.windowParam(), other: "A" }
-              )
-            )
+                { window: pardo.windowParam(), other: "A" },
+              ),
+            ),
           )
           .apply(
             testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5], window_start_ms: 0, a: "A" },
               { key: "", value: [10, 11, 12], window_start_ms: 10000, a: "A" },
-            ])
+            ]),
           );
       });
     });
@@ -266,7 +267,7 @@ export function suite(runner: beam.Runner = directRunner()) {
             testing.assertDeepEqual([
               { key: "a", value: ["apple", "apricot"] },
               { key: "b", value: ["banana"] },
-            ])
+            ]),
           );
       });
     });
@@ -283,7 +284,7 @@ export function suite(runner: beam.Runner = directRunner()) {
             testing.assertDeepEqual([
               { key: "", value: [1, 2, 3, 4, 5] },
               { key: "", value: [10, 11, 12] },
-            ])
+            ]),
           );
       });
     });
@@ -325,7 +326,10 @@ export function suite(runner: beam.Runner = directRunner()) {
       assert.equal(coder.constructor.name, "KVCoder");
       assert.equal(coder.keyCoder.constructor.name, "GeneralObjectCoder");
       assert.equal(coder.valueCoder.constructor.name, "IterableCoder");
-      assert.equal(coder.valueCoder.elementCoder.constructor.name, "GeneralObjectCoder");
+      assert.equal(
+        coder.valueCoder.elementCoder.constructor.name,
+        "GeneralObjectCoder",
+      );
     });
   });
 }
@@ -359,7 +363,7 @@ describe("primitives module", function () {
           project: process.env.GCP_PROJECT_ID,
           tempLocation: process.env.GCP_TESTING_BUCKET,
           region: process.env.GCP_REGION,
-        })
+        }),
       );
 
       beforeEach(function () {
@@ -414,7 +418,7 @@ describe("liquid sharding @ulr", function () {
               0,
               0,
               // Processing all elements spread out over 1000 ms, plus overhead.
-              1000 / numElements
+              1000 / numElements,
             );
             return x;
           })
@@ -431,8 +435,8 @@ describe("liquid sharding @ulr", function () {
                     timestamp: new GlobalWindow().maxTimestamp(),
                   },
                 ],
-              })
-            )
+              }),
+            ),
           )
           .apply(
             // More than one "endOfBundle" output because we split.
@@ -442,12 +446,31 @@ describe("liquid sharding @ulr", function () {
             // splits occurred (if you print them, they're in an interesting
             // order), all elements are accounted for.)
             testing.assertDeepEqual(
-              elements.concat(["endOfBundle", "endOfBundle"])
-            )
+              elements.concat(["endOfBundle", "endOfBundle"]),
+            ),
           );
       });
       // The pipeline should run fast, but give plenty of time for the service
       // to start up in case the test machine is loaded.
     }).timeout(30000);
   }
+});
+
+describe("extractName", function () {
+  it("strips injected coverage counters", function () {
+    const fakeFn = {
+      toString: () =>
+        "(x) => (__cov_123abc.f['0']++, __cov_123abc.s['0']++, x * 2)",
+    };
+    assert.strictEqual(extractName(fakeFn), "(x) => ( , , x * 2)");
+  });
+
+  it("handles repeated __cov_ prefixes in linear time", function () {
+    const repeated = {
+      toString: () => "__cov_".repeat(50000),
+    };
+    const startMs = Date.now();
+    assert.throws(() => extractName(repeated), /Unable to deduce name/);
+    assert.ok(Date.now() - startMs < 1000);
+  });
 });
