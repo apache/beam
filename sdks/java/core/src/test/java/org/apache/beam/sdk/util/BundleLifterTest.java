@@ -43,14 +43,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BundleLifterTest {
 
-  private static final TupleTag<Integer> INTEGER_SMALL = new TupleTag<Integer>() {
-  };
-  private static final TupleTag<Integer> INTEGER_LARGE = new TupleTag<Integer>() {
-  };
-  private static final TupleTag<String> STRING_SMALL = new TupleTag<String>() {
-  };
-  private static final TupleTag<String> STRING_LARGE = new TupleTag<String>() {
-  };
+  private static final TupleTag<Integer> INTEGER_SMALL = new TupleTag<Integer>() {};
+  private static final TupleTag<Integer> INTEGER_LARGE = new TupleTag<Integer>() {};
+  private static final TupleTag<String> STRING_SMALL = new TupleTag<String>() {};
+  private static final TupleTag<String> STRING_LARGE = new TupleTag<String>() {};
 
   private static <T> BundleLiftDoFn<T> doFn(
       TupleTag<T> smallBatchTag,
@@ -121,7 +117,8 @@ public class BundleLifterTest {
 
   @Test
   public void testSmallBundleWithSizer() throws Exception {
-    DoFnTester<String, Void> tester = DoFnTester.of(doFn(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
+    DoFnTester<String, Void> tester =
+        DoFnTester.of(doFn(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
 
     tester.startBundle();
     tester.processElement("123");
@@ -135,7 +132,8 @@ public class BundleLifterTest {
 
   @Test
   public void testLargeBundleWithSizer() throws Exception {
-    DoFnTester<String, Void> tester = DoFnTester.of(doFn(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
+    DoFnTester<String, Void> tester =
+        DoFnTester.of(doFn(STRING_SMALL, STRING_LARGE, 10, e -> e.length()));
 
     tester.startBundle();
     tester.processElement("123");
@@ -170,7 +168,8 @@ public class BundleLifterTest {
 
   @Test
   public void testKeyedThresholdIsEvaluatedPerKey() throws Exception {
-    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> x % 2));
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> x % 2));
 
     tester.startBundle();
     for (int i = 0; i < 5; i++) {
@@ -178,8 +177,7 @@ public class BundleLifterTest {
     }
     tester.finishBundle();
 
-    // Even key has 3 elements and reaches the threshold; odd key has 2 and does
-    // not.
+    // Even key has 3 elements and reaches the threshold; odd key has 2 and does not.
     assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(0, 2, 4));
     assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(1, 3));
   }
@@ -188,7 +186,8 @@ public class BundleLifterTest {
   public void testKeyedThresholdIsEvaluatedPerWindow() throws Exception {
     IntervalWindow w1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow w2 = new IntervalWindow(new Instant(10), new Instant(20));
-    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> "key"));
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 3, x -> 1, x -> "key"));
 
     tester.startBundle();
     tester.processWindowedElement(1, new Instant(1), w1);
@@ -215,16 +214,15 @@ public class BundleLifterTest {
     tester.processWindowedElement(4, new Instant(12), w2);
     tester.finishBundle();
 
-    // Even without a key function, each window is evaluated separately and only has
-    // 2 elements.
+    // Even without a key function, each window is evaluated separately and only has 2 elements.
     assertThat(tester.peekOutputElements(INTEGER_LARGE), empty());
     assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(1, 2, 3, 4));
   }
 
   @Test
   public void testNullKeysShareTheirOwnKey() throws Exception {
-    DoFnTester<Integer, Void> tester = DoFnTester
-        .of(doFn(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1, x -> x < 0 ? null : "key"));
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 2, x -> 1, x -> x < 0 ? null : "key"));
 
     tester.startBundle();
     tester.processElement(-1);
@@ -232,8 +230,7 @@ public class BundleLifterTest {
     tester.processElement(-2);
     tester.finishBundle();
 
-    // The two null-key elements share a key and reach the threshold; "key" has only
-    // one element.
+    // The two null-key elements share a key and reach the threshold; "key" has only one element.
     assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(-1, -2));
     assertThat(tester.peekOutputElements(INTEGER_SMALL), contains(5));
   }
@@ -241,16 +238,15 @@ public class BundleLifterTest {
   @Test
   public void testMemoryCapEvictsSmallestKey() throws Exception {
     // Threshold 4 caps total buffered bytes at 8.
-    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
 
     tester.startBundle();
     for (int i = 0; i < 9; i++) {
       tester.processElement(i);
     }
-    // The 9th distinct key pushes the total (9) over the cap (8), so the smallest
-    // keys are evicted
-    // in one pass until at most the threshold (4) remains buffered: 5 keys go out
-    // early.
+    // The 9th distinct key pushes the total (9) over the cap (8), so the smallest keys are evicted
+    // in one pass until at most the threshold (4) remains buffered: 5 keys go out early.
     assertThat(tester.peekOutputElements(INTEGER_SMALL), hasSize(5));
     tester.finishBundle();
 
@@ -262,7 +258,8 @@ public class BundleLifterTest {
   @Test
   public void testUntrackedKeysGoToSmallOutputAfterEviction() throws Exception {
     // Threshold 4 caps total buffered bytes at 8.
-    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, x -> 1, x -> x));
 
     tester.startBundle();
     for (int i = 0; i < 9; i++) {
@@ -280,8 +277,7 @@ public class BundleLifterTest {
       }
     }
 
-    // A new key and an evicted key are no longer tracked, so they go straight to
-    // the small output.
+    // A new key and an evicted key are no longer tracked, so they go straight to the small output.
     tester.processElement(100);
     tester.processElement(evictedKey);
     List<Integer> expectedSmall = new ArrayList<>(evicted);
@@ -310,10 +306,10 @@ public class BundleLifterTest {
 
   @Test
   public void testCustomMaxBufferedBytes() throws Exception {
-    // Threshold 4 with a cap of 4: the 5th distinct key exceeds the cap, and keys
-    // are evicted
+    // Threshold 4 with a cap of 4: the 5th distinct key exceeds the cap, and keys are evicted
     // until at most half of it (2) remains buffered.
-    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
 
     tester.startBundle();
     for (int i = 0; i < 5; i++) {
@@ -326,11 +322,10 @@ public class BundleLifterTest {
 
   @Test
   public void testEvictionKeepsLargestKeyWhenCapEqualsThreshold() throws Exception {
-    // Threshold 4 with a cap of 4 (target = 2): key 0 has 3 elements (> target)
-    // when key 1 (2
-    // elements) exceeds the cap. Key 1 is evicted, while key 0 stays buffered and
-    // can still lift.
-    DoFnTester<Integer, Void> tester = DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
+    // Threshold 4 with a cap of 4 (target = 2): key 0 has 3 elements (> target) when key 1 (2
+    // elements) exceeds the cap. Key 1 is evicted, while key 0 stays buffered and can still lift.
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(doFn(INTEGER_SMALL, INTEGER_LARGE, 4, 4, x -> 1, x -> x));
 
     tester.startBundle();
     tester.processElement(0);
@@ -352,28 +347,28 @@ public class BundleLifterTest {
 
   @Test
   public void testWithMaxBufferedBytes() {
-    BundleLifter<Integer> lifter = BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxBufferedBytes(15L);
+    BundleLifter<Integer> lifter =
+        BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).withMaxBufferedBytes(15L);
     assertEquals(15L, lifter.maxBufferedBytes);
     assertEquals(20L, BundleLifter.of(INTEGER_SMALL, INTEGER_LARGE, 10L).maxBufferedBytes);
   }
 
   @Test
   public void testMaxLiftedKeys() throws Exception {
-    // Threshold 2, keyed by x % 3, at most one lifted key. Key 1 is lifted by 4,
-    // which releases key
-    // 2's buffer to the small output; after that only key 1 goes to the large
-    // output.
-    DoFnTester<Integer, Void> tester = DoFnTester.of(
-        new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 2, 100, 1, x -> 1, x -> x % 3));
+    // Threshold 2, keyed by x % 3, at most one lifted key. Key 1 is lifted by 4, which releases key
+    // 2's buffer to the small output; after that only key 1 goes to the large output.
+    DoFnTester<Integer, Void> tester =
+        DoFnTester.of(
+            new BundleLiftDoFn<>(INTEGER_SMALL, INTEGER_LARGE, 2, 100, 1, x -> 1, x -> x % 3));
 
     tester.startBundle();
-    for (int i : new int[] { 1, 2, 4 }) {
+    for (int i : new int[] {1, 2, 4}) {
       tester.processElement(i);
     }
     assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(1, 4));
     assertThat(tester.peekOutputElements(INTEGER_SMALL), containsInAnyOrder(2));
 
-    for (int i : new int[] { 5, 7, 3 }) {
+    for (int i : new int[] {5, 7, 3}) {
       tester.processElement(i);
     }
     assertThat(tester.peekOutputElements(INTEGER_LARGE), containsInAnyOrder(1, 4, 7));
@@ -434,7 +429,8 @@ public class BundleLifterTest {
 
   @Test
   public void testCoderBasedSizing() {
-    BundleLifter<String> lifter = BundleLifter.of(STRING_SMALL, STRING_LARGE, 10L, StringUtf8Coder.of());
+    BundleLifter<String> lifter =
+        BundleLifter.of(STRING_SMALL, STRING_LARGE, 10L, StringUtf8Coder.of());
     assertThat(lifter.elementSizer.apply("hello"), greaterThanOrEqualTo(5));
   }
 }
