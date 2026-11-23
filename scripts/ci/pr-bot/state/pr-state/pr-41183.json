@@ -1,7 +1,7 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "lostluck"
+    "no-matching-label": "kennknowles"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
