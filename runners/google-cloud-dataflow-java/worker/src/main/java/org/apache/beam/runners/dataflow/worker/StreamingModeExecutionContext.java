@@ -66,8 +66,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
@@ -205,7 +203,7 @@ public class StreamingModeExecutionContext
   private AtomicBoolean workBatchFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
-  private final String sourceBytesProcessCounterName;
+  private final AtomicLong sourceBytesProcessed = new AtomicLong();
 
   private final MultiKeyBundleOptions multiKeyBundleOptions;
   private int workItemsPolled = 0;
@@ -229,7 +227,6 @@ public class StreamingModeExecutionContext
       String systemName,
       StreamingCounters streamingCounters,
       FailureTracker failureTracker,
-      String sourceBytesProcessCounterName,
       MultiKeyBundleOptions multiKeyBundleOptions,
       SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     super(
@@ -252,7 +249,6 @@ public class StreamingModeExecutionContext
     this.systemName = checkNotNull(systemName);
     this.streamingCounters = checkNotNull(streamingCounters);
     this.failureTracker = checkNotNull(failureTracker);
-    this.sourceBytesProcessCounterName = checkNotNull(sourceBytesProcessCounterName);
     this.sideInputStateFetcherFactory = checkNotNull(sideInputStateFetcherFactory);
 
     this.multiKeyBundleOptions = checkNotNull(multiKeyBundleOptions);
@@ -346,6 +342,16 @@ public class StreamingModeExecutionContext
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
     this.stateBytesRead = 0;
+    this.sourceBytesProcessed.set(0L);
+  }
+
+  public void addSourceBytesProcessed(long bytes) {
+    this.sourceBytesProcessed.addAndGet(bytes);
+  }
+
+  @VisibleForTesting
+  long getSourceBytesProcessed() {
+    return this.sourceBytesProcessed.get();
   }
 
   public void start(
@@ -720,8 +726,7 @@ public class StreamingModeExecutionContext
       getKeyOutputBuilder().setSourceBacklogBytes(backlogBytes);
     }
 
-    getKeyOutputBuilder()
-        .setSourceBytesProcessed(computeSourceBytesProcessed(sourceBytesProcessCounterName));
+    getKeyOutputBuilder().setSourceBytesProcessed(sourceBytesProcessed.getAndSet(0L));
 
     validateCommitRequestSize();
 
@@ -798,21 +803,6 @@ public class StreamingModeExecutionContext
     return outputBuilder;
   }
 
-  private final long computeSourceBytesProcessed(String sourceBytesCounterName) {
-    if (!(workExecutor instanceof DataflowMapTaskExecutor)) {
-      return 0L;
-    }
-    HashMap<String, ElementCounter> counters =
-        ((DataflowMapTaskExecutor) workExecutor)
-            .getReadOperation()
-            .receivers[0]
-            .getOutputCounters();
-
-    return Optional.ofNullable(counters.get(sourceBytesCounterName))
-        .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
-        .orElse(0L);
-  }
-
   public boolean advance() throws CoderException {
     if (!multiKeyBundleOptions.multiKeyBundleEnabled()) {
       return false;
@@ -879,6 +869,7 @@ public class StreamingModeExecutionContext
         sideInputStateFetcherFactory.createSideInputStateFetcher(newWork::fetchSideInput);
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     this.activeReader = null;
+    this.sourceBytesProcessed.set(0L);
 
     // Note: We do NOT clear sideInputCache here, allowing Key B to reuse warm side inputs!
 

@@ -94,7 +94,6 @@ Phrases self-assign, close, or manage labels on an issue:
 Phrases available as comments on an open Pull Request:
 | Phrase | Effect |
 |--------|--------|
-| `/summarize-failures` | Trigger `PR Failure Summary` (`pr_failure_summary.yml`) to cluster failing check logs and post/refresh the sticky CI failure summary comment |
 | `/gemini review` | Trigger `Gemini Enterprise Code Review` (`gemini_code_review.yml`) on the PR |
 
 ## Security Model
