@@ -795,8 +795,6 @@ tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py311:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
-  dependsOn(":sdks:python:test-suites:direct:py311:inferencePostCommitIT")
-  dependsOn(":sdks:python:test-suites:dataflow:py311:inferencePostCommitIT")
 }
 
 tasks.register("python312PostCommit") {
@@ -819,6 +817,8 @@ tasks.register("python314PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py314:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py314:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py314:postCommitPy314")
+  dependsOn(":sdks:python:test-suites:direct:py314:inferencePostCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py314:inferencePostCommitIT")
 }
 
 tasks.register("portablePythonPreCommit") {
