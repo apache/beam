@@ -37,16 +37,20 @@ runs:
   using: composite
   steps:
     - name: Check if test-type was provided
+      env:
+        INPUT_TEST_TYPE: ${{ inputs.test-type }}
       shell: bash
-      run: | 
-        if [ -z "${{ inputs.test-type }}" ]; then
+      run: |
+        if [ -z "${INPUT_TEST_TYPE}" ]; then
           echo "Test type was not provided"
           exit 1
         fi
     - name: Check if test-language was provided
+      env:
+        INPUT_TEST_LANGUAGE: ${{ inputs.test-language }}
       shell: bash
-      run: | 
-        if [ -z "${{ inputs.test-language }}" ]; then
+      run: |
+        if [ -z "${INPUT_TEST_LANGUAGE}" ]; then
           echo "Test language was not provided"
           exit 1
         fi
@@ -54,43 +58,53 @@ runs:
       id: common_arguments
       shell: bash
       run: |
-        echo project="apache-beam-testing" >> $GITHUB_OUTPUT
-        echo influx_db_name="beam_test_metrics" >> $GITHUB_OUTPUT
-        echo influx_host="http://10.128.0.96:8086" >> $GITHUB_OUTPUT
+        echo project="apache-beam-testing" >> "$GITHUB_OUTPUT"
+        echo influx_db_name="beam_test_metrics" >> "$GITHUB_OUTPUT"
+        echo influx_host="http://10.128.0.96:8086" >> "$GITHUB_OUTPUT"
     - name: Get default ${{ inputs.test-language }} test arguments
       id: default_arguments
+      env:
+        INPUT_TEST_LANGUAGE: ${{ inputs.test-language }}
+        COMMON_PROJECT: ${{ steps.common_arguments.outputs.project }}
+        COMMON_INFLUX_DB: ${{ steps.common_arguments.outputs.influx_db_name }}
+        COMMON_INFLUX_HOST: ${{ steps.common_arguments.outputs.influx_host }}
       shell: bash
       run: |
         DEFAULT_ARGUMENTS=""
-        if ${{ inputs.test-language == 'java' }}; then
-          DEFAULT_ARGUMENTS=$(echo "
-            --project=${{ steps.common_arguments.outputs.project }}
-            --influxDatabase=${{ steps.common_arguments.outputs.influx_db_name }}
-            --influxHost=${{ steps.common_arguments.outputs.influx_host }}
-          ")
-        elif ${{ inputs.test-language == 'python' || inputs.test-language == 'go' }}; then
-          DEFAULT_ARGUMENTS=$(echo "
-            --project=${{ steps.common_arguments.outputs.project }}
-            --influx_db_name=${{ steps.common_arguments.outputs.influx_db_name }}
-            --influx_hostname=${{ steps.common_arguments.outputs.influx_host }}
-          ")
+        if [[ "${INPUT_TEST_LANGUAGE}" == "java" ]]; then
+          DEFAULT_ARGUMENTS="--project=${COMMON_PROJECT} --influxDatabase=${COMMON_INFLUX_DB} --influxHost=${COMMON_INFLUX_HOST}"
+        elif [[ "${INPUT_TEST_LANGUAGE}" == "python" || "${INPUT_TEST_LANGUAGE}" == "go" ]]; then
+          DEFAULT_ARGUMENTS="--project=${COMMON_PROJECT} --influx_db_name=${COMMON_INFLUX_DB} --influx_hostname=${COMMON_INFLUX_HOST}"
         fi
-        echo arguments=$DEFAULT_ARGUMENTS >> $GITHUB_OUTPUT
+        echo "arguments=${DEFAULT_ARGUMENTS}" >> "$GITHUB_OUTPUT"
     - name: Group arguments
+      env:
+        INPUT_ARGUMENT_FILE_PATHS: ${{ inputs.argument-file-paths }}
+        DEFAULT_ARGUMENTS: ${{ steps.default_arguments.outputs.arguments }}
+        INPUT_ARGUMENTS: ${{ inputs.arguments }}
+        INPUT_TEST_TYPE: ${{ inputs.test-type }}
+        JOB_ID: ${{ github.job }}
       shell: bash
       run: |
-        PATHS=($(echo "${{ inputs.argument-file-paths }}" | tr '\n' ' '))
+        if [[ ! "${JOB_ID}" =~ ^[A-Za-z0-9_-]+$ ]]; then
+          echo "::error::Invalid job identifier: ${JOB_ID}"
+          exit 1
+        fi
+        read -r -a PATHS <<< "$(printf '%s' "${INPUT_ARGUMENT_FILE_PATHS}" | tr '\n' ' ')"
         for index in "${!PATHS[@]}"; do
-          CONFIG=$(grep -v "^#.*" ${PATHS[index]})
-          ARGUMENTS=$(echo "${{ steps.default_arguments.outputs.arguments }} ${{ inputs.arguments }} $CONFIG" | tr '\n' ' ')
+          CONFIG=$(grep -v "^#.*" "${PATHS[index]}" || true)
+          ARGUMENTS=$(printf '%s %s %s' "${DEFAULT_ARGUMENTS}" "${INPUT_ARGUMENTS}" "${CONFIG}" | tr '\n\r' '  ' | tr -s ' ')
+          ARGUMENTS="${ARGUMENTS# }"
           ARGUMENTS="${ARGUMENTS% }"
-          if ${{ inputs.test-type == 'performance' }}; then
+          if [[ "${INPUT_TEST_TYPE}" == "performance" ]]; then
             arguments=""
-            read -ra args <<< "$ARGUMENTS"
+            read -r -a args <<< "${ARGUMENTS}"
             for arg in "${args[@]}"; do
               arguments="${arguments}\"${arg}\","
             done
             ARGUMENTS="${arguments%,}"
           fi
-          echo "${{ github.job }}_test_arguments_$((index + 1))=$ARGUMENTS" >> $GITHUB_ENV
+          {
+            printf '%s_test_arguments_%d=%s\n' "${JOB_ID}" "$((index + 1))" "${ARGUMENTS}"
+          } >> "$GITHUB_ENV"
         done
