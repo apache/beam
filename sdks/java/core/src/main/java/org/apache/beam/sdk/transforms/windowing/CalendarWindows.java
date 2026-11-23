@@ -116,7 +116,13 @@ public class CalendarWindows {
     public IntervalWindow assignWindow(Instant timestamp) {
       DateTime datetime = new DateTime(timestamp, timeZone);
 
-      int dayOffset = Days.daysBetween(startDate, datetime).getDays() / number * number;
+      int days = Days.daysBetween(startDate, datetime).getDays();
+      // daysBetween rounds toward zero. Round down instead, so that a timestamp before startDate is
+      // assigned to the window that contains it.
+      if (startDate.plusDays(days).isAfter(datetime)) {
+        days--;
+      }
+      int dayOffset = Math.floorDiv(days, number) * number;
 
       DateTime begin = startDate.plusDays(dayOffset);
       DateTime end = begin.plusDays(number);
@@ -222,12 +228,17 @@ public class CalendarWindows {
     public IntervalWindow assignWindow(Instant timestamp) {
       DateTime datetime = new DateTime(timestamp, timeZone);
 
-      int monthOffset =
-          Months.monthsBetween(startDate.withDayOfMonth(dayOfMonth), datetime).getMonths()
-              / number
-              * number;
+      DateTime offsetStart = startDate.withDayOfMonth(dayOfMonth);
 
-      DateTime begin = startDate.withDayOfMonth(dayOfMonth).plusMonths(monthOffset);
+      int months = Months.monthsBetween(offsetStart, datetime).getMonths();
+      // monthsBetween rounds toward zero. Round down instead, so that a timestamp before the start
+      // is assigned to the window that contains it.
+      if (offsetStart.plusMonths(months).isAfter(datetime)) {
+        months--;
+      }
+      int monthOffset = Math.floorDiv(months, number) * number;
+
+      DateTime begin = offsetStart.plusMonths(monthOffset);
       DateTime end = begin.plusMonths(number);
 
       return new IntervalWindow(begin.toInstant(), end.toInstant());
@@ -341,7 +352,14 @@ public class CalendarWindows {
 
       DateTime offsetStart = startDate.withMonthOfYear(monthOfYear).withDayOfMonth(dayOfMonth);
 
-      int yearOffset = Years.yearsBetween(offsetStart, datetime).getYears() / number * number;
+      int years = Years.yearsBetween(offsetStart, datetime).getYears();
+      // yearsBetween rounds toward zero. Round down instead, so that a timestamp before the start
+      // is
+      // assigned to the window that contains it.
+      if (offsetStart.plusYears(years).isAfter(datetime)) {
+        years--;
+      }
+      int yearOffset = Math.floorDiv(years, number) * number;
 
       DateTime begin = offsetStart.plusYears(yearOffset);
       DateTime end = begin.plusYears(number);

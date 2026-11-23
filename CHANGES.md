@@ -151,6 +151,7 @@
 
 ## Bugfixes
 
+* (Java) Fixed `FixedWindows`, `SlidingWindows` and `CalendarWindows` assigning a timestamp before their start (more than one window before the epoch, or before the starting day, month or year of `CalendarWindows`) to a later window that does not contain it ([#41601](https://github.com/apache/beam/issues/41601)).
 * (Python) Fixed local filesystem copies deleting source data when copying onto the same file or directory, and deleting an existing destination when the source is missing ([#41561](https://github.com/apache/beam/issues/41561)).
 * (Java) Fixed Dataflow's streaming `WriteFiles` sharding override dropping options configured on the transform (such as `maxNumWritersPerBundle`, `evictWritersWhenFull`, `skipIfEmpty`, `shardingFunction`, and `badRecordErrorHandler`) when a fixed shard count is not set ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).

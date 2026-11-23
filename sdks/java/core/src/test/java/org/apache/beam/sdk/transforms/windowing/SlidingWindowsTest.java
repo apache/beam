@@ -112,6 +112,21 @@ public class SlidingWindowsTest {
   }
 
   @Test
+  public void testTimestampsBeforeEpoch() throws Exception {
+    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
+    expected.put(new IntervalWindow(new Instant(-20), new Instant(-10)), set(-12, -16));
+    expected.put(new IntervalWindow(new Instant(-15), new Instant(-5)), set(-6, -12));
+    expected.put(new IntervalWindow(new Instant(-10), new Instant(0)), set(-1, -6));
+    expected.put(new IntervalWindow(new Instant(-5), new Instant(5)), set(-1));
+    expected.put(new IntervalWindow(new Instant(-25), new Instant(-15)), set(-16));
+    assertEquals(
+        expected,
+        runWindowFn(
+            SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5)),
+            Arrays.asList(-1L, -6L, -12L, -16L)));
+  }
+
+  @Test
   public void testTimeUnit() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
     expected.put(new IntervalWindow(new Instant(-5000), new Instant(5000)), set(1, 2, 1000));
