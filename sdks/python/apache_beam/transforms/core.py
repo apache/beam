@@ -548,8 +548,8 @@ class _ContextParam(_DoFnParam):
           "A context manager constructor (not a fully constructed context "
           "manager) must be passed to avoid issues with one-shot managers. "
           "For example, "
-          "write {class_name}(tempfile.TemporaryDirectory, args=(...)) "
-          "rather than {class_name}(tempfile.TemporaryDirectory(...))")
+          f"write {class_name}(tempfile.TemporaryDirectory, args=(...)) "
+          f"rather than {class_name}(tempfile.TemporaryDirectory(...))")
     super().__init__(f'{class_name}_{name or id(self)}')
     self.context_manager_constructor = context_manager_constructor
     self.args = args

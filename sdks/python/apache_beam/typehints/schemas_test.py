@@ -637,6 +637,15 @@ class SchemaTest(unittest.TestCase):
         ValueError, lambda: typing_from_runner_api(
             schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED)))
 
+  def test_unknown_atomic_value_encoding_error_message(self):
+    with self.assertRaises(ValueError) as cm:
+      schemas.SchemaTranslation().atomic_value_to_runner_api(
+          schema_pb2.UNSPECIFIED, 'abc')
+    self.assertEqual(
+        str(cm.exception),
+        f"Unrecognized atomic_type ({schema_pb2.UNSPECIFIED}) "
+        "when encoding value 'abc'")
+
   def test_int_maps_to_int64(self):
     self.assertEqual(
         schema_pb2.FieldType(atomic_type=schema_pb2.INT64),
