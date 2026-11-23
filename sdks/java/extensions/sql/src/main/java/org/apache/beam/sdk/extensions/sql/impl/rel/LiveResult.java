@@ -25,11 +25,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter.BlockOnRunOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
@@ -127,7 +127,7 @@ public final class LiveResult {
     RESULTS.put(result.id, result);
     PipelineResult pipelineResult;
     try {
-      pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+      pipeline.getOptions().as(BlockOnRunOptions.class).setBlockOnRun(false);
       pipelineResult = pipeline.run();
     } catch (RuntimeException e) {
       RESULTS.remove(result.id);

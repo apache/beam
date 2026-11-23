@@ -271,7 +271,11 @@ public class JdbcIOIT {
   @Test
   public void testWriteWithAutosharding() throws Exception {
     String firstTableName = DatabaseTestHelper.getTestTableName("JDBCIT_AUTOSHARD");
-    DatabaseTestHelper.createTable(dataSource, firstTableName);
+    // JdbcIO may replay committed writes when a bundle is retried.
+    DatabaseTestHelper.createTable(
+        dataSource,
+        firstTableName,
+        Lists.newArrayList(KV.of("id", "INT PRIMARY KEY"), KV.of("name", "VARCHAR(500)")));
     try {
       PCollection<TestRow> dataCollection =
           pipelineWrite.apply(
@@ -282,7 +286,10 @@ public class JdbcIOIT {
           .apply(
               JdbcIO.<TestRow>write()
                   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                  .withStatement(String.format("insert into %s values(?, ?)", firstTableName))
+                  .withStatement(
+                      String.format(
+                          "insert into %s values(?, ?) on conflict (id) do nothing",
+                          firstTableName))
                   .withAutoSharding()
                   .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 

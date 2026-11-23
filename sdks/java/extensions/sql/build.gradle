@@ -81,6 +81,8 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
   implementation project(":sdks:java:extensions:sql:udf")
   implementation project(path: ":runners:direct-java", configuration: "shadow")
+  // The code doesn't use the DirectRunner, but queries run on it by default.
+  permitUnusedDeclared project(path: ":runners:direct-java", configuration: "shadow")
   implementation library.java.commons_codec
   implementation library.java.commons_csv
   implementation library.java.jackson_databind
