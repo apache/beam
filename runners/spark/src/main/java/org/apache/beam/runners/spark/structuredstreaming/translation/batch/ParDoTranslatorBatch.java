@@ -143,7 +143,10 @@ class ParDoTranslatorBatch<InputT, OutputT>
       // Persist as wide rows with one column per TupleTag to support different schemas
       Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
           cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders));
-      allTagsDS.persist(storageLevel);
+      // A streaming Dataset cannot be persisted, each consumed tag reruns the DoFn, see #41198.
+      if (!allTagsDS.isStreaming()) {
+        allTagsDS.persist(storageLevel);
+      }
 
       // divide into separate output datasets per tag
       for (TupleTag<?> tag : outputs.keySet()) {

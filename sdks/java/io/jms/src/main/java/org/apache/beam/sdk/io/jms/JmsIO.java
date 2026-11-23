@@ -633,6 +633,34 @@ public class JmsIO {
     T mapMessage(Message message) throws Exception;
   }
 
+  /** The first stack frames outside JmsIO, to tell which runner code path calls the reader. */
+  private static String callerOutsideJmsIO() {
+    String jmsPackage = JmsIO.class.getName().substring(0, JmsIO.class.getName().lastIndexOf('.'));
+    StringBuilder caller = new StringBuilder();
+    int frames = 0;
+    for (StackTraceElement frame : new Throwable().getStackTrace()) {
+      if (frame.getClassName().startsWith(jmsPackage)) {
+        continue;
+      }
+      if (frames > 0) {
+        caller.append(" <- ");
+      }
+      caller.append(frame.getClassName()).append('.').append(frame.getMethodName());
+      if (++frames == 3) {
+        break;
+      }
+    }
+    return caller.toString();
+  }
+
+  private static String clientId(Connection connection) {
+    try {
+      return connection.getClientID();
+    } catch (JMSException e) {
+      return "<" + e.getMessage() + ">";
+    }
+  }
+
   /** An unbounded JMS source. */
   static class UnboundedJmsSource<T> extends UnboundedSource<T, JmsCheckpointMark> {
 
@@ -661,8 +689,20 @@ public class JmsIO {
 
     @Override
     public UnboundedJmsReader<T> createReader(
-        PipelineOptions options, JmsCheckpointMark checkpointMark) {
-      return new UnboundedJmsReader<T>(this, options);
+        PipelineOptions options, @Nullable JmsCheckpointMark checkpointMark) {
+      if (checkpointMark != null) {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // acknowledged if the reader that took it lives in this JVM. Its finalize callback may
+        // never arrive, e.g. when the runner recreates the reader instead of reusing it.
+        checkpointMark.finalizeCheckpoint();
+      }
+      UnboundedJmsReader<T> reader = new UnboundedJmsReader<T>(this, options);
+      LOG.debug(
+          "Created reader {} for {}, resuming from checkpoint {}",
+          reader.readerId,
+          spec.getQueue() != null ? "queue " + spec.getQueue() : "topic " + spec.getTopic(),
+          checkpointMark);
+      return reader;
     }
 
     @Override
@@ -698,10 +738,13 @@ public class JmsIO {
     // Acknowlging messages need open consumer. Tracking active checkpoints allows delayed close of
     // session and consumer.
     private final AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    // Short id for logs.
+    private final String readerId;
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
       this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer(source.spec.getAcknowledgeMode());
+      this.readerId = JmsCheckpointMark.shortId(checkpointMarkPreparer.getReaderId());
       this.currentMessage = null;
       this.currentID = EMPTY;
       this.options = options;
@@ -773,6 +816,9 @@ public class JmsIO {
         }
         connection.start();
         this.connection = connection;
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Reader {} connected with client ID {}", readerId, clientId(connection));
+        }
         if (spec.getAutoScaler() == null) {
           this.autoScaler = new DefaultAutoscaler();
         } else {
@@ -872,6 +918,22 @@ public class JmsIO {
 
     @Override
     public CheckpointMark getCheckpointMark() {
+      JmsCheckpointMark checkpointMark = takeCheckpoint();
+      if (LOG.isDebugEnabled() && checkpointMark.getMessageCount() > 0) {
+        // The caller tells a checkpoint ending a bundle from one taken e.g. to report progress.
+        LOG.debug(
+            "Reader {} took checkpoint {} with {} message(s), {} checkpoint(s) not finalized,"
+                + " called from {}",
+            readerId,
+            checkpointMark,
+            checkpointMark.getMessageCount(),
+            checkpointMarkPreparer.pendingCheckpointCount(),
+            callerOutsideJmsIO());
+      }
+      return checkpointMark;
+    }
+
+    private JmsCheckpointMark takeCheckpoint() {
       if (checkpointMarkPreparer.isEmpty()) {
         return checkpointMarkPreparer.emptyCheckpoint();
       }
@@ -909,6 +971,8 @@ public class JmsIO {
 
     @Override
     public void close() {
+      LOG.debug(
+          "Closing reader {}, {} checkpoint(s) not finalized", readerId, activeCheckpoints.get());
       doClose();
     }
 
@@ -927,7 +991,7 @@ public class JmsIO {
         if (activeCheckpoints.get() == 0) {
           closeConsumer();
           closeSession();
-          closeConnection();
+          abandonPendingCheckpointsAndCloseConnection();
         } else {
           ScheduledExecutorService executorService =
               options.as(ExecutorOptions.class).getScheduledExecutorService();
@@ -943,7 +1007,7 @@ public class JmsIO {
                         source.spec.getCloseTimeout());
                     closeConsumer();
                     closeSession();
-                    closeConnection();
+                    abandonPendingCheckpointsAndCloseConnection();
                   } else {
                     executorService.schedule(this, pollInterval, TimeUnit.SECONDS);
                   }
@@ -955,6 +1019,25 @@ public class JmsIO {
       } catch (Exception e) {
         LOG.warn("Error closing reader", e);
       }
+    }
+
+    /**
+     * Drop the checkpoints that are still not finalized, since closing the connection returns their
+     * messages to the broker, and close the connection.
+     */
+    private void abandonPendingCheckpointsAndCloseConnection() {
+      int pending = checkpointMarkPreparer.pendingCheckpointCount();
+      int abandoned = checkpointMarkPreparer.abandonPendingCheckpoints();
+      if (pending > 0) {
+        LOG.info(
+            "Reader {} closes its JMS connection with {} checkpoint(s) not finalized within"
+                + " closeTimeout {}. The broker will redeliver their {} message(s).",
+            readerId,
+            pending,
+            source.spec.getCloseTimeout(),
+            abandoned);
+      }
+      closeConnection();
     }
 
     private void closeConnection() {

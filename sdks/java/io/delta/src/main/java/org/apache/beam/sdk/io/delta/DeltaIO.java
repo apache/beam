@@ -39,6 +39,7 @@ import io.delta.kernel.types.StructType;
 import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
@@ -73,6 +74,14 @@ public class DeltaIO {
   public static final String COMMIT_TIMESTAMP_COLUMN = "_commit_timestamp";
 
   /**
+   * The metadata columns that {@link ReadChanges#withMetadataColumns} can add to the rows of a
+   * change read, in the order of the Delta Lake Change Data Feed.
+   */
+  public static final List<String> METADATA_COLUMNS =
+      Collections.unmodifiableList(
+          Arrays.asList(CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN, COMMIT_TIMESTAMP_COLUMN));
+
+  /**
    * Reads rows from a Delta Lake table.
    *
    * <p>Normally, it is recommended to use {@link org.apache.beam.sdk.managed.Managed#read(String)}
@@ -82,7 +91,13 @@ public class DeltaIO {
     return new AutoValue_DeltaIO_ReadRows.Builder().build();
   }
 
-  /** Reads change data feed (CDC) from a Delta Lake table. */
+  /**
+   * Reads change data feed (CDC) from a Delta Lake table.
+   *
+   * <p>Change Data Feed ({@code delta.enableChangeDataFeed = true}) must have been enabled on the
+   * table for every version that the read covers, since Delta Lake writers only record the changes
+   * of a commit while it is enabled. Otherwise the read fails.
+   */
   public static ReadChanges readChanges() {
     return new AutoValue_DeltaIO_ReadChanges.Builder().build();
   }
@@ -300,9 +315,7 @@ public class DeltaIO {
 
     public ReadChanges withMetadataColumns(String... metadataColumns) {
       for (String col : metadataColumns) {
-        if (!col.equals(CHANGE_TYPE_COLUMN)
-            && !col.equals(COMMIT_VERSION_COLUMN)
-            && !col.equals(COMMIT_TIMESTAMP_COLUMN)) {
+        if (!METADATA_COLUMNS.contains(col)) {
           throw new IllegalArgumentException(
               String.format(
                   "Unsupported metadata column %s. Supported columns are: %s, %s, and %s.",
@@ -382,6 +395,21 @@ public class DeltaIO {
           resolvedStartVersion == resolvedEndVersion
               ? startSnapshot
               : table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      // Fail early if Change Data Feed was not enabled at either end of the range.
+      // CreateCDCReadTasksDoFn additionally verifies every change of the table configuration within
+      // the range while reading the commits of the range.
+      DeltaChangeDataFeedUtils.checkEnabled(
+          path,
+          resolvedStartVersion,
+          startSnapshot.getTableProperties(),
+          resolvedStartVersion,
+          resolvedEndVersion);
+      DeltaChangeDataFeedUtils.checkEnabled(
+          path,
+          resolvedEndVersion,
+          endSnapshot.getTableProperties(),
+          resolvedStartVersion,
+          resolvedEndVersion);
       StructType startDeltaSchema = startSnapshot.getSchema();
       StructType deltaSchema = endSnapshot.getSchema();
       if (startDeltaSchema == null || deltaSchema == null) {

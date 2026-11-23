@@ -123,7 +123,7 @@ pipelines:
               warehouse: "{TEMP_DIR}"
             streaming: true
             starting_strategy: "earliest"
-            to_timestamp: 4102444800000
+            to_timestamp: "{NOW_MS}"
             include_metadata_columns:
               ["_change_type", "_commit_snapshot_sequence_number"]
         - type: WriteToIceberg

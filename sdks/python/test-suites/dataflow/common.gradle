@@ -347,34 +347,6 @@ task mongodbioIT {
   }
 }
 
-task installChicagoTaxiExampleRequirements {
-  dependsOn 'initializeForDataflowJob'
-
-  doLast {
-    exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
-    }
-  }
-}
-
-task chicagoTaxiExample {
-  dependsOn 'installChicagoTaxiExampleRequirements'
-
-  doLast {
-    def gcsRoot = findProperty('gcsRoot')
-    def pipelineOptions = findProperty('pipelineOptions') ?: ""
-    pipelineOptions += " --sdk_location=\"${project.ext.sdkLocation}\""
-
-    exec {
-      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} TestDataflowRunner ${pipelineOptions}"
-    }
-  }
-}
-
 task validatesContainer() {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   if (project.hasProperty("testRCDependencies")) {

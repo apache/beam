@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@octokit/rest": "^21.1.1",
-    "nodemailer": "^10.0.9",
+    "nodemailer": "^10.5.0",
     "node-fetch": "^2.6.1"
   },
   "type": "module"

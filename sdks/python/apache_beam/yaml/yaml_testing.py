@@ -178,7 +178,7 @@ def validate_test_spec(test_spec):
     if not isinstance(attr, list):
       raise TypeError(
           f'{attr_type} of test specification {identifier} '
-          f'must be a list, got {type(attr_type)}')
+          f'must be a list, got {type(attr)}')
     for ix, attr_item in enumerate(attr):
       if not isinstance(attr_item, dict):
         raise TypeError(
@@ -421,7 +421,7 @@ def create_test(
     else:
       if sum(1 for t in transform_spec['transforms']
              if t['type'] == transform['type']) > 1:
-        raise ValueError('Ambiguous unnamed transform {transform["type"]}')
+        raise ValueError(f'Ambiguous unnamed transform {transform["type"]}')
       return str(transform['type'])
 
   input_transforms = [
