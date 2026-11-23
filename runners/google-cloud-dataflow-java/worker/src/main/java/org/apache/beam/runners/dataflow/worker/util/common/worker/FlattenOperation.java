@@ -18,13 +18,20 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A flatten operation. */
 public class FlattenOperation extends ReceivingOperation {
+  private final OperationContext.@Nullable FastProcessContext fastContext;
+
   public FlattenOperation(OutputReceiver[] receivers, OperationContext context) {
     super(receivers, context);
+    this.fastContext =
+        (context instanceof OperationContext.FastProcessContext)
+            ? (OperationContext.FastProcessContext) context
+            : null;
   }
 
   /** Invoked by tests. */
@@ -35,6 +42,20 @@ public class FlattenOperation extends ReceivingOperation {
 
   @Override
   public void process(Object elem) throws Exception {
+    OperationContext.FastProcessContext fastCtx = this.fastContext;
+    if (fastCtx != null) {
+      ExecutionState prev = fastCtx.enterProcessUnscoped();
+      try {
+        checkStarted();
+        Receiver receiver = receivers[0];
+        if (receiver != null) {
+          receiver.process(elem);
+        }
+      } finally {
+        fastCtx.exitProcessUnscoped(prev);
+      }
+      return;
+    }
     try (Closeable scope = context.enterProcess()) {
       checkStarted();
       Receiver receiver = receivers[0];
@@ -42,19 +63,6 @@ public class FlattenOperation extends ReceivingOperation {
         receiver.process(elem);
       }
     }
-  }
-
-  /**
-   * Returns the downstream receiver when this {@link FlattenOperation} is started and acts as a
-   * pure single-output pass-through, allowing upstream {@link OutputReceiver}s to bypass {@code
-   * FlattenOperation.process} stack frames while keeping {@code Flatten}'s {@link OutputReceiver}
-   * counters intact.
-   */
-  @Nullable Receiver passThroughReceiverIfStarted() {
-    if (initializationState == InitializationState.STARTED && receivers.length == 1) {
-      return receivers[0];
-    }
-    return null;
   }
 
   @Override

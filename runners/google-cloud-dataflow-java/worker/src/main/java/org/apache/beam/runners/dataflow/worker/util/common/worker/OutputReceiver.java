@@ -87,18 +87,6 @@ public class OutputReceiver implements Receiver, FusedSegmentCompiler.CompiledNo
     singlePath = trampolineCut == null && countersArray.length <= 1 && outputsArray.length <= 1;
   }
 
-  private static @Nullable Receiver unwrapPassThroughFlatten(@Nullable Receiver target) {
-    Receiver cur = target;
-    while (cur != null && cur.getClass() == FlattenOperation.class) {
-      Receiver next = ((FlattenOperation) cur).passThroughReceiverIfStarted();
-      if (next == null) {
-        break;
-      }
-      cur = next;
-    }
-    return cur;
-  }
-
   @Override
   public void acceptWindowed(WindowedValue<?> elem) throws Exception {
     process(elem);
@@ -119,7 +107,7 @@ public class OutputReceiver implements Receiver, FusedSegmentCompiler.CompiledNo
       if (counter != null) {
         counter.update(elem);
       }
-      Receiver out = unwrapPassThroughFlatten(onlyOutput);
+      Receiver out = onlyOutput;
       if (out != null) {
         out.process(elem);
       }
@@ -137,7 +125,7 @@ public class OutputReceiver implements Receiver, FusedSegmentCompiler.CompiledNo
       if (counter != null) {
         counter.update(elem);
       }
-      Receiver out = unwrapPassThroughFlatten(onlyOutput);
+      Receiver out = onlyOutput;
       if (out != null) {
         out.process(elem);
       }
@@ -164,7 +152,7 @@ public class OutputReceiver implements Receiver, FusedSegmentCompiler.CompiledNo
     Receiver[] outs = outputsArray;
     int numOutputs = outs.length;
     for (int i = 0; i < numOutputs; i++) {
-      Receiver out = unwrapPassThroughFlatten(outs[i]);
+      Receiver out = outs[i];
       if (out != null) {
         out.process(elem);
       }
@@ -185,7 +173,7 @@ public class OutputReceiver implements Receiver, FusedSegmentCompiler.CompiledNo
     Receiver[] outs = outputsArray;
     int numOutputs = outs.length;
     for (int i = 0; i < numOutputs; i++) {
-      Receiver out = unwrapPassThroughFlatten(outs[i]);
+      Receiver out = outs[i];
       if (out != null) {
         out.process(elem);
       }

@@ -805,4 +805,107 @@ public class StageTrampolineTest {
         Arrays.asList("elem:v1", "elem:v2", "timerAfter:v2", "elem:v3", "timerAfter:v3"),
         downstreamEvents);
   }
+
+  @Test
+  public void testDownstreamCutDrainsDuringOneToManyAndPreservesUngroupingOrderBehindUpstreamCut()
+      throws Exception {
+    // 1. Cut_0 -> 1-to-2000 FlatMap -> Cut_1 -> sink: Cut_1 must drain incrementally (bounded
+    // memory)
+    AtomicInteger produced = new AtomicInteger();
+    AtomicInteger consumed = new AtomicInteger();
+    AtomicInteger maxInFlight = new AtomicInteger();
+
+    OutputReceiver cut0Recv = new OutputReceiver();
+    OutputReceiver cut1Recv = new OutputReceiver();
+    cut1Recv.addOutput(
+        elem -> {
+          int curInFlight = produced.get() - consumed.incrementAndGet();
+          maxInFlight.accumulateAndGet(curInFlight, Math::max);
+        });
+    cut0Recv.addOutput(
+        elem -> {
+          for (int i = 0; i < 2000; i++) {
+            produced.incrementAndGet();
+            cut1Recv.process(i);
+          }
+        });
+
+    StageTrampoline flatMapTrampoline = new StageTrampoline(Arrays.asList(cut0Recv, cut1Recv));
+    cut0Recv.process("trigger");
+    flatMapTrampoline.drain();
+    assertEquals(2000, consumed.get());
+    assertThat(
+        "Downstream cut must drain at INITIAL_BUFFER_CAPACITY even while upstream cut is active",
+        maxInFlight.get(),
+        lessThanOrEqualTo(256));
+
+    // 2. Upstream Cut_0 -> BatchModeUngroupingParDoFn -> {element Cut_1, timer Cut_2 (2 > 1)}
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CounterSet counters = new CounterSet();
+    DataflowOperationContext opCtx =
+        TestOperationContext.create(
+            counters, NameContext.create("stage", "ungroup2", "ungroup2", "ungroup2"));
+    BatchModeExecutionContext.StepContext stepCtx =
+        BatchModeExecutionContext.forTesting(options, counters, "stage").getStepContext(opCtx);
+
+    List<String> events = new ArrayList<>();
+    OutputReceiver upstreamCut0 = new OutputReceiver();
+    OutputReceiver elemCut1 = new OutputReceiver();
+    OutputReceiver timerCut2 = new OutputReceiver();
+    elemCut1.addOutput(e -> events.add((String) e));
+    timerCut2.addOutput(e -> events.add((String) e));
+
+    ParDoFn underlying =
+        new ParDoFn() {
+          private Receiver elemOut;
+          private Receiver timerOut;
+
+          @Override
+          public void startBundle(Receiver... receivers) {
+            this.elemOut = receivers[0];
+            this.timerOut = receivers[1];
+          }
+
+          @Override
+          public void processElement(Object untypedElem) throws Exception {
+            WindowedValue<String> wv = (WindowedValue<String>) untypedElem;
+            elemOut.process("elem:" + wv.getValue());
+          }
+
+          @Override
+          public void processTimers() throws Exception {
+            timerOut.process("timer");
+          }
+
+          @Override
+          public void finishKey(Object key) {}
+
+          @Override
+          public void finishBundle() {}
+
+          @Override
+          public void abort() {}
+        };
+
+    BatchModeUngroupingParDoFn<String, String> ungrouping =
+        new BatchModeUngroupingParDoFn<>(stepCtx, underlying);
+    StageTrampoline multiCutTrampoline =
+        new StageTrampoline(Arrays.asList(upstreamCut0, elemCut1, timerCut2));
+    ungrouping.setStageTrampoline(multiCutTrampoline);
+    upstreamCut0.addOutput(ungrouping::processElement);
+    ungrouping.startBundle(elemCut1, timerCut2);
+
+    WindowedValue<KV<String, Iterable<KV<Instant, WindowedValue<String>>>>> keyElem =
+        WindowedValues.valueInGlobalWindow(
+            KV.of(
+                "k1",
+                Arrays.asList(
+                    KV.of(Instant.EPOCH, WindowedValues.valueInGlobalWindow("a")),
+                    KV.of(Instant.EPOCH, WindowedValues.valueInGlobalWindow("b")))));
+    upstreamCut0.process(keyElem);
+    multiCutTrampoline.drain();
+    ungrouping.finishBundle();
+
+    assertEquals(Arrays.asList("elem:a", "elem:b", "timer"), events);
+  }
 }

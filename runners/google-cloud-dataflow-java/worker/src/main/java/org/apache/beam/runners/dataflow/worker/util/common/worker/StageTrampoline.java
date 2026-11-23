@@ -39,7 +39,7 @@ public final class StageTrampoline {
   private final int numCuts;
   private long activeMask = 0L;
   private final long @Nullable [] extraMasks;
-  private boolean draining = false;
+  private int activeCutIndex = -1;
 
   public StageTrampoline(List<OutputReceiver> cutReceivers) {
     this.numCuts = cutReceivers.size();
@@ -123,31 +123,53 @@ public final class StageTrampoline {
     return false;
   }
 
-  /** Drains all buffered elements across all topological cuts in iterative depth-first order. */
+  private int highestActiveCutAtOrAbove(int minCutIndex) {
+    int idx = highestActiveCut();
+    return idx >= minCutIndex ? idx : -1;
+  }
+
+  /**
+   * Drains all buffered elements across all topological cuts strictly downstream of the currently
+   * executing cut (or all cuts when called at the top level) in iterative depth-first order.
+   */
   public void drain() throws Exception {
-    if (draining || !hasPending()) {
+    int minCutIndex = activeCutIndex + 1;
+    int idx = highestActiveCutAtOrAbove(minCutIndex);
+    if (idx < 0) {
       return;
     }
-    draining = true;
+    int prevActive = activeCutIndex;
     try {
-      int idx;
-      while ((idx = highestActiveCut()) >= 0) {
+      do {
         clearActive(idx);
+        activeCutIndex = idx;
         cuts[idx].drainSegment();
-      }
+      } while ((idx = highestActiveCutAtOrAbove(minCutIndex)) >= 0);
     } catch (Throwable t) {
-      reset();
+      if (prevActive < 0) {
+        reset();
+      } else {
+        clearCutsFrom(minCutIndex);
+      }
       if (t instanceof Exception) {
         throw (Exception) t;
       }
       throw (Error) t;
+    } finally {
+      activeCutIndex = prevActive;
     }
-    draining = false;
+  }
+
+  private void clearCutsFrom(int minCutIndex) {
+    for (int i = minCutIndex; i < numCuts; i++) {
+      clearActive(i);
+      cuts[i].clear();
+    }
   }
 
   /** Clears all buffered elements and active masks (invoked on bundle abort/close). */
   public void reset() {
-    draining = false;
+    activeCutIndex = -1;
     activeMask = 0L;
     if (extraMasks != null) {
       Arrays.fill(extraMasks, 0L);
@@ -176,9 +198,10 @@ public final class StageTrampoline {
 
     void enqueue(Object elem) throws Exception {
       if (size == buffer.length) {
-        if (!trampoline.draining) {
-          // Root segment emitted 256 elements in a single call (e.g. exploding a hot GBK key):
-          // drain all buffered elements downstream first to bound memory to O(256).
+        if (cutIndex > trampoline.activeCutIndex) {
+          // A segment emitted 256 elements in a single call (e.g. exploding a hot GBK key or
+          // 1-to-many FlatMap downstream of an upstream cut): drain strictly downstream cuts first
+          // to bound memory to O(256).
           trampoline.drain();
         }
         if (size == buffer.length) {
@@ -190,7 +213,7 @@ public final class StageTrampoline {
       int s = size + 1;
       size = s;
       trampoline.markActive(cutIndex);
-      if (s == INITIAL_BUFFER_CAPACITY && !trampoline.draining) {
+      if (s == INITIAL_BUFFER_CAPACITY && cutIndex > trampoline.activeCutIndex) {
         trampoline.drain();
       }
     }

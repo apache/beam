@@ -782,12 +782,11 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
 
     public ElementByteSizeObservableCoder(Coder<T> coder) {
       this.coder = coder;
+      Class<?> cls = coder.getClass();
       this.fullWvCoder =
-          (coder instanceof FullWindowedValueCoder) ? (FullWindowedValueCoder<Object>) coder : null;
+          (cls == FullWindowedValueCoder.class) ? (FullWindowedValueCoder<Object>) coder : null;
       this.paramWvCoder =
-          (coder instanceof ParamWindowedValueCoder)
-              ? (ParamWindowedValueCoder<Object>) coder
-              : null;
+          (cls == ParamWindowedValueCoder.class) ? (ParamWindowedValueCoder<Object>) coder : null;
     }
 
     @Override

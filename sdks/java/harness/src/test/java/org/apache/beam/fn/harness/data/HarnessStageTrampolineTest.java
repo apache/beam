@@ -660,4 +660,279 @@ public class HarnessStageTrampolineTest {
     handler2.shutdown();
     handlerNoCodegen.shutdown();
   }
+
+  @Test
+  public void testDownstreamCutDrainsDuringOneToManyWhileUpstreamCutIsActive() throws Exception {
+    AtomicInteger produced = new AtomicInteger();
+    AtomicInteger consumed = new AtomicInteger();
+    AtomicInteger maxInFlight = new AtomicInteger();
+
+    HarnessStageTrampoline trampoline = new HarnessStageTrampoline();
+    // Register in post-order (sink-to-root): cut1 (downstream) first, cut0 (upstream) second
+    FnDataReceiver<WindowedValue<Integer>> cut1 =
+        trampoline.createCut(
+            elem -> {
+              int curInFlight = produced.get() - consumed.incrementAndGet();
+              maxInFlight.accumulateAndGet(curInFlight, Math::max);
+            });
+    FnDataReceiver<WindowedValue<String>> cut0 =
+        trampoline.createCut(
+            elem -> {
+              for (int i = 0; i < 2000; i++) {
+                produced.incrementAndGet();
+                cut1.accept(valueInGlobalWindow(i));
+              }
+            });
+    trampoline.freezeReverseTopologicalCuts();
+
+    cut0.accept(valueInGlobalWindow("trigger"));
+    trampoline.drain();
+    assertEquals(2000, consumed.get());
+    assertThat(maxInFlight.get(), lessThanOrEqualTo(256));
+  }
+
+  private static final class BadSkewDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.outputWithTimestamp(c.element(), c.timestamp().minus(org.joda.time.Duration.millis(10)));
+    }
+  }
+
+  private static final org.apache.beam.sdk.values.TupleTag<String> SIDE_ONLY_MAIN_TAG =
+      new org.apache.beam.sdk.values.TupleTag<>("mainTag");
+  private static final org.apache.beam.sdk.values.TupleTag<String> SIDE_ONLY_SIDE_TAG =
+      new org.apache.beam.sdk.values.TupleTag<>("sideTag");
+
+  private static final class SideOnlyOutputDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(SIDE_ONLY_SIDE_TAG, "side-kept:" + c.element());
+    }
+  }
+
+  @Test
+  public void testCompiledSegmentEnforcesTimestampSkewAndSkipsSideOnlySingleOutput()
+      throws Exception {
+    // 1. Compiled DoFn calling outputWithTimestamp(earlierTs) must throw IllegalArgumentException
+    Pipeline p = Pipeline.create();
+    p.apply("src", Create.of("a").withCoder(StringUtf8Coder.of()))
+        .apply("badTs", ParDo.of(new BadSkewDoFn()))
+        .apply("s2", MapElements.into(TypeDescriptors.strings()).via((String s) -> s + "!"));
+
+    SdkComponents sdkComponents = SdkComponents.create(PipelineOptionsFactory.create());
+    RunnerApi.Pipeline proto = PipelineTranslation.toProto(p, sdkComponents);
+    RunnerApi.Components comps = proto.getComponents();
+    Map<String, PTransform> leafTransforms = new HashMap<>();
+    String firstInPc = null;
+    String lastOutPc = null;
+    for (Map.Entry<String, PTransform> e : comps.getTransformsMap().entrySet()) {
+      PTransform pt = e.getValue();
+      if (pt.getSubtransformsCount() == 0
+          && PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(pt.getSpec().getUrn())
+          && (pt.getUniqueName().startsWith("badTs") || pt.getUniqueName().startsWith("s2"))) {
+        leafTransforms.put(e.getKey(), pt);
+      }
+    }
+    for (PTransform pt : leafTransforms.values()) {
+      String inPc = pt.getInputsMap().values().iterator().next();
+      boolean producedByLeaf = false;
+      for (PTransform other : leafTransforms.values()) {
+        if (other.getOutputsMap().containsValue(inPc)) {
+          producedByLeaf = true;
+          break;
+        }
+      }
+      if (!producedByLeaf) {
+        firstInPc = inPc;
+      }
+      String outPc = pt.getOutputsMap().values().iterator().next();
+      boolean consumedByLeaf = false;
+      for (PTransform other : leafTransforms.values()) {
+        if (other.getInputsMap().containsValue(outPc)) {
+          consumedByLeaf = true;
+          break;
+        }
+      }
+      if (!consumedByLeaf) {
+        lastOutPc = outPc;
+      }
+    }
+
+    WindowedValues.FullWindowedValueCoder<String> wvCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    String wvCoderId = sdkComponents.registerCoder(wvCoder);
+    RunnerApi.Components compsWithWv =
+        comps.toBuilder().putAllCoders(sdkComponents.toComponents().getCodersMap()).build();
+    RemoteGrpcPort port =
+        RemoteGrpcPort.newBuilder()
+            .setApiServiceDescriptor(ApiServiceDescriptor.newBuilder().setUrl("test-url"))
+            .setCoderId(wvCoderId)
+            .build();
+    ProcessBundleDescriptor.Builder descBuilder =
+        ProcessBundleDescriptor.newBuilder()
+            .setId("desc-skew")
+            .putAllCoders(compsWithWv.getCodersMap())
+            .putAllPcollections(compsWithWv.getPcollectionsMap())
+            .putAllWindowingStrategies(compsWithWv.getWindowingStrategiesMap())
+            .putAllEnvironments(compsWithWv.getEnvironmentsMap())
+            .putTransforms(
+                "src",
+                PTransform.newBuilder()
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn("beam:runner:source:v1")
+                            .setPayload(port.toByteString()))
+                    .putOutputs("out", firstInPc)
+                    .build())
+            .putTransforms(
+                "sink",
+                PTransform.newBuilder()
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn("beam:runner:sink:v1")
+                            .setPayload(port.toByteString()))
+                    .putInputs("in", lastOutPc)
+                    .build());
+    for (Map.Entry<String, PTransform> e : leafTransforms.entrySet()) {
+      descBuilder.putTransforms(e.getKey(), e.getValue());
+    }
+
+    ByteStringOutputStream bout = new ByteStringOutputStream();
+    wvCoder.encode(
+        WindowedValues.timestampedValueInGlobalWindow("a", new org.joda.time.Instant(1000L)), bout);
+    InstructionRequest req =
+        InstructionRequest.newBuilder()
+            .setInstructionId("inst-skew")
+            .setProcessBundle(
+                ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorId("desc-skew")
+                    .setElements(
+                        Elements.newBuilder()
+                            .addData(
+                                Elements.Data.newBuilder()
+                                    .setInstructionId("inst-skew")
+                                    .setTransformId("src")
+                                    .setData(bout.toByteString())
+                                    .setIsLast(true))))
+            .build();
+
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.as(ExperimentalOptions.class)
+        .setExperiments(Collections.singletonList("codegen_min_chain_steps=2"));
+    ProcessBundleHandler handler = createHandler(opts, descBuilder.build(), new ShortIdMap());
+    Exception ex = assertThrows(Exception.class, () -> handler.processBundle(req));
+    Throwable cause = ex;
+    boolean sawSkewIllegalArg = false;
+    while (cause != null) {
+      if (cause instanceof IllegalArgumentException
+          && cause.getMessage() != null
+          && cause.getMessage().contains("allowed skew")) {
+        sawSkewIllegalArg = true;
+        break;
+      }
+      cause = cause.getCause();
+    }
+    assertTrue("Expected timestamp skew IllegalArgumentException, got: " + ex, sawSkewIllegalArg);
+    handler.shutdown();
+
+    // 2. Single-output ParDo whose sole wired output is a side tag (main output pruned) must NOT
+    // be compiled as main-output linear segment and must deliver side-tag outputs intact.
+    Pipeline sideP = Pipeline.create();
+    sideP
+        .apply("src", Create.of("x").withCoder(StringUtf8Coder.of()))
+        .apply(
+            "sideParDo",
+            ParDo.of(new SideOnlyOutputDoFn())
+                .withOutputTags(
+                    SIDE_ONLY_MAIN_TAG,
+                    org.apache.beam.sdk.values.TupleTagList.of(SIDE_ONLY_SIDE_TAG)))
+        .get(SIDE_ONLY_SIDE_TAG)
+        .setCoder(StringUtf8Coder.of())
+        .apply("tailMap", MapElements.into(TypeDescriptors.strings()).via((String s) -> s + "!"));
+    SdkComponents sideSdk = SdkComponents.create(PipelineOptionsFactory.create());
+    RunnerApi.Pipeline sideProto = PipelineTranslation.toProto(sideP, sideSdk);
+    RunnerApi.Components sideComps = sideProto.getComponents();
+    Map<String, PTransform> sideLeaves = new HashMap<>();
+    String sideInPc = null;
+    String sideOutPc = null;
+    for (Map.Entry<String, PTransform> e : sideComps.getTransformsMap().entrySet()) {
+      PTransform pt = e.getValue();
+      if (pt.getSubtransformsCount() == 0
+          && PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(pt.getSpec().getUrn())
+          && (pt.getUniqueName().startsWith("sideParDo")
+              || pt.getUniqueName().startsWith("tailMap"))) {
+        // Prune mainTag from sideParDo outputs to simulate runner pruning an unconsumed main output
+        if (pt.getOutputsMap().containsKey(SIDE_ONLY_MAIN_TAG.getId())
+            && pt.getOutputsMap().containsKey(SIDE_ONLY_SIDE_TAG.getId())) {
+          PTransform.Builder pruned = pt.toBuilder().clearOutputs();
+          pruned.putOutputs(
+              SIDE_ONLY_SIDE_TAG.getId(), pt.getOutputsOrThrow(SIDE_ONLY_SIDE_TAG.getId()));
+          pt = pruned.build();
+          sideInPc = pt.getInputsMap().values().iterator().next();
+        } else {
+          sideOutPc = pt.getOutputsMap().values().iterator().next();
+        }
+        sideLeaves.put(e.getKey(), pt);
+      }
+    }
+    String sideWvCoderId = sideSdk.registerCoder(wvCoder);
+    RunnerApi.Components sideCompsWithWv =
+        sideComps.toBuilder().putAllCoders(sideSdk.toComponents().getCodersMap()).build();
+    RemoteGrpcPort sidePort =
+        RemoteGrpcPort.newBuilder()
+            .setApiServiceDescriptor(ApiServiceDescriptor.newBuilder().setUrl("test-url"))
+            .setCoderId(sideWvCoderId)
+            .build();
+    ProcessBundleDescriptor.Builder sideDesc =
+        ProcessBundleDescriptor.newBuilder()
+            .setId("desc-side-only")
+            .putAllCoders(sideCompsWithWv.getCodersMap())
+            .putAllPcollections(sideCompsWithWv.getPcollectionsMap())
+            .putAllWindowingStrategies(sideCompsWithWv.getWindowingStrategiesMap())
+            .putAllEnvironments(sideCompsWithWv.getEnvironmentsMap())
+            .putTransforms(
+                "src",
+                PTransform.newBuilder()
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn("beam:runner:source:v1")
+                            .setPayload(sidePort.toByteString()))
+                    .putOutputs("out", sideInPc)
+                    .build())
+            .putTransforms(
+                "sink",
+                PTransform.newBuilder()
+                    .setSpec(
+                        RunnerApi.FunctionSpec.newBuilder()
+                            .setUrn("beam:runner:sink:v1")
+                            .setPayload(sidePort.toByteString()))
+                    .putInputs("in", sideOutPc)
+                    .build());
+    for (Map.Entry<String, PTransform> e : sideLeaves.entrySet()) {
+      sideDesc.putTransforms(e.getKey(), e.getValue());
+    }
+    ByteStringOutputStream sideInBytes = new ByteStringOutputStream();
+    wvCoder.encode(valueInGlobalWindow("x"), sideInBytes);
+    InstructionRequest sideReq =
+        InstructionRequest.newBuilder()
+            .setInstructionId("inst-side")
+            .setProcessBundle(
+                ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorId("desc-side-only")
+                    .setElements(
+                        Elements.newBuilder()
+                            .addData(
+                                Elements.Data.newBuilder()
+                                    .setInstructionId("inst-side")
+                                    .setTransformId("src")
+                                    .setData(sideInBytes.toByteString())
+                                    .setIsLast(true))))
+            .build();
+    ProcessBundleHandler sideHandler = createHandler(opts, sideDesc.build(), new ShortIdMap());
+    BeamFnApi.InstructionResponse sideResp = sideHandler.processBundle(sideReq).build();
+    ByteString sideData = sideResp.getProcessBundle().getElements().getData(0).getData();
+    WindowedValue<String> decoded = wvCoder.decode(sideData.newInput());
+    assertEquals("side-kept:x!", decoded.getValue());
+    sideHandler.shutdown();
+  }
 }

@@ -240,7 +240,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       RehydratedComponents rehydrated =
           RehydratedComponents.forComponents(context.getComponents())
               .withPipeline(Pipeline.create());
-      String outPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+      TupleTag<?> mainOutputTag = ParDoTranslation.getMainOutputTag(payload);
+      String outPCollectionId = pTransform.getOutputsMap().get(mainOutputTag.getId());
+      if (outPCollectionId == null) {
+        return false;
+      }
       Coder<?> outCoder =
           rehydrated.getCoder(
               context.getComponents().getPcollectionsOrThrow(outPCollectionId).getCoderId());
@@ -279,7 +283,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             inPCollectionId,
             (WindowedValue<InputT> elem) -> {
               io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
-              if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+              if (otel != null && otel != io.opentelemetry.context.Context.current()) {
                 try (Scope ignored = otel.makeCurrent()) {
                   invokeInlineMap(mapFn, elem, downstream);
                 }
@@ -295,7 +299,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             inPCollectionId,
             (WindowedValue<InputT> elem) -> {
               io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
-              if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+              if (otel != null && otel != io.opentelemetry.context.Context.current()) {
                 try (Scope ignored = otel.makeCurrent()) {
                   invokeInlineFilter(filterFn, elem, downstream);
                 }
@@ -308,16 +312,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return false;
     }
 
+    private static boolean hasChangedOtel(WindowedValue<?> elem) {
+      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+      io.opentelemetry.context.Context elemOtel = elem.getOpenTelemetryContext();
+      return curOtel != elemOtel
+          && !(curOtel == io.opentelemetry.context.Context.root() && elemOtel == null);
+    }
+
     private void invokeInlineMap(
         ProcessFunction<InputT, OutputT> mapFn,
         WindowedValue<InputT> elem,
         FnDataReceiver<WindowedValue<OutputT>> downstream) {
       try {
         OutputT mapped = mapFn.apply(elem.getValue());
-        io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
         WindowedValue<OutputT> out =
-            (curOtel != io.opentelemetry.context.Context.root()
-                    && curOtel != elem.getOpenTelemetryContext())
+            hasChangedOtel(elem)
                 ? WindowedValues.builder(elem).withValue(mapped).build()
                 : elem.withValue(mapped);
         downstream.accept(out);
@@ -337,10 +346,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         if (!filterFn.apply(elem.getValue())) {
           return;
         }
-        io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
         WindowedValue<OutputT> out =
-            (curOtel != io.opentelemetry.context.Context.root()
-                    && curOtel != elem.getOpenTelemetryContext())
+            hasChangedOtel(elem)
                 ? (WindowedValue<OutputT>) WindowedValues.builder(elem).build()
                 : (WindowedValue<OutputT>) elem;
         downstream.accept(out);
@@ -642,6 +649,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     boolean registeredAsCompiled = false;
     if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())
         && pTransform.getOutputsCount() == 1
+        && pTransform.getOutputsMap().containsKey(mainOutputTag.getId())
         && sideInputMapping.isEmpty()
         && parDoPayload.getStateSpecsMap().isEmpty()
         && parDoPayload.getTimerFamilySpecsMap().isEmpty()
@@ -654,7 +662,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         && !ExperimentalOptions.hasExperiment(
             pipelineOptions, FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT)
         && tryRegisterCompilableCallback != null) {
-      String onlyOutPcId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+      String onlyOutPcId = pTransform.getOutputsMap().get(mainOutputTag.getId());
       boolean isSystem = doFnInvoker.getClass().isAnnotationPresent(SystemDoFnInternal.class);
       FusedSegmentCompiler.StepSpec spec =
           new FusedSegmentCompiler.DoFnStepSpec<>(
@@ -823,13 +831,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void checkTimestamp(WindowedValue<InputT> elem, Instant timestamp) {
-        if (elem.getTimestamp().isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)
-            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Output timestamp %s exceeds maximum allowed %s",
-                  timestamp, BoundedWindow.TIMESTAMP_MAX_VALUE));
-        }
+        FnApiDoFnRunner.this.checkTimestamp(elem.getTimestamp(), timestamp);
       }
 
       @Override
@@ -882,7 +884,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     causedByDrain = currentElement.causedByDrain();
     io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
     try {
-      if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+      if (otel != null && otel != io.opentelemetry.context.Context.current()) {
         try (Scope ignored = otel.makeCurrent()) {
           doFnInvoker.invokeProcessElement(processContext);
         }
@@ -900,7 +902,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     causedByDrain = currentElement.causedByDrain();
     io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
     try {
-      if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+      if (otel != null && otel != io.opentelemetry.context.Context.current()) {
         try (Scope ignored = otel.makeCurrent()) {
           Iterator<BoundedWindow> windowIterator =
               (Iterator<BoundedWindow>) elem.getWindows().iterator();
@@ -1883,11 +1885,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
   private void checkTimestamp(Instant timestamp) {
+    checkTimestamp(currentElement.getTimestamp(), timestamp);
+  }
+
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkTimestamp(Instant elemTimestamp, Instant timestamp) {
     Instant lowerBound;
     try {
-      lowerBound = currentElement.getTimestamp().minus(doFn.getAllowedTimestampSkew());
+      lowerBound = elemTimestamp.minus(doFn.getAllowedTimestampSkew());
     } catch (ArithmeticException e) {
       lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
@@ -1900,7 +1906,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
                   + "changing the allowed skew.",
               timestamp,
-              currentElement.getTimestamp(),
+              elemTimestamp,
               doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
                   ? doFn.getAllowedTimestampSkew()
                   : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
@@ -2195,6 +2201,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               });
     }
 
+    private boolean hasChangedOtel() {
+      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+      io.opentelemetry.context.Context elemOtel = currentElement.getOpenTelemetryContext();
+      return curOtel != elemOtel
+          && !(curOtel == io.opentelemetry.context.Context.root() && elemOtel == null);
+    }
+
     @Override
     public void output(OutputT output) {
       // Don't need to check timestamp since we can always output using the input timestamp.
@@ -2202,9 +2215,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException(
             "Attempting to emit an element outside of a @ProcessElement context.");
       }
-      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
-      if (curOtel != io.opentelemetry.context.Context.root()
-          && curOtel != currentElement.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         builder(output).output();
         return;
       }
@@ -2218,9 +2229,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
-      if (curOtel != io.opentelemetry.context.Context.root()
-          && curOtel != currentElement.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         outputToNonSdf(consumer, WindowedValues.builder(currentElement).withValue(output).build());
         return;
       }
@@ -2231,9 +2240,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(timestamp);
-      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
-      if (curOtel != io.opentelemetry.context.Context.root()
-          && curOtel != currentElement.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         builder(output).setValue(output).setTimestamp(timestamp).output();
         return;
       }
@@ -2268,11 +2275,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
       io.opentelemetry.context.Context otelToUse =
-          (curOtel != io.opentelemetry.context.Context.root()
-                  && curOtel != currentElement.getOpenTelemetryContext())
-              ? curOtel
+          hasChangedOtel()
+              ? io.opentelemetry.context.Context.current()
               : currentElement.getOpenTelemetryContext();
       outputToNonSdf(
           consumer,

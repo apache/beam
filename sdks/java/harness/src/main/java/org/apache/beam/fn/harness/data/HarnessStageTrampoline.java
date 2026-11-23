@@ -50,7 +50,7 @@ public final class HarnessStageTrampoline {
   private int numCuts = 0;
   private long activeMask = 0L;
   private long @Nullable [] extraMasks = null;
-  private boolean draining = false;
+  private int activeCutIndex = -1;
 
   public static int resolveThreshold(@Nullable PipelineOptions options) {
     if (options == null) {
@@ -162,31 +162,57 @@ public final class HarnessStageTrampoline {
     return false;
   }
 
-  /** Drains all buffered elements across all topological cuts in iterative depth-first order. */
+  private int highestActiveCutAtOrAbove(int minCutIndex) {
+    int idx = highestActiveCut();
+    return idx >= minCutIndex ? idx : -1;
+  }
+
+  /**
+   * Drains all buffered elements across all topological cuts strictly downstream of the currently
+   * executing cut (or all cuts when called at the top level) in iterative depth-first order.
+   */
   public void drain() {
-    if (draining || !hasPending()) {
+    int minCutIndex = activeCutIndex + 1;
+    int idx = highestActiveCutAtOrAbove(minCutIndex);
+    if (idx < 0) {
       return;
     }
-    draining = true;
+    int prevActive = activeCutIndex;
     try {
-      int idx;
-      while ((idx = highestActiveCut()) >= 0) {
+      do {
         clearActive(idx);
+        activeCutIndex = idx;
         cuts[idx].drainSegment();
-      }
+      } while ((idx = highestActiveCutAtOrAbove(minCutIndex)) >= 0);
     } catch (OutOfMemoryError oom) {
-      reset();
+      if (prevActive < 0) {
+        reset();
+      } else {
+        clearCutsFrom(minCutIndex);
+      }
       throw oom;
     } catch (Throwable t) {
-      reset();
+      if (prevActive < 0) {
+        reset();
+      } else {
+        clearCutsFrom(minCutIndex);
+      }
       throw UserCodeException.wrap(t);
+    } finally {
+      activeCutIndex = prevActive;
     }
-    draining = false;
+  }
+
+  private void clearCutsFrom(int minCutIndex) {
+    for (int i = minCutIndex; i < numCuts; i++) {
+      clearActive(i);
+      cuts[i].clear();
+    }
   }
 
   /** Resets all cut queues and active bitmasks (invoked on bundle reset/failure). */
   public void reset() {
-    draining = false;
+    activeCutIndex = -1;
     activeMask = 0L;
     if (extraMasks != null) {
       Arrays.fill(extraMasks, 0L);
@@ -214,7 +240,7 @@ public final class HarnessStageTrampoline {
     @Override
     public void accept(WindowedValue<T> elem) {
       if (size == buffer.length) {
-        if (!trampoline.draining) {
+        if (cutIndex > trampoline.activeCutIndex) {
           trampoline.drain();
         }
         if (size == buffer.length) {
@@ -226,7 +252,7 @@ public final class HarnessStageTrampoline {
       int s = size + 1;
       size = s;
       trampoline.markActive(cutIndex);
-      if (s == INITIAL_BUFFER_CAPACITY && !trampoline.draining) {
+      if (s == INITIAL_BUFFER_CAPACITY && cutIndex > trampoline.activeCutIndex) {
         trampoline.drain();
       }
     }

@@ -448,7 +448,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
 
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
     Context otel = elem.getOpenTelemetryContext();
-    if (otel != null && otel != Context.root()) {
+    if (otel != null && otel != Context.current()) {
       processElementWithOtel(elem, otel);
     } else if (directMapFn != null) {
       processDirectMap(elem);
@@ -470,6 +470,16 @@ final class FastStatelessParDoFn<InputT, OutputT>
     if (outputsPerElemCounter != null) {
       outputsPerElemCounter.addValue(currentElemOutputs);
     }
+  }
+
+  private static boolean hasChangedOtel(WindowedValue<?> elem) {
+    Context currentOtel = Context.current();
+    Context elemOtel = elem.getOpenTelemetryContext();
+    return currentOtel != elemOtel && !(currentOtel == Context.root() && elemOtel == null);
+  }
+
+  private boolean isValidOutputTag(TupleTag<?> tag) {
+    return mainOutputTag.equals(tag) || outputTupleTagsToReceiverIndices.containsKey(tag);
   }
 
   private void processElementWithOtel(WindowedValue<InputT> elem, Context otel) throws Exception {
@@ -497,57 +507,41 @@ final class FastStatelessParDoFn<InputT, OutputT>
     OutputT mapped;
     try {
       mapped = directMapFn.apply(elem.getValue());
-    } catch (Exception e) {
-      throw UserCodeException.wrapIf(!isSystemDoFn, e);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
+    } catch (Throwable t) {
+      if (t instanceof Error && isSystemDoFn) {
+        throw (Error) t;
+      }
+      throw UserCodeException.wrapIf(!isSystemDoFn, t);
     }
-    Context currentOtel = Context.current();
     WindowedValue<OutputT> outVal =
-        (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext())
+        hasChangedOtel(elem)
             ? WindowedValues.builder(elem).withValue(mapped).build()
             : elem.withValue(mapped);
-    if (outputsPerElemCounter != null) {
-      currentElemOutputs++;
-    }
-    Receiver r = mainReceiver;
-    if (r != null) {
-      try {
-        r.process(outVal);
-      } catch (RuntimeException | Error e) {
-        throw e;
-      } catch (Exception e) {
-        throw UserCodeException.wrapIf(!isSystemDoFn, e);
-      }
-    }
+    dispatchMain(outVal);
   }
 
   private void processDirectFilter(WindowedValue<InputT> elem) throws Exception {
     boolean keep;
     try {
       keep = directFilterFn.apply(elem.getValue());
-    } catch (Exception e) {
-      throw UserCodeException.wrapIf(!isSystemDoFn, e);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
+    } catch (Throwable t) {
+      if (t instanceof Error && isSystemDoFn) {
+        throw (Error) t;
+      }
+      throw UserCodeException.wrapIf(!isSystemDoFn, t);
     }
     if (!keep) {
       return;
     }
-    Context currentOtel = Context.current();
     WindowedValue<OutputT> outVal =
-        (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext())
+        hasChangedOtel(elem)
             ? (WindowedValue<OutputT>) WindowedValues.builder(elem).build()
             : (WindowedValue<OutputT>) elem;
-    if (outputsPerElemCounter != null) {
-      currentElemOutputs++;
-    }
-    Receiver r = mainReceiver;
-    if (r != null) {
-      try {
-        r.process(outVal);
-      } catch (RuntimeException | Error e) {
-        throw e;
-      } catch (Exception e) {
-        throw UserCodeException.wrapIf(!isSystemDoFn, e);
-      }
-    }
+    dispatchMain(outVal);
   }
 
   @Override
@@ -576,6 +570,9 @@ final class FastStatelessParDoFn<InputT, OutputT>
     if (fnInfo != null) {
       doFnInstanceManager.abort(fnInfo);
     }
+    cachedCompiledHead = null;
+    boundChainFns = null;
+    boundTailReceiver = null;
     resetBundleState();
   }
 
@@ -607,10 +604,10 @@ final class FastStatelessParDoFn<InputT, OutputT>
     }
     if (directMapFn != null) {
       return new FusedSegmentCompiler.FunctionalStepSpec(
-          InlineableFunctionProvider.Kind.MAP, directMapFn, entryHook, isSystemDoFn, false);
+          InlineableFunctionProvider.Kind.MAP, directMapFn, entryHook, isSystemDoFn, true);
     } else if (directFilterFn != null) {
       return new FusedSegmentCompiler.FunctionalStepSpec(
-          InlineableFunctionProvider.Kind.FILTER, directFilterFn, entryHook, isSystemDoFn, false);
+          InlineableFunctionProvider.Kind.FILTER, directFilterFn, entryHook, isSystemDoFn, true);
     }
     return new FusedSegmentCompiler.DoFnStepSpec<>(
         fn, invoker, entryHook, this, isSystemDoFn, false);
@@ -693,8 +690,8 @@ final class FastStatelessParDoFn<InputT, OutputT>
 
   @Override
   public <T> void outputTagged(WindowedValue<InputT> elem, TupleTag<T> tag, T output) {
-    Context currentOtel = Context.current();
-    if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+    checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
+    if (hasChangedOtel(elem)) {
       outputTaggedWindowedValue(
           elem, tag, output, elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo());
       return;
@@ -705,9 +702,9 @@ final class FastStatelessParDoFn<InputT, OutputT>
   @Override
   public <T> void outputTaggedWithTimestamp(
       WindowedValue<InputT> elem, TupleTag<T> tag, T output, Instant timestamp) {
+    checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
     checkTimestamp(elem.getTimestamp(), timestamp);
-    Context currentOtel = Context.current();
-    if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+    if (hasChangedOtel(elem)) {
       outputTaggedWindowedValue(
           elem, tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
       return;
@@ -734,6 +731,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo paneInfo) {
+    checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
     WindowedValues.builder((WindowedValue<T>) elem)
         .withValue(output)
         .setTimestamp(timestamp)
@@ -750,6 +748,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
   @Override
   public <T> void outputTaggedWindowedValue(
       WindowedValue<InputT> elem, TupleTag<T> tag, WindowedValue<T> windowedValue) {
+    checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
     checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
     dispatchTagged(tag, windowedValue);
   }
@@ -811,7 +810,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
     } else {
       if (receivers == null) {
         // Test invocation without startBundle(receivers)
-        if (!outputTupleTagsToReceiverIndices.containsKey(tag)) {
+        if (!isValidOutputTag(tag)) {
           throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
         }
         return;
@@ -923,8 +922,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
 
     @Override
     public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      checkArgument(
-          outputTupleTagsToReceiverIndices.containsKey(tag), "Unknown output tag %s", tag);
+      checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
       dispatchTagged(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
     }
   }
@@ -1072,8 +1070,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
 
     @Override
     public void output(OutputT output) {
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel(elem)) {
         builder(output).output();
         return;
       }
@@ -1083,8 +1080,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(elem.getTimestamp(), timestamp);
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel(elem)) {
         builder(output).setTimestamp(timestamp).output();
         return;
       }
@@ -1128,10 +1124,8 @@ final class FastStatelessParDoFn<InputT, OutputT>
         output((OutputT) output);
         return;
       }
-      checkArgument(
-          outputTupleTagsToReceiverIndices.containsKey(tag), "Unknown output tag %s", tag);
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
+      if (hasChangedOtel(elem)) {
         outputWindowedValue(
             tag, output, elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo());
         return;
@@ -1146,11 +1140,9 @@ final class FastStatelessParDoFn<InputT, OutputT>
         outputWithTimestamp((OutputT) output, timestamp);
         return;
       }
-      checkArgument(
-          outputTupleTagsToReceiverIndices.containsKey(tag), "Unknown output tag %s", tag);
+      checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
       checkTimestamp(elem.getTimestamp(), timestamp);
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel(elem)) {
         outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
         return;
       }
@@ -1170,8 +1162,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
 
     @Override
     public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
-      checkArgument(
-          outputTupleTagsToReceiverIndices.containsKey(tag), "Unknown output tag %s", tag);
+      checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
       checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
       dispatchTagged(tag, windowedValue);
     }
@@ -1183,8 +1174,7 @@ final class FastStatelessParDoFn<InputT, OutputT>
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      checkArgument(
-          outputTupleTagsToReceiverIndices.containsKey(tag), "Unknown output tag %s", tag);
+      checkArgument(isValidOutputTag(tag), "Unknown output tag %s", tag);
       dynamicBuilderSupplier
           .builder(output)
           .setTimestamp(timestamp)

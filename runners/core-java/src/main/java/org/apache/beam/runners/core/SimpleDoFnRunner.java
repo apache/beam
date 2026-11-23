@@ -191,7 +191,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
     Context openTelemetryContext = compressedElem.getOpenTelemetryContext();
-    if (openTelemetryContext != null && openTelemetryContext != Context.root()) {
+    if (openTelemetryContext != null && openTelemetryContext != Context.current()) {
       try (Scope ignore = openTelemetryContext.makeCurrent()) {
         if (observesWindow) {
           for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
@@ -465,10 +465,15 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return WindowedValues.builder(builderSupplier().builder(value)).setReceiver(this);
     }
 
+    private boolean hasChangedOtel() {
+      Context currentOtel = Context.current();
+      Context elemOtel = elem.getOpenTelemetryContext();
+      return currentOtel != elemOtel && !(currentOtel == Context.root() && elemOtel == null);
+    }
+
     @Override
     public void output(OutputT output) {
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         builder(output).output();
         return;
       }
@@ -478,8 +483,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(elem.getTimestamp(), timestamp);
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         builder(output).setTimestamp(timestamp).output();
         return;
       }
@@ -509,13 +513,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         outputWindowedValue(
             tag, output, elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo());
         return;
       }
-      if (mainOutputTag.equals(tag)) {
+      if (tag.equals(mainOutputTag)) {
         outputManager.output(tag, elem.withValue(output));
       } else {
         SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
@@ -543,8 +546,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      Context currentOtel = Context.current();
-      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+      if (hasChangedOtel()) {
         outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
         return;
       }
