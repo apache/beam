@@ -208,6 +208,9 @@ class LocalFileSystem(FileSystem):
       """
       try:
         if os.path.exists(destination):
+          if os.path.samefile(source, destination):
+            raise shutil.SameFileError(
+                '%r and %r are the same file' % (source, destination))
           if os.path.isdir(destination):
             shutil.rmtree(destination)
           else:

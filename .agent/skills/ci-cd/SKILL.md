@@ -185,4 +185,4 @@ Check workflow file's `run` commands:
 | `cut_release_branch.yml` | Create release branch |
 | `build_release_candidate.yml` | Build RC |
 | `finalize_release.yml` | Finalize release |
-| `publish_github_release_notes.yml` | Publish notes |
+| `publish_github_release_notes.yml` | Legacy/unused (see `contributor-docs/release-guide.md` for `gh release edit` flow) |

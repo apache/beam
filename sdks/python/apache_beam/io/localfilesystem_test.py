@@ -31,6 +31,7 @@ from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 
 # pytype: skip-file
@@ -273,6 +274,110 @@ class LocalFileSystemTest(unittest.TestCase):
       self.fs.copy([path1], [path2])
     self.assertEqual(
         list(error.exception.exception_details.keys()), [(path1, path2)])
+
+  @parameterized.expand([('file', False), ('directory', True)])
+  def test_copy_same_path_preserves_source(self, unused_name, is_directory):
+    path = os.path.join(self.tmpdir, 'source')
+    if is_directory:
+      os.mkdir(path)
+      data_path = os.path.join(path, 'data')
+    else:
+      data_path = path
+    with open(data_path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([path], [path])
+
+    with open(data_path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  def test_copy_equivalent_path_preserves_source(self):
+    path = os.path.join(self.tmpdir, 'source')
+    alias = os.path.join(self.tmpdir, '.', 'source')
+    with open(path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([path], [alias])
+
+    with open(path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  def test_copy_hard_link_preserves_source(self):
+    path = os.path.join(self.tmpdir, 'source')
+    alias = os.path.join(self.tmpdir, 'alias')
+    with open(path, 'w') as output:
+      output.write('original data')
+    os.link(path, alias)
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([path], [alias])
+
+    self.assertTrue(os.path.samefile(path, alias))
+    with open(path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  def test_filesystems_copy_same_file_preserves_source(self):
+    path = os.path.join(self.tmpdir, 'source')
+    with open(path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      FileSystems.copy([path], [path])
+
+    with open(path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  @parameterized.expand([('file', False), ('directory', True)])
+  def test_copy_missing_source_preserves_destination(
+      self, unused_name, is_directory):
+    source = os.path.join(self.tmpdir, 'missing')
+    destination = os.path.join(self.tmpdir, 'destination')
+    if is_directory:
+      os.mkdir(destination)
+      data_path = os.path.join(destination, 'data')
+    else:
+      data_path = destination
+    with open(data_path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([source], [destination])
+
+    with open(data_path) as existing:
+      self.assertEqual(existing.read(), 'original data')
+
+  def test_copy_overwrites_existing_file(self):
+    source = os.path.join(self.tmpdir, 'source')
+    destination = os.path.join(self.tmpdir, 'destination')
+    with open(source, 'w') as output:
+      output.write('new data')
+    with open(destination, 'w') as output:
+      output.write('old data')
+
+    self.fs.copy([source], [destination])
+
+    with open(destination) as copied:
+      self.assertEqual(copied.read(), 'new data')
+    with open(source) as original:
+      self.assertEqual(original.read(), 'new data')
+
+  def test_copy_self_failure_does_not_skip_other_pairs(self):
+    source = os.path.join(self.tmpdir, 'source')
+    destination = os.path.join(self.tmpdir, 'destination')
+    with open(source, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError) as error:
+      self.fs.copy([source, source], [source, destination])
+
+    self.assertEqual(
+        list(error.exception.exception_details), [(source, source)])
+    with open(source) as original:
+      self.assertEqual(original.read(), 'original data')
+    with open(destination) as copied:
+      self.assertEqual(copied.read(), 'original data')
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
