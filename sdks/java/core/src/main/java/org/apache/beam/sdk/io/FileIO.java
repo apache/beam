@@ -804,6 +804,12 @@ public class FileIO {
                 "Match filepatterns",
                 ParDo.of(new MatchFn(getConfiguration().getEmptyMatchTreatment())));
       } else {
+        if (getConfiguration().getTimestampCursorAllowedLateness() == null) {
+          LOG.warn(
+              "Matching Continuously is stateful, and can scale poorly. Consider using Pub/Sub "
+                  + "Notifications (https://cloud.google.com/storage/docs/pubsub-notifications) "
+                  + "or enabling withTimestampCursor() if possible.");
+        }
         if (getConfiguration().getMatchUpdatedFiles()) {
           res =
               input
@@ -834,12 +840,17 @@ public class FileIO {
     /** Helper function creating a watch transform based on outputKeyFn. */
     private <KeyT> Watch.Growth<String, MatchResult.Metadata, KeyT> createWatchTransform(
         SerializableFunction<MatchResult.Metadata, KeyT> outputKeyFn) {
+      Duration pollInterval = getConfiguration().getWatchInterval();
       @Nullable Duration allowedLateness = getConfiguration().getTimestampCursorAllowedLateness();
+      @Nullable Duration watermarkDelta = null;
+      if (allowedLateness != null) {
+        watermarkDelta =
+            pollInterval.isLongerThan(allowedLateness) ? pollInterval : allowedLateness;
+      }
       Watch.Growth<String, MatchResult.Metadata, KeyT> watch =
           Watch.growthOf(
-                  Contextful.of(new MatchPollFn(allowedLateness), Requirements.empty()),
-                  outputKeyFn)
-              .withPollInterval(getConfiguration().getWatchInterval())
+                  Contextful.of(new MatchPollFn(watermarkDelta), Requirements.empty()), outputKeyFn)
+              .withPollInterval(pollInterval)
               .withTerminationPerInput(getConfiguration().getWatchTerminationCondition());
       if (allowedLateness != null) {
         watch = watch.withTimestampCursor(allowedLateness).withOutputCoder(MetadataCoderV2.of());
@@ -879,20 +890,19 @@ public class FileIO {
 
     @VisibleForTesting
     static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
-      private final @Nullable Duration timestampCursorAllowedLateness;
+      // Null when timestamp cursor is disabled (elements carry poll time). When non-null, elements
+      // carry file last-modified time and the watermark is delayed by this delta to absorb clock
+      // skew and allowed lateness.
+      private final @Nullable Duration watermarkDelta;
 
       // Best-effort watermark tracking (not deduplication, which lives in Watch's checkpointed
       // restriction): remembers the greatest last-modified time seen so far so a poll that
       // discovers newer files holds the watermark at the filesystem clock, while a quiet poll
-      // releases it to poll time.
+      // releases it to poll time minus watermarkDelta.
       private transient @Nullable Instant newestMtime;
 
-      MatchPollFn() {
-        this(null);
-      }
-
-      MatchPollFn(@Nullable Duration timestampCursorAllowedLateness) {
-        this.timestampCursorAllowedLateness = timestampCursorAllowedLateness;
+      MatchPollFn(@Nullable Duration watermarkDelta) {
+        this.watermarkDelta = watermarkDelta;
       }
 
       private synchronized boolean updateNewestMtime(Instant candidate) {
@@ -913,13 +923,14 @@ public class FileIO {
         return new Instant(Math.max(millis, BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
       }
 
+      /** Polls the filepattern and returns {@code KV.of(timestampedOutputs, watermark)}. */
       @VisibleForTesting
       KV<List<TimestampedValue<MatchResult.Metadata>>, Instant> poll(String element, Instant now)
           throws Exception {
         List<MatchResult.Metadata> metadataList =
             FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata();
         List<TimestampedValue<MatchResult.Metadata>> outputs = new ArrayList<>(metadataList.size());
-        if (timestampCursorAllowedLateness == null) {
+        if (watermarkDelta == null) {
           for (MatchResult.Metadata metadata : metadataList) {
             outputs.add(TimestampedValue.of(metadata, now));
           }
@@ -935,13 +946,14 @@ public class FileIO {
           }
         }
 
-        // A poll that turned up a newer last-modified time has just read the filesystem clock,
-        // so hold the watermark there (capped at the poll time). A poll that found nothing newer
+        // A poll that turned up a newer last-modified time has just read the filesystem clock, so
+        // hold the watermark there (capped at the poll time). A poll that found nothing newer
         // takes the poll time so a quiet directory does not stall downstream event-time windows.
+        // Delay by watermarkDelta to account for clock skew and allowed lateness.
         boolean foundNewer = newest != null && updateNewestMtime(newest);
         Instant baseWatermark =
             (foundNewer && newest != null && newest.isBefore(now)) ? newest : now;
-        Instant watermark = saturatingMinus(baseWatermark, timestampCursorAllowedLateness);
+        Instant watermark = saturatingMinus(baseWatermark, watermarkDelta);
         return KV.of(outputs, watermark);
       }
 

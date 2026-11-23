@@ -483,19 +483,19 @@ public class FileIOTest implements Serializable {
     writeFileWithMtime(dir.resolve("future"), 9000000L);
     assertEquals(new Instant(8000000L), pollFn.poll(pattern, new Instant(8000000L)).getValue());
 
-    // Allowed lateness shifts watermark back, survives serialization, and saturates at min
+    // Watermark delta shifts watermark back, survives serialization, and saturates at min
     // timestamp.
-    Duration lateness = Duration.standardSeconds(30);
-    FileIO.MatchAll.MatchPollFn latenessPollFn =
-        SerializableUtils.clone(new FileIO.MatchAll.MatchPollFn(lateness));
+    Duration delta = Duration.standardSeconds(30);
+    FileIO.MatchAll.MatchPollFn deltaPollFn =
+        SerializableUtils.clone(new FileIO.MatchAll.MatchPollFn(delta));
     assertEquals(
-        new Instant(5000000L).minus(lateness),
-        latenessPollFn.poll(pattern, new Instant(5000000L)).getValue());
-    FileIO.MatchAll.MatchPollFn hugeLatenessPollFn =
+        new Instant(5000000L).minus(delta),
+        deltaPollFn.poll(pattern, new Instant(5000000L)).getValue());
+    FileIO.MatchAll.MatchPollFn hugeDeltaPollFn =
         new FileIO.MatchAll.MatchPollFn(Duration.millis(Long.MAX_VALUE));
     assertEquals(
         BoundedWindow.TIMESTAMP_MIN_VALUE,
-        hugeLatenessPollFn.poll(pattern, new Instant(5000000L)).getValue());
+        hugeDeltaPollFn.poll(pattern, new Instant(5000000L)).getValue());
   }
 
   private static class StageTimestampCursorFilesFn
