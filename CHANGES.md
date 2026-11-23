@@ -150,6 +150,7 @@
 
 ## Bugfixes
 
+* (Java) Flink `OrderedListState` now preserves multiple values with the same timestamp when reading state or clearing a different timestamp range ([#39782](https://github.com/apache/beam/issues/39782)).
 * (Java) Fixed Dataflow's streaming `WriteFiles` sharding override dropping options configured on the transform (such as `maxNumWritersPerBundle`, `evictWritersWhenFull`, `skipIfEmpty`, `shardingFunction`, and `badRecordErrorHandler`) when a fixed shard count is not set ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
 * (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
