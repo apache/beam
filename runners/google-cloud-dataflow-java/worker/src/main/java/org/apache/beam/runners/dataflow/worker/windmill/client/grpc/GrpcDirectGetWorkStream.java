@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -176,11 +177,12 @@ final class GrpcDirectGetWorkStream
    * @implNote Do not lock/synchronize on the calling thread due to this running on grpc serial
    *     executor for message which can deadlock since we send on the stream beneath the
    *     synchronization. Instead, synchronize on {@code this} inside the async {@link
-   *     #executeSafely(Runnable)} task to verify {@code streamEpoch} still matches the active
-   *     physical stream before calling {@link AbstractWindmillStream#trySend(Object)}.
+   *     #executeSafely(Runnable)} task to verify {@code targetStream} is still the active physical
+   *     stream before calling {@link AbstractWindmillStream#trySend(Object)}.
    */
-  private void maybeSendRequestExtension(BudgetExtension extension) {
-    GetWorkBudget budget = extension.budget();
+  @SuppressWarnings("ReferenceEquality")
+  private void maybeSendRequestExtension(
+      DirectGetWorkPhysicalStreamHandler targetStream, GetWorkBudget budget) {
     if (budget.items() > 0 || budget.bytes() > 0) {
       executeSafely(
           () -> {
@@ -192,8 +194,8 @@ final class GrpcDirectGetWorkStream
                             .setMaxBytes(budget.bytes()))
                     .build();
             synchronized (this) {
-              if (!budgetTracker.isCurrentEpoch(extension.streamEpoch())) {
-                // Drop extensions queued before a reset or half-close.
+              if (currentPhysicalStream != targetStream || clientClosed || isShutdown) {
+                // Drop extensions queued before a reset, half-close, or shutdown.
                 return;
               }
               lastRequest.set(request);
@@ -218,16 +220,12 @@ final class GrpcDirectGetWorkStream
     final ConcurrentMap<Long, GetWorkResponseChunkAssembler> workItemAssemblers =
         new ConcurrentHashMap<>();
 
-    // Epoch captured when this stream opens; isolates draining half-closed streams.
-    private volatile long streamEpoch = -1;
-
     @Override
     public void onResponse(StreamingGetWorkResponseChunk response) {
-      long responseEpoch = streamEpoch;
       workItemAssemblers
           .computeIfAbsent(response.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
           .append(response)
-          .forEach(item -> consumeAssembledWorkItem(item, responseEpoch));
+          .forEach(item -> consumeAssembledWorkItem(item, this));
     }
 
     @Override
@@ -236,7 +234,10 @@ final class GrpcDirectGetWorkStream
     }
 
     @Override
-    public void onDone(Status status) {}
+    public void onDone(Status status) {
+      workItemAssemblers.clear();
+      budgetTracker.clearActiveStream(this);
+    }
 
     @Override
     public void appendHtml(PrintWriter writer) {
@@ -257,10 +258,9 @@ final class GrpcDirectGetWorkStream
       return;
     }
     // Reset and record initial budget before sending the header so concurrent updates observe it.
-    BudgetExtension initialExtension = budgetTracker.resetAndRecordInitialBudget();
-    ((DirectGetWorkPhysicalStreamHandler) checkNotNull(currentPhysicalStream)).streamEpoch =
-        initialExtension.streamEpoch();
-    GetWorkBudget initialGetWorkBudget = initialExtension.budget();
+    GetWorkBudget initialGetWorkBudget =
+        budgetTracker.resetAndRecordInitialBudget(
+            (DirectGetWorkPhysicalStreamHandler) checkNotNull(currentPhysicalStream));
     StreamingGetWorkRequest request =
         StreamingGetWorkRequest.newBuilder()
             .setRequest(
@@ -286,7 +286,7 @@ final class GrpcDirectGetWorkStream
   }
 
   private void consumeAssembledWorkItem(
-      AssembledWorkItem assembledWorkItem, long responseStreamEpoch) {
+      AssembledWorkItem assembledWorkItem, DirectGetWorkPhysicalStreamHandler responseStream) {
     WorkItem workItem = assembledWorkItem.workItem();
     GetWorkResponseChunkAssembler.ComputationMetadata metadata =
         assembledWorkItem.computationMetadata();
@@ -298,10 +298,10 @@ final class GrpcDirectGetWorkStream
         metadata.drainMode(),
         assembledWorkItem.appliedFinalizeIds(),
         assembledWorkItem.latencyAttributions());
-    BudgetExtension extension =
+    GetWorkBudget extension =
         budgetTracker.recordReceivedAndComputeExtension(
-            assembledWorkItem.bufferedSize(), responseStreamEpoch);
-    maybeSendRequestExtension(extension);
+            assembledWorkItem.bufferedSize(), responseStream);
+    maybeSendRequestExtension(responseStream, extension);
   }
 
   private Work.ProcessingContext createProcessingContext(String computationId) {
@@ -311,26 +311,20 @@ final class GrpcDirectGetWorkStream
 
   @Override
   public void setBudget(GetWorkBudget newBudget) {
-    BudgetExtension extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
-    maybeSendRequestExtension(extension);
+    @Nullable BudgetExtension extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
+    if (extension != null) {
+      maybeSendRequestExtension(extension.targetStream, extension.budget);
+    }
   }
 
-  /** Extension budget paired with the {@code streamEpoch} under which it was computed. */
+  /** Extension budget paired with the physical stream under which it was computed. */
   private static final class BudgetExtension {
-    private final long streamEpoch;
+    private final DirectGetWorkPhysicalStreamHandler targetStream;
     private final GetWorkBudget budget;
 
-    private BudgetExtension(long streamEpoch, GetWorkBudget budget) {
-      this.streamEpoch = streamEpoch;
+    private BudgetExtension(DirectGetWorkPhysicalStreamHandler targetStream, GetWorkBudget budget) {
+      this.targetStream = targetStream;
       this.budget = budget;
-    }
-
-    private long streamEpoch() {
-      return streamEpoch;
-    }
-
-    private GetWorkBudget budget() {
-      return budget;
     }
   }
 
@@ -342,7 +336,7 @@ final class GrpcDirectGetWorkStream
   private static final class GetWorkBudgetTracker {
 
     @GuardedBy("GetWorkBudgetTracker.this")
-    private long streamEpoch = 0;
+    private @Nullable DirectGetWorkPhysicalStreamHandler activeStream = null;
 
     @GuardedBy("GetWorkBudgetTracker.this")
     private GetWorkBudget maxGetWorkBudget;
@@ -372,37 +366,44 @@ final class GrpcDirectGetWorkStream
           maxGetWorkBudget, inFlightBudget(), totalRequestedBudget(), totalReceivedBudget());
     }
 
-    private synchronized BudgetExtension resetAndRecordInitialBudget() {
-      streamEpoch++;
+    private synchronized GetWorkBudget resetAndRecordInitialBudget(
+        DirectGetWorkPhysicalStreamHandler newStream) {
+      activeStream = newStream;
       itemsRequested = 0;
       bytesRequested = 0;
       itemsReceived = 0;
       bytesReceived = 0;
-      return new BudgetExtension(streamEpoch, computeAndRecordBudgetExtension());
+      return computeAndRecordBudgetExtension();
     }
 
-    private synchronized boolean isCurrentEpoch(long epoch) {
-      return streamEpoch == epoch;
+    @SuppressWarnings("ReferenceEquality")
+    private synchronized void clearActiveStream(DirectGetWorkPhysicalStreamHandler stream) {
+      if (activeStream == stream) {
+        activeStream = null;
+      }
     }
 
     /** Consumes the new budget and computes an extension based on the new budget. */
-    private synchronized BudgetExtension consumeAndComputeBudgetUpdate(GetWorkBudget newBudget) {
+    private synchronized @Nullable BudgetExtension consumeAndComputeBudgetUpdate(
+        GetWorkBudget newBudget) {
       maxGetWorkBudget = newBudget;
-      // Stream has not opened yet; let onFlushPending send maxGetWorkBudget in the initial header.
-      if (streamEpoch == 0) {
-        return new BudgetExtension(0, GetWorkBudget.noBudget());
+      DirectGetWorkPhysicalStreamHandler stream = activeStream;
+      // Stream has not opened yet (or previous stream ended); onFlushPending sends the header.
+      if (stream == null) {
+        return null;
       }
-      return new BudgetExtension(streamEpoch, computeAndRecordBudgetExtension());
+      return new BudgetExtension(stream, computeAndRecordBudgetExtension());
     }
 
-    private synchronized BudgetExtension recordReceivedAndComputeExtension(
-        long returnedBudget, long responseStreamEpoch) {
+    @SuppressWarnings("ReferenceEquality")
+    private synchronized GetWorkBudget recordReceivedAndComputeExtension(
+        long returnedBudget, DirectGetWorkPhysicalStreamHandler responseStream) {
       // Draining items from a half-closed stream must not count toward the active stream's budget.
-      if (responseStreamEpoch != streamEpoch) {
-        return new BudgetExtension(responseStreamEpoch, GetWorkBudget.noBudget());
+      if (responseStream != activeStream) {
+        return GetWorkBudget.noBudget();
       }
       recordBudgetReceived(returnedBudget);
-      return new BudgetExtension(streamEpoch, computeAndRecordBudgetExtension());
+      return computeAndRecordBudgetExtension();
     }
 
     private synchronized void recordBudgetReceived(long returnedBudget) {

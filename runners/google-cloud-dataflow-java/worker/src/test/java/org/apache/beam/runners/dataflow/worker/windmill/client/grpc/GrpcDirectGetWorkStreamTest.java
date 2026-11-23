@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -48,12 +49,15 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.TriggeredScheduledExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
+import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
@@ -577,7 +581,7 @@ public class GrpcDirectGetWorkStreamTest {
   }
 
   @Test
-  public void testHalfClosePhysicalStream_staleExtensionAndClosingResponse_isolatedFromNewEpoch()
+  public void testHalfClosePhysicalStream_staleExtensionAndClosingResponse_isolatedFromNewStream()
       throws InterruptedException {
     DeferrableScheduledExecutorService executor = new DeferrableScheduledExecutorService();
     try {
@@ -611,8 +615,8 @@ public class GrpcDirectGetWorkStreamTest {
               Collections.singletonList(item1Bytes.substring(0, splitIdx)),
               item1Bytes.size() - splitIdx));
 
-      // Queue an epoch-1 extension task without executing it yet, then half-close stream 0 into
-      // stream 1 (epoch 2).
+      // Queue a stream 0 extension task without executing it yet, then half-close stream 0 into
+      // stream 1.
       GetWorkBudget intermediateBudget = GetWorkBudget.builder().setItems(4).setBytes(1000).build();
       executor.deferring = true;
       stream.setBudget(intermediateBudget);
@@ -623,13 +627,13 @@ public class GrpcDirectGetWorkStreamTest {
       assertHeader(stream1.takeRequest(), intermediateBudget);
 
       // Complete workItem1 and send workItem2 on closing stream 0; scheduler must deliver both
-      // items while epoch 2 ignores their budget consumption.
+      // items while stream 1 ignores their budget consumption.
       stream0.injectResponse(
           createResponse(
               Arrays.asList(item1Bytes.substring(splitIdx), workItem2.toByteString()), 0));
       assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2);
 
-      // Drain the stale epoch-1 extension task; streamEpoch gating must drop it.
+      // Drain the stale stream 0 extension task; currentPhysicalStream gating must drop it.
       executor.drainDeferred();
 
       GetWorkBudget finalBudget = GetWorkBudget.builder().setItems(20).setBytes(5000).build();
@@ -642,6 +646,102 @@ public class GrpcDirectGetWorkStreamTest {
       assertThat(stream1.requests).isEmpty();
       assertThat(stub.streams).isEmpty();
     } finally {
+      shutdownStreamAndExecutor(executor);
+    }
+  }
+
+  @Test
+  public void testOnDone_clearsActiveStreamOnlyForActiveStream() throws InterruptedException {
+    DeferrableScheduledExecutorService executor = new DeferrableScheduledExecutorService();
+    CountDownLatch inErrorBackoff = new CountDownLatch(1);
+    CountDownLatch allowRestart = new CountDownLatch(1);
+    try {
+      MultiStreamTestStub stub = new MultiStreamTestStub();
+      serviceRegistry.addService(stub);
+      GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(1).setBytes(100).build();
+      BackOff blockingBackOff =
+          new BackOff() {
+            @Override
+            public void reset() {}
+
+            @Override
+            public long nextBackOffMillis() {
+              inErrorBackoff.countDown();
+              try {
+                assertTrue(allowRestart.await(5, TimeUnit.SECONDS));
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+              return 0L;
+            }
+          };
+      stream =
+          GrpcDirectGetWorkStream.create(
+              "",
+              responseObserver ->
+                  CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel)
+                      .getWorkStream(responseObserver),
+              Windmill.GetWorkRequest.newBuilder()
+                  .setClientId(TEST_JOB_HEADER.getClientId())
+                  .setJobId(TEST_JOB_HEADER.getJobId())
+                  .setProjectId(TEST_JOB_HEADER.getProjectId())
+                  .setWorkerId(TEST_JOB_HEADER.getWorkerId())
+                  .setMaxItems(initialBudget.items())
+                  .setMaxBytes(initialBudget.bytes())
+                  .build(),
+              blockingBackOff,
+              StreamObserverFactory.direct(300, 1),
+              Collections.newSetFromMap(new ConcurrentHashMap<>()),
+              1,
+              false,
+              mock(HeartbeatSender.class),
+              mock(GetDataClient.class),
+              mock(WorkCommitter.class),
+              NO_OP_WORK_ITEM_SCHEDULER,
+              Duration.ofSeconds(60),
+              executor);
+      stream.start();
+      MultiStreamTestStub.TestStream stream0 = stub.takeStream();
+      assertHeader(stream0.takeRequest(), initialBudget);
+
+      // Half-close stream 0 into replacement stream 1, then complete stream 0. Its onDone must not
+      // clear stream 1 as the active stream.
+      assertTrue(executor.unblockNextFuture());
+      MultiStreamTestStub.TestStream stream1 = stub.takeStream();
+      assertHeader(stream1.takeRequest(), initialBudget);
+
+      stream0.responseObserver.onCompleted();
+      CountDownLatch stream0Done = new CountDownLatch(1);
+      executor.execute(stream0Done::countDown);
+      assertTrue(stream0Done.await(5, TimeUnit.SECONDS));
+
+      GetWorkBudget intermediateBudget = GetWorkBudget.builder().setItems(4).setBytes(1000).build();
+      stream.setBudget(intermediateBudget);
+      Windmill.StreamingGetWorkRequest stream1Ext = stream1.takeRequest();
+      assertTrue(stream1Ext.hasRequestExtension());
+      assertThat(stream1Ext.getRequestExtension())
+          .isEqualTo(extension(intermediateBudget.subtract(initialBudget)));
+
+      // Failing the active stream clears activeStream in onDone, so a setBudget() during error
+      // backoff defers to the next stream's header without queuing an extension task.
+      stream1.responseObserver.onError(Status.UNAVAILABLE.asRuntimeException());
+      assertTrue(inErrorBackoff.await(5, TimeUnit.SECONDS));
+
+      GetWorkBudget finalBudget = GetWorkBudget.builder().setItems(20).setBytes(5000).build();
+      executor.deferring = true;
+      stream.setBudget(finalBudget);
+      assertThat(executor.deferred).isEmpty();
+      executor.deferring = false;
+
+      allowRestart.countDown();
+      MultiStreamTestStub.TestStream stream2 = stub.takeStream();
+      assertHeader(stream2.takeRequest(), finalBudget);
+      assertThat(stream0.requests).isEmpty();
+      assertThat(stream1.requests).isEmpty();
+      assertThat(stream2.requests).isEmpty();
+      assertThat(stub.streams).isEmpty();
+    } finally {
+      allowRestart.countDown();
       shutdownStreamAndExecutor(executor);
     }
   }
