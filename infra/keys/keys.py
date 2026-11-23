@@ -200,14 +200,14 @@ class KeyService:
                 secret_name = f"{account_id}-key"
                 # If service account and secret exists and is managed, just check permissions
                 if self.service_account_manager._service_account_exists(account_id) and self.secret_manager_client._secret_is_managed(secret_name):
-                    self.logger.debug(f"Service account {account_id} and secret {secret_name} already exist and are managed")
+                    self.logger.debug(f"Service account {account_id} and its managed Secret Manager resource already exist")
                     if self.secret_manager_client.is_different_user_access(secret_name, authorized_users):
-                        self.logger.debug(f"Updating access policy for secret {secret_name}")
+                        self.logger.debug(f"Updating Secret Manager access policy for service account {account_id}")
                         self.secret_manager_client.update_secret_access(secret_name, authorized_users)
 
                 # If the service account exists but the secret does not, create the secret and a key and ignore the existing keys
                 elif self.service_account_manager._service_account_exists(account_id) and not self.secret_manager_client._secret_exists(secret_name):
-                    self.logger.debug(f"Service account {account_id} exists but secret {secret_name} does not, creating secret and a new key")
+                    self.logger.debug(f"Service account {account_id} exists without a Secret Manager resource, creating resource and a new key")
                     self.secret_manager_client.create_secret(secret_name)
                     self.secret_manager_client.update_secret_access(secret_name, authorized_users)
 
@@ -217,7 +217,7 @@ class KeyService:
 
                 # If neither secret nor service account exists, create and initialize both
                 elif not self.service_account_manager._service_account_exists(account_id) and not self.secret_manager_client._secret_exists(secret_name):
-                    self.logger.debug(f"Service account {account_id} and secret {secret_name} do not exist, creating both")
+                    self.logger.debug(f"Service account {account_id} and its Secret Manager resource do not exist, creating both")
                     display_name = account['display_name']
                     
                     self.service_account_manager.create_service_account(account_id, display_name)
@@ -280,17 +280,26 @@ class KeyService:
         # Check for keys that have expired the grace period and delete them
         
         self.logger.info("Checking for keys that have expired the grace period")
+        configured_accounts = {}
+        for account in self.service_accounts:
+            configured_accounts[f"{account['account_id']}-key"] = account["account_id"]
+            configured_accounts[account["account_id"]] = account["account_id"]
+
         keys_to_delete = self.secret_manager_client.cron()
-        for secret_id, key_ids in keys_to_delete:
+        deletion_entries = keys_to_delete.items() if isinstance(keys_to_delete, dict) else keys_to_delete
+        for resource_id, key_ids in deletion_entries:
+            matched_account_id = configured_accounts.get(resource_id)
+            account_label = matched_account_id if matched_account_id is not None else "unconfigured-account"
+            target_account = matched_account_id if matched_account_id is not None else resource_id
             try:
                 for key_id in key_ids:
                     if dry_run:
-                        self.logger.info(f"[DRY RUN] Would delete expired key {key_id} for secret {secret_id}")
+                        self.logger.info(f"[DRY RUN] Would delete expired key for service account {account_label}")
                     else:
-                        self.logger.info(f"Deleting expired key {key_id} for secret {secret_id}")
-                        self.service_account_manager.delete_service_account_key(secret_id, key_id)
+                        self.logger.info(f"Deleting expired key for service account {account_label}")
+                        self.service_account_manager.delete_service_account_key(target_account, key_id)
             except Exception as e:
-                self.logger.error(f"Error deleting expired keys for secret {secret_id}: {e}")
+                self.logger.error(f"Error deleting expired keys for service account {account_label}: {e}")
                 continue
 
         if dry_run:
