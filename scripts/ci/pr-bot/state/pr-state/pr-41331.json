@@ -1,7 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "jrmccluskey"
+    "go": "jrmccluskey",
+    "java": "Abacn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
