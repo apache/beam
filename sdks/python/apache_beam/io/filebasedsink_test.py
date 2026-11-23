@@ -169,6 +169,12 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     for other_file in other_files:
       self.assertEqual(open(other_file).read(), 'other')
 
+    # Writing again replaces the shards but still leaves the other files.
+    self.assertEqual(self._write_and_finalize(sink), [shard1, shard2])
+    self.assertEqual(open(shard1).read(), '[start][a][b][end]')
+    for other_file in other_files:
+      self.assertEqual(open(other_file).read(), 'other')
+
   def test_file_sink_directory_with_glob_characters(self):
     temp_dir = os.path.join(self._new_tempdir(), 'run[1]')
     os.makedirs(temp_dir)
@@ -181,6 +187,10 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     self.assertEqual(self._write_and_finalize(sink), [shard1, shard2])
     self.assertEqual(open(shard1).read(), '[start][a][b][end]')
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
+
+    # Writing again replaces the shards.
+    self.assertEqual(self._write_and_finalize(sink), [shard1, shard2])
+    self.assertEqual(open(shard1).read(), '[start][a][b][end]')
 
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
