@@ -149,6 +149,13 @@ toxTask "testPy311transformers-latest", "py311-transformers-latest", "${posargs}
 test.dependsOn "testPy311transformers-latest"
 postCommitPyDep.dependsOn "testPy311transformers-latest"
 
+// Test the ml_cpu extra (used by container/ml images) to ensure tensorflow,
+// torch CPU wheels, and transformers work together without import crashes.
+// Keep in sync with [testenv:py311-ml-cpu] in tox.ini.
+toxTask "testPy311ml-cpu", "py311-ml-cpu", "${posargs}"
+test.dependsOn "testPy311ml-cpu"
+postCommitPyDep.dependsOn "testPy311ml-cpu"
+
 // Create a test task for each major version of xgboost
 toxTask "testPy311xgboost-200", "py311-xgboost-200", "${posargs}"
 test.dependsOn "testPy311xgboost-200"
