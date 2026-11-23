@@ -79,10 +79,12 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   @Override
   public IntervalWindow assignWindow(Instant timestamp) {
+    // floorMod keeps the remainder non-negative, so that timestamps more than one window before the
+    // epoch are also assigned to the window that contains them.
     Instant start =
         new Instant(
             timestamp.getMillis()
-                - timestamp.plus(size).minus(offset).getMillis() % size.getMillis());
+                - Math.floorMod(timestamp.getMillis() - offset.getMillis(), size.getMillis()));
 
     // The global window is inclusive of max timestamp, while interval window excludes its
     // upper bound

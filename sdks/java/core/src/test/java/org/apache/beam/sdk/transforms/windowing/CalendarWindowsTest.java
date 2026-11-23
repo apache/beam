@@ -215,6 +215,56 @@ public class CalendarWindowsTest {
   }
 
   @Test
+  public void testTimestampsBeforeStart() throws Exception {
+    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
+    expected.put(
+        new IntervalWindow(makeTimestamp(1960, 5, 1, 0, 0), makeTimestamp(1960, 5, 2, 0, 0)),
+        set(makeTimestamp(1960, 5, 1, 12, 0).getMillis()));
+    assertEquals(
+        expected,
+        runWindowFn(
+            CalendarWindows.days(1), Arrays.asList(makeTimestamp(1960, 5, 1, 12, 0).getMillis())));
+
+    expected = new HashMap<>();
+    expected.put(
+        new IntervalWindow(makeTimestamp(2023, 12, 18, 0, 0), makeTimestamp(2023, 12, 25, 0, 0)),
+        set(makeTimestamp(2023, 12, 20, 0, 0).getMillis()));
+    expected.put(
+        new IntervalWindow(makeTimestamp(2023, 12, 25, 0, 0), makeTimestamp(2024, 1, 1, 0, 0)),
+        set(
+            makeTimestamp(2023, 12, 25, 0, 0).getMillis(),
+            makeTimestamp(2023, 12, 30, 10, 0).getMillis()));
+    assertEquals(
+        expected,
+        runWindowFn(
+            CalendarWindows.days(7).withStartingDay(2024, 1, 1),
+            Arrays.asList(
+                makeTimestamp(2023, 12, 20, 0, 0).getMillis(),
+                makeTimestamp(2023, 12, 25, 0, 0).getMillis(),
+                makeTimestamp(2023, 12, 30, 10, 0).getMillis())));
+
+    expected = new HashMap<>();
+    expected.put(
+        new IntervalWindow(makeTimestamp(2023, 10, 1, 0, 0), makeTimestamp(2024, 1, 1, 0, 0)),
+        set(makeTimestamp(2023, 11, 15, 0, 0).getMillis()));
+    assertEquals(
+        expected,
+        runWindowFn(
+            CalendarWindows.months(3).withStartingMonth(2024, 1),
+            Arrays.asList(makeTimestamp(2023, 11, 15, 0, 0).getMillis())));
+
+    expected = new HashMap<>();
+    expected.put(
+        new IntervalWindow(makeTimestamp(2019, 1, 1, 0, 0), makeTimestamp(2020, 1, 1, 0, 0)),
+        set(makeTimestamp(2019, 6, 1, 0, 0).getMillis()));
+    assertEquals(
+        expected,
+        runWindowFn(
+            CalendarWindows.years(1).withStartingYear(2020),
+            Arrays.asList(makeTimestamp(2019, 6, 1, 0, 0).getMillis())));
+  }
+
+  @Test
   public void testYearsCompatibility() throws IncompatibleWindowException {
     CalendarWindows.YearsWindows yearsWindows = CalendarWindows.years(2017).beginningOnDay(1, 1);
     yearsWindows.verifyCompatibility(CalendarWindows.years(2017).beginningOnDay(1, 1));

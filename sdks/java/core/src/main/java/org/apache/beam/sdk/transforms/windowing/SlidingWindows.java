@@ -174,8 +174,9 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   /** Return the last start of a sliding window that contains the timestamp. */
   private long lastStartFor(Instant timestamp) {
+    // floorMod keeps the remainder non-negative for timestamps before the epoch.
     return timestamp.getMillis()
-        - timestamp.plus(period).minus(offset).getMillis() % period.getMillis();
+        - Math.floorMod(timestamp.getMillis() - offset.getMillis(), period.getMillis());
   }
 
   static Duration getDefaultPeriod(Duration size) {

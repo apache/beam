@@ -72,6 +72,32 @@ public class FixedWindowsTest {
   }
 
   @Test
+  public void testTimestampsBeforeEpoch() throws Exception {
+    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
+    expected.put(new IntervalWindow(new Instant(-30), new Instant(-20)), set(-21, -30));
+    expected.put(new IntervalWindow(new Instant(-20), new Instant(-10)), set(-11, -19, -20));
+    expected.put(new IntervalWindow(new Instant(-10), new Instant(0)), set(-1, -10));
+    assertEquals(
+        expected,
+        runWindowFn(
+            FixedWindows.of(Duration.millis(10)),
+            Arrays.asList(-1L, -10L, -11L, -19L, -20L, -21L, -30L)));
+  }
+
+  @Test
+  public void testFixedOffsetWindowTimestampsBeforeEpoch() throws Exception {
+    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
+    expected.put(new IntervalWindow(new Instant(-25), new Instant(-15)), set(-16, -25));
+    expected.put(new IntervalWindow(new Instant(-15), new Instant(-5)), set(-6, -15));
+    expected.put(new IntervalWindow(new Instant(-5), new Instant(5)), set(-1, -5));
+    assertEquals(
+        expected,
+        runWindowFn(
+            FixedWindows.of(Duration.millis(10)).withOffset(Duration.millis(5)),
+            Arrays.asList(-1L, -5L, -6L, -15L, -16L, -25L)));
+  }
+
+  @Test
   public void testTimeUnit() throws Exception {
     Map<IntervalWindow, Set<String>> expected = new HashMap<>();
     expected.put(new IntervalWindow(new Instant(-5000), new Instant(5000)), set(1, 2, 1000));
