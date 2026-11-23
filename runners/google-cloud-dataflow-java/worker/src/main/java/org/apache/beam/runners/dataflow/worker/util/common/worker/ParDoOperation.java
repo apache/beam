@@ -18,16 +18,22 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A ParDo mapping function. */
 public class ParDoOperation extends ReceivingOperation {
   private final ParDoFn fn;
+  private final OperationContext.@Nullable FastProcessContext fastContext;
 
   public ParDoOperation(ParDoFn fn, OutputReceiver[] outputReceivers, OperationContext context) {
     super(outputReceivers, context);
     this.fn = fn;
+    this.fastContext =
+        (context instanceof OperationContext.FastProcessContext)
+            ? (OperationContext.FastProcessContext) context
+            : null;
   }
 
   @Override
@@ -40,10 +46,29 @@ public class ParDoOperation extends ReceivingOperation {
 
   @Override
   public void process(Object elem) throws Exception {
+    OperationContext.FastProcessContext fastCtx = this.fastContext;
+    if (fastCtx != null) {
+      ExecutionState prev = fastCtx.enterProcessUnscoped();
+      try {
+        checkStarted();
+        fn.processElement(elem);
+      } finally {
+        fastCtx.exitProcessUnscoped(prev);
+      }
+      return;
+    }
+    processWithCloseable(elem);
+  }
+
+  private void processWithCloseable(Object elem) throws Exception {
     try (Closeable scope = context.enterProcess()) {
       checkStarted();
       fn.processElement(elem);
     }
+  }
+
+  public OperationContext.@Nullable FastProcessContext getFastProcessContext() {
+    return fastContext;
   }
 
   // Batch mode does not use this method and instead relies on BatchModeUngroupingParDoFn

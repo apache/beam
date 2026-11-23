@@ -123,6 +123,22 @@ public class DataflowOutputCounter implements ElementCounter {
     objectAndByteCounter.finishLazyUpdate(elem);
   }
 
+  public void updateRawValue(Object rawValue, WindowedValue<?> templateElem, int windowsSize)
+      throws Exception {
+    objectAndByteCounter.updateRaw(rawValue, templateElem);
+    if (windowsSize == 0) {
+      WindowedValue<?> materialized =
+          (rawValue == templateElem.getValue()) ? templateElem : templateElem.withValue(rawValue);
+      updateEmptyWindows(materialized);
+    } else {
+      elementCount.addValue((long) windowsSize);
+    }
+  }
+
+  public void finishLazyRawUpdate() {
+    objectAndByteCounter.finishLazyUpdate(null);
+  }
+
   @VisibleForTesting
   static String getElementCounterName(String prefix) {
     return prefix + ELEMENT_COUNTER_NAME;

@@ -59,7 +59,9 @@ import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -189,16 +191,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
     Context openTelemetryContext = compressedElem.getOpenTelemetryContext();
-    if (openTelemetryContext == null) {
-      processElementInternal(compressedElem);
-    } else {
+    if (openTelemetryContext != null && openTelemetryContext != Context.root()) {
       try (Scope ignore = openTelemetryContext.makeCurrent()) {
-        processElementInternal(compressedElem);
+        if (observesWindow) {
+          for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
+            invokeProcessElement(elem);
+          }
+        } else {
+          invokeProcessElement(compressedElem);
+        }
       }
+      return;
     }
-  }
-
-  private void processElementInternal(WindowedValue<InputT> compressedElem) {
     if (observesWindow) {
       for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
         invokeProcessElement(elem);
@@ -392,13 +396,22 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * single element.
    */
   private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT>,
+          OutputReceiver<OutputT>,
+          WindowedValueReceiver<OutputT> {
     final WindowedValue<InputT> elem;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
-    private final OutputBuilderSupplier builderSupplier;
+    private @MonotonicNonNull OutputBuilderSupplier builderSupplier;
+
+    private OutputBuilderSupplier builderSupplier() {
+      if (builderSupplier == null) {
+        builderSupplier = OutputBuilderSuppliers.supplierForElement(elem);
+      }
+      return builderSupplier;
+    }
 
     /**
      * The state namespace for this context.
@@ -417,7 +430,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private DoFnProcessContext(WindowedValue<InputT> elem) {
       fn.super();
       this.elem = elem;
-      this.builderSupplier = OutputBuilderSuppliers.supplierForElement(elem);
     }
 
     @Override
@@ -449,13 +461,40 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OutputBuilder<OutputT> builder(OutputT value) {
+      return WindowedValues.builder(builderSupplier().builder(value)).setReceiver(this);
+    }
+
+    @Override
     public void output(OutputT output) {
-      output(mainOutputTag, output);
+      Context currentOtel = Context.current();
+      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+        builder(output).output();
+        return;
+      }
+      outputManager.output(mainOutputTag, elem.withValue(output));
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      outputWithTimestamp(mainOutputTag, output, timestamp);
+      checkTimestamp(elem.getTimestamp(), timestamp);
+      Context currentOtel = Context.current();
+      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+        builder(output).setTimestamp(timestamp).output();
+        return;
+      }
+      outputManager.output(
+          mainOutputTag,
+          WindowedValues.of(
+              output,
+              timestamp,
+              elem.getWindows(),
+              elem.getPaneInfo(),
+              elem.getRecordId(),
+              elem.getRecordOffset(),
+              elem.causedByDrain(),
+              elem.getOpenTelemetryContext(),
+              elem.getValueKind()));
     }
 
     @Override
@@ -470,12 +509,28 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
-      SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
+      Context currentOtel = Context.current();
+      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+        outputWindowedValue(
+            tag, output, elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo());
+        return;
+      }
+      if (mainOutputTag.equals(tag)) {
+        outputManager.output(tag, elem.withValue(output));
+      } else {
+        SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
+      }
+    }
+
+    @Override
+    public void output(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(windowedValue);
     }
 
     @Override
     public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
-      outputWindowedValue(mainOutputTag, windowedValue);
+      checkTimestamp(elem.getTimestamp(), windowedValue.getTimestamp());
+      outputManager.output(mainOutputTag, windowedValue);
     }
 
     @Override
@@ -488,7 +543,23 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
+      Context currentOtel = Context.current();
+      if (currentOtel != Context.root() && currentOtel != elem.getOpenTelemetryContext()) {
+        outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
+        return;
+      }
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag,
+          WindowedValues.of(
+              output,
+              timestamp,
+              elem.getWindows(),
+              elem.getPaneInfo(),
+              elem.getRecordId(),
+              elem.getRecordOffset(),
+              elem.causedByDrain(),
+              elem.getOpenTelemetryContext(),
+              elem.getValueKind()));
     }
 
     @Override
@@ -498,7 +569,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      builderSupplier
+      builderSupplier()
           .builder(output)
           .setTimestamp(timestamp)
           .setWindows(windows)
@@ -641,19 +712,19 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, builderSupplier, mainOutputTag);
+      return this;
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkStateNotNull(mainOutputSchemaCoder, "cannot provide row receiver without schema coder");
       return DoFnOutputReceivers.rowReceiver(
-          this, builderSupplier, mainOutputTag, mainOutputSchemaCoder);
+          this, builderSupplier(), mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(this, builderSupplier(), outputCoders);
     }
 
     @Override

@@ -172,6 +172,16 @@ class UserParDoFnFactory implements ParDoFnFactory {
             runnerFactory,
             ByteArrayCoder.of(),
             kwiCoder.getElementCoder());
+      } else if (FastStatelessParDoFn.canUse(
+          options, doFnInfo, !sideInputReader.isEmpty(), runnerFactory)) {
+        return new FastStatelessParDoFn(
+            options,
+            instanceManager,
+            doFnInfo.getMainOutput(),
+            outputTupleTagsToReceiverIndices,
+            stepContext,
+            operationContext,
+            doFnInfo.getDoFnSchemaInformation());
       } else {
         return new SimpleParDoFn(
             options,

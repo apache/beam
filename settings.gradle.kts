@@ -367,6 +367,7 @@ include(":vendor:guava-32_1_2-jre")
 include(":website")
 include(":runners:google-cloud-dataflow-java:worker")
 include(":runners:google-cloud-dataflow-java:worker:windmill")
+include(":runners:google-cloud-dataflow-java:worker:jmh")
 // no dots allowed for project paths
 include("beam-test-infra-metrics")
 project(":beam-test-infra-metrics").projectDir = file(".test-infra/metrics")

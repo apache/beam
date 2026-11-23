@@ -141,19 +141,30 @@ public class MapElements<InputT, OutputT>
               .withSideInputs(
                   ((Contextful<Fn<InputT, OutputT>>) fn).getRequirements().getSideInputs()));
     } else if (fn instanceof ProcessFunction) {
-      return input.apply(
-          "Map",
-          ParDo.of(
-              new MapDoFn() {
-                @ProcessElement
-                public void processElement(
-                    @Element InputT element, OutputReceiver<OutputT> receiver) throws Exception {
-                  receiver.output(((ProcessFunction<InputT, OutputT>) fn).apply(element));
-                }
-              }));
+      return input.apply("Map", ParDo.of(new SimpleMapDoFn()));
     } else {
       throw new IllegalArgumentException(
           String.format("Unknown type of fn class %s", fn.getClass()));
+    }
+  }
+
+  private class SimpleMapDoFn extends MapDoFn
+      implements InlineableFunctionProvider<InputT, OutputT> {
+    @ProcessElement
+    public void processElement(@Element InputT element, OutputReceiver<OutputT> receiver)
+        throws Exception {
+      receiver.output(((ProcessFunction<InputT, OutputT>) fn).apply(element));
+    }
+
+    @Override
+    public Kind kind() {
+      return Kind.MAP;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public ProcessFunction<InputT, OutputT> function() {
+      return (ProcessFunction<InputT, OutputT>) fn;
     }
   }
 

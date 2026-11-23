@@ -21,9 +21,11 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
@@ -39,6 +41,7 @@ import org.apache.beam.fn.harness.debug.OutputSampler;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
@@ -49,7 +52,10 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.transforms.reflect.FusedSegmentCompiler;
+import org.apache.beam.sdk.transforms.reflect.FusedSegmentCompiler.CompiledNode;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -79,8 +85,27 @@ public class PCollectionConsumerRegistry {
         String pTransformId,
         ExecutionState state,
         ExecutionStateTracker stateTracker) {
+      return forConsumer(consumer, pTransformId, state, stateTracker, 5, null);
+    }
+
+    public static ConsumerAndMetadata forConsumer(
+        FnDataReceiver consumer,
+        String pTransformId,
+        ExecutionState state,
+        ExecutionStateTracker stateTracker,
+        int downstreamFrameDepth) {
+      return forConsumer(consumer, pTransformId, state, stateTracker, downstreamFrameDepth, null);
+    }
+
+    public static ConsumerAndMetadata forConsumer(
+        FnDataReceiver consumer,
+        String pTransformId,
+        ExecutionState state,
+        ExecutionStateTracker stateTracker,
+        int downstreamFrameDepth,
+        @Nullable CompiledNode compiledConsumer) {
       return new AutoValue_PCollectionConsumerRegistry_ConsumerAndMetadata(
-          consumer, pTransformId, state, stateTracker);
+          consumer, pTransformId, state, stateTracker, downstreamFrameDepth, compiledConsumer);
     }
 
     public abstract FnDataReceiver getConsumer();
@@ -90,6 +115,10 @@ public class PCollectionConsumerRegistry {
     public abstract ExecutionState getExecutionState();
 
     public abstract ExecutionStateTracker getExecutionStateTracker();
+
+    public abstract int getDownstreamFrameDepth();
+
+    public abstract @Nullable CompiledNode getCompiledConsumer();
   }
 
   @AutoValue
@@ -108,11 +137,17 @@ public class PCollectionConsumerRegistry {
   private final ShortIdMap shortIdMap;
   private final Map<String, List<ConsumerAndMetadata>> pCollectionIdsToConsumers = new HashMap<>();
   private final Map<String, FnDataReceiver> pCollectionIdsToWrappedConsumer = new HashMap<>();
+  private final Map<String, Integer> pCollectionIdsToEffectiveDepth = new HashMap<>();
+  private final Map<String, Integer> pCollectionProducerCounts = new HashMap<>();
+  private final Map<String, PendingCompiledChain> pendingCompiledChains = new HashMap<>();
+  private final Set<String> flattenOutputPCollections = new HashSet<>();
   private final Map<ExecutionStateKey, ExecutionState> executionStates = new HashMap<>();
   private final BundleProgressReporter.Registrar bundleProgressReporterRegistrar;
   private final ProcessBundleDescriptor processBundleDescriptor;
   private final RehydratedComponents rehydratedComponents;
   private final @Nullable DataSampler dataSampler;
+  private final @Nullable HarnessStageTrampoline stageTrampoline;
+  private final int trampolineThreshold;
   private static final Logger LOG = LoggerFactory.getLogger(PCollectionConsumerRegistry.class);
 
   public PCollectionConsumerRegistry(
@@ -120,7 +155,14 @@ public class PCollectionConsumerRegistry {
       ShortIdMap shortIdMap,
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor) {
-    this(stateTracker, shortIdMap, bundleProgressReporterRegistrar, processBundleDescriptor, null);
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        null,
+        null,
+        0);
   }
 
   public PCollectionConsumerRegistry(
@@ -129,6 +171,24 @@ public class PCollectionConsumerRegistry {
       BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
       ProcessBundleDescriptor processBundleDescriptor,
       @Nullable DataSampler dataSampler) {
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        dataSampler,
+        null,
+        0);
+  }
+
+  public PCollectionConsumerRegistry(
+      ExecutionStateTracker stateTracker,
+      ShortIdMap shortIdMap,
+      BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
+      ProcessBundleDescriptor processBundleDescriptor,
+      @Nullable DataSampler dataSampler,
+      @Nullable HarnessStageTrampoline stageTrampoline,
+      int trampolineThreshold) {
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
     this.bundleProgressReporterRegistrar = bundleProgressReporterRegistrar;
@@ -141,6 +201,272 @@ public class PCollectionConsumerRegistry {
                 .putAllWindowingStrategies(processBundleDescriptor.getWindowingStrategiesMap())
                 .build());
     this.dataSampler = dataSampler;
+    this.stageTrampoline = stageTrampoline;
+    this.trampolineThreshold = trampolineThreshold;
+    for (PTransform pTransform : processBundleDescriptor.getTransformsMap().values()) {
+      if (PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())) {
+        this.flattenOutputPCollections.addAll(pTransform.getOutputsMap().values());
+      }
+      for (String outPc : pTransform.getOutputsMap().values()) {
+        this.pCollectionProducerCounts.merge(outPc, 1, Integer::sum);
+      }
+    }
+  }
+
+  private static final FnDataReceiver<WindowedValue<?>> CLAIMED_INLINE_CONSUMER =
+      elem -> {
+        throw new IllegalStateException("PCollection was claimed inline by a compiled segment");
+      };
+
+  private static final class PendingCompiledChain {
+    final List<FusedSegmentCompiler.StepSpec> stepsFromHeadToTail;
+    final FusedSegmentCompiler.CompiledNode tailNode;
+
+    PendingCompiledChain(
+        List<FusedSegmentCompiler.StepSpec> stepsFromHeadToTail,
+        FusedSegmentCompiler.CompiledNode tailNode) {
+      this.stepsFromHeadToTail = stepsFromHeadToTail;
+      this.tailNode = tailNode;
+    }
+  }
+
+  private static final class RunnerV2TailReceiver extends FusedSegmentCompiler.TailReceiver {
+    private final FnDataReceiver<WindowedValue<?>> downstream;
+
+    RunnerV2TailReceiver(FnDataReceiver<WindowedValue<?>> downstream) {
+      this.downstream = downstream;
+    }
+
+    @Override
+    public void accept(WindowedValue<?> elem) throws Exception {
+      downstream.accept(elem);
+    }
+  }
+
+  private final class RunnerV2StepHook<T> extends FusedSegmentCompiler.StepHook {
+    private final ExecutionState executionState;
+    private final ExecutionStateTracker executionStateTracker;
+    private final String ptransformId;
+    private final BundleCounter elementCountCounter;
+    private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
+    private final Coder<T> coder;
+
+    RunnerV2StepHook(String pCollectionId, Coder<T> coder, ConsumerAndMetadata consumerMeta) {
+      this.executionState = consumerMeta.getExecutionState();
+      this.executionStateTracker = consumerMeta.getExecutionStateTracker();
+      this.ptransformId = consumerMeta.getPTransformId();
+      this.coder = coder;
+
+      HashMap<String, String> labels = new HashMap<>();
+      labels.put(Labels.PCOLLECTION, pCollectionId);
+      MonitoringInfoMetricName elementCountMetricName =
+          MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.ELEMENT_COUNT, labels);
+      String elementCountShortId =
+          shortIdMap.getOrCreateShortId(
+              new SimpleMonitoringInfoBuilder()
+                  .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
+                  .setType(TypeUrns.SUM_INT64_TYPE)
+                  .setLabels(labels)
+                  .build());
+      this.elementCountCounter =
+          Metrics.bundleProcessingThreadCounter(elementCountShortId, elementCountMetricName);
+      bundleProgressReporterRegistrar.register(elementCountCounter);
+
+      MonitoringInfoMetricName sampledByteSizeMetricName =
+          MonitoringInfoMetricName.named(Urns.SAMPLED_BYTE_SIZE, labels);
+      String sampledByteSizeShortId =
+          shortIdMap.getOrCreateShortId(
+              new SimpleMonitoringInfoBuilder()
+                  .setUrn(Urns.SAMPLED_BYTE_SIZE)
+                  .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
+                  .setLabels(labels)
+                  .build());
+      BundleDistribution sampledByteSizeUnderlyingDistribution =
+          Metrics.bundleProcessingThreadDistribution(
+              sampledByteSizeShortId, sampledByteSizeMetricName);
+      this.sampledByteSizeDistribution =
+          new SampleByteSizeDistribution<>(sampledByteSizeUnderlyingDistribution);
+      bundleProgressReporterRegistrar.register(sampledByteSizeUnderlyingDistribution);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public @Nullable Object beforeStep(WindowedValue<?> elem) throws Exception {
+      this.elementCountCounter.inc(elem.getWindows().size());
+      this.sampledByteSizeDistribution.tryUpdate((T) elem.getValue(), this.coder);
+      this.executionState.activate();
+      return null;
+    }
+
+    @Override
+    public void afterStepNormal(WindowedValue<?> elem, @Nullable Object stateToken) {
+      this.executionState.deactivate();
+      this.sampledByteSizeDistribution.finishLazyUpdate();
+    }
+
+    @Override
+    public void afterStepException(Throwable t, WindowedValue<?> elem, @Nullable Object stateToken)
+        throws Exception {
+      this.executionState.deactivate();
+      if (t instanceof Exception) {
+        logAndRethrow(
+            (Exception) t, executionState, executionStateTracker, ptransformId, null, null);
+      }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public @Nullable Object beforeFunc(
+        @Nullable Object rawValue, WindowedValue<?> templateElem, int windowsSize)
+        throws Exception {
+      this.elementCountCounter.inc(windowsSize);
+      this.sampledByteSizeDistribution.tryUpdate((T) rawValue, this.coder);
+      this.executionState.activate();
+      return null;
+    }
+
+    @Override
+    public void exitFuncState(@Nullable Object stateToken) {
+      this.executionState.deactivate();
+    }
+
+    @Override
+    public void afterFuncException(
+        Throwable t, WindowedValue<?> templateElem, @Nullable Object stateToken) throws Exception {
+      this.executionState.deactivate();
+      if (t instanceof Exception) {
+        logAndRethrow(
+            (Exception) t, executionState, executionStateTracker, ptransformId, null, null);
+      }
+    }
+
+    @Override
+    public void finishFuncLazy() {
+      this.sampledByteSizeDistribution.finishLazyUpdate();
+    }
+
+    @Override
+    public void afterRawNormal(@Nullable Object stateToken) {
+      this.executionState.deactivate();
+      this.sampledByteSizeDistribution.finishLazyUpdate();
+    }
+  }
+
+  private Coder<?> resolveUnwrappedValueCoder(String pCollectionId) {
+    if (!processBundleDescriptor.containsPcollections(pCollectionId)) {
+      throw new IllegalArgumentException(String.format("Unknown PCollection id %s", pCollectionId));
+    }
+    String coderId = processBundleDescriptor.getPcollectionsOrThrow(pCollectionId).getCoderId();
+    try {
+      Coder<?> maybeWvCoder = rehydratedComponents.getCoder(coderId);
+      if (maybeWvCoder instanceof WindowedValueCoder) {
+        return ((WindowedValueCoder) maybeWvCoder).getValueCoder();
+      }
+      return maybeWvCoder;
+    } catch (IOException e) {
+      throw new IllegalStateException(String.format("Unable to materialize coder %s", coderId), e);
+    }
+  }
+
+  public boolean tryRegisterCompilableStep(
+      String inPCollectionId,
+      String pTransformId,
+      String pTransformUniqueName,
+      String outPCollectionId,
+      FusedSegmentCompiler.StepSpec stepSpecWithoutEntryHook,
+      int selfFrameWeight) {
+    if (pCollectionIdsToWrappedConsumer.containsKey(inPCollectionId)
+        || !processBundleDescriptor.containsPcollections(outPCollectionId)) {
+      return false;
+    }
+
+    PendingCompiledChain downstreamPending = pendingCompiledChains.get(outPCollectionId);
+    List<ConsumerAndMetadata> outConsumers = pCollectionIdsToConsumers.get(outPCollectionId);
+    boolean canFuseIntoDownstream = false;
+    if (downstreamPending != null
+        && outConsumers != null
+        && outConsumers.size() == 1
+        && !pCollectionIdsToWrappedConsumer.containsKey(outPCollectionId)
+        && !flattenOutputPCollections.contains(outPCollectionId)
+        && dataSampler == null
+        && pCollectionProducerCounts.getOrDefault(outPCollectionId, 0) == 1) {
+      ConsumerAndMetadata outMeta = outConsumers.get(0);
+      boolean wouldCut =
+          stageTrampoline != null
+              && trampolineThreshold > 0
+              && outMeta.getDownstreamFrameDepth() + 1 > trampolineThreshold;
+      if (!(outMeta.getConsumer() instanceof HandlesSplits) && !wouldCut) {
+        canFuseIntoDownstream = true;
+      }
+    }
+
+    final PendingCompiledChain newChain;
+    final int downstreamDepth;
+    if (canFuseIntoDownstream) {
+      pendingCompiledChains.remove(outPCollectionId);
+      ConsumerAndMetadata outMeta = outConsumers.get(0);
+      Coder<?> outValueCoder = resolveUnwrappedValueCoder(outPCollectionId);
+      RunnerV2StepHook<?> edgeHook =
+          new RunnerV2StepHook<>(outPCollectionId, (Coder) outValueCoder, outMeta);
+      pCollectionIdsToWrappedConsumer.put(outPCollectionId, CLAIMED_INLINE_CONSUMER);
+
+      List<FusedSegmentCompiler.StepSpec> combined =
+          new ArrayList<>(1 + downstreamPending.stepsFromHeadToTail.size());
+      combined.add(stepSpecWithoutEntryHook);
+      combined.add(downstreamPending.stepsFromHeadToTail.get(0).withEntryHook(edgeHook));
+      for (int i = 1; i < downstreamPending.stepsFromHeadToTail.size(); i++) {
+        combined.add(downstreamPending.stepsFromHeadToTail.get(i));
+      }
+      newChain = new PendingCompiledChain(combined, downstreamPending.tailNode);
+      downstreamDepth = outMeta.getDownstreamFrameDepth();
+    } else {
+      FnDataReceiver<WindowedValue<?>> wrappedOut = getMultiplexingConsumer(outPCollectionId);
+      List<FusedSegmentCompiler.StepSpec> single = new ArrayList<>(1);
+      single.add(stepSpecWithoutEntryHook);
+      FusedSegmentCompiler.CompiledNode tailNode =
+          (wrappedOut instanceof FusedSegmentCompiler.CompiledNode)
+              ? (FusedSegmentCompiler.CompiledNode) wrappedOut
+              : new RunnerV2TailReceiver(wrappedOut);
+      newChain = new PendingCompiledChain(single, tailNode);
+      downstreamDepth = getEffectiveDepth(outPCollectionId);
+    }
+
+    final PendingCompiledChain chainForClosure = newChain;
+    FnDataReceiver<WindowedValue<Object>> lazyCompiledReceiver =
+        new FnDataReceiver<WindowedValue<Object>>() {
+          private @Nullable FusedSegmentCompiler.CompiledNode compiled;
+
+          @Override
+          public void accept(WindowedValue<Object> elem) throws Exception {
+            FusedSegmentCompiler.CompiledNode node = this.compiled;
+            if (node == null) {
+              node =
+                  FusedSegmentCompiler.compileChain(
+                      chainForClosure.stepsFromHeadToTail, chainForClosure.tailNode);
+              this.compiled = node;
+            }
+            node.acceptRaw(elem.getValue(), elem, elem.getWindows().size());
+          }
+        };
+
+    int effectiveSelfWeight =
+        canFuseIntoDownstream
+            ? ((stepSpecWithoutEntryHook instanceof FusedSegmentCompiler.FunctionalStepSpec)
+                ? 1
+                : 2)
+            : selfFrameWeight;
+    register(
+        inPCollectionId,
+        pTransformId,
+        pTransformUniqueName,
+        lazyCompiledReceiver,
+        effectiveSelfWeight + downstreamDepth);
+    if (pCollectionIdsToConsumers.get(inPCollectionId).size() == 1) {
+      pendingCompiledChains.put(inPCollectionId, newChain);
+    } else {
+      pendingCompiledChains.remove(inPCollectionId);
+    }
+    return true;
   }
 
   /**
@@ -164,6 +490,15 @@ public class PCollectionConsumerRegistry {
       String pTransformId,
       String pTransformUniqueName,
       FnDataReceiver<WindowedValue<T>> consumer) {
+    register(pCollectionId, pTransformId, pTransformUniqueName, consumer, 5);
+  }
+
+  public <T> void register(
+      String pCollectionId,
+      String pTransformId,
+      String pTransformUniqueName,
+      FnDataReceiver<WindowedValue<T>> consumer,
+      int downstreamFrameDepth) {
     // Just save these consumers for now, but package them up later with an
     // ElementCountFnDataReceiver and possibly a MultiplexingFnDataReceiver
     // if there are multiple consumers.
@@ -175,12 +510,21 @@ public class PCollectionConsumerRegistry {
 
     List<ConsumerAndMetadata> consumerAndMetadatas =
         pCollectionIdsToConsumers.computeIfAbsent(pCollectionId, (unused) -> new ArrayList<>());
+    if (!consumerAndMetadatas.isEmpty()) {
+      pendingCompiledChains.remove(pCollectionId);
+    }
     consumerAndMetadatas.add(
         ConsumerAndMetadata.forConsumer(
             consumer,
             pTransformId,
             getProcessingExecutionState(pTransformId, pTransformUniqueName),
-            stateTracker));
+            stateTracker,
+            downstreamFrameDepth));
+  }
+
+  public int getEffectiveDepth(String pCollectionId) {
+    Integer depth = pCollectionIdsToEffectiveDepth.get(pCollectionId);
+    return depth != null ? depth : 1;
   }
 
   /**
@@ -193,6 +537,25 @@ public class PCollectionConsumerRegistry {
     return pCollectionIdsToWrappedConsumer.computeIfAbsent(
         pCollectionId,
         pcId -> {
+          PendingCompiledChain pending = pendingCompiledChains.remove(pcId);
+          if (pending != null) {
+            List<ConsumerAndMetadata> existing = pCollectionIdsToConsumers.get(pcId);
+            if (existing != null && existing.size() == 1) {
+              ConsumerAndMetadata oldMeta = existing.get(0);
+              FusedSegmentCompiler.CompiledNode compiledHead =
+                  FusedSegmentCompiler.compileChain(pending.stepsFromHeadToTail, pending.tailNode);
+              FnDataReceiver<WindowedValue<?>> compiledReceiver = compiledHead::acceptWindowed;
+              existing.set(
+                  0,
+                  ConsumerAndMetadata.forConsumer(
+                      compiledReceiver,
+                      oldMeta.getPTransformId(),
+                      oldMeta.getExecutionState(),
+                      oldMeta.getExecutionStateTracker(),
+                      oldMeta.getDownstreamFrameDepth(),
+                      compiledHead));
+            }
+          }
           if (!processBundleDescriptor.containsPcollections(pCollectionId)) {
             throw new IllegalArgumentException(
                 String.format("Unknown PCollection id %s", pCollectionId));
@@ -222,18 +585,54 @@ public class PCollectionConsumerRegistry {
               pCollectionIdsToConsumers.computeIfAbsent(
                   pCollectionId, (unused) -> new ArrayList<>());
 
+          int maxConsumerDepth = 0;
+          boolean hasHandlesSplits = false;
+          for (ConsumerAndMetadata cm : consumerAndMetadatas) {
+            maxConsumerDepth = Math.max(maxConsumerDepth, cm.getDownstreamFrameDepth());
+            if (cm.getConsumer() instanceof HandlesSplits) {
+              hasHandlesSplits = true;
+            }
+          }
+
+          boolean shouldCut =
+              !hasHandlesSplits
+                  && !flattenOutputPCollections.contains(pcId)
+                  && stageTrampoline != null
+                  && trampolineThreshold > 0
+                  && maxConsumerDepth + 1 > trampolineThreshold;
+
+          // Never cut immediately after Flatten so predecessor PCollection lazy byte-size observers
+          // remain atomic across FlattenRunner into the consuming PTransform.
+          // Subclassing MetricTrackingFnDataReceiver keeps upstream FnDataReceiver call sites
+          // within
+          // the MetricTrackingFnDataReceiver class hierarchy instead of introducing a third
+          // receiver
+          // implementation.
           if (consumerAndMetadatas.size() == 1) {
             ConsumerAndMetadata consumerAndMetadata = consumerAndMetadatas.get(0);
             if (consumerAndMetadata.getConsumer() instanceof HandlesSplits) {
+              pCollectionIdsToEffectiveDepth.put(pcId, maxConsumerDepth + 1);
               return new SplittingMetricTrackingFnDataReceiver(
                   pcId, coder, consumerAndMetadata, sampler);
             }
+            if (shouldCut) {
+              pCollectionIdsToEffectiveDepth.put(pcId, 1);
+              return new CutMetricTrackingFnDataReceiver(
+                  pcId, coder, consumerAndMetadata, sampler, stageTrampoline);
+            }
+            pCollectionIdsToEffectiveDepth.put(pcId, maxConsumerDepth + 1);
             return new MetricTrackingFnDataReceiver(pcId, coder, consumerAndMetadata, sampler);
           } else {
             /* TODO(SDF), Consider supporting splitting each consumer individually. This would never
             come up in the existing SDF expansion, but might be useful to support fused SDF nodes.
             This would require dedicated delivery of the split results to each of the consumers
             separately. */
+            if (shouldCut) {
+              pCollectionIdsToEffectiveDepth.put(pcId, 1);
+              return new CutMultiplexingMetricTrackingFnDataReceiver(
+                  pcId, coder, consumerAndMetadatas, sampler, stageTrampoline);
+            }
+            pCollectionIdsToEffectiveDepth.put(pcId, maxConsumerDepth + 2);
             return new MultiplexingMetricTrackingFnDataReceiver(
                 pcId, coder, consumerAndMetadatas, sampler);
           }
@@ -300,8 +699,10 @@ public class PCollectionConsumerRegistry {
    *
    * @param <T> - The receiving type of the PTransform.
    */
-  private class MetricTrackingFnDataReceiver<T> implements FnDataReceiver<WindowedValue<T>> {
+  public class MetricTrackingFnDataReceiver<T>
+      implements FnDataReceiver<WindowedValue<T>>, CompiledNode {
     private final FnDataReceiver<WindowedValue<T>> delegate;
+    private final @Nullable CompiledNode compiledDelegate;
     private final ExecutionState executionState;
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
@@ -316,6 +717,7 @@ public class PCollectionConsumerRegistry {
         ConsumerAndMetadata consumerAndMetadata,
         @Nullable OutputSampler<T> outputSampler) {
       this.delegate = consumerAndMetadata.getConsumer();
+      this.compiledDelegate = consumerAndMetadata.getCompiledConsumer();
       this.executionState = consumerAndMetadata.getExecutionState();
       this.executionStateTracker = consumerAndMetadata.getExecutionStateTracker();
       this.ptransformId = consumerAndMetadata.getPTransformId();
@@ -356,12 +758,56 @@ public class PCollectionConsumerRegistry {
     }
 
     @Override
+    public void acceptWindowed(WindowedValue<?> elem) throws Exception {
+      accept((WindowedValue<T>) elem);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void acceptRaw(@Nullable Object rawValue, WindowedValue<?> templateElem, int windowsSize)
+        throws Exception {
+      this.elementCountCounter.inc(windowsSize);
+      this.sampledByteSizeDistribution.tryUpdate((T) rawValue, this.coder);
+
+      WindowedValue<T> input =
+          (rawValue == templateElem.getValue())
+              ? (WindowedValue<T>) templateElem
+              : (WindowedValue<T>) templateElem.withValue(rawValue);
+
+      ElementSample<T> elementSample = null;
+      if (outputSampler != null) {
+        elementSample = outputSampler.sample(input);
+      }
+
+      executionState.activate();
+      try {
+        if (this.compiledDelegate != null) {
+          this.compiledDelegate.acceptRaw(rawValue, input, windowsSize);
+        } else {
+          this.delegate.accept(input);
+        }
+      } catch (Exception e) {
+        executionState.deactivate();
+        logAndRethrow(
+            e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
+        return;
+      } catch (Throwable t) {
+        executionState.deactivate();
+        throw t;
+      }
+      executionState.deactivate();
+      this.sampledByteSizeDistribution.finishLazyUpdate();
+    }
+
+    @Override
     public void accept(WindowedValue<T> input) throws Exception {
       // Increment the counter for each window the element occurs in.
-      this.elementCountCounter.inc(input.getWindows().size());
+      int windowsSize = input.getWindows().size();
+      this.elementCountCounter.inc(windowsSize);
       // TODO(https://github.com/apache/beam/issues/20730): Consider updating size per window when
       // we have window optimization.
-      this.sampledByteSizeDistribution.tryUpdate(input.getValue(), this.coder);
+      T rawValue = input.getValue();
+      this.sampledByteSizeDistribution.tryUpdate(rawValue, this.coder);
 
       ElementSample<T> elementSample = null;
       if (outputSampler != null) {
@@ -371,12 +817,23 @@ public class PCollectionConsumerRegistry {
       // Use the ExecutionStateTracker and enter an appropriate state to track the
       // Process Bundle Execution time metric and also ensure user counters can get an appropriate
       // metrics container.
-      try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
-        this.delegate.accept(input);
+      executionState.activate();
+      try {
+        if (this.compiledDelegate != null) {
+          this.compiledDelegate.acceptRaw(rawValue, input, windowsSize);
+        } else {
+          this.delegate.accept(input);
+        }
       } catch (Exception e) {
+        executionState.deactivate();
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
+        return;
+      } catch (Throwable t) {
+        executionState.deactivate();
+        throw t;
       }
+      executionState.deactivate();
       this.sampledByteSizeDistribution.finishLazyUpdate();
     }
   }
@@ -388,8 +845,8 @@ public class PCollectionConsumerRegistry {
    *
    * @param <T> - The receiving type of the PTransform.
    */
-  private class MultiplexingMetricTrackingFnDataReceiver<T>
-      implements FnDataReceiver<WindowedValue<T>> {
+  public class MultiplexingMetricTrackingFnDataReceiver<T>
+      implements FnDataReceiver<WindowedValue<T>>, FusedSegmentCompiler.CompiledNode {
     private final List<ConsumerAndMetadata> consumerAndMetadatas;
     private final BundleCounter elementCountCounter;
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
@@ -472,6 +929,21 @@ public class PCollectionConsumerRegistry {
         this.sampledByteSizeDistribution.finishLazyUpdate();
       }
     }
+
+    @Override
+    public void acceptWindowed(WindowedValue<?> elem) throws Exception {
+      accept((WindowedValue<T>) elem);
+    }
+
+    @Override
+    public void acceptRaw(@Nullable Object rawValue, WindowedValue<?> templateElem, int windowsSize)
+        throws Exception {
+      WindowedValue<T> elem =
+          (rawValue == templateElem.getValue())
+              ? (WindowedValue<T>) templateElem
+              : (WindowedValue<T>) templateElem.withValue(rawValue);
+      accept(elem);
+    }
   }
 
   /**
@@ -481,7 +953,7 @@ public class PCollectionConsumerRegistry {
    *
    * @param <T> - The receiving type of the PTransform.
    */
-  private class SplittingMetricTrackingFnDataReceiver<T> extends MetricTrackingFnDataReceiver<T>
+  public class SplittingMetricTrackingFnDataReceiver<T> extends MetricTrackingFnDataReceiver<T>
       implements HandlesSplits {
     private final HandlesSplits delegate;
 
@@ -502,6 +974,55 @@ public class PCollectionConsumerRegistry {
     @Override
     public double getProgress() {
       return delegate.getProgress();
+    }
+  }
+
+  public class CutMetricTrackingFnDataReceiver<T> extends MetricTrackingFnDataReceiver<T> {
+    private final FnDataReceiver<WindowedValue<T>> cut;
+
+    public CutMetricTrackingFnDataReceiver(
+        String pCollection,
+        Coder<T> coder,
+        ConsumerAndMetadata consumerAndMetadata,
+        @Nullable OutputSampler<T> outputSampler,
+        HarnessStageTrampoline trampoline) {
+      super(pCollection, coder, consumerAndMetadata, outputSampler);
+      this.cut = trampoline.createCut(super::accept);
+    }
+
+    @Override
+    public void accept(WindowedValue<T> input) throws Exception {
+      this.cut.accept(input);
+    }
+
+    @Override
+    public void acceptRaw(@Nullable Object rawValue, WindowedValue<?> templateElem, int windowsSize)
+        throws Exception {
+      WindowedValue<T> elem =
+          (rawValue == templateElem.getValue())
+              ? (WindowedValue<T>) templateElem
+              : (WindowedValue<T>) templateElem.withValue(rawValue);
+      this.cut.accept(elem);
+    }
+  }
+
+  public class CutMultiplexingMetricTrackingFnDataReceiver<T>
+      extends MultiplexingMetricTrackingFnDataReceiver<T> {
+    private final FnDataReceiver<WindowedValue<T>> cut;
+
+    public CutMultiplexingMetricTrackingFnDataReceiver(
+        String pCollection,
+        Coder<T> coder,
+        List<ConsumerAndMetadata> consumerAndMetadatas,
+        @Nullable OutputSampler<T> outputSampler,
+        HarnessStageTrampoline trampoline) {
+      super(pCollection, coder, consumerAndMetadatas, outputSampler);
+      this.cut = trampoline.createCut(super::accept);
+    }
+
+    @Override
+    public void accept(WindowedValue<T> input) throws Exception {
+      this.cut.accept(input);
     }
   }
 

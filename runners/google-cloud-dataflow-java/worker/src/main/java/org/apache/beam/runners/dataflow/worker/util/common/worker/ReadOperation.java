@@ -96,6 +96,12 @@ public class ReadOperation extends Operation {
 
   private final ScheduledExecutorService scheduler;
 
+  private @Nullable StageTrampoline stageTrampoline;
+
+  public void setStageTrampoline(@Nullable StageTrampoline stageTrampoline) {
+    this.stageTrampoline = stageTrampoline;
+  }
+
   protected ReadOperation(
       NativeReader<?> reader,
       OutputReceiver[] receivers,
@@ -208,14 +214,19 @@ public class ReadOperation extends Operation {
           schedulePeriodicActivity(scheduler, setProgressFromIterator, progressUpdatePeriodMs)) {
         // Force a progress update at the beginning.
         readerIterator.setProgressFromIterator();
-        for (boolean more = readerIterator.start(); more; more = readerIterator.advance()) {
-          if (abortRead.get()) {
-            throw new ReadLoopAbortedException();
+        StageTrampoline trampoline = this.stageTrampoline;
+        if (trampoline != null) {
+          runTrampolinedReadElements(receiver, trampoline);
+        } else {
+          for (boolean more = readerIterator.start(); more; more = readerIterator.advance()) {
+            if (abortRead.get()) {
+              throw new ReadLoopAbortedException();
+            }
+            if (progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
+              readerIterator.setProgressFromIterator();
+            }
+            receiver.process(readerIterator.getCurrent());
           }
-          if (progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
-            readerIterator.setProgressFromIterator();
-          }
-          receiver.process(readerIterator.getCurrent());
         }
         // Force a progress update at the end.
         readerIterator.setProgressFromIterator();
@@ -238,6 +249,20 @@ public class ReadOperation extends Operation {
           LOG.info("Periodic progress reporting terminated.");
         }
       }
+    }
+  }
+
+  private void runTrampolinedReadElements(Receiver receiver, StageTrampoline trampoline)
+      throws Exception {
+    for (boolean more = readerIterator.start(); more; more = readerIterator.advance()) {
+      if (abortRead.get()) {
+        throw new ReadLoopAbortedException();
+      }
+      if (progressUpdatePeriodMs == UPDATE_ON_EACH_ITERATION) {
+        readerIterator.setProgressFromIterator();
+      }
+      receiver.process(readerIterator.getCurrent());
+      trampoline.drain();
     }
   }
 

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import io.opentelemetry.context.Context;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
@@ -44,7 +46,7 @@ public class DoFnOutputReceivers {
     private final @Nullable TupleTag<T> tag;
     private final DoFn<?, ?>.WindowedContext context;
     private final OutputBuilderSupplier builderSupplier;
-    SchemaCoder<T> schemaCoder;
+    private final SerializableFunction<Row, T> fromRowFunction;
 
     private RowOutputReceiver(
         DoFn<?, ?>.WindowedContext context,
@@ -54,7 +56,39 @@ public class DoFnOutputReceivers {
       this.context = context;
       this.builderSupplier = builderSupplier;
       this.tag = outputTag;
-      this.schemaCoder = schemaCoder;
+      this.fromRowFunction = schemaCoder.getFromRowFunction();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void output(Row value) {
+      if (Context.current() != Context.root()) {
+        OutputReceiver.super.output(value);
+        return;
+      }
+      final TupleTag<T> tag = this.tag;
+      T converted = fromRowFunction.apply(value);
+      if (tag != null) {
+        context.output(tag, converted);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).output(converted);
+      }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void outputWithTimestamp(Row value, Instant timestamp) {
+      if (Context.current() != Context.root()) {
+        OutputReceiver.super.outputWithTimestamp(value, timestamp);
+        return;
+      }
+      final TupleTag<T> tag = this.tag;
+      T converted = fromRowFunction.apply(value);
+      if (tag != null) {
+        context.outputWithTimestamp(tag, converted, timestamp);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(converted, timestamp);
+      }
     }
 
     @Override
@@ -71,7 +105,7 @@ public class DoFnOutputReceivers {
                   ((DoFn<?, T>.WindowedContext) context)
                       .outputWindowedValue(
                           rowWithMetadata.withValue(
-                              schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue())));
+                              fromRowFunction.apply(rowWithMetadata.getValue())));
                 });
 
       } else {
@@ -82,8 +116,7 @@ public class DoFnOutputReceivers {
                 rowWithMetadata -> {
                   context.outputWindowedValue(
                       tag,
-                      rowWithMetadata.withValue(
-                          schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue())));
+                      rowWithMetadata.withValue(fromRowFunction.apply(rowWithMetadata.getValue())));
                 });
       }
     }
@@ -111,6 +144,36 @@ public class DoFnOutputReceivers {
     @Override
     public OutputBuilder<T> builder(T value) {
       return WindowedValues.builder(builderSupplier.builder(value)).setReceiver(this);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void output(T value) {
+      if (Context.current() != Context.root()) {
+        OutputReceiver.super.output(value);
+        return;
+      }
+      final TupleTag<T> tag = this.outputTag;
+      if (tag != null) {
+        context.output(tag, value);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).output(value);
+      }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void outputWithTimestamp(T value, Instant timestamp) {
+      if (Context.current() != Context.root()) {
+        OutputReceiver.super.outputWithTimestamp(value, timestamp);
+        return;
+      }
+      final TupleTag<T> tag = this.outputTag;
+      if (tag != null) {
+        context.outputWithTimestamp(tag, value, timestamp);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(value, timestamp);
+      }
     }
 
     @Override

@@ -68,9 +68,12 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Partition;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -79,7 +82,9 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -781,6 +786,227 @@ public class NexmarkUtils {
     return elements
         .apply(name + ".Forget", castToKnownSize())
         .setCoder(makeCastingCoder(elements.getCoder()));
+  }
+
+  static Event maybeCopyEvent(Event e, boolean allocate) {
+    return allocate ? new Event(e.newPerson, e.newAuction, e.bid) : e;
+  }
+
+  private static final class FusionStepDoFn0 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn0(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(@Element Event e, OutputReceiver<Event> out) {
+      if (e.bid == null || e.bid.price >= 0) {
+        out.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn1 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn1(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(@Element Event e, OutputReceiver<Event> out) {
+      if (e.newAuction == null || e.newAuction.reserve >= 0) {
+        out.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn2 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn2(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(@Element Event e, OutputReceiver<Event> out) {
+      if (e.newPerson == null || e.newPerson.id >= 0) {
+        out.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn3 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn3(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      Event e = c.element();
+      if (e.bid == null || e.bid.auction >= 0) {
+        c.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn4 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn4(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(@Element Event e, OutputReceiver<Event> out) {
+      if (e.bid == null || e.bid.bidder >= 0) {
+        out.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn5 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn5(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      Event e = c.element();
+      if (e.newAuction == null || e.newAuction.id >= 0) {
+        c.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn6 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn6(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(@Element Event e, OutputReceiver<Event> out) {
+      if (e.bid != null || e.newAuction != null || e.newPerson != null) {
+        out.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static final class FusionStepDoFn7 extends DoFn<Event, Event> {
+    private final boolean allocate;
+
+    FusionStepDoFn7(boolean allocate) {
+      this.allocate = allocate;
+    }
+
+    @ProcessElement
+    public void process(@Element Event e, OutputReceiver<Event> out) {
+      if (e != null) {
+        out.output(maybeCopyEvent(e, allocate));
+      }
+    }
+  }
+
+  private static DoFn<Event, Event> fusionDoFnFor(int step, boolean allocate) {
+    switch (step & 7) {
+      case 0:
+        return new FusionStepDoFn0(allocate);
+      case 1:
+        return new FusionStepDoFn1(allocate);
+      case 2:
+        return new FusionStepDoFn2(allocate);
+      case 3:
+        return new FusionStepDoFn3(allocate);
+      case 4:
+        return new FusionStepDoFn4(allocate);
+      case 5:
+        return new FusionStepDoFn5(allocate);
+      case 6:
+        return new FusionStepDoFn6(allocate);
+      default:
+        return new FusionStepDoFn7(allocate);
+    }
+  }
+
+  public static PTransform<PCollection<Event>, PCollection<Event>> fusionChain(
+      final String name, final int depth) {
+    return fusionChain(name, depth, false, false);
+  }
+
+  /**
+   * Return a semantics-preserving chain of {@code depth} fused operations mixing heterogeneous
+   * {@link DoFn}s, {@link MapElements}, {@link Filter}, and (unless {@code linear}) {@link
+   * Partition} + {@link Flatten} diamonds to exercise deep fusion call stacks.
+   */
+  public static PTransform<PCollection<Event>, PCollection<Event>> fusionChain(
+      final String name, final int depth, final boolean allocate, final boolean linear) {
+    return new PTransform<PCollection<Event>, PCollection<Event>>(name + ".FusionChain") {
+      @Override
+      public PCollection<Event> expand(PCollection<Event> input) {
+        Coder<Event> eventCoder = input.getCoder();
+        PCollection<Event> current = input;
+        int i = 0;
+        while (i < depth) {
+          int mod = i % 8;
+          if (mod == 6) {
+            final int step = i;
+            final boolean alloc = allocate;
+            current =
+                current
+                    .apply(
+                        name + ".FusionMap" + i,
+                        MapElements.into(TypeDescriptor.of(Event.class))
+                            .via(
+                                e -> (e.bid != null && step < 0) ? null : maybeCopyEvent(e, alloc)))
+                    .setCoder(eventCoder);
+            i++;
+          } else if (mod == 5) {
+            current =
+                current.apply(
+                    name + ".FusionFilter" + i,
+                    Filter.by(e -> e.bid != null || e.newAuction != null || e.newPerson != null));
+            i++;
+          } else if (!linear && mod == 7 && i + 1 < depth) {
+            PCollectionList<Event> parts =
+                current.apply(
+                    name + ".FusionPartition" + i,
+                    Partition.of(2, (event, numPartitions) -> event.bid != null ? 0 : 1));
+            PCollection<Event> left =
+                parts
+                    .get(0)
+                    .setCoder(eventCoder)
+                    .apply(name + ".FusionLeft" + i, ParDo.of(fusionDoFnFor(i, allocate)))
+                    .setCoder(eventCoder);
+            PCollection<Event> right =
+                parts
+                    .get(1)
+                    .setCoder(eventCoder)
+                    .apply(name + ".FusionRight" + i, ParDo.of(fusionDoFnFor(i + 1, allocate)))
+                    .setCoder(eventCoder);
+            current =
+                PCollectionList.of(left)
+                    .and(right)
+                    .apply(name + ".FusionFlatten" + i, Flatten.pCollections())
+                    .setCoder(eventCoder);
+            i += 2;
+          } else {
+            current =
+                current
+                    .apply(name + ".FusionStep" + i, ParDo.of(fusionDoFnFor(i, allocate)))
+                    .setCoder(eventCoder);
+            i++;
+          }
+        }
+        return current;
+      }
+    };
   }
 
   // Do not instantiate.

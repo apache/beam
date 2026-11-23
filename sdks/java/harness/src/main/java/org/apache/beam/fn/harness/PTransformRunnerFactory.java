@@ -36,6 +36,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.FusedSegmentCompiler;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.WindowedValue;
 
@@ -87,6 +88,18 @@ public interface PTransformRunnerFactory {
     /** Register as a consumer for a given PCollection id. */
     <T> void addPCollectionConsumer(
         String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer);
+
+    /**
+     * Attempts to register a stateless single-input single-output step into a ByteBuddy-compiled
+     * fused segment chain. Returns {@code true} if handled, or {@code false} if the caller should
+     * register using standard {@link #getPCollectionConsumer} and {@link #addPCollectionConsumer}.
+     */
+    default boolean tryRegisterCompilableStep(
+        String inPCollectionId,
+        String outPCollectionId,
+        FusedSegmentCompiler.StepSpec stepSpecWithoutEntryHook) {
+      return false;
+    }
 
     /** Returns a {@link FnDataReceiver} to send output to for the specified PCollection id. */
     <T> FnDataReceiver<T> getPCollectionConsumer(String pCollectionId);

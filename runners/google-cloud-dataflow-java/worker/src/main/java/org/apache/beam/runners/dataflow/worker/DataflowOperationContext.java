@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class DataflowOperationContext implements OperationContext {
+public class DataflowOperationContext implements OperationContext.FastProcessContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowOperationContext.class);
 
@@ -120,6 +120,16 @@ public class DataflowOperationContext implements OperationContext {
   @Override
   public Closeable enterProcess() {
     return enter(processElementState);
+  }
+
+  @Override
+  public @Nullable ExecutionState enterProcessUnscoped() {
+    return executionStateTracker.enterStateUnscoped(processElementState);
+  }
+
+  @Override
+  public void exitProcessUnscoped(@Nullable ExecutionState previous) {
+    executionStateTracker.exitState(previous);
   }
 
   @Override

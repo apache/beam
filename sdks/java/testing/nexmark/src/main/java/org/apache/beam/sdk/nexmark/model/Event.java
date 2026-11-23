@@ -148,6 +148,12 @@ public class Event implements KnownSize, Serializable {
     this.bid = bid;
   }
 
+  public Event(@Nullable Person newPerson, @Nullable Auction newAuction, @Nullable Bid bid) {
+    this.newPerson = newPerson;
+    this.newAuction = newAuction;
+    this.bid = bid;
+  }
+
   /** Return a copy of event which captures {@code annotation}. (Used for debugging). */
   public Event withAnnotation(String annotation) {
     if (newPerson != null) {

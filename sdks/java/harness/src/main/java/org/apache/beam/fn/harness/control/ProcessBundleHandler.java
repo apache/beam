@@ -50,6 +50,7 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.HarnessStageTrampoline;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.debug.DataSampler;
@@ -67,6 +68,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
@@ -79,12 +81,18 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.apache.beam.sdk.transforms.InlineableFunctionProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.reflect.FusedSegmentCompiler;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -297,6 +305,8 @@ public class ProcessBundleHandler {
 
     // Skip reprocessing processed pTransforms.
     if (!processedPTransformIds.contains(pTransformId)) {
+      final int[] maxOutputDepth = {0};
+      final int selfFrameWeight = estimatePTransformFrameWeight(pTransform, options);
       urnToPTransformRunnerFactoryMap
           .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
           .addRunnerForPTransform(
@@ -365,7 +375,25 @@ public class ProcessBundleHandler {
                 public <T> void addPCollectionConsumer(
                     String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
                   pCollectionConsumerRegistry.register(
-                      pCollectionId, pTransformId, pTransform.getUniqueName(), consumer);
+                      pCollectionId,
+                      pTransformId,
+                      pTransform.getUniqueName(),
+                      consumer,
+                      selfFrameWeight + maxOutputDepth[0]);
+                }
+
+                @Override
+                public boolean tryRegisterCompilableStep(
+                    String inPCollectionId,
+                    String outPCollectionId,
+                    FusedSegmentCompiler.StepSpec stepSpecWithoutEntryHook) {
+                  return pCollectionConsumerRegistry.tryRegisterCompilableStep(
+                      inPCollectionId,
+                      pTransformId,
+                      pTransform.getUniqueName(),
+                      outPCollectionId,
+                      stepSpecWithoutEntryHook,
+                      selfFrameWeight);
                 }
 
                 @Override
@@ -411,7 +439,13 @@ public class ProcessBundleHandler {
 
                 @Override
                 public FnDataReceiver<?> getPCollectionConsumer(String pCollectionId) {
-                  return pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId);
+                  FnDataReceiver<?> consumer =
+                      pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId);
+                  maxOutputDepth[0] =
+                      Math.max(
+                          maxOutputDepth[0],
+                          pCollectionConsumerRegistry.getEffectiveDepth(pCollectionId));
+                  return consumer;
                 }
 
                 @Override
@@ -528,9 +562,11 @@ public class ProcessBundleHandler {
         stateTracker.start(instructionId);
         try {
           // Already in reverse topological order so we don't need to do anything.
+          HarnessStageTrampoline stageTrampoline = bundleProcessor.getStageTrampoline();
           for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
             LOG.debug("Starting function {}", startFunction);
             startFunction.run();
+            stageTrampoline.drain();
           }
 
           if (request.getProcessBundle().hasElements()) {
@@ -561,10 +597,12 @@ public class ProcessBundleHandler {
           }
 
           // Need to reverse this since we want to call finish in topological order.
+          stageTrampoline.drain();
           for (ThrowingRunnable finishFunction :
               Lists.reverse(finishFunctionRegistry.getFunctions())) {
             LOG.debug("Finishing function {}", finishFunction);
             finishFunction.run();
+            stageTrampoline.drain();
           }
 
           // If bundleProcessor has not flushed any elements, embed them in response.
@@ -800,13 +838,17 @@ public class ProcessBundleHandler {
         new MetricsEnvironmentStateForBundle();
     ExecutionStateTracker stateTracker = executionStateSampler.create();
     bundleProgressReporterAndRegistrar.register(stateTracker);
+    HarnessStageTrampoline stageTrampoline = new HarnessStageTrampoline();
+    int trampolineThreshold = HarnessStageTrampoline.resolveThreshold(options);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
             stateTracker,
             shortIds,
             bundleProgressReporterAndRegistrar,
             bundleDescriptor,
-            dataSampler);
+            dataSampler,
+            stageTrampoline,
+            trampolineThreshold);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -814,6 +856,7 @@ public class ProcessBundleHandler {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(shortIds, stateTracker, Urns.FINISH_BUNDLE_MSECS);
     List<ThrowingRunnable> resetFunctions = new ArrayList<>();
+    resetFunctions.add(stageTrampoline::reset);
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
@@ -862,7 +905,8 @@ public class ProcessBundleHandler {
             stateTracker,
             beamFnStateClient,
             bundleFinalizationCallbackRegistrations,
-            runnerCapabilities);
+            runnerCapabilities,
+            stageTrampoline);
 
     // Create a BeamFnStateClient
     for (Map.Entry<String, PTransform> entry : bundleDescriptor.getTransformsMap().entrySet()) {
@@ -907,7 +951,17 @@ public class ProcessBundleHandler {
                 .contains(apiServiceDescriptor)) {
               bundleProcessor.getInboundEndpointApiServiceDescriptors().add(apiServiceDescriptor);
             }
-            bundleProcessor.getInboundDataEndpoints().add(dataEndpoint);
+            FnDataReceiver<Object> baseReceiver =
+                (FnDataReceiver<Object>) dataEndpoint.getReceiver();
+            DataEndpoint<Object> drainingEndpoint =
+                DataEndpoint.create(
+                    dataEndpoint.getTransformId(),
+                    (org.apache.beam.sdk.coders.Coder<Object>) dataEndpoint.getCoder(),
+                    elem -> {
+                      baseReceiver.accept(elem);
+                      stageTrampoline.drain();
+                    });
+            bundleProcessor.getInboundDataEndpoints().add(drainingEndpoint);
           },
           (timerEndpoint) -> {
             if (!bundleDescriptor.hasTimerApiServiceDescriptor()) {
@@ -917,7 +971,18 @@ public class ProcessBundleHandler {
                           + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
                       bundleId));
             }
-            bundleProcessor.getTimerEndpoints().add(timerEndpoint);
+            FnDataReceiver<Timer<Object>> baseTimerReceiver =
+                (FnDataReceiver<Timer<Object>>) timerEndpoint.getReceiver();
+            TimerEndpoint<Timer<Object>> drainingTimerEndpoint =
+                TimerEndpoint.create(
+                    timerEndpoint.getTransformId(),
+                    timerEndpoint.getTimerFamilyId(),
+                    (org.apache.beam.sdk.coders.Coder<Timer<Object>>) timerEndpoint.getCoder(),
+                    timer -> {
+                      baseTimerReceiver.accept(timer);
+                      stageTrampoline.drain();
+                    });
+            bundleProcessor.getTimerEndpoints().add(drainingTimerEndpoint);
           },
           bundleProgressReporterAndRegistrar::register,
           splitListener,
@@ -926,9 +991,51 @@ public class ProcessBundleHandler {
           bundleProcessor.getOutboundAggregators(),
           bundleProcessor.getRunnerCapabilities());
     }
+    stageTrampoline.freezeReverseTopologicalCuts();
     bundleProcessor.finish();
 
     return bundleProcessor;
+  }
+
+  private static int estimatePTransformFrameWeight(PTransform pTransform, PipelineOptions options) {
+    String urn = pTransform.getSpec().getUrn();
+    if (PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(urn)) {
+      return 0;
+    }
+    if (DATA_OUTPUT_URN.equals(urn) || DATA_INPUT_URN.equals(urn)) {
+      return 2;
+    }
+    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(urn)) {
+      boolean codegenEnabled =
+          !ExperimentalOptions.hasExperiment(
+              options, FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT);
+      try {
+        ParDoPayload payload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
+        if (payload.getSideInputsMap().isEmpty()
+            && payload.getStateSpecsMap().isEmpty()
+            && payload.getTimerFamilySpecsMap().isEmpty()
+            && !payload.getRequestsFinalization()
+            && pTransform.getOutputsCount() == 1) {
+          org.apache.beam.sdk.transforms.DoFn<?, ?> fn = ParDoTranslation.getDoFn(payload);
+          if (fn instanceof InlineableFunctionProvider) {
+            return codegenEnabled ? 1 : 2;
+          }
+          if (codegenEnabled) {
+            DoFnSignature sig = DoFnSignatures.signatureForDoFn(fn);
+            if (!sig.processElement().observesWindow()
+                && !sig.processElement().isSplittable()
+                && sig.finishBundle() == null
+                && sig.onWindowExpiration() == null) {
+              return 4;
+            }
+          }
+        }
+      } catch (Exception ignored) {
+        // Fall through to default ParDo frame weight
+      }
+      return 6;
+    }
+    return 4;
   }
 
   public BundleProcessorCache getBundleProcessorCache() {
@@ -1060,6 +1167,40 @@ public class ProcessBundleHandler {
         HandleStateCallsForBundle beamFnStateClient,
         Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations,
         Set<String> runnerCapabilities) {
+      return create(
+          processWideCache,
+          bundleProgressReporterAndRegistrar,
+          processBundleDescriptor,
+          startFunctionRegistry,
+          finishFunctionRegistry,
+          resetFunctions,
+          tearDownFunctions,
+          splitListener,
+          pCollectionConsumerRegistry,
+          metricsEnvironmentStateForBundle,
+          stateTracker,
+          beamFnStateClient,
+          bundleFinalizationCallbackRegistrations,
+          runnerCapabilities,
+          new HarnessStageTrampoline());
+    }
+
+    public static BundleProcessor create(
+        Cache<Object, Object> processWideCache,
+        BundleProgressReporter.InMemory bundleProgressReporterAndRegistrar,
+        ProcessBundleDescriptor processBundleDescriptor,
+        PTransformFunctionRegistry startFunctionRegistry,
+        PTransformFunctionRegistry finishFunctionRegistry,
+        List<ThrowingRunnable> resetFunctions,
+        List<ThrowingRunnable> tearDownFunctions,
+        BundleSplitListener.InMemory splitListener,
+        PCollectionConsumerRegistry pCollectionConsumerRegistry,
+        MetricsEnvironmentStateForBundle metricsEnvironmentStateForBundle,
+        ExecutionStateTracker stateTracker,
+        HandleStateCallsForBundle beamFnStateClient,
+        Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations,
+        Set<String> runnerCapabilities,
+        HarnessStageTrampoline stageTrampoline) {
       return new AutoValue_ProcessBundleHandler_BundleProcessor(
           processWideCache,
           bundleProgressReporterAndRegistrar,
@@ -1081,7 +1222,8 @@ public class ProcessBundleHandler {
           // We rely on the stable iteration order of outboundAggregators, thus using LinkedHashMap.
           /* outboundAggregators= */ new LinkedHashMap<>(),
           runnerCapabilities,
-          new ReentrantLock());
+          new ReentrantLock(),
+          stageTrampoline);
     }
 
     private String instructionId;
@@ -1127,6 +1269,8 @@ public class ProcessBundleHandler {
     abstract Set<String> getRunnerCapabilities();
 
     abstract Lock getProgressRequestLock();
+
+    abstract HarnessStageTrampoline getStageTrampoline();
 
     synchronized String getInstructionId() {
       return this.instructionId;

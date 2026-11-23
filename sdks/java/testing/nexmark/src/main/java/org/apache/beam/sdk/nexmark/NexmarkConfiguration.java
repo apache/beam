@@ -226,6 +226,20 @@ public class NexmarkConfiguration implements Serializable {
    */
   @JsonProperty public double pardoCPUFactor = 1.0;
 
+  /**
+   * Number of extra fused pass-through steps to apply on input events before the query transform.
+   */
+  @JsonProperty public int fusionChainDepth = 0;
+
+  /**
+   * If true, each DoFn/Map step in {@code fusionChain} allocates a fresh {@code Event} wrapper
+   * ({@code output != input}).
+   */
+  @JsonProperty public boolean fusionChainAllocate = false;
+
+  /** If true, {@code fusionChain} builds a continuous 1-to-1 chain without diamonds. */
+  @JsonProperty public boolean fusionChainLinear = false;
+
   /** Replace any properties of this configuration which have been supplied by the command line. */
   public void overrideFromOptions(NexmarkOptions options) {
     if (options.getDebug() != null) {
@@ -352,6 +366,15 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getOutOfOrderGroupSize() != null) {
       outOfOrderGroupSize = options.getOutOfOrderGroupSize();
     }
+    if (options.getFusionChainDepth() != null) {
+      fusionChainDepth = options.getFusionChainDepth();
+    }
+    if (options.getFusionChainAllocate() != null) {
+      fusionChainAllocate = options.getFusionChainAllocate();
+    }
+    if (options.getFusionChainLinear() != null) {
+      fusionChainLinear = options.getFusionChainLinear();
+    }
   }
 
   /** Return copy of configuration with given label. */
@@ -398,6 +421,9 @@ public class NexmarkConfiguration implements Serializable {
     result.maxLogEvents = maxLogEvents;
     result.usePubsubPublishTime = usePubsubPublishTime;
     result.outOfOrderGroupSize = outOfOrderGroupSize;
+    result.fusionChainDepth = fusionChainDepth;
+    result.fusionChainAllocate = fusionChainAllocate;
+    result.fusionChainLinear = fusionChainLinear;
     return result;
   }
 
@@ -524,6 +550,15 @@ public class NexmarkConfiguration implements Serializable {
     if (outOfOrderGroupSize != DEFAULT.outOfOrderGroupSize) {
       sb.append(String.format("; outOfOrderGroupSize:%d", outOfOrderGroupSize));
     }
+    if (fusionChainDepth != DEFAULT.fusionChainDepth) {
+      sb.append(String.format("; fusionChainDepth:%d", fusionChainDepth));
+    }
+    if (fusionChainAllocate != DEFAULT.fusionChainAllocate) {
+      sb.append(String.format("; fusionChainAllocate:%s", fusionChainAllocate));
+    }
+    if (fusionChainLinear != DEFAULT.fusionChainLinear) {
+      sb.append(String.format("; fusionChainLinear:%s", fusionChainLinear));
+    }
     return sb.toString();
   }
 
@@ -588,7 +623,10 @@ public class NexmarkConfiguration implements Serializable {
         probDelayedEvent,
         maxLogEvents,
         usePubsubPublishTime,
-        outOfOrderGroupSize);
+        outOfOrderGroupSize,
+        fusionChainDepth,
+        fusionChainAllocate,
+        fusionChainLinear);
   }
 
   @Override
@@ -719,6 +757,15 @@ public class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (outOfOrderGroupSize != other.outOfOrderGroupSize) {
+      return false;
+    }
+    if (fusionChainDepth != other.fusionChainDepth) {
+      return false;
+    }
+    if (fusionChainAllocate != other.fusionChainAllocate) {
+      return false;
+    }
+    if (fusionChainLinear != other.fusionChainLinear) {
       return false;
     }
     return true;

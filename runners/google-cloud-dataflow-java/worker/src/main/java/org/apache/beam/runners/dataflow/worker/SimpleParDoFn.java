@@ -50,8 +50,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements ParDoFn {
-  private final SimpleParDoFnHelpers<InputT, OutputT, W> helpers;
+  private final @Nullable SimpleParDoFnHelpers<InputT, OutputT, W> helpers;
   private @Nullable StreamingSideInputProcessor<InputT, W> sideInputProcessor;
+
+  /**
+   * Package-private constructor for specialized subclasses that bypass {@link
+   * SimpleParDoFnHelpers}.
+   */
+  SimpleParDoFn() {
+    this.helpers = null;
+  }
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(

@@ -275,17 +275,30 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   public Closeable enterState(ExecutionState newState) {
     // WARNING: This method is called in the hottest path, and must be kept as efficient as
     // possible. Avoid blocking, synchronizing, etc.
+    final ExecutionState previous = enterStateUnscoped(newState);
+    return () -> exitState(previous);
+  }
+
+  /**
+   * Enters {@code newState} and returns the previous {@link ExecutionState} token to pass to {@link
+   * #exitState(ExecutionState)} in a {@code finally} block, avoiding per-element {@link Closeable}
+   * lambda allocation.
+   */
+  public @Nullable ExecutionState enterStateUnscoped(ExecutionState newState) {
     final ExecutionState previous = currentState;
     currentState = newState;
     newState.onActivate(true);
     incTransitions();
-    return () -> {
-      currentState = previous;
-      incTransitions();
-      if (previous != null) {
-        previous.onActivate(false);
-      }
-    };
+    return previous;
+  }
+
+  /** Restores the previous {@link ExecutionState} returned by {@link #enterStateUnscoped}. */
+  public void exitState(@Nullable ExecutionState previous) {
+    currentState = previous;
+    incTransitions();
+    if (previous != null) {
+      previous.onActivate(false);
+    }
   }
 
   @SuppressWarnings("NonAtomicVolatileUpdate")

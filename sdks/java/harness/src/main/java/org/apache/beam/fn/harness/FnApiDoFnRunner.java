@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import io.opentelemetry.context.Scope;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,6 +67,7 @@ import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.function.ThrowingRunnable;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.ReadableState;
@@ -78,6 +80,8 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.InlineableFunctionProvider;
+import org.apache.beam.sdk.transforms.ProcessFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
@@ -87,6 +91,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.reflect.FusedSegmentCompiler;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
@@ -97,6 +102,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
@@ -159,6 +165,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public final void addRunnerForPTransform(Context context) throws IOException {
+      if (tryAddInlineableFunctionRunner(context)) {
+        return;
+      }
 
       FnApiStateAccessor<Object> stateAccessor =
           FnApiStateAccessor.Factory.factoryForPTransformContext(context).create();
@@ -176,6 +185,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context::addTearDownFunction,
               context::getPCollectionConsumer,
               context::addPCollectionConsumer,
+              context::tryRegisterCompilableStep,
               context::addOutgoingTimersEndpoint,
               context::addBundleProgressReporter,
               context.getSplitListener(),
@@ -196,6 +206,148 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           context.addIncomingTimerEndpoint(
               localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
         }
+      }
+    }
+
+    @SuppressWarnings({"unchecked", "nullness"})
+    private boolean tryAddInlineableFunctionRunner(Context context) throws IOException {
+      PTransform pTransform = context.getPTransform();
+      if (!PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())
+          || pTransform.getOutputsCount() != 1) {
+        return false;
+      }
+      ParDoPayload payload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
+      if (!payload.getSideInputsMap().isEmpty()
+          || !payload.getStateSpecsMap().isEmpty()
+          || !payload.getTimerFamilySpecsMap().isEmpty()
+          || payload.getRequestsFinalization()) {
+        return false;
+      }
+      DoFn<?, ?> fn = ParDoTranslation.getDoFn(payload);
+      if (!(fn instanceof InlineableFunctionProvider)) {
+        return false;
+      }
+      DoFnSignature sig = DoFnSignatures.signatureForDoFn(fn);
+      if (sig.processElement().observesWindow()
+          || sig.processElement().isSplittable()
+          || sig.setup() != null
+          || sig.startBundle() != null
+          || sig.finishBundle() != null
+          || sig.teardown() != null
+          || sig.onWindowExpiration() != null) {
+        return false;
+      }
+      RehydratedComponents rehydrated =
+          RehydratedComponents.forComponents(context.getComponents())
+              .withPipeline(Pipeline.create());
+      String outPCollectionId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+      Coder<?> outCoder =
+          rehydrated.getCoder(
+              context.getComponents().getPcollectionsOrThrow(outPCollectionId).getCoderId());
+      if (outCoder instanceof WindowedValueCoder) {
+        outCoder = ((WindowedValueCoder<?>) outCoder).getValueCoder();
+      }
+      if (outCoder instanceof SchemaCoder) {
+        return false;
+      }
+
+      String inPCollectionId = Iterables.getOnlyElement(pTransform.getInputsMap().values());
+      InlineableFunctionProvider<InputT, OutputT> provider =
+          (InlineableFunctionProvider<InputT, OutputT>) fn;
+      boolean codegenEnabled =
+          !ExperimentalOptions.hasExperiment(
+              context.getPipelineOptions(), FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT);
+      if (codegenEnabled
+          && (provider.kind() == InlineableFunctionProvider.Kind.MAP
+              || provider.kind() == InlineableFunctionProvider.Kind.FILTER)) {
+        boolean isSystem =
+            DoFnInvokers.invokerFor(fn).getClass().isAnnotationPresent(SystemDoFnInternal.class);
+        FusedSegmentCompiler.FunctionalStepSpec funcSpec =
+            new FusedSegmentCompiler.FunctionalStepSpec(
+                provider.kind(), provider.function(), null, isSystem, true);
+        if (context.tryRegisterCompilableStep(inPCollectionId, outPCollectionId, funcSpec)) {
+          return true;
+        }
+      }
+      FnDataReceiver<WindowedValue<OutputT>> downstream =
+          (FnDataReceiver<WindowedValue<OutputT>>)
+              (FnDataReceiver) context.getPCollectionConsumer(outPCollectionId);
+      if (provider.kind() == InlineableFunctionProvider.Kind.MAP) {
+        final ProcessFunction<InputT, OutputT> mapFn =
+            (ProcessFunction<InputT, OutputT>) provider.function();
+        context.addPCollectionConsumer(
+            inPCollectionId,
+            (WindowedValue<InputT> elem) -> {
+              io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
+              if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+                try (Scope ignored = otel.makeCurrent()) {
+                  invokeInlineMap(mapFn, elem, downstream);
+                }
+              } else {
+                invokeInlineMap(mapFn, elem, downstream);
+              }
+            });
+        return true;
+      } else if (provider.kind() == InlineableFunctionProvider.Kind.FILTER) {
+        final ProcessFunction<InputT, Boolean> filterFn =
+            (ProcessFunction<InputT, Boolean>) provider.function();
+        context.addPCollectionConsumer(
+            inPCollectionId,
+            (WindowedValue<InputT> elem) -> {
+              io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
+              if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+                try (Scope ignored = otel.makeCurrent()) {
+                  invokeInlineFilter(filterFn, elem, downstream);
+                }
+              } else {
+                invokeInlineFilter(filterFn, elem, downstream);
+              }
+            });
+        return true;
+      }
+      return false;
+    }
+
+    private void invokeInlineMap(
+        ProcessFunction<InputT, OutputT> mapFn,
+        WindowedValue<InputT> elem,
+        FnDataReceiver<WindowedValue<OutputT>> downstream) {
+      try {
+        OutputT mapped = mapFn.apply(elem.getValue());
+        io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+        WindowedValue<OutputT> out =
+            (curOtel != io.opentelemetry.context.Context.root()
+                    && curOtel != elem.getOpenTelemetryContext())
+                ? WindowedValues.builder(elem).withValue(mapped).build()
+                : elem.withValue(mapped);
+        downstream.accept(out);
+      } catch (OutOfMemoryError oom) {
+        throw oom;
+      } catch (Throwable t) {
+        throw UserCodeException.wrap(t);
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void invokeInlineFilter(
+        ProcessFunction<InputT, Boolean> filterFn,
+        WindowedValue<InputT> elem,
+        FnDataReceiver<WindowedValue<OutputT>> downstream) {
+      try {
+        if (!filterFn.apply(elem.getValue())) {
+          return;
+        }
+        io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+        WindowedValue<OutputT> out =
+            (curOtel != io.opentelemetry.context.Context.root()
+                    && curOtel != elem.getOpenTelemetryContext())
+                ? (WindowedValue<OutputT>) WindowedValues.builder(elem).build()
+                : (WindowedValue<OutputT>) elem;
+        downstream.accept(out);
+      } catch (OutOfMemoryError oom) {
+        throw oom;
+      } catch (Throwable t) {
+        throw UserCodeException.wrap(t);
       }
     }
   }
@@ -317,6 +469,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Only valid during {@link #processTimer}, null otherwise. */
   private TimeDomain currentTimeDomain;
 
+  @FunctionalInterface
+  interface CompilableStepRegistrar {
+    boolean apply(
+        String inPCollectionId,
+        String outPCollectionId,
+        FusedSegmentCompiler.StepSpec stepSpecWithoutEntryHook);
+  }
+
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
       ShortIdMap shortIds,
@@ -329,6 +489,45 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Consumer<ThrowingRunnable> addTearDownFunction,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
       BiConsumer<String, FnDataReceiver> addPCollectionConsumer,
+      BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
+          getOutgoingTimersConsumer,
+      Consumer<BundleProgressReporter> addBundleProgressReporter,
+      BundleSplitListener splitListener,
+      BundleFinalizer bundleFinalizer,
+      FnApiStateAccessor<Object> stateAccessor) {
+    this(
+        pipelineOptions,
+        shortIds,
+        pTransformId,
+        pTransform,
+        components,
+        addStartFunction,
+        addFinishFunction,
+        addResetFunction,
+        addTearDownFunction,
+        getPCollectionConsumer,
+        addPCollectionConsumer,
+        null,
+        getOutgoingTimersConsumer,
+        addBundleProgressReporter,
+        splitListener,
+        bundleFinalizer,
+        stateAccessor);
+  }
+
+  FnApiDoFnRunner(
+      PipelineOptions pipelineOptions,
+      ShortIdMap shortIds,
+      String pTransformId,
+      PTransform pTransform,
+      RunnerApi.Components components,
+      Consumer<ThrowingRunnable> addStartFunction,
+      Consumer<ThrowingRunnable> addFinishFunction,
+      Consumer<ThrowingRunnable> addResetFunction,
+      Consumer<ThrowingRunnable> addTearDownFunction,
+      Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
+      BiConsumer<String, FnDataReceiver> addPCollectionConsumer,
+      @Nullable CompilableStepRegistrar tryRegisterCompilableCallback,
       BiFunction<String, Coder<Timer<Object>>, FnDataReceiver<Timer<Object>>>
           getOutgoingTimersConsumer,
       Consumer<BundleProgressReporter> addBundleProgressReporter,
@@ -422,19 +621,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     ImmutableMap.Builder<String, FnDataReceiver<WindowedValue<?>>> localNameToConsumerBuilder =
         ImmutableMap.builder();
-    for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
-      localNameToConsumerBuilder.put(
-          entry.getKey(), getPCollectionConsumer.apply(entry.getValue()));
-    }
-    localNameToConsumer = localNameToConsumerBuilder.build();
     this.splitListener = splitListener;
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
     this.onWindowExpirationContext = new OnWindowExpirationContext<>();
-
-    this.mainOutputConsumer =
-        (FnDataReceiver<WindowedValue<OutputT>>)
-            (FnDataReceiver) localNameToConsumer.get(mainOutputTag.getId());
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(parDoPayload);
     this.sideInputMapping = ParDoTranslation.getSideInputMapping(parDoPayload);
     this.doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
@@ -448,33 +638,71 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    final FnDataReceiver<WindowedValue> mainInputConsumer;
-    switch (pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-        if (doFnSignature.processElement().observesWindow() || !sideInputMapping.isEmpty()) {
-          mainInputConsumer = this::processElementForWindowObservingParDo;
-          this.processContext = new WindowObservingProcessBundleContext();
-        } else {
-          mainInputConsumer = this::processElementForParDo;
-          this.processContext = new NonWindowObservingProcessBundleContext();
-        }
-        break;
-      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        // TODO(BEAM-10303): Create a variant which is optimized to not observe the windows when
-        // neither the DoFn nor its side inputs observe them.
-        mainInputConsumer =
-            new SplittableFnDataReceiver() {
-              @Override
-              public void accept(WindowedValue input) throws Exception {
-                processElementForWindowObservingSizedElementAndRestriction(input);
-              }
-            };
-        this.processContext = new WindowObservingProcessBundleContext();
-        break;
-      default:
-        throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
+    String mainInPcId = pTransform.getInputsOrThrow(mainInput);
+    boolean registeredAsCompiled = false;
+    if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())
+        && pTransform.getOutputsCount() == 1
+        && sideInputMapping.isEmpty()
+        && parDoPayload.getStateSpecsMap().isEmpty()
+        && parDoPayload.getTimerFamilySpecsMap().isEmpty()
+        && !parDoPayload.getRequestsFinalization()
+        && !doFnSignature.processElement().observesWindow()
+        && !doFnSignature.processElement().isSplittable()
+        && doFnSignature.finishBundle() == null
+        && doFnSignature.onWindowExpiration() == null
+        && mainOutputSchemaCoder == null
+        && !ExperimentalOptions.hasExperiment(
+            pipelineOptions, FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT)
+        && tryRegisterCompilableCallback != null) {
+      String onlyOutPcId = Iterables.getOnlyElement(pTransform.getOutputsMap().values());
+      boolean isSystem = doFnInvoker.getClass().isAnnotationPresent(SystemDoFnInternal.class);
+      FusedSegmentCompiler.StepSpec spec =
+          new FusedSegmentCompiler.DoFnStepSpec<>(
+              doFn, doFnInvoker, null, createStepContextFallback(), isSystem, true);
+      registeredAsCompiled = tryRegisterCompilableCallback.apply(mainInPcId, onlyOutPcId, spec);
     }
-    addPCollectionConsumer.accept(pTransform.getInputsOrThrow(mainInput), mainInputConsumer);
+
+    if (registeredAsCompiled) {
+      localNameToConsumer = ImmutableMap.of();
+      this.mainOutputConsumer = null;
+      this.processContext = new NonWindowObservingProcessBundleContext();
+    } else {
+      for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
+        localNameToConsumerBuilder.put(
+            entry.getKey(), getPCollectionConsumer.apply(entry.getValue()));
+      }
+      localNameToConsumer = localNameToConsumerBuilder.build();
+      this.mainOutputConsumer =
+          (FnDataReceiver<WindowedValue<OutputT>>)
+              (FnDataReceiver) localNameToConsumer.get(mainOutputTag.getId());
+      final FnDataReceiver<WindowedValue> mainInputConsumer;
+      switch (pTransform.getSpec().getUrn()) {
+        case PTransformTranslation.PAR_DO_TRANSFORM_URN:
+          if (doFnSignature.processElement().observesWindow() || !sideInputMapping.isEmpty()) {
+            mainInputConsumer = this::processElementForWindowObservingParDo;
+            this.processContext = new WindowObservingProcessBundleContext();
+          } else {
+            mainInputConsumer = this::processElementForParDo;
+            this.processContext = new NonWindowObservingProcessBundleContext();
+          }
+          break;
+        case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+          // TODO(BEAM-10303): Create a variant which is optimized to not observe the windows when
+          // neither the DoFn nor its side inputs observe them.
+          mainInputConsumer =
+              new SplittableFnDataReceiver() {
+                @Override
+                public void accept(WindowedValue input) throws Exception {
+                  processElementForWindowObservingSizedElementAndRestriction(input);
+                }
+              };
+          this.processContext = new WindowObservingProcessBundleContext();
+          break;
+        default:
+          throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
+      }
+      addPCollectionConsumer.accept(mainInPcId, mainInputConsumer);
+    }
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     addFinishFunction.accept(this::finishBundle);
@@ -581,6 +809,70 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     return this.currentWindow;
   }
 
+  private FusedSegmentCompiler.StepContextFallback<InputT, OutputT> createStepContextFallback() {
+    return new FusedSegmentCompiler.StepContextFallback<InputT, OutputT>() {
+      @Override
+      public PipelineOptions pipelineOptions() {
+        return pipelineOptions;
+      }
+
+      @Override
+      public BundleFinalizer bundleFinalizer() {
+        return bundleFinalizer;
+      }
+
+      @Override
+      public void checkTimestamp(WindowedValue<InputT> elem, Instant timestamp) {
+        if (elem.getTimestamp().isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)
+            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Output timestamp %s exceeds maximum allowed %s",
+                  timestamp, BoundedWindow.TIMESTAMP_MAX_VALUE));
+        }
+      }
+
+      @Override
+      public boolean isMainOutputTag(TupleTag<?> tag) {
+        return mainOutputTag.equals(tag);
+      }
+
+      @Override
+      public <T> void outputTagged(WindowedValue<InputT> elem, TupleTag<T> tag, T output) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+
+      @Override
+      public <T> void outputTaggedWithTimestamp(
+          WindowedValue<InputT> elem, TupleTag<T> tag, T output, Instant timestamp) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+
+      @Override
+      public <T> void outputTaggedWindowedValue(
+          WindowedValue<InputT> elem,
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+
+      @Override
+      public <T> void outputTaggedWindowedValue(
+          WindowedValue<InputT> elem, TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+
+      @Override
+      public Object schemaElement(WindowedValue<InputT> elem, int index) {
+        SerializableFunction converter = doFnSchemaInformation.getElementConverters().get(index);
+        return converter.apply(elem.getValue());
+      }
+    };
+  }
+
   private void startBundle() {
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
   }
@@ -588,8 +880,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
     causedByDrain = currentElement.causedByDrain();
+    io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
     try {
-      doFnInvoker.invokeProcessElement(processContext);
+      if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+        try (Scope ignored = otel.makeCurrent()) {
+          doFnInvoker.invokeProcessElement(processContext);
+        }
+      } else {
+        doFnInvoker.invokeProcessElement(processContext);
+      }
     } finally {
       currentElement = null;
       causedByDrain = null;
@@ -599,12 +898,24 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private void processElementForWindowObservingParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
     causedByDrain = currentElement.causedByDrain();
+    io.opentelemetry.context.Context otel = elem.getOpenTelemetryContext();
     try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
-        doFnInvoker.invokeProcessElement(processContext);
+      if (otel != null && otel != io.opentelemetry.context.Context.root()) {
+        try (Scope ignored = otel.makeCurrent()) {
+          Iterator<BoundedWindow> windowIterator =
+              (Iterator<BoundedWindow>) elem.getWindows().iterator();
+          while (windowIterator.hasNext()) {
+            currentWindow = windowIterator.next();
+            doFnInvoker.invokeProcessElement(processContext);
+          }
+        }
+      } else {
+        Iterator<BoundedWindow> windowIterator =
+            (Iterator<BoundedWindow>) elem.getWindows().iterator();
+        while (windowIterator.hasNext()) {
+          currentWindow = windowIterator.next();
+          doFnInvoker.invokeProcessElement(processContext);
+        }
       }
     } finally {
       currentElement = null;
@@ -1301,6 +1612,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
+  private <T> void outputToNonSdf(
+      FnDataReceiver<WindowedValue<T>> consumer, WindowedValue<T> output) {
+    try {
+      consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
+    } catch (Throwable t) {
+      throw UserCodeException.wrap(t);
+    }
+  }
+
   private class FnApiTimer<K> implements org.apache.beam.sdk.state.Timer {
     private final String timerIdOrFamily;
     private final K userKey;
@@ -1880,7 +2202,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException(
             "Attempting to emit an element outside of a @ProcessElement context.");
       }
-      outputTo(mainOutputConsumer, currentElement.withValue(output));
+      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+      if (curOtel != io.opentelemetry.context.Context.root()
+          && curOtel != currentElement.getOpenTelemetryContext()) {
+        builder(output).output();
+        return;
+      }
+      outputToNonSdf(mainOutputConsumer, currentElement.withValue(output));
     }
 
     @Override
@@ -1890,13 +2218,37 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
+      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+      if (curOtel != io.opentelemetry.context.Context.root()
+          && curOtel != currentElement.getOpenTelemetryContext()) {
+        outputToNonSdf(consumer, WindowedValues.builder(currentElement).withValue(output).build());
+        return;
+      }
       // Don't need to check timestamp since we can always output using the input timestamp.
-      outputTo(consumer, currentElement.withValue(output));
+      outputToNonSdf(consumer, currentElement.withValue(output));
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      builder(output).setValue(output).setTimestamp(timestamp).output();
+      checkTimestamp(timestamp);
+      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+      if (curOtel != io.opentelemetry.context.Context.root()
+          && curOtel != currentElement.getOpenTelemetryContext()) {
+        builder(output).setValue(output).setTimestamp(timestamp).output();
+        return;
+      }
+      outputToNonSdf(
+          mainOutputConsumer,
+          WindowedValues.of(
+              output,
+              timestamp,
+              currentElement.getWindows(),
+              currentElement.getPaneInfo(),
+              currentElement.getRecordId(),
+              currentElement.getRecordOffset(),
+              currentElement.causedByDrain(),
+              currentElement.getOpenTelemetryContext(),
+              currentElement.getValueKind()));
     }
 
     @Override
@@ -1916,10 +2268,24 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(
+      io.opentelemetry.context.Context curOtel = io.opentelemetry.context.Context.current();
+      io.opentelemetry.context.Context otelToUse =
+          (curOtel != io.opentelemetry.context.Context.root()
+                  && curOtel != currentElement.getOpenTelemetryContext())
+              ? curOtel
+              : currentElement.getOpenTelemetryContext();
+      outputToNonSdf(
           consumer,
           WindowedValues.of(
-              output, timestamp, currentElement.getWindows(), currentElement.getPaneInfo()));
+              output,
+              timestamp,
+              currentElement.getWindows(),
+              currentElement.getPaneInfo(),
+              currentElement.getRecordId(),
+              currentElement.getRecordOffset(),
+              currentElement.causedByDrain(),
+              otelToUse,
+              currentElement.getValueKind()));
     }
 
     @Override
@@ -2099,6 +2465,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   mainOutputSchemaCoder.getFromRowFunction();
 
               @Override
+              public void output(Row value) {
+                ProcessBundleContextBase.this.output(fromRowFunction.apply(value));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWithTimestamp(
+                    fromRowFunction.apply(value), timestamp);
+              }
+
+              @Override
               public OutputBuilder<Row> builder(Row value) {
                 return WindowedValues.builder(currentElement)
                     .withValue(value)
@@ -2134,6 +2511,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             }
             return new OutputReceiver<T>() {
               @Override
+              public void output(T value) {
+                ProcessBundleContextBase.this.output(tag, value);
+              }
+
+              @Override
+              public void outputWithTimestamp(T value, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWithTimestamp(tag, value, timestamp);
+              }
+
+              @Override
               public OutputBuilder<T> builder(T value) {
                 return WindowedValues.builder(currentElement)
                     .withValue(value)
@@ -2165,6 +2552,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
+
+              @Override
+              public void output(Row value) {
+                ProcessBundleContextBase.this.output(tag, fromRowFunction.apply(value));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                ProcessBundleContextBase.this.outputWithTimestamp(
+                    tag, fromRowFunction.apply(value), timestamp);
+              }
 
               @Override
               public OutputBuilder<Row> builder(Row value) {

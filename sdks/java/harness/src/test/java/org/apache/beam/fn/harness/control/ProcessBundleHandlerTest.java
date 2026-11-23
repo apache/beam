@@ -76,6 +76,7 @@ import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.MetricsEnvironmentStateForBundle;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.HarnessStageTrampoline;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -347,6 +348,11 @@ public class ProcessBundleHandlerTest {
     @Override
     Lock getProgressRequestLock() {
       return wrappedBundleProcessor.getProgressRequestLock();
+    }
+
+    @Override
+    HarnessStageTrampoline getStageTrampoline() {
+      return wrappedBundleProcessor.getStageTrampoline();
     }
 
     @Override

@@ -453,4 +453,24 @@ public interface NexmarkOptions
   @Nullable Map<String, String> getInfluxTags();
 
   void setInfluxTags(Map<String, String> influxTags);
+
+  @Description(
+      "Number of extra fused pass-through steps (heterogeneous DoFns, MapElements, Filter, Flatten)"
+          + " to insert before the query transform to benchmark deep fusion trees.")
+  @Nullable Integer getFusionChainDepth();
+
+  void setFusionChainDepth(Integer fusionChainDepth);
+
+  @Description(
+      "If true, each DoFn and MapElements step in fusionChain allocates a fresh Event wrapper"
+          + " (output != input) to benchmark value-producing fusion chains.")
+  @Nullable Boolean getFusionChainAllocate();
+
+  void setFusionChainAllocate(Boolean fusionChainAllocate);
+
+  @Description(
+      "If true, fusionChain builds a pure 1-to-1 linear chain without Partition+Flatten diamonds.")
+  @Nullable Boolean getFusionChainLinear();
+
+  void setFusionChainLinear(Boolean fusionChainLinear);
 }

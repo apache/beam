@@ -18,8 +18,10 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The context in which an operation is executed. This includes information about the operation as
@@ -76,4 +78,15 @@ public interface OperationContext {
 
   /** The {@link NameContext} describing this operation. */
   NameContext nameContext();
+
+  /**
+   * Optional allocation-free process-state transition interface implemented by {@code
+   * DataflowOperationContext} to avoid allocating a {@link Closeable} lambda per fused step on
+   * every element.
+   */
+  interface FastProcessContext extends OperationContext {
+    @Nullable ExecutionState enterProcessUnscoped();
+
+    void exitProcessUnscoped(@Nullable ExecutionState previous);
+  }
 }

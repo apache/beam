@@ -62,6 +62,9 @@ if (isDataflowRunner) {
    */
   if (isDataflowRunnerV2) {
     evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    if (project.hasProperty("useStagedHarness")) {
+      evaluationDependsOn(":sdks:java:harness")
+    }
   } else {
     evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
   }
@@ -135,9 +138,15 @@ def getNexmarkArgs = {
 
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
-      nexmarkArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
-      def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
-      nexmarkArgsList.add("--sdkContainerImage=${sdkContainerImage}")
+      if (project.hasProperty("useStagedHarness")) {
+        def harnessShadowJar = project(":sdks:java:harness").shadowJar.archivePath
+        nexmarkArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service,use_staged_dataflow_worker_jar")
+        nexmarkArgsList.add("--filesToStage=${harnessShadowJar}".toString())
+      } else {
+        nexmarkArgsList.add("--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=service")
+        def sdkContainerImage = project.findProperty('sdkContainerImage') ?: project(":runners:google-cloud-dataflow-java").dockerJavaImageName
+        nexmarkArgsList.add("--sdkContainerImage=${sdkContainerImage}")
+      }
 
       // TODO(https://github.com/apache/beam/issues/20880) enable all queries once issues with runner V2 is fixed.
       if (nexmarkArgsList.contains("--streaming=true")) {
@@ -148,10 +157,12 @@ def getNexmarkArgs = {
     } else {
       def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
       // Provide job with a customizable worker jar.
-      // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
-      // More context and discussions can be found in PR#6694.
+      // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build)
+      // unless testJavaVersion is specified, in which case the client picks the versioned beam-master image.
       nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
-      nexmarkArgsList.add('--workerHarnessContainerImage=')
+      if (!project.hasProperty('testJavaVersion')) {
+        nexmarkArgsList.add('--workerHarnessContainerImage=')
+      }
 
       def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
       if (nexmarkProfile.equals("true")) {
@@ -181,8 +192,12 @@ task run(type: JavaExec) {
   def nexmarkArgsList = getNexmarkArgs()
   if (isDataflowRunner) {
     if (isDataflowRunnerV2) {
-      dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
-      finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+      if (project.hasProperty("useStagedHarness")) {
+        dependsOn ":sdks:java:harness:shadowJar"
+      } else {
+        dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+        finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+      }
     } else {
       dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     }

@@ -28,10 +28,15 @@ import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -55,17 +60,25 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.OperationConte
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.RawWindowedByteSizeObservable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.StageTrampoline;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WriteOperation;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.transforms.reflect.FusedSegmentCompiler;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.WindowedValues.ParamWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -136,9 +149,12 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
 
     // Collect all the operations within the network and attach all the operations as receivers
     // to preceding output receivers.
+    List<Node> topoOrder = new ArrayList<>();
+    for (Node node : Networks.topologicalOrder(network)) {
+      topoOrder.add(node);
+    }
     List<Operation> topoSortedOperations = new ArrayList<>();
-    for (OperationNode node :
-        Iterables.filter(Networks.topologicalOrder(network), OperationNode.class)) {
+    for (OperationNode node : Iterables.filter(topoOrder, OperationNode.class)) {
       topoSortedOperations.add(node.getOperation());
 
       for (Node predecessor :
@@ -153,8 +169,319 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       LOG.info("Map task network: {}", Networks.toDot(network));
     }
 
-    return IntrinsicMapTaskExecutor.withSharedCounterSet(
-        topoSortedOperations, counterSet, executionContext.getExecutionStateTracker());
+    IntrinsicMapTaskExecutor executor =
+        IntrinsicMapTaskExecutor.withSharedCounterSet(
+            topoSortedOperations, counterSet, executionContext.getExecutionStateTracker());
+    installStageTrampolineIfNeeded(network, topoOrder, topoSortedOperations, executor, options);
+    installCompiledSegmentsIfPossible(network, topoOrder, options);
+    return executor;
+  }
+
+  @SuppressWarnings({"unchecked", "nullness"})
+  private static void installCompiledSegmentsIfPossible(
+      Network<Node, Edge> network, List<Node> topoOrder, PipelineOptions options) {
+    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    if (experiments != null
+        && experiments.contains(FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT)) {
+      return;
+    }
+
+    Set<OperationNode> claimedOps = new HashSet<>();
+    for (Node node : topoOrder) {
+      if (!(node instanceof OperationNode)) {
+        continue;
+      }
+      OperationNode headNode = (OperationNode) node;
+      if (claimedOps.contains(headNode)) {
+        continue;
+      }
+      FastStatelessParDoFn<?, ?> headFn = extractCompilableParDoFn(headNode);
+      if (headFn == null) {
+        continue;
+      }
+
+      List<FastStatelessParDoFn.ChainLink> links = new ArrayList<>();
+      OperationNode curOpNode = headNode;
+      while (network.outDegree(curOpNode) == 1) {
+        Node succ = Iterables.getOnlyElement(network.successors(curOpNode));
+        if (!(succ instanceof OutputReceiverNode)) {
+          break;
+        }
+        OutputReceiverNode outNode = (OutputReceiverNode) succ;
+        OutputReceiver outRecv = outNode.getOutputReceiver();
+        if (!outRecv.hasSimpleSinglePath()
+            || network.inDegree(outNode) != 1
+            || network.outDegree(outNode) != 1) {
+          break;
+        }
+        Node nextCandidate = Iterables.getOnlyElement(network.successors(outNode));
+        if (!(nextCandidate instanceof OperationNode)
+            || network.inDegree(nextCandidate) != 1
+            || claimedOps.contains(nextCandidate)) {
+          break;
+        }
+        OperationNode nextOpNode = (OperationNode) nextCandidate;
+        FastStatelessParDoFn<?, ?> nextFn = extractCompilableParDoFn(nextOpNode);
+        if (nextFn == null) {
+          break;
+        }
+        ParDoOperation nextParDoOp = (ParDoOperation) nextOpNode.getOperation();
+        OperationContext.FastProcessContext fastCtx = nextParDoOp.getFastProcessContext();
+        if (fastCtx == null) {
+          break;
+        }
+
+        links.add(new FastStatelessParDoFn.ChainLink(outRecv.getOnlyCounter(), fastCtx, nextFn));
+        claimedOps.add(nextOpNode);
+        curOpNode = nextOpNode;
+      }
+
+      if (!links.isEmpty()) {
+        claimedOps.add(headNode);
+        headFn.setDownstreamChain(links);
+      }
+    }
+  }
+
+  @SuppressWarnings("nullness")
+  private static FastStatelessParDoFn<?, ?> extractCompilableParDoFn(OperationNode opNode) {
+    Operation op = opNode.getOperation();
+    if (!(op instanceof ParDoOperation)) {
+      return null;
+    }
+    ParDoOperation parDoOp = (ParDoOperation) op;
+    if (parDoOp.getFastProcessContext() == null) {
+      return null;
+    }
+    try {
+      ParDoFn fn = parDoOp.getFn();
+      if (fn instanceof FastStatelessParDoFn) {
+        FastStatelessParDoFn<?, ?> fastFn = (FastStatelessParDoFn<?, ?>) fn;
+        if (fastFn.canCompileInSegment()) {
+          return fastFn;
+        }
+      }
+    } catch (Exception ignored) {
+      // ignore
+    }
+    return null;
+  }
+
+  static final int DEFAULT_TRAMPOLINE_FUSION_THRESHOLD = 90;
+  static final int DEFAULT_COMPILED_TRAMPOLINE_THRESHOLD = 115;
+  private static final String TRAMPOLINE_THRESHOLD_PREFIX = "trampoline_fusion_threshold=";
+  private static final String DISABLE_TRAMPOLINE_EXPERIMENT = "disable_fusion_trampoline";
+
+  static int resolveTrampolineThreshold(PipelineOptions options) {
+    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    if (experiments != null) {
+      if (experiments.contains(DISABLE_TRAMPOLINE_EXPERIMENT)) {
+        return 0;
+      }
+      for (String exp : experiments) {
+        if (exp != null && exp.startsWith(TRAMPOLINE_THRESHOLD_PREFIX)) {
+          return Integer.parseInt(exp.substring(TRAMPOLINE_THRESHOLD_PREFIX.length()));
+        }
+      }
+    }
+    return DEFAULT_TRAMPOLINE_FUSION_THRESHOLD;
+  }
+
+  private static boolean hasExplicitTrampolineThreshold(PipelineOptions options) {
+    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    if (experiments != null) {
+      for (String exp : experiments) {
+        if (exp != null && exp.startsWith(TRAMPOLINE_THRESHOLD_PREFIX)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  @SuppressWarnings("nullness")
+  private static void installStageTrampolineIfNeeded(
+      Network<Node, Edge> network,
+      List<Node> topoOrder,
+      List<Operation> topoSortedOperations,
+      IntrinsicMapTaskExecutor executor,
+      PipelineOptions options) {
+    int threshold = resolveTrampolineThreshold(options);
+    if (threshold <= 0) {
+      return;
+    }
+    int compiledThreshold =
+        hasExplicitTrampolineThreshold(options) ? threshold : DEFAULT_COMPILED_TRAMPOLINE_THRESHOLD;
+    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    boolean codegenEnabled =
+        experiments == null
+            || !experiments.contains(FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT);
+
+    Map<Node, Integer> depthAtNode = new HashMap<>(topoOrder.size() * 2);
+    Map<OperationNode, Integer> compiledTargetWeight = new HashMap<>();
+    List<OutputReceiver> cutReceivers = new ArrayList<>();
+
+    for (Node node : topoOrder) {
+      if (node instanceof OperationNode) {
+        OperationNode opNode = (OperationNode) node;
+        Operation op = opNode.getOperation();
+        int inDepth = 0;
+        for (Node pred : network.predecessors(node)) {
+          Integer d = depthAtNode.get(pred);
+          if (d != null && d > inDepth) {
+            inDepth = d;
+          }
+        }
+        Integer overrideWeight = compiledTargetWeight.get(opNode);
+        int selfWeight = overrideWeight != null ? overrideWeight : estimateOperationFrameWeight(op);
+        depthAtNode.put(node, inDepth + selfWeight);
+      } else if (node instanceof OutputReceiverNode) {
+        OutputReceiverNode outNode = (OutputReceiverNode) node;
+        int producerDepth = 0;
+        boolean producerIsFlatten = false;
+        for (Node pred : network.predecessors(outNode)) {
+          Integer d = depthAtNode.get(pred);
+          if (d != null && d > producerDepth) {
+            producerDepth = d;
+          }
+          if (pred instanceof OperationNode
+              && ((OperationNode) pred).getOperation() instanceof FlattenOperation) {
+            producerIsFlatten = true;
+          }
+        }
+        if (producerIsFlatten) {
+          // Never cut immediately after Flatten so predecessor OutputReceiver lazy byte observers
+          // remain atomic across Flatten into the consuming operation.
+          depthAtNode.put(outNode, producerDepth + 1);
+        } else {
+          FastStatelessParDoFn<?, ?> compiledNext =
+              extractCompiledLinkTarget(network, outNode, codegenEnabled);
+          if (compiledNext != null) {
+            int linkWeight = compiledNext.compiledLinkFrameWeight();
+            if (producerDepth + linkWeight > compiledThreshold) {
+              cutReceivers.add(outNode.getOutputReceiver());
+              depthAtNode.put(outNode, 1);
+            } else {
+              OperationNode nextOpNode =
+                  (OperationNode) Iterables.getOnlyElement(network.successors(outNode));
+              compiledTargetWeight.put(nextOpNode, linkWeight);
+              depthAtNode.put(outNode, producerDepth);
+            }
+          } else {
+            int edgeWeight = network.outDegree(outNode) > 1 ? 2 : 1;
+            int consumerWeight = maxNonFlattenConsumerWeight(network, outNode);
+            if (consumerWeight > 0
+                && !isWriteOnlyEdge(network, outNode)
+                && producerDepth + edgeWeight + consumerWeight > threshold) {
+              cutReceivers.add(outNode.getOutputReceiver());
+              depthAtNode.put(outNode, 1);
+            } else {
+              depthAtNode.put(outNode, producerDepth + edgeWeight);
+            }
+          }
+        }
+      }
+    }
+
+    if (cutReceivers.isEmpty()) {
+      return;
+    }
+
+    StageTrampoline trampoline = new StageTrampoline(cutReceivers);
+    executor.setStageTrampoline(trampoline);
+    for (Operation op : topoSortedOperations) {
+      if (op instanceof ReadOperation) {
+        ((ReadOperation) op).setStageTrampoline(trampoline);
+      } else if (op instanceof ParDoOperation) {
+        try {
+          ParDoFn fn = ((ParDoOperation) op).getFn();
+          if (fn instanceof BatchModeUngroupingParDoFn) {
+            ((BatchModeUngroupingParDoFn<?, ?>) fn).setStageTrampoline(trampoline);
+          }
+        } catch (Exception ignored) {
+          // ParDoOperation.getFn() simply returns the field
+        }
+      }
+    }
+  }
+
+  @SuppressWarnings("nullness")
+  private static FastStatelessParDoFn<?, ?> extractCompiledLinkTarget(
+      Network<Node, Edge> network, OutputReceiverNode outNode, boolean codegenEnabled) {
+    if (!codegenEnabled
+        || !outNode.getOutputReceiver().hasSimpleSinglePath()
+        || network.inDegree(outNode) != 1
+        || network.outDegree(outNode) != 1) {
+      return null;
+    }
+    Node pred = Iterables.getOnlyElement(network.predecessors(outNode));
+    Node succ = Iterables.getOnlyElement(network.successors(outNode));
+    if (!(pred instanceof OperationNode)
+        || !(succ instanceof OperationNode)
+        || network.outDegree(pred) != 1
+        || network.inDegree(succ) != 1) {
+      return null;
+    }
+    if (extractCompilableParDoFn((OperationNode) pred) == null) {
+      return null;
+    }
+    return extractCompilableParDoFn((OperationNode) succ);
+  }
+
+  private static int maxNonFlattenConsumerWeight(
+      Network<Node, Edge> network, OutputReceiverNode outNode) {
+    int maxWeight = 0;
+    for (Node succ : network.successors(outNode)) {
+      if (succ instanceof OperationNode) {
+        Operation op = ((OperationNode) succ).getOperation();
+        if (op instanceof FlattenOperation) {
+          for (Node flatOut : network.successors(succ)) {
+            if (flatOut instanceof OutputReceiverNode) {
+              maxWeight =
+                  Math.max(
+                      maxWeight,
+                      maxNonFlattenConsumerWeight(network, (OutputReceiverNode) flatOut));
+            }
+          }
+        } else {
+          maxWeight = Math.max(maxWeight, estimateOperationFrameWeight(op));
+        }
+      }
+    }
+    return maxWeight;
+  }
+
+  private static boolean isWriteOnlyEdge(Network<Node, Edge> network, OutputReceiverNode outNode) {
+    boolean sawWrite = false;
+    for (Node succ : network.successors(outNode)) {
+      if (!(succ instanceof OperationNode)
+          || !(((OperationNode) succ).getOperation() instanceof WriteOperation)) {
+        return false;
+      }
+      sawWrite = true;
+    }
+    return sawWrite;
+  }
+
+  private static int estimateOperationFrameWeight(Operation op) {
+    if (op instanceof FlattenOperation) {
+      return 1;
+    }
+    if (op instanceof ReadOperation || op instanceof WriteOperation) {
+      return 2;
+    }
+    if (op instanceof ParDoOperation) {
+      try {
+        ParDoFn fn = ((ParDoOperation) op).getFn();
+        if (fn instanceof FastStatelessParDoFn) {
+          return ((FastStatelessParDoFn<?, ?>) fn).estimatedFrameWeight();
+        }
+      } catch (Exception ignored) {
+        // fall through
+      }
+      return 8;
+    }
+    return 6;
   }
 
   /**
@@ -394,11 +721,21 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
   }
 
   /** Adapts a Coder to the ElementByteSizeObservable interface. */
-  public static class ElementByteSizeObservableCoder<T> implements ElementByteSizeObservable<T> {
+  @SuppressWarnings({"unchecked", "nullness"})
+  public static class ElementByteSizeObservableCoder<T>
+      implements ElementByteSizeObservable<T>, RawWindowedByteSizeObservable {
     final Coder<T> coder;
+    private final FullWindowedValueCoder<Object> fullWvCoder;
+    private final ParamWindowedValueCoder<Object> paramWvCoder;
 
     public ElementByteSizeObservableCoder(Coder<T> coder) {
       this.coder = coder;
+      this.fullWvCoder =
+          (coder instanceof FullWindowedValueCoder) ? (FullWindowedValueCoder<Object>) coder : null;
+      this.paramWvCoder =
+          (coder instanceof ParamWindowedValueCoder)
+              ? (ParamWindowedValueCoder<Object>) coder
+              : null;
     }
 
     @Override
@@ -410,6 +747,38 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
         throws Exception {
       coder.registerByteSizeObserver(value, observer);
+    }
+
+    @Override
+    public boolean isRegisterRawByteSizeObserverCheap(
+        Object rawValue, WindowedValue<?> templateElem) {
+      if (fullWvCoder != null || paramWvCoder != null) {
+        // WindowedValueCoder inherits Coder.isRegisterByteSizeObserverCheap -> false
+        return false;
+      }
+      WindowedValue<?> materialized =
+          (rawValue == templateElem.getValue()) ? templateElem : templateElem.withValue(rawValue);
+      return coder.isRegisterByteSizeObserverCheap((T) materialized);
+    }
+
+    @Override
+    public void registerRawByteSizeObserver(
+        Object rawValue, WindowedValue<?> templateElem, ElementByteSizeObserver observer)
+        throws Exception {
+      if (fullWvCoder != null) {
+        InstantCoder.of().registerByteSizeObserver(templateElem.getTimestamp(), observer);
+        fullWvCoder.getWindowsCoder().registerByteSizeObserver(templateElem.getWindows(), observer);
+        PaneInfoCoder.INSTANCE.registerByteSizeObserver(templateElem.getPaneInfo(), observer);
+        fullWvCoder.getValueCoder().registerByteSizeObserver(rawValue, observer);
+        return;
+      }
+      if (paramWvCoder != null) {
+        paramWvCoder.getValueCoder().registerByteSizeObserver(rawValue, observer);
+        return;
+      }
+      WindowedValue<?> materialized =
+          (rawValue == templateElem.getValue()) ? templateElem : templateElem.withValue(rawValue);
+      coder.registerByteSizeObserver((T) materialized, observer);
     }
   }
 }

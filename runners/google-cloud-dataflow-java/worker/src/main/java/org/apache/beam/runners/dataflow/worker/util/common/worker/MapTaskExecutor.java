@@ -44,6 +44,16 @@ public class MapTaskExecutor implements WorkExecutor {
 
   private final CounterSet counters;
 
+  private @Nullable StageTrampoline stageTrampoline;
+
+  public void setStageTrampoline(@Nullable StageTrampoline stageTrampoline) {
+    this.stageTrampoline = stageTrampoline;
+  }
+
+  public @Nullable StageTrampoline getStageTrampoline() {
+    return stageTrampoline;
+  }
+
   /**
    * Creates a new MapTaskExecutor.
    *
@@ -88,11 +98,18 @@ public class MapTaskExecutor implements WorkExecutor {
         // producer finishes outputting to its consumers before those
         // consumers are themselves finished.
         LOG.debug("Finishing operations");
+        StageTrampoline trampoline = this.stageTrampoline;
+        if (trampoline != null) {
+          trampoline.drain();
+        }
         for (Operation op : operations) {
           if (Thread.currentThread().isInterrupted()) {
             throw new InterruptedException("Worker aborted");
           }
           op.finish();
+          if (trampoline != null) {
+            trampoline.drain();
+          }
         }
       } catch (Exception | Error exn) {
         try {
@@ -111,8 +128,15 @@ public class MapTaskExecutor implements WorkExecutor {
 
   @Override
   public void finishKey(@Nullable Object key) throws Exception {
+    StageTrampoline trampoline = this.stageTrampoline;
+    if (trampoline != null) {
+      trampoline.drain();
+    }
     for (Operation op : operations) {
       op.finishKey(key);
+      if (trampoline != null) {
+        trampoline.drain();
+      }
     }
   }
 
@@ -169,6 +193,9 @@ public class MapTaskExecutor implements WorkExecutor {
   private void closeInternal() throws Exception {
     if (closed) {
       return;
+    }
+    if (stageTrampoline != null) {
+      stageTrampoline.reset();
     }
     LOG.debug("Aborting operations");
     @Nullable Exception exn = null;

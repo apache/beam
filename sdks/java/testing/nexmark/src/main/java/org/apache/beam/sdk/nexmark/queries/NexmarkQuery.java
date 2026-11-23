@@ -78,6 +78,17 @@ public final class NexmarkQuery<T extends KnownSize>
       events = events.apply(name + ".DiskBusy", NexmarkUtils.diskBusy(configuration.diskBusyBytes));
     }
 
+    if (configuration.fusionChainDepth > 0) {
+      events =
+          events.apply(
+              name + ".FusionChain",
+              NexmarkUtils.fusionChain(
+                  name,
+                  configuration.fusionChainDepth,
+                  configuration.fusionChainAllocate,
+                  configuration.fusionChainLinear));
+    }
+
     // Run the query.
     PCollection<T> queryResults = events.apply(transform);
 

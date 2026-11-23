@@ -44,6 +44,19 @@ public class FlattenOperation extends ReceivingOperation {
     }
   }
 
+  /**
+   * Returns the downstream receiver when this {@link FlattenOperation} is started and acts as a
+   * pure single-output pass-through, allowing upstream {@link OutputReceiver}s to bypass {@code
+   * FlattenOperation.process} stack frames while keeping {@code Flatten}'s {@link OutputReceiver}
+   * counters intact.
+   */
+  @Nullable Receiver passThroughReceiverIfStarted() {
+    if (initializationState == InitializationState.STARTED && receivers.length == 1) {
+      return receivers[0];
+    }
+    return null;
+  }
+
   @Override
   public void finishKey(@Nullable Object key) throws Exception {}
 

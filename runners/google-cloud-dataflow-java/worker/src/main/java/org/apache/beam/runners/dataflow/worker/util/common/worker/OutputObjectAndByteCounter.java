@@ -26,6 +26,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -108,6 +109,84 @@ public class OutputObjectAndByteCounter implements ElementCounter {
 
   public Counter<Long, CounterMean<Long>> getMeanByteCount() {
     return meanByteCount;
+  }
+
+  public void updateRaw(@Nullable Object rawValue, WindowedValue<?> templateElem) throws Exception {
+    if (objectCount != null) {
+      objectCount.addValue(1L);
+    }
+    if (byteCountObserver != null || meanByteCountObserver != null) {
+      if (sampleElement() || isRawCheap(rawValue, templateElem)) {
+        observeRawSampledElement(rawValue, templateElem);
+      }
+    }
+  }
+
+  private boolean isRawCheap(@Nullable Object rawValue, WindowedValue<?> templateElem) {
+    if (elementByteSizeObservable instanceof RawWindowedByteSizeObservable) {
+      return ((RawWindowedByteSizeObservable) elementByteSizeObservable)
+          .isRegisterRawByteSizeObserverCheap(rawValue, templateElem);
+    }
+    WindowedValue<?> materialized =
+        (rawValue == templateElem.getValue()) ? templateElem : templateElem.withValue(rawValue);
+    return elementByteSizeObservable.isRegisterByteSizeObserverCheap(materialized);
+  }
+
+  private void observeRawSampledElement(@Nullable Object rawValue, WindowedValue<?> templateElem)
+      throws Exception {
+    if (elementByteSizeObservable instanceof RawWindowedByteSizeObservable) {
+      RawWindowedByteSizeObservable rawObs =
+          (RawWindowedByteSizeObservable) elementByteSizeObservable;
+      if (byteCountObserver != null) {
+        byteCountObserver.setScalingFactor(
+            Math.max(samplingToken, SAMPLING_CUTOFF) / (double) SAMPLING_CUTOFF);
+        rawObs.registerRawByteSizeObserver(rawValue, templateElem, byteCountObserver);
+      }
+      if (meanByteCountObserver != null) {
+        rawObs.registerRawByteSizeObserver(rawValue, templateElem, meanByteCountObserver);
+      }
+      if (byteCountObserver != null && !byteCountObserver.getIsLazy()) {
+        byteCountObserver.advance();
+      }
+      if (meanByteCountObserver != null && !meanByteCountObserver.getIsLazy()) {
+        meanByteCountObserver.advance();
+      }
+      return;
+    }
+    WindowedValue<?> materialized =
+        (rawValue == templateElem.getValue()) ? templateElem : templateElem.withValue(rawValue);
+    observeSampledElement(materialized);
+  }
+
+  public boolean shouldSampleOrObserve() {
+    if (byteCountObserver == null && meanByteCountObserver == null) {
+      if (objectCount != null) {
+        objectCount.addValue(1L);
+      }
+      return false;
+    }
+    if (objectCount != null) {
+      objectCount.addValue(1L);
+    }
+    return sampleElement();
+  }
+
+  public void observeSampledElement(Object elem) throws Exception {
+    if (byteCountObserver != null) {
+      byteCountObserver.setScalingFactor(
+          Math.max(samplingToken, SAMPLING_CUTOFF) / (double) SAMPLING_CUTOFF);
+      elementByteSizeObservable.registerByteSizeObserver(elem, byteCountObserver);
+    }
+    if (meanByteCountObserver != null) {
+      elementByteSizeObservable.registerByteSizeObserver(elem, meanByteCountObserver);
+    }
+
+    if (byteCountObserver != null && !byteCountObserver.getIsLazy()) {
+      byteCountObserver.advance();
+    }
+    if (meanByteCountObserver != null && !meanByteCountObserver.getIsLazy()) {
+      meanByteCountObserver.advance();
+    }
   }
 
   @Override

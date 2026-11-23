@@ -271,6 +271,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     private final String workItemId;
 
     private final boolean isStreaming;
+    private final boolean trackPerElementState;
 
     /**
      * Metadata on the message whose processing is currently being managed by this tracker. If no
@@ -332,6 +333,9 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       } else {
         this.isStreaming = false;
       }
+      this.trackPerElementState =
+          this.isStreaming
+              || this.elementExecutionTracker != ElementExecutionTracker.NO_OP_INSTANCE;
     }
 
     @Override
@@ -420,11 +424,16 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
      * activeMessageMetadata with the start time of the new state.
      */
     @Override
-    public Closeable enterState(ExecutionState newState) {
-      Closeable baseCloseable = super.enterState(newState);
-      final boolean isDataflowProcessElementState =
-          newState.isProcessElementState && newState instanceof DataflowExecutionState;
-      if (isDataflowProcessElementState) {
+    public @Nullable ExecutionState enterStateUnscoped(ExecutionState newState) {
+      ExecutionState previous = super.enterStateUnscoped(newState);
+      if (trackPerElementState) {
+        enterDataflowProcessStateSlow(newState);
+      }
+      return previous;
+    }
+
+    private void enterDataflowProcessStateSlow(ExecutionState newState) {
+      if (newState.isProcessElementState && newState instanceof DataflowExecutionState) {
         DataflowExecutionState newDFState = (DataflowExecutionState) newState;
         if (isStreaming) {
           if (newDFState.getStepName() != null && newDFState.getStepName().userName() != null) {
@@ -438,16 +447,26 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
         }
         elementExecutionTracker.enter(newDFState.getStepName());
       }
+    }
 
-      return () -> {
-        if (isDataflowProcessElementState) {
-          if (isStreaming) {
-            recordActiveMessageInProcessingTimesMap();
-          }
-          elementExecutionTracker.exit();
+    @Override
+    public void exitState(@Nullable ExecutionState previous) {
+      if (trackPerElementState) {
+        exitDataflowProcessStateSlow();
+      }
+      super.exitState(previous);
+    }
+
+    private void exitDataflowProcessStateSlow() {
+      ExecutionState exiting = getCurrentState();
+      if (exiting != null
+          && exiting.isProcessElementState
+          && exiting instanceof DataflowExecutionState) {
+        if (isStreaming) {
+          recordActiveMessageInProcessingTimesMap();
         }
-        baseCloseable.close();
-      };
+        elementExecutionTracker.exit();
+      }
     }
 
     public String getWorkItemId() {

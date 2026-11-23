@@ -19,8 +19,10 @@ package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.StageTrampoline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -37,11 +39,16 @@ class BatchModeUngroupingParDoFn<K, V> implements ParDoFn {
 
   private final ParDoFn underlyingParDoFn;
   private final BatchModeExecutionContext.StepContext stepContext;
+  private @Nullable StageTrampoline stageTrampoline;
 
   BatchModeUngroupingParDoFn(
       BatchModeExecutionContext.StepContext stepContext, ParDoFn underlyingParDoFn) {
     this.underlyingParDoFn = underlyingParDoFn;
     this.stepContext = stepContext;
+  }
+
+  void setStageTrampoline(@Nullable StageTrampoline stageTrampoline) {
+    this.stageTrampoline = stageTrampoline;
   }
 
   @Override
@@ -60,12 +67,21 @@ class BatchModeUngroupingParDoFn<K, V> implements ParDoFn {
     // Each GBK output is the beginning of a key
     stepContext.setKey(gbkElem.getKey());
 
+    StageTrampoline trampoline = this.stageTrampoline;
     for (KV<Instant, WindowedValue<V>> timestampedElem : gbkElem.getValue()) {
       underlyingParDoFn.processElement(timestampedElem.getValue());
+      if (trampoline != null) {
+        trampoline.drain();
+      }
     }
 
-    // Process all the timers for the key, since the watermark is moved to infinity
+    // Process all the timers for the key, since the watermark is moved to infinity.
+    // All element outputs for this key have already drained above so timer outputs never overtake
+    // element outputs.
     underlyingParDoFn.processTimers();
+    if (trampoline != null) {
+      trampoline.drain();
+    }
   }
 
   @Override
