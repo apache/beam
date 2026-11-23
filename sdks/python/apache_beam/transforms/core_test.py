@@ -800,18 +800,25 @@ class CreateInferOutputSchemaTest(unittest.TestCase):
 
 class ContextParamTest(unittest.TestCase):
   def test_constructed_context_manager_error_names_param_class(self):
+    @contextlib.contextmanager
+    def one_shot():
+      yield
+
     for param_cls, class_name in [
         (beam.DoFn.BundleContextParam, 'BundleContextParam'),
         (beam.DoFn.SetupContextParam, 'SetupContextParam')]:
-      with self.subTest(class_name):
-        with self.assertRaises(TypeError) as cm:
-          param_cls(contextlib.nullcontext())
-        message = str(cm.exception)
-        self.assertIn(
-            f'write {class_name}(tempfile.TemporaryDirectory, args=(...)) '
-            f'rather than {class_name}(tempfile.TemporaryDirectory(...))',
-            message)
-        self.assertNotIn('{class_name}', message)
+      # nullcontext() is not callable; a @contextmanager instance is callable
+      # but its __enter__ takes no arguments. Both are rejected.
+      for make_constructed in [contextlib.nullcontext, one_shot]:
+        with self.subTest(class_name, constructed=make_constructed.__name__):
+          with self.assertRaises(TypeError) as cm:
+            param_cls(make_constructed())
+          message = str(cm.exception)
+          self.assertIn(
+              f'write {class_name}(tempfile.TemporaryDirectory, args=(...)) '
+              f'rather than {class_name}(tempfile.TemporaryDirectory(...))',
+              message)
+          self.assertNotIn('{class_name}', message)
 
 
 if __name__ == '__main__':
