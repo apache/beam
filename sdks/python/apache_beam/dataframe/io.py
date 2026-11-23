@@ -484,19 +484,21 @@ class _TruncatingFileHandle(object):
     self._empty = self._splitter.empty_buffer()
     self._done = False
     self._header, self._buffer = self._splitter.read_header(self._underlying)
-    self._header_len = len(self._header)
-    self._buffer_start_pos = self._header_len
+    self._buffer_start_pos = len(self._header)
     self._iterator = None
     start = self._tracker.current_restriction().start
-    # Seek to first delimiter after the start position.
+    # Seek to first delimiter starting at start - 1 so that a restriction
+    # starting right on a record boundary includes that record (matching
+    # TextSource's half-open [start, stop) convention).
     if start > len(self._header):
-      if start > len(self._header) + len(self._buffer):
-        self._buffer_start_pos = start
+      seek_pos = start - 1
+      if seek_pos > len(self._header) + len(self._buffer):
+        self._buffer_start_pos = seek_pos
         self._buffer = self._empty
-        self._underlying.seek(start)
+        self._underlying.seek(seek_pos)
       else:
-        self._buffer_start_pos = start
-        self._buffer = self._buffer[start - len(self._header):]
+        self._buffer_start_pos = seek_pos
+        self._buffer = self._buffer[seek_pos - len(self._header):]
       skip, self._buffer = self._splitter.read_to_record_boundary(
           self._buffer, self._underlying)
       self._buffer_start_pos += len(skip)
@@ -576,21 +578,15 @@ class _TruncatingFileHandle(object):
       self._buffer_start_pos += len(res)
     else:
       offset = self._tracker.current_restriction().stop - self._buffer_start_pos
-      # If offset < 0, _buffer_start_pos is already past stop (no records here).
-      # In __init__, a restriction [start, ...) skips the record that start
-      # falls into when start > _header_len. Thus, when offset == 0
-      # (_buffer_start_pos == stop):
-      # - If stop <= _header_len, the next restriction [stop, ...) does not skip
-      #   the first record, so this restriction must return empty.
-      # - If stop > _header_len, the next restriction [stop, ...) skips the
-      #   record starting at stop, so this restriction must read it.
-      if (offset < 0 or
-          self._tracker.current_restriction().stop <= self._header_len):
+      if offset <= 0:
         res = self._empty
       else:
+        # Start scanning from offset - 1 (byte stop - 1) so that if the
+        # preceding record ended right at stop, we stop before stop instead of
+        # reading the record starting at stop (owned by [stop, ...)).
         rest, _ = self._splitter.read_to_record_boundary(
-            self._buffer[offset:], self._underlying)
-        res = self._buffer[:offset] + rest
+            self._buffer[offset - 1:], self._underlying)
+        res = self._buffer[:offset - 1] + rest
       self._done = True
     return res
 

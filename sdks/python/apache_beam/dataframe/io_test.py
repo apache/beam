@@ -428,12 +428,26 @@ X     , c1, c2
 
       first_record_end = contents.index('b2') + 3
       for split in range(header_end + 1, first_record_end):
+        mid = read_truncated_csv(split, first_record_end)
+        self.assertTrue(mid.empty)
         split_at_record_boundary = pd.concat([
             read_truncated_csv(0, split),
-            read_truncated_csv(split, first_record_end),
+            mid,
             read_truncated_csv(first_record_end, len(contents)),
         ])
         assert_frame_equal(expected, split_at_record_boundary)
+
+      second_record_end = contents.index('c2') + 3
+      left = read_truncated_csv(0, second_record_end)
+      right = read_truncated_csv(second_record_end, len(contents))
+      self.assertNotIn('    e0', left.index)
+      self.assertEqual(right.index[0], '    e0')
+      assert_frame_equal(expected, pd.concat([left, right]))
+      for split in range(contents.index('X') + 1, second_record_end):
+        mid = read_truncated_csv(split, second_record_end)
+        self.assertTrue(mid.empty)
+        assert_frame_equal(
+            expected, pd.concat([read_truncated_csv(0, split), mid, right]))
 
   def test_file_not_found(self):
     with self.assertRaisesRegex(FileNotFoundError, r'/tmp/fake_dir/\*\*'):
