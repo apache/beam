@@ -603,6 +603,8 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
     if not self._has_pending_accumulator:
       return self._combinefn.extract_output(
           self._combinefn.create_accumulator())
+    self._pending_accumulator = self._combinefn.compact(
+        self._pending_accumulator)
     return self._combinefn.extract_output(
         copy.deepcopy(self._pending_accumulator))
 
@@ -630,7 +632,8 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
       if self._needs_clear:
         self._underlying_bag_state.clear()
       if self._has_pending_accumulator:
-        self._underlying_bag_state.add(self._pending_accumulator)
+        self._underlying_bag_state.add(
+            self._combinefn.compact(self._pending_accumulator))
     self._pending_accumulator = None
     self._has_pending_accumulator = False
     self._underlying_read = False

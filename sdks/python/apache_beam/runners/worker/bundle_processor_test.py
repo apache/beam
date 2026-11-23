@@ -594,8 +594,26 @@ class RuntimeStateCommitTest(unittest.TestCase):
     self.assertEqual(state_handler.extend.call_count, 1)
     self.assertEqual(state_handler.extend.call_args[0][2], [100])
 
+    # Blind write when random.random() < _BLIND_WRITE_COMPACT_PROBABILITY
+    # (setUp defaults random.random to 0) folds persisted [10, 20], clears the
+    # underlying bag, and writes the merged accumulator [130].
+    state_handler.clear.reset_mock()
+    state_handler.extend.reset_mock()
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+    for _ in range(100):
+      combining_state.add(1)
+    combining_state.commit()
+    self.assertEqual(state_handler.blocking_get.call_count, 1)
+    self.assertEqual(state_handler.clear.call_count, 1)
+    self.assertEqual(state_handler.extend.call_count, 1)
+    self.assertEqual(state_handler.extend.call_args[0][2], [130])
+
     # Clear followed by read returns empty accumulator output without reading
     # underlying state.
+    state_handler.blocking_get.reset_mock()
     bag_state = bundle_processor.SynchronousBagRuntimeState(
         state_handler, state_key, beam.coders.VarIntCoder())
     combining_state = bundle_processor.CombiningValueRuntimeState(
@@ -671,6 +689,35 @@ class RuntimeStateCommitTest(unittest.TestCase):
     self.assertEqual(
         beam.transforms.combiners.TopCombineFn(3).extract_output(persisted_acc),
         [30, 25, 20])
+
+    # 5. CombineFns relying on compact() (SmallestComparableValue unwrapping and
+    # CallableWrapperCombineFn buffer reduction).
+    state_handler.clear.reset_mock()
+    state_handler.extend.reset_mock()
+    state_handler.blocking_get.return_value = []
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, FastPrimitivesCoder())
+    smallest_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.Smallest(2))
+    for v in [30, 10, 20]:
+      smallest_state.add(v)
+    self.assertEqual(smallest_state.read(), [10, 20])
+    smallest_state.add(5)
+    self.assertEqual(smallest_state.read(), [5, 10])
+    smallest_state.commit()
+    persisted_smallest, = state_handler.extend.call_args[0][2]
+    self.assertEqual(persisted_smallest[0], False)
+    self.assertCountEqual(persisted_smallest[1], [5, 10])
+
+    state_handler.extend.reset_mock()
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, FastPrimitivesCoder())
+    callable_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.CombineFn.from_callable(sum))
+    for v in [1, 2, 3]:
+      callable_state.add(v)
+    callable_state.commit()
+    self.assertEqual(state_handler.extend.call_args[0][2], [[6]])
 
 
 class OrderedListStateTest(unittest.TestCase):
