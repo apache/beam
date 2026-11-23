@@ -561,15 +561,21 @@ public class FusionTreeBenchmark {
     final MapTaskToNetworkFunction mapTaskToNetwork = new MapTaskToNetworkFunction(idGenerator);
 
     ExecutorBundle(List<ParallelInstruction> instructions) {
-      this(instructions, false);
+      this(instructions, false, false);
     }
 
-    ExecutorBundle(List<ParallelInstruction> instructions, boolean disableTrampoline) {
+    ExecutorBundle(
+        List<ParallelInstruction> instructions, boolean disableTrampoline, boolean disableCodegen) {
       this.options = PipelineOptionsFactory.create();
+      List<String> experiments = new ArrayList<>();
       if (disableTrampoline) {
-        this.options
-            .as(DataflowPipelineDebugOptions.class)
-            .setExperiments(ImmutableList.of("disable_fusion_trampoline"));
+        experiments.add("disable_fusion_trampoline");
+      }
+      if (disableCodegen) {
+        experiments.add("disable_codegen_fused_segments");
+      }
+      if (!experiments.isEmpty()) {
+        this.options.as(DataflowPipelineDebugOptions.class).setExperiments(experiments);
       }
       this.mapTask = new MapTask();
       this.mapTask.setStageName("BenchStage");
@@ -637,6 +643,9 @@ public class FusionTreeBenchmark {
     @Param({"false"})
     public boolean disableTrampoline;
 
+    @Param({"false"})
+    public boolean disableCodegen;
+
     ExecutorBundle receiverChainBundle;
     DataflowMapTaskExecutor receiverExecutor;
 
@@ -659,7 +668,8 @@ public class FusionTreeBenchmark {
             createParDoInstruction(i, 0, "recv_step_" + i, receiverDoFnFor(i)));
       }
       receiverInstructions.add(createWriteInstruction(depth, 0));
-      receiverChainBundle = new ExecutorBundle(receiverInstructions, disableTrampoline);
+      receiverChainBundle =
+          new ExecutorBundle(receiverInstructions, disableTrampoline, disableCodegen);
       receiverExecutor = receiverChainBundle.createExecutor();
 
       // 2. Heterogeneous ProcessContext DoFn chain
@@ -669,7 +679,8 @@ public class FusionTreeBenchmark {
         contextInstructions.add(createParDoInstruction(i, 0, "ctx_step_" + i, contextDoFnFor(i)));
       }
       contextInstructions.add(createWriteInstruction(depth, 0));
-      contextChainBundle = new ExecutorBundle(contextInstructions, disableTrampoline);
+      contextChainBundle =
+          new ExecutorBundle(contextInstructions, disableTrampoline, disableCodegen);
       contextExecutor = contextChainBundle.createExecutor();
 
       // 3. Shared MapElements / Filter DoFn chain
@@ -680,7 +691,8 @@ public class FusionTreeBenchmark {
             createParDoInstruction(i, 0, "mf_step_" + i, mapOrFilterDoFnFor(i)));
       }
       mapFilterInstructions.add(createWriteInstruction(depth, 0));
-      mapFilterChainBundle = new ExecutorBundle(mapFilterInstructions, disableTrampoline);
+      mapFilterChainBundle =
+          new ExecutorBundle(mapFilterInstructions, disableTrampoline, disableCodegen);
       mapFilterExecutor = mapFilterChainBundle.createExecutor();
 
       // 4. Diamond Fan-out + Flatten chain (each diamond has 2 parallel ParDos + 1 Flatten;
@@ -703,7 +715,8 @@ public class FusionTreeBenchmark {
           prevIdx = flatIdx;
         }
         diamondInstructions.add(createWriteInstruction(prevIdx, 0));
-        diamondFlattenBundle = new ExecutorBundle(diamondInstructions, disableTrampoline);
+        diamondFlattenBundle =
+            new ExecutorBundle(diamondInstructions, disableTrampoline, disableCodegen);
         diamondExecutor = diamondFlattenBundle.createExecutor();
       }
     }
