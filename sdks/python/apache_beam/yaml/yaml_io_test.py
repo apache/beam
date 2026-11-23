@@ -1124,6 +1124,18 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
           ]),
           label='CheckErrors')
 
+  def test_read_csv_with_error_handling_without_filename_column(self):
+    path = self.write_file('input.csv', b'name,count\na,1\nb,2,extra\n')
+    p, result = self.read_with_errors('ReadFromCsv', path)
+    with p:
+      assert_that(
+          result['good'], equal_to([beam.Row(name='a', count=1)]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['b,2,extra\n']),
+          label='CheckErrors')
+
   def test_read_json_with_error_handling(self):
     path = self.write_file(
         'input.json',

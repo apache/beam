@@ -166,7 +166,8 @@ def read_from_csv(
     return df
 
   def parse_file(lines, proxy):
-    dtypes = proxy.dtypes.drop(filename_column, errors='ignore').to_dict()
+    dtypes = proxy.dtypes.to_dict()
+    dtypes.pop(filename_column, None)
     header = None
     for record in _join_quoted_lines(lines, comment):
       if not record.strip():
