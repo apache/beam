@@ -17,15 +17,19 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A keyed implementation of a {@link BufferingElementsHandler}. */
 @SuppressWarnings({
@@ -65,19 +69,39 @@ public final class KeyedBufferingElementsHandler implements BufferingElementsHan
   }
 
   @Override
-  public Stream<BufferedElement> getElements() {
-    return backend
-        .getKeys(stateName, VoidNamespace.INSTANCE)
-        .flatMap(
-            key -> {
-              try {
-                backend.setCurrentKey(key);
-                return StreamSupport.stream(state.get().spliterator(), false);
-              } catch (Exception e) {
-                throw new RuntimeException(
-                    "Failed to retrieve buffered element from state backend.", e);
-              }
-            });
+  public Iterator<BufferedElement> getElements() {
+    // Some backends produce the keys of a whole key group at once, so the current key must not be
+    // set while iterating over the keys. Instead, it is set for each element when it is returned.
+    Iterator<Object> keys = backend.getKeys(stateName, VoidNamespace.INSTANCE).iterator();
+    return new Iterator<BufferedElement>() {
+      private @Nullable Object currentKey = null;
+      private Iterator<BufferedElement> elementsOfKey = Collections.emptyIterator();
+
+      @Override
+      public boolean hasNext() {
+        while (!elementsOfKey.hasNext() && keys.hasNext()) {
+          Object key = keys.next();
+          currentKey = key;
+          backend.setCurrentKey(key);
+          try {
+            elementsOfKey = state.get().iterator();
+          } catch (Exception e) {
+            throw new RuntimeException(
+                "Failed to retrieve buffered element from state backend.", e);
+          }
+        }
+        return elementsOfKey.hasNext();
+      }
+
+      @Override
+      public BufferedElement next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        backend.setCurrentKey(checkStateNotNull(currentKey));
+        return elementsOfKey.next();
+      }
+    };
   }
 
   @Override

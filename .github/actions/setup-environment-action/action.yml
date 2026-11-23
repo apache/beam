@@ -30,6 +30,10 @@ inputs:
     required: false
     description: 'Install Go version'
     default: ''
+  rust-version:
+    required: false
+    description: 'Install Rust toolchain version'
+    default: ''
   disable-cache:
     required: false
     description: 'Whether to disable the Gradle and Go caches'
@@ -41,6 +45,10 @@ inputs:
   tox-cache:
     required: false
     description: 'Whether to enable tox environment caching'
+    default: true
+  rust-cache:
+    required: false
+    description: 'Whether to enable Cargo dependency caching'
     default: true
 
 runs:
@@ -106,3 +114,43 @@ runs:
         go-version: ${{ inputs.go-version == 'default' && '1.26' || inputs.go-version }} # never set patch, to get latest patch releases.
         cache: ${{ inputs.disable-cache != 'true' }}
         cache-dependency-path: sdks/go.sum
+    # Both arduino/setup-protoc and Swatinem/rust-cache are on the ASF allowlist:
+    # https://github.com/apache/infrastructure-actions/blob/main/approved_patterns.yml
+    - name: Install Rust
+      if: ${{ inputs.rust-version != '' }}
+      shell: bash
+      env:
+        RUST_VERSION_INPUT: ${{ inputs.rust-version }}
+      run: | # zizmor: ignore[github-env] safe: adds rustup cargo bin directory to PATH
+        set -euo pipefail
+        toolchain="${RUST_VERSION_INPUT}"
+        if [[ "${toolchain}" == "default" ]]; then
+          toolchain="1.98.1"
+        fi
+        if [[ ! "${toolchain}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+          echo "Invalid rust-version: ${toolchain}" >&2
+          exit 1
+        fi
+        cargo_bin="${CARGO_HOME:-${HOME}/.cargo}/bin"
+        export PATH="${cargo_bin}:${PATH}"
+        if command -v rustup > /dev/null 2>&1; then
+          rustup toolchain install "${toolchain}" --profile minimal --component rustfmt,clippy
+          rustup default "${toolchain}"
+        else
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 5 https://sh.rustup.rs | sh -s -- -y --default-toolchain "${toolchain}" --profile minimal --component rustfmt,clippy --no-modify-path
+        fi
+        echo "${cargo_bin}" >> "${GITHUB_PATH}"
+        rustc --version
+        cargo --version
+    - name: Install protoc (Rust)
+      if: ${{ inputs.rust-version != '' }}
+      uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+      with:
+        version: '23.x'
+        repo-token: ${{ github.token }}
+    - name: Cache Cargo dependencies
+      if: ${{ inputs.rust-version != '' && inputs.disable-cache != 'true' && inputs.rust-cache == 'true' }}
+      uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        workspaces: sdks/rust
+        save-if: ${{ github.event_name == 'schedule' || github.event_name == 'push' || github.run_attempt > 1 }}
