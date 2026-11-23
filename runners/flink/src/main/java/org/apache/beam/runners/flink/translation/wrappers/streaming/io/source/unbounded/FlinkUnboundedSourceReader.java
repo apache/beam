@@ -26,7 +26,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -73,8 +77,13 @@ public class FlinkUnboundedSourceReader<T>
   @VisibleForTesting protected static final String PENDING_BYTES_METRIC_NAME = "pendingBytes";
   private static final long SLEEP_ON_IDLE_MS = 50L;
   private static final long MIN_WATERMARK_EMIT_INTERVAL_MS = 10L;
+  private static final long PENDING_RECORDS_INITIAL_DELAY_SECONDS = 10L;
+  private static final long PENDING_RECORDS_POLL_INTERVAL_SECONDS = 60L;
   private final AtomicReference<@Nullable CompletableFuture<Void>> dataAvailableFutureRef =
       new AtomicReference<>();
+  private final AtomicLong pendingRecords = new AtomicLong();
+  private final AtomicBoolean pendingRecordsGaugeRegistered = new AtomicBoolean();
+  private @Nullable ScheduledExecutorService pendingRecordsExecutor;
   private final List<ReaderAndOutput> readers = new ArrayList<>();
   private int currentReaderIndex = 0;
   private volatile boolean shouldEmitWatermark;
@@ -124,6 +133,7 @@ public class FlinkUnboundedSourceReader<T>
   @Override
   public void start() {
     createPendingBytesGauge(context);
+    startPendingRecordsPoller(context);
     Long watermarkInterval =
         pipelineOptions.as(FlinkPipelineOptions.class).getAutoWatermarkInterval();
     if (watermarkInterval == null) {
@@ -319,6 +329,14 @@ public class FlinkUnboundedSourceReader<T>
     return (UnboundedSource.UnboundedReader<T>) reader;
   }
 
+  @Override
+  public void close() throws Exception {
+    if (pendingRecordsExecutor != null) {
+      pendingRecordsExecutor.shutdownNow();
+    }
+    super.close();
+  }
+
   private void createPendingBytesGauge(SourceReaderContext context) {
     // TODO: Replace with SourceReaderContest.metricGroup().setPendingBytesGauge() after Flink 1.14
     // and above.
@@ -341,6 +359,43 @@ public class FlinkUnboundedSourceReader<T>
               }
               return pendingBytes;
             });
+  }
+
+  private void startPendingRecordsPoller(SourceReaderContext context) {
+    // Poll total backlog records on subtask 0 only so Flink does not duplicate the count when
+    // summing pendingRecords across subtasks.
+    if (context.getIndexOfSubtask() != 0) {
+      return;
+    }
+    pendingRecordsExecutor =
+        Executors.newSingleThreadScheduledExecutor(
+            r -> {
+              Thread t = new Thread(r, "FlinkSource-PendingRecords-Poller");
+              t.setDaemon(true);
+              return t;
+            });
+    ignoreReturnValue(
+        pendingRecordsExecutor.scheduleWithFixedDelay(
+            () -> {
+              try {
+                for (FlinkSourceReaderBase<?, ?>.ReaderAndOutput readerAndOutput :
+                    allReaders().values()) {
+                  long records = asUnbounded(readerAndOutput.reader).getTotalBacklogRecords();
+                  if (records >= 0L) {
+                    pendingRecords.set(records);
+                    if (pendingRecordsGaugeRegistered.compareAndSet(false, true)) {
+                      context.metricGroup().setPendingRecordsGauge(pendingRecords::get);
+                    }
+                  }
+                  break;
+                }
+              } catch (Throwable t) {
+                LOG.warn("Failed to refresh pendingRecords metric", t);
+              }
+            },
+            PENDING_RECORDS_INITIAL_DELAY_SECONDS,
+            PENDING_RECORDS_POLL_INTERVAL_SECONDS,
+            TimeUnit.SECONDS));
   }
 
   private <CheckpointMarkT extends UnboundedSource.CheckpointMark> byte[] encodeCheckpointMark(

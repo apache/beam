@@ -22,9 +22,20 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestFactory;
+import com.google.api.client.http.HttpResponse;
 import com.google.api.client.util.Clock;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -49,6 +60,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -371,6 +383,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     /** For access to topic and checkpointCoder. */
     private final PubsubSource outer;
 
+    private final PubsubOptions options;
+
     @VisibleForTesting final SubscriptionPath subscription;
 
     /** Client on which to talk to Pubsub. Contains a null value if the client has been closed. */
@@ -529,6 +543,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     public PubsubReader(PubsubOptions options, PubsubSource outer, SubscriptionPath subscription)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
+      this.options = options;
       this.subscription = subscription;
       pubsubClient =
           new AtomicReference<>(
@@ -1043,6 +1058,71 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Override
     public long getSplitBacklogBytes() {
       return notYetReadBytes;
+    }
+
+    @Override
+    public long getTotalBacklogRecords() {
+      if (!options.getPubsubBacklogReportingEnabled()) {
+        return BACKLOG_UNKNOWN;
+      }
+      try {
+        Credentials credentials = options.getGcpCredential();
+        HttpRequestFactory requestFactory =
+            credentials == null
+                ? Transport.getTransport().createRequestFactory()
+                : Transport.getTransport()
+                    .createRequestFactory(new HttpCredentialsAdapter(credentials));
+        String projectId = subscription.getProjectId();
+        String subscriptionId = subscription.getName();
+        long nowMs = now();
+        GenericUrl url =
+            new GenericUrl(
+                String.format(
+                    "https://monitoring.googleapis.com/v3/projects/%s/timeSeries", projectId));
+        url.set(
+            "filter",
+            String.format(
+                "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\""
+                    + " AND resource.type=\"pubsub_subscription\""
+                    + " AND resource.labels.subscription_id=\"%s\"",
+                subscriptionId));
+        url.set(
+            "interval.startTime",
+            new Instant(nowMs - Duration.standardMinutes(5).getMillis()).toString());
+        url.set("interval.endTime", new Instant(nowMs).toString());
+        HttpRequest request = requestFactory.buildGetRequest(url);
+        request.setConnectTimeout(10_000);
+        request.setReadTimeout(10_000);
+        HttpResponse response = request.execute();
+        try (InputStreamReader reader =
+            new InputStreamReader(response.getContent(), StandardCharsets.UTF_8)) {
+          JsonElement parsed = JsonParser.parseReader(reader);
+          if (!parsed.isJsonObject()) {
+            return BACKLOG_UNKNOWN;
+          }
+          JsonArray series = parsed.getAsJsonObject().getAsJsonArray("timeSeries");
+          if (series == null || series.isEmpty()) {
+            return BACKLOG_UNKNOWN;
+          }
+          JsonArray points = series.get(0).getAsJsonObject().getAsJsonArray("points");
+          if (points == null || points.isEmpty()) {
+            return BACKLOG_UNKNOWN;
+          }
+          JsonObject value = points.get(0).getAsJsonObject().getAsJsonObject("value");
+          if (value == null || !value.has("int64Value")) {
+            return BACKLOG_UNKNOWN;
+          }
+          return value.get("int64Value").getAsLong();
+        } finally {
+          response.disconnect();
+        }
+      } catch (Exception e) {
+        LOG.warn(
+            "Failed to query Pub/Sub num_undelivered_messages for {}: {}",
+            subscription.getPath(),
+            e.toString());
+        return BACKLOG_UNKNOWN;
+      }
     }
   }
 

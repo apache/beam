@@ -320,6 +320,14 @@ public abstract class UnboundedSource<
     }
 
     /**
+     * Returns the number of unread records in the underlying data source represented by all splits
+     * of this source, or {@link #BACKLOG_UNKNOWN} if unknown.
+     */
+    public long getTotalBacklogRecords() {
+      return BACKLOG_UNKNOWN;
+    }
+
+    /**
      * Returns the {@link UnboundedSource} that created this reader. This will not change over the
      * life of the reader.
      */
