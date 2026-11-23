@@ -90,10 +90,14 @@ runs:
           echo "::error::Invalid job identifier: ${JOB_ID}"
           exit 1
         fi
+        NOW_UTC=$(date '+%m%d%H%M%S' --utc)
+        DATE_PATTERN='$(date '\''+%m%d%H%M%S'\'' --utc)'
+        EXPANDED_INPUT="${INPUT_ARGUMENTS//"$DATE_PATTERN"/${NOW_UTC}}"
+        EXPANDED_INPUT=$(printf '%s' "${EXPANDED_INPUT}" | sed -E 's/\\(["\\])/\1/g')
         read -r -a PATHS <<< "$(printf '%s' "${INPUT_ARGUMENT_FILE_PATHS}" | tr '\n' ' ')"
         for index in "${!PATHS[@]}"; do
           CONFIG=$(grep -v "^#.*" "${PATHS[index]}" || true)
-          ARGUMENTS=$(printf '%s %s %s' "${DEFAULT_ARGUMENTS}" "${INPUT_ARGUMENTS}" "${CONFIG}" | tr '\n\r' '  ' | tr -s ' ')
+          ARGUMENTS=$(printf '%s %s %s' "${DEFAULT_ARGUMENTS}" "${EXPANDED_INPUT}" "${CONFIG}" | tr '\n\r' '  ' | tr -s ' ')
           ARGUMENTS="${ARGUMENTS# }"
           ARGUMENTS="${ARGUMENTS% }"
           if [[ "${INPUT_TEST_TYPE}" == "performance" ]]; then
