@@ -784,6 +784,8 @@ class Repeatedly(TriggerFn):
 
 
 class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
+  _finishes_on_fire = True
+
   def __init__(self, *triggers):
     self.triggers = triggers
 
@@ -826,9 +828,11 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
                              window,
                              nested_context):
         finished.append(trigger.on_fire(watermark, window, nested_context))
-    return self.combine_op(finished)
+    return self._finishes_on_fire or self.combine_op(finished)
 
   def may_lose_data(self, windowing):
+    if self._finishes_on_fire:
+      return DataLossReason.MAY_FINISH
     may_finish = self.combine_op(
         _IncludesMayFinish(t.may_lose_data(windowing)) for t in self.triggers)
     return (
@@ -882,7 +886,7 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
 class AfterAny(_ParallelTriggerFn):
   """Fires when any subtrigger fires.
 
-  Also finishes when any subtrigger finishes.
+  Finishes after its first firing.
   """
   combine_op = any
 
@@ -890,7 +894,7 @@ class AfterAny(_ParallelTriggerFn):
 class AfterAll(_ParallelTriggerFn):
   """Fires when all subtriggers have fired.
 
-  Also finishes when all subtriggers have finished.
+  Finishes after its first firing.
   """
   combine_op = all
 
@@ -989,6 +993,9 @@ class AfterEach(TriggerFn):
 
 
 class OrFinally(AfterAny):
+  # OrFinally can fire repeatedly while its main trigger remains active.
+  _finishes_on_fire = False
+
   @staticmethod
   def from_runner_api(proto, context):
     return OrFinally(
@@ -1562,7 +1569,8 @@ class GeneralTriggerDriver(TriggerDriver):
     if timestamp is None:
       # If no watermark hold was set, output at end of window.
       timestamp = window.max_timestamp()
-    elif output_watermark < window.end and self.trigger_fn.has_ontime_pane():
+    elif (not finished and output_watermark < window.end and
+          self.trigger_fn.has_ontime_pane()):
       # Hold the watermark in case there is an empty pane that needs to be fired
       # at the end of the window.
       pass
