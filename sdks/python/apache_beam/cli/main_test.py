@@ -362,6 +362,16 @@ class PipeTest(unittest.TestCase):
       f.write('name,age\nAda,36\nLinus,17\n')
     self.output = os.path.join(self.tmp, 'out', 'users.json')
 
+  def _assert_wrote_files(self, out, prefix):
+    # The runner picks the number of shards, so Prism may write more than one
+    # file.
+    self.assertRegex(out, r'Wrote \d+ files?:')
+    written = [line[2:] for line in out.splitlines() if line.startswith('  ')]
+    self.assertTrue(written)
+    for path in written:
+      self.assertTrue(path.startswith(prefix), path)
+      self.assertTrue(os.path.exists(path), path)
+
   def test_pipes_csv_to_json_and_lists_the_files(self):
     code, out, _ = _run_cli([
         'pipe',
@@ -372,7 +382,7 @@ class PipeTest(unittest.TestCase):
         '--runner=DirectRunner'
     ])
     self.assertEqual(code, cli.EXIT_OK)
-    self.assertIn('Wrote 1 file:', out)
+    self._assert_wrote_files(out, self.output)
     self.assertEqual([json.loads(line) for line in _read_lines(self.output)],
                      [{
                          'name': 'Ada', 'age': 36
@@ -393,7 +403,8 @@ class PipeTest(unittest.TestCase):
         '--runner=DirectRunner'
     ])
     self.assertEqual(code, cli.EXIT_OK)
-    self.assertIn('Wrote 1 file:\n  relative_users.json', out)
+    # Paths are listed as given, without a leading './'.
+    self._assert_wrote_files(out, 'relative_users.json')
     code, _, err = _run_cli(
         ['pipe', '--from', 'users.csv', '--to', 'relative_users.json'])
     self.assertEqual(code, cli.EXIT_USAGE)
@@ -414,7 +425,7 @@ class PipeTest(unittest.TestCase):
         '--runner=DirectRunner'
     ])
     self.assertEqual(code, cli.EXIT_OK)
-    self.assertIn('Wrote 1 file:', out)
+    self._assert_wrote_files(out, tricky_output)
     self.assertEqual(len(_read_lines(tricky_output)), 2)
 
   def test_refuses_existing_output(self):
@@ -441,14 +452,7 @@ class PipeTest(unittest.TestCase):
         '--runner=DirectRunner'
     ])
     self.assertEqual(code, cli.EXIT_OK)
-    # The runner picks the number of parquet shards, so Prism may write more
-    # than one file.
-    self.assertRegex(out, r'Wrote \d+ files?:')
-    written = [line[2:] for line in out.splitlines() if line.startswith('  ')]
-    self.assertTrue(written)
-    for path in written:
-      self.assertTrue(path.startswith(parquet_prefix), path)
-      self.assertTrue(os.path.exists(path), path)
+    self._assert_wrote_files(out, parquet_prefix)
 
     code, out, _ = _run_cli([
         'pipe',
