@@ -325,14 +325,20 @@ public class ComputationWorkExecutorFactoryTest {
     // Process elements through each operation's receiver and verify each uses its own coder.
     WindowedValue<String> stringElem = WindowedValues.valueInGlobalWindow("hello");
     WindowedValue<Integer> intElem = WindowedValues.valueInGlobalWindow(12345);
-    stringSplittableOp.receivers[0].process(stringElem);
-    intSplittableOp.receivers[0].process(intElem);
-    regularParDoOp.receivers[0].process(stringElem);
-
     long expectedStringBytes =
         CoderUtils.encodeToByteArray(windowedStringCoder, stringElem, Coder.Context.NESTED).length;
     long expectedIntBytes =
         CoderUtils.encodeToByteArray(windowedIntCoder, intElem, Coder.Context.NESTED).length;
+
+    assertEquals(0L, workExecutor.context().getSourceBytesProcessed());
+    stringSplittableOp.receivers[0].process(stringElem);
+    assertEquals(expectedStringBytes, workExecutor.context().getSourceBytesProcessed());
+    intSplittableOp.receivers[0].process(intElem);
+    assertEquals(
+        expectedStringBytes + expectedIntBytes, workExecutor.context().getSourceBytesProcessed());
+    regularParDoOp.receivers[0].process(stringElem);
+    assertEquals(
+        expectedStringBytes + expectedIntBytes, workExecutor.context().getSourceBytesProcessed());
 
     // Extracting delta counters (as StreamingWorkerStatusReporter does) must not drain SDF bytes.
     streamingCounters
@@ -492,13 +498,15 @@ public class ComputationWorkExecutorFactoryTest {
     // ClassCastException.
     WindowedValue<String> stringElem = WindowedValues.valueInGlobalWindow("hello");
     WindowedValue<Integer> intElem = WindowedValues.valueInGlobalWindow(12345);
-    stringReceiver.process(stringElem);
-    intReceiver.process(intElem);
-
     long expectedStringBytes =
         CoderUtils.encodeToByteArray(windowedStringCoder, stringElem, Coder.Context.NESTED).length;
     long expectedIntBytes =
         CoderUtils.encodeToByteArray(windowedIntCoder, intElem, Coder.Context.NESTED).length;
+
+    assertEquals(0L, workExecutor.context().getSourceBytesProcessed());
+    stringReceiver.process(stringElem);
+    assertEquals(expectedStringBytes, workExecutor.context().getSourceBytesProcessed());
+    intReceiver.process(intElem);
 
     streamingCounters
         .pendingDeltaCounters()
