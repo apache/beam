@@ -139,6 +139,9 @@ public class PCollectionConsumerRegistry {
   private final Map<String, FnDataReceiver> pCollectionIdsToWrappedConsumer = new HashMap<>();
   private final Map<String, Integer> pCollectionIdsToEffectiveDepth = new HashMap<>();
   private final Map<String, Integer> pCollectionProducerCounts = new HashMap<>();
+  private final Map<String, Integer> pCollectionConsumerCounts = new HashMap<>();
+  private final Map<String, String> singleParDoInToOut = new HashMap<>();
+  private final Map<String, String> singleParDoOutToIn = new HashMap<>();
   private final Map<String, PendingCompiledChain> pendingCompiledChains = new HashMap<>();
   private final Set<String> flattenOutputPCollections = new HashSet<>();
   private final Map<ExecutionStateKey, ExecutionState> executionStates = new HashMap<>();
@@ -148,6 +151,7 @@ public class PCollectionConsumerRegistry {
   private final @Nullable DataSampler dataSampler;
   private final @Nullable HarnessStageTrampoline stageTrampoline;
   private final int trampolineThreshold;
+  private final int minCodegenChainSteps;
   private static final Logger LOG = LoggerFactory.getLogger(PCollectionConsumerRegistry.class);
 
   public PCollectionConsumerRegistry(
@@ -162,7 +166,8 @@ public class PCollectionConsumerRegistry {
         processBundleDescriptor,
         null,
         null,
-        0);
+        0,
+        FusedSegmentCompiler.DEFAULT_MIN_CODEGEN_CHAIN_STEPS);
   }
 
   public PCollectionConsumerRegistry(
@@ -178,7 +183,8 @@ public class PCollectionConsumerRegistry {
         processBundleDescriptor,
         dataSampler,
         null,
-        0);
+        0,
+        FusedSegmentCompiler.DEFAULT_MIN_CODEGEN_CHAIN_STEPS);
   }
 
   public PCollectionConsumerRegistry(
@@ -189,6 +195,26 @@ public class PCollectionConsumerRegistry {
       @Nullable DataSampler dataSampler,
       @Nullable HarnessStageTrampoline stageTrampoline,
       int trampolineThreshold) {
+    this(
+        stateTracker,
+        shortIdMap,
+        bundleProgressReporterRegistrar,
+        processBundleDescriptor,
+        dataSampler,
+        stageTrampoline,
+        trampolineThreshold,
+        FusedSegmentCompiler.DEFAULT_MIN_CODEGEN_CHAIN_STEPS);
+  }
+
+  public PCollectionConsumerRegistry(
+      ExecutionStateTracker stateTracker,
+      ShortIdMap shortIdMap,
+      BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
+      ProcessBundleDescriptor processBundleDescriptor,
+      @Nullable DataSampler dataSampler,
+      @Nullable HarnessStageTrampoline stageTrampoline,
+      int trampolineThreshold,
+      int minCodegenChainSteps) {
     this.stateTracker = stateTracker;
     this.shortIdMap = shortIdMap;
     this.bundleProgressReporterRegistrar = bundleProgressReporterRegistrar;
@@ -203,14 +229,62 @@ public class PCollectionConsumerRegistry {
     this.dataSampler = dataSampler;
     this.stageTrampoline = stageTrampoline;
     this.trampolineThreshold = trampolineThreshold;
+    this.minCodegenChainSteps = minCodegenChainSteps;
     for (PTransform pTransform : processBundleDescriptor.getTransformsMap().values()) {
       if (PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())) {
         this.flattenOutputPCollections.addAll(pTransform.getOutputsMap().values());
       }
-      for (String outPc : pTransform.getOutputsMap().values()) {
-        this.pCollectionProducerCounts.merge(outPc, 1, Integer::sum);
+      if (pTransform.getSubtransformsCount() == 0) {
+        for (String outPc : pTransform.getOutputsMap().values()) {
+          this.pCollectionProducerCounts.merge(outPc, 1, Integer::sum);
+        }
+        for (String inPc : pTransform.getInputsMap().values()) {
+          this.pCollectionConsumerCounts.merge(inPc, 1, Integer::sum);
+        }
+        if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(pTransform.getSpec().getUrn())
+            && pTransform.getInputsCount() == 1
+            && pTransform.getOutputsCount() == 1) {
+          String inPc = pTransform.getInputsMap().values().iterator().next();
+          String outPc = pTransform.getOutputsMap().values().iterator().next();
+          this.singleParDoInToOut.put(inPc, outPc);
+          this.singleParDoOutToIn.put(outPc, inPc);
+        }
       }
     }
+  }
+
+  private int estimateMaxLinearParDoChainSteps(String inPCollectionId, String outPCollectionId) {
+    int count = 1;
+    Set<String> seen = new HashSet<>();
+    seen.add(inPCollectionId);
+    seen.add(outPCollectionId);
+
+    // Walk upstream while single-producer, single-consumer 1-to-1 ParDo
+    String curIn = inPCollectionId;
+    while (pCollectionProducerCounts.getOrDefault(curIn, 0) == 1
+        && pCollectionConsumerCounts.getOrDefault(curIn, 0) == 1
+        && !flattenOutputPCollections.contains(curIn)) {
+      String prevIn = singleParDoOutToIn.get(curIn);
+      if (prevIn == null || !seen.add(prevIn)) {
+        break;
+      }
+      count++;
+      curIn = prevIn;
+    }
+
+    // Walk downstream while single-producer, single-consumer 1-to-1 ParDo
+    String curOut = outPCollectionId;
+    while (pCollectionProducerCounts.getOrDefault(curOut, 0) == 1
+        && pCollectionConsumerCounts.getOrDefault(curOut, 0) == 1
+        && !flattenOutputPCollections.contains(curOut)) {
+      String nextOut = singleParDoInToOut.get(curOut);
+      if (nextOut == null || !seen.add(nextOut)) {
+        break;
+      }
+      count++;
+      curOut = nextOut;
+    }
+    return count;
   }
 
   private static final FnDataReceiver<WindowedValue<?>> CLAIMED_INLINE_CONSUMER =
@@ -243,7 +317,11 @@ public class PCollectionConsumerRegistry {
     }
   }
 
-  private final class RunnerV2StepHook<T> extends FusedSegmentCompiler.StepHook {
+  /**
+   * Concrete {@code public final} per-edge step hook for Portable Java SDK Harness compiled
+   * segments so generated classes emit monomorphic {@code INVOKEVIRTUAL} calls directly.
+   */
+  public static final class RunnerV2StepHook<T> extends FusedSegmentCompiler.StepHook {
     private final ExecutionState executionState;
     private final ExecutionStateTracker executionStateTracker;
     private final String ptransformId;
@@ -251,7 +329,12 @@ public class PCollectionConsumerRegistry {
     private final SampleByteSizeDistribution<T> sampledByteSizeDistribution;
     private final Coder<T> coder;
 
-    RunnerV2StepHook(String pCollectionId, Coder<T> coder, ConsumerAndMetadata consumerMeta) {
+    RunnerV2StepHook(
+        ShortIdMap shortIdMap,
+        BundleProgressReporter.Registrar bundleProgressReporterRegistrar,
+        String pCollectionId,
+        Coder<T> coder,
+        ConsumerAndMetadata consumerMeta) {
       this.executionState = consumerMeta.getExecutionState();
       this.executionStateTracker = consumerMeta.getExecutionStateTracker();
       this.ptransformId = consumerMeta.getPTransformId();
@@ -368,6 +451,41 @@ public class PCollectionConsumerRegistry {
     }
   }
 
+  private static final class LazyCompiledChainHead
+      implements FnDataReceiver<WindowedValue<Object>>, CompiledNode {
+    private final PendingCompiledChain chain;
+    private @Nullable CompiledNode compiled;
+
+    LazyCompiledChainHead(PendingCompiledChain chain) {
+      this.chain = chain;
+    }
+
+    private FusedSegmentCompiler.CompiledNode resolve() {
+      FusedSegmentCompiler.CompiledNode node = this.compiled;
+      if (node == null) {
+        node = FusedSegmentCompiler.compileChain(chain.stepsFromHeadToTail, chain.tailNode);
+        this.compiled = node;
+      }
+      return node;
+    }
+
+    @Override
+    public void accept(WindowedValue<Object> elem) throws Exception {
+      resolve().acceptRaw(elem.getValue(), elem, elem.getWindows().size());
+    }
+
+    @Override
+    public void acceptWindowed(WindowedValue<?> elem) throws Exception {
+      resolve().acceptRaw(elem.getValue(), elem, elem.getWindows().size());
+    }
+
+    @Override
+    public void acceptRaw(@Nullable Object rawValue, WindowedValue<?> templateElem, int windowsSize)
+        throws Exception {
+      resolve().acceptRaw(rawValue, templateElem, windowsSize);
+    }
+  }
+
   public boolean tryRegisterCompilableStep(
       String inPCollectionId,
       String pTransformId,
@@ -375,8 +493,11 @@ public class PCollectionConsumerRegistry {
       String outPCollectionId,
       FusedSegmentCompiler.StepSpec stepSpecWithoutEntryHook,
       int selfFrameWeight) {
-    if (pCollectionIdsToWrappedConsumer.containsKey(inPCollectionId)
-        || !processBundleDescriptor.containsPcollections(outPCollectionId)) {
+    if (minCodegenChainSteps <= 0
+        || pCollectionIdsToWrappedConsumer.containsKey(inPCollectionId)
+        || !processBundleDescriptor.containsPcollections(outPCollectionId)
+        || estimateMaxLinearParDoChainSteps(inPCollectionId, outPCollectionId)
+            < minCodegenChainSteps) {
       return false;
     }
 
@@ -407,7 +528,12 @@ public class PCollectionConsumerRegistry {
       ConsumerAndMetadata outMeta = outConsumers.get(0);
       Coder<?> outValueCoder = resolveUnwrappedValueCoder(outPCollectionId);
       RunnerV2StepHook<?> edgeHook =
-          new RunnerV2StepHook<>(outPCollectionId, (Coder) outValueCoder, outMeta);
+          new RunnerV2StepHook<>(
+              shortIdMap,
+              bundleProgressReporterRegistrar,
+              outPCollectionId,
+              (Coder) outValueCoder,
+              outMeta);
       pCollectionIdsToWrappedConsumer.put(outPCollectionId, CLAIMED_INLINE_CONSUMER);
 
       List<FusedSegmentCompiler.StepSpec> combined =
@@ -431,23 +557,8 @@ public class PCollectionConsumerRegistry {
       downstreamDepth = getEffectiveDepth(outPCollectionId);
     }
 
-    final PendingCompiledChain chainForClosure = newChain;
     FnDataReceiver<WindowedValue<Object>> lazyCompiledReceiver =
-        new FnDataReceiver<WindowedValue<Object>>() {
-          private @Nullable FusedSegmentCompiler.CompiledNode compiled;
-
-          @Override
-          public void accept(WindowedValue<Object> elem) throws Exception {
-            FusedSegmentCompiler.CompiledNode node = this.compiled;
-            if (node == null) {
-              node =
-                  FusedSegmentCompiler.compileChain(
-                      chainForClosure.stepsFromHeadToTail, chainForClosure.tailNode);
-              this.compiled = node;
-            }
-            node.acceptRaw(elem.getValue(), elem, elem.getWindows().size());
-          }
-        };
+        new LazyCompiledChainHead(newChain);
 
     int effectiveSelfWeight =
         canFuseIntoDownstream

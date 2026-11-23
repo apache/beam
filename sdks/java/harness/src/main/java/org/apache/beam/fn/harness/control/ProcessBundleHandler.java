@@ -840,6 +840,9 @@ public class ProcessBundleHandler {
     bundleProgressReporterAndRegistrar.register(stateTracker);
     HarnessStageTrampoline stageTrampoline = new HarnessStageTrampoline();
     int trampolineThreshold = HarnessStageTrampoline.resolveThreshold(options);
+    int minCodegenChainSteps =
+        FusedSegmentCompiler.resolveMinCodegenChainSteps(
+            options.as(ExperimentalOptions.class).getExperiments());
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
             stateTracker,
@@ -848,7 +851,8 @@ public class ProcessBundleHandler {
             bundleDescriptor,
             dataSampler,
             stageTrampoline,
-            trampolineThreshold);
+            trampolineThreshold,
+            minCodegenChainSteps);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =

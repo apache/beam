@@ -409,4 +409,78 @@ public class FusedSegmentCompilerTest {
     assertTrue(err.getCause() instanceof AssertionError);
     assertEquals("direct-assertion-boom", err.getCause().getMessage());
   }
+
+  @Test
+  public void testAnonymousAndPrivateDoFnsUseDirectVirtualWithoutLambdaFormsAndConcreteHooks()
+      throws Exception {
+    List<String> events = new ArrayList<>();
+    RecordingHook hook = new RecordingHook("anonStep", events);
+    AtomicInteger lambdaFormFramesSeen = new AtomicInteger(-1);
+
+    PrivateMultiEmitDoFn privateFn = new PrivateMultiEmitDoFn();
+    DoFn<String, String> anonymousFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            long lfCount =
+                StackWalker.getInstance()
+                    .walk(
+                        s ->
+                            s.takeWhile(
+                                    f ->
+                                        !f.getClassName()
+                                            .equals(FusedSegmentCompilerTest.class.getName()))
+                                .filter(
+                                    f ->
+                                        f.getClassName().contains("LambdaForm")
+                                            || f.getClassName()
+                                                .startsWith("java.lang.invoke.MethodHandle"))
+                                .count());
+            lambdaFormFramesSeen.set((int) lfCount);
+            c.output(c.element() + "!");
+          }
+        };
+
+    List<WindowedValue<String>> outList = new ArrayList<>();
+    CompiledNode head =
+        FusedSegmentCompiler.compileChain(
+            Arrays.asList(
+                new DoFnStepSpec<>(
+                    privateFn,
+                    DoFnInvokers.invokerFor(privateFn),
+                    null,
+                    testFallback(),
+                    false,
+                    false),
+                new DoFnStepSpec<>(
+                    anonymousFn,
+                    DoFnInvokers.invokerFor(anonymousFn),
+                    hook,
+                    testFallback(),
+                    false,
+                    false)),
+            new TailReceiver() {
+              @Override
+              public void accept(WindowedValue<?> elem) {
+                outList.add((WindowedValue<String>) elem);
+              }
+            });
+
+    // Both private static and anonymous DoFn nodes are package-injected via UsingLookup ->
+    // direct INVOKEVIRTUAL with zero MH_PROCESS / LambdaForm adapter frames and exact hook field!
+    org.junit.Assert.assertFalse(FusedSegmentCompiler.hasGeneratedMethodHandleField(head));
+    java.lang.reflect.Field nextField = head.getClass().getDeclaredField("nextNode");
+    nextField.setAccessible(true);
+    Object nextNode = nextField.get(head);
+    org.junit.Assert.assertFalse(
+        FusedSegmentCompiler.hasGeneratedMethodHandleField((CompiledNode) nextNode));
+    assertEquals(RecordingHook.class, nextNode.getClass().getDeclaredField("entryHook").getType());
+
+    head.acceptWindowed(WindowedValues.valueInGlobalWindow("x"));
+    assertEquals(0, lambdaFormFramesSeen.get());
+    assertEquals(2, outList.size());
+    assertEquals("xa!", outList.get(0).getValue());
+    assertEquals("xb!", outList.get(1).getValue());
+    assertEquals(2, hook.count);
+  }
 }

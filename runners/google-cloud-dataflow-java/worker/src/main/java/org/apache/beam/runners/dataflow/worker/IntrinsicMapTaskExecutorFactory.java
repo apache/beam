@@ -28,6 +28,7 @@ import com.google.api.services.dataflow.model.Source;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -172,27 +173,51 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     IntrinsicMapTaskExecutor executor =
         IntrinsicMapTaskExecutor.withSharedCounterSet(
             topoSortedOperations, counterSet, executionContext.getExecutionStateTracker());
-    installStageTrampolineIfNeeded(network, topoOrder, topoSortedOperations, executor, options);
-    installCompiledSegmentsIfPossible(network, topoOrder, options);
+    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    int minCodegenSteps = FusedSegmentCompiler.resolveMinCodegenChainSteps(experiments);
+    List<CandidateCompiledChain> compilableChains =
+        findCompilableChains(network, topoOrder, minCodegenSteps);
+    installStageTrampolineIfNeeded(
+        network, topoOrder, topoSortedOperations, executor, options, compilableChains);
+    installCompiledSegmentsIfPossible(compilableChains);
     return executor;
   }
 
-  @SuppressWarnings({"unchecked", "nullness"})
-  private static void installCompiledSegmentsIfPossible(
-      Network<Node, Edge> network, List<Node> topoOrder, PipelineOptions options) {
-    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
-    if (experiments != null
-        && experiments.contains(FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT)) {
-      return;
-    }
+  private static final class CandidateCompiledChain {
+    final FastStatelessParDoFn<?, ?> headFn;
+    final OperationNode headNode;
+    final List<FastStatelessParDoFn.ChainLink> links;
+    final List<OutputReceiverNode> internalEdgeNodes;
 
-    Set<OperationNode> claimedOps = new HashSet<>();
+    CandidateCompiledChain(
+        FastStatelessParDoFn<?, ?> headFn,
+        OperationNode headNode,
+        List<FastStatelessParDoFn.ChainLink> links,
+        List<OutputReceiverNode> internalEdgeNodes) {
+      this.headFn = headFn;
+      this.headNode = headNode;
+      this.links = links;
+      this.internalEdgeNodes = internalEdgeNodes;
+    }
+  }
+
+  @SuppressWarnings({"unchecked", "nullness"})
+  private static List<CandidateCompiledChain> findCompilableChains(
+      Network<Node, Edge> network, List<Node> topoOrder, int minCodegenSteps) {
+    if (minCodegenSteps <= 1) {
+      if (minCodegenSteps <= 0) {
+        return Collections.emptyList();
+      }
+      minCodegenSteps = 2;
+    }
+    List<CandidateCompiledChain> chains = new ArrayList<>();
+    Set<OperationNode> visitedOps = new HashSet<>();
     for (Node node : topoOrder) {
       if (!(node instanceof OperationNode)) {
         continue;
       }
       OperationNode headNode = (OperationNode) node;
-      if (claimedOps.contains(headNode)) {
+      if (visitedOps.contains(headNode)) {
         continue;
       }
       FastStatelessParDoFn<?, ?> headFn = extractCompilableParDoFn(headNode);
@@ -201,6 +226,9 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       }
 
       List<FastStatelessParDoFn.ChainLink> links = new ArrayList<>();
+      List<OutputReceiverNode> edgeNodes = new ArrayList<>();
+      List<OperationNode> memberNodes = new ArrayList<>();
+      memberNodes.add(headNode);
       OperationNode curOpNode = headNode;
       while (network.outDegree(curOpNode) == 1) {
         Node succ = Iterables.getOnlyElement(network.successors(curOpNode));
@@ -217,7 +245,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
         Node nextCandidate = Iterables.getOnlyElement(network.successors(outNode));
         if (!(nextCandidate instanceof OperationNode)
             || network.inDegree(nextCandidate) != 1
-            || claimedOps.contains(nextCandidate)) {
+            || visitedOps.contains(nextCandidate)) {
           break;
         }
         OperationNode nextOpNode = (OperationNode) nextCandidate;
@@ -232,13 +260,40 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
         }
 
         links.add(new FastStatelessParDoFn.ChainLink(outRecv.getOnlyCounter(), fastCtx, nextFn));
-        claimedOps.add(nextOpNode);
+        edgeNodes.add(outNode);
+        memberNodes.add(nextOpNode);
         curOpNode = nextOpNode;
       }
 
-      if (!links.isEmpty()) {
-        claimedOps.add(headNode);
-        headFn.setDownstreamChain(links);
+      visitedOps.addAll(memberNodes);
+      if (1 + links.size() >= minCodegenSteps) {
+        chains.add(new CandidateCompiledChain(headFn, headNode, links, edgeNodes));
+      }
+    }
+    return chains;
+  }
+
+  private static void installCompiledSegmentsIfPossible(
+      List<CandidateCompiledChain> compilableChains) {
+    for (CandidateCompiledChain chain : compilableChains) {
+      // Re-scan if StageTrampoline inserted an intra-compiled cut on a deep chain
+      List<FastStatelessParDoFn.ChainLink> subLinks = new ArrayList<>();
+      FastStatelessParDoFn<?, ?> curHead = chain.headFn;
+      for (int i = 0; i < chain.links.size(); i++) {
+        OutputReceiver edgeRecv = chain.internalEdgeNodes.get(i).getOutputReceiver();
+        FastStatelessParDoFn.ChainLink link = chain.links.get(i);
+        if (!edgeRecv.hasSimpleSinglePath()) {
+          if (!subLinks.isEmpty()) {
+            curHead.setDownstreamChain(new ArrayList<>(subLinks));
+          }
+          subLinks.clear();
+          curHead = link.targetFn;
+        } else {
+          subLinks.add(link);
+        }
+      }
+      if (!subLinks.isEmpty()) {
+        curHead.setDownstreamChain(subLinks);
       }
     }
   }
@@ -305,17 +360,22 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       List<Node> topoOrder,
       List<Operation> topoSortedOperations,
       IntrinsicMapTaskExecutor executor,
-      PipelineOptions options) {
+      PipelineOptions options,
+      List<CandidateCompiledChain> compilableChains) {
     int threshold = resolveTrampolineThreshold(options);
     if (threshold <= 0) {
       return;
     }
     int compiledThreshold =
         hasExplicitTrampolineThreshold(options) ? threshold : DEFAULT_COMPILED_TRAMPOLINE_THRESHOLD;
-    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
-    boolean codegenEnabled =
-        experiments == null
-            || !experiments.contains(FusedSegmentCompiler.DISABLE_CODEGEN_EXPERIMENT);
+    Map<OutputReceiverNode, FastStatelessParDoFn<?, ?>> eligibleCompiledEdges = new HashMap<>();
+    Set<OperationNode> eligibleCompiledHeads = new HashSet<>();
+    for (CandidateCompiledChain c : compilableChains) {
+      eligibleCompiledHeads.add(c.headNode);
+      for (int i = 0; i < c.internalEdgeNodes.size(); i++) {
+        eligibleCompiledEdges.put(c.internalEdgeNodes.get(i), c.links.get(i).targetFn);
+      }
+    }
 
     Map<Node, Integer> depthAtNode = new HashMap<>(topoOrder.size() * 2);
     Map<OperationNode, Integer> compiledTargetWeight = new HashMap<>();
@@ -333,7 +393,10 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
           }
         }
         Integer overrideWeight = compiledTargetWeight.get(opNode);
-        int selfWeight = overrideWeight != null ? overrideWeight : estimateOperationFrameWeight(op);
+        int selfWeight =
+            overrideWeight != null
+                ? overrideWeight
+                : estimateOperationFrameWeight(op, eligibleCompiledHeads.contains(opNode));
         depthAtNode.put(node, inDepth + selfWeight);
       } else if (node instanceof OutputReceiverNode) {
         OutputReceiverNode outNode = (OutputReceiverNode) node;
@@ -354,8 +417,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
           // remain atomic across Flatten into the consuming operation.
           depthAtNode.put(outNode, producerDepth + 1);
         } else {
-          FastStatelessParDoFn<?, ?> compiledNext =
-              extractCompiledLinkTarget(network, outNode, codegenEnabled);
+          FastStatelessParDoFn<?, ?> compiledNext = eligibleCompiledEdges.get(outNode);
           if (compiledNext != null) {
             int linkWeight = compiledNext.compiledLinkFrameWeight();
             if (producerDepth + linkWeight > compiledThreshold) {
@@ -369,7 +431,8 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
             }
           } else {
             int edgeWeight = network.outDegree(outNode) > 1 ? 2 : 1;
-            int consumerWeight = maxNonFlattenConsumerWeight(network, outNode);
+            int consumerWeight =
+                maxNonFlattenConsumerWeight(network, outNode, eligibleCompiledHeads);
             if (consumerWeight > 0
                 && !isWriteOnlyEdge(network, outNode)
                 && producerDepth + edgeWeight + consumerWeight > threshold) {
@@ -405,46 +468,30 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     }
   }
 
-  @SuppressWarnings("nullness")
-  private static FastStatelessParDoFn<?, ?> extractCompiledLinkTarget(
-      Network<Node, Edge> network, OutputReceiverNode outNode, boolean codegenEnabled) {
-    if (!codegenEnabled
-        || !outNode.getOutputReceiver().hasSimpleSinglePath()
-        || network.inDegree(outNode) != 1
-        || network.outDegree(outNode) != 1) {
-      return null;
-    }
-    Node pred = Iterables.getOnlyElement(network.predecessors(outNode));
-    Node succ = Iterables.getOnlyElement(network.successors(outNode));
-    if (!(pred instanceof OperationNode)
-        || !(succ instanceof OperationNode)
-        || network.outDegree(pred) != 1
-        || network.inDegree(succ) != 1) {
-      return null;
-    }
-    if (extractCompilableParDoFn((OperationNode) pred) == null) {
-      return null;
-    }
-    return extractCompilableParDoFn((OperationNode) succ);
-  }
-
   private static int maxNonFlattenConsumerWeight(
-      Network<Node, Edge> network, OutputReceiverNode outNode) {
+      Network<Node, Edge> network,
+      OutputReceiverNode outNode,
+      Set<OperationNode> eligibleCompiledHeads) {
     int maxWeight = 0;
     for (Node succ : network.successors(outNode)) {
       if (succ instanceof OperationNode) {
-        Operation op = ((OperationNode) succ).getOperation();
+        OperationNode succOpNode = (OperationNode) succ;
+        Operation op = succOpNode.getOperation();
         if (op instanceof FlattenOperation) {
           for (Node flatOut : network.successors(succ)) {
             if (flatOut instanceof OutputReceiverNode) {
               maxWeight =
                   Math.max(
                       maxWeight,
-                      maxNonFlattenConsumerWeight(network, (OutputReceiverNode) flatOut));
+                      maxNonFlattenConsumerWeight(
+                          network, (OutputReceiverNode) flatOut, eligibleCompiledHeads));
             }
           }
         } else {
-          maxWeight = Math.max(maxWeight, estimateOperationFrameWeight(op));
+          maxWeight =
+              Math.max(
+                  maxWeight,
+                  estimateOperationFrameWeight(op, eligibleCompiledHeads.contains(succOpNode)));
         }
       }
     }
@@ -463,7 +510,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
     return sawWrite;
   }
 
-  private static int estimateOperationFrameWeight(Operation op) {
+  private static int estimateOperationFrameWeight(Operation op, boolean isCompiledHead) {
     if (op instanceof FlattenOperation) {
       return 1;
     }
@@ -474,7 +521,12 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       try {
         ParDoFn fn = ((ParDoOperation) op).getFn();
         if (fn instanceof FastStatelessParDoFn) {
-          return ((FastStatelessParDoFn<?, ?>) fn).estimatedFrameWeight();
+          int w = ((FastStatelessParDoFn<?, ?>) fn).estimatedFrameWeight();
+          // FastStatelessParDoFn.estimatedFrameWeight() returns 2/4 when compilable; add +1 when
+          // not acting as an active compiled segment head.
+          return isCompiledHead
+              ? w
+              : (w <= 4 && ((FastStatelessParDoFn<?, ?>) fn).canCompileInSegment() ? w + 1 : w);
         }
       } catch (Exception ignored) {
         // fall through

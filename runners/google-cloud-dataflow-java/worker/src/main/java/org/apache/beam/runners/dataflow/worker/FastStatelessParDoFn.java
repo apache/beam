@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
@@ -111,17 +112,52 @@ final class FastStatelessParDoFn<InputT, OutputT>
     }
   }
 
-  private static final class RunnerV1StepHook extends FusedSegmentCompiler.StepHook {
+  /**
+   * Concrete {@code public final} per-edge step hook for Dataflow Runner v1 compiled segments.
+   *
+   * <p>Declared {@code public final} and bound directly to {@link ExecutionStateTracker} and {@link
+   * DataflowOutputCounter} so generated segment classes emit monomorphic {@code INVOKEVIRTUAL}
+   * calls that HotSpot C2 devirtualizes and inlines without interface or wrapper hops.
+   */
+  public static final class RunnerV1StepHook extends FusedSegmentCompiler.StepHook {
     private final @Nullable ElementCounter counter;
     private final @Nullable DataflowOutputCounter dfCounter;
-    private final OperationContext.FastProcessContext fastCtx;
+    private final @Nullable ExecutionStateTracker stateTracker;
+    private final @Nullable ExecutionState processState;
+    private final OperationContext.@Nullable FastProcessContext fallbackCtx;
 
     RunnerV1StepHook(
         @Nullable ElementCounter counter, OperationContext.FastProcessContext fastCtx) {
       this.counter = counter;
       this.dfCounter =
           (counter instanceof DataflowOutputCounter) ? (DataflowOutputCounter) counter : null;
-      this.fastCtx = fastCtx;
+      if (fastCtx instanceof DataflowOperationContext) {
+        DataflowOperationContext dfOpCtx = (DataflowOperationContext) fastCtx;
+        this.stateTracker = dfOpCtx.executionStateTracker();
+        this.processState = dfOpCtx.processElementState();
+        this.fallbackCtx = null;
+      } else {
+        this.stateTracker = null;
+        this.processState = null;
+        this.fallbackCtx = fastCtx;
+      }
+    }
+
+    private @Nullable ExecutionState enterState() {
+      ExecutionStateTracker tracker = this.stateTracker;
+      if (tracker != null) {
+        return tracker.enterStateUnscoped(this.processState);
+      }
+      return this.fallbackCtx.enterProcessUnscoped();
+    }
+
+    private void exitState(@Nullable Object stateToken) {
+      ExecutionStateTracker tracker = this.stateTracker;
+      if (tracker != null) {
+        tracker.exitState((ExecutionState) stateToken);
+      } else {
+        this.fallbackCtx.exitProcessUnscoped((ExecutionState) stateToken);
+      }
     }
 
     @Override
@@ -129,12 +165,12 @@ final class FastStatelessParDoFn<InputT, OutputT>
       if (counter != null) {
         counter.update(elem);
       }
-      return fastCtx.enterProcessUnscoped();
+      return enterState();
     }
 
     @Override
     public void afterStepNormal(WindowedValue<?> elem, @Nullable Object stateToken) {
-      fastCtx.exitProcessUnscoped((ExecutionState) stateToken);
+      exitState(stateToken);
       if (counter != null) {
         counter.finishLazyUpdate(elem);
       }
@@ -143,38 +179,40 @@ final class FastStatelessParDoFn<InputT, OutputT>
     @Override
     public void afterStepException(
         Throwable t, WindowedValue<?> elem, @Nullable Object stateToken) {
-      fastCtx.exitProcessUnscoped((ExecutionState) stateToken);
+      exitState(stateToken);
     }
 
     @Override
     public @Nullable Object beforeFunc(
         @Nullable Object rawValue, WindowedValue<?> templateElem, int windowsSize)
         throws Exception {
-      if (dfCounter != null) {
-        dfCounter.updateRawValue(rawValue, templateElem, windowsSize);
+      DataflowOutputCounter c = this.dfCounter;
+      if (c != null) {
+        c.updateRawValue(rawValue, templateElem, windowsSize);
       } else if (counter != null) {
         WindowedValue<?> materialized =
             (rawValue == templateElem.getValue()) ? templateElem : templateElem.withValue(rawValue);
         counter.update(materialized);
       }
-      return fastCtx.enterProcessUnscoped();
+      return enterState();
     }
 
     @Override
     public void exitFuncState(@Nullable Object stateToken) {
-      fastCtx.exitProcessUnscoped((ExecutionState) stateToken);
+      exitState(stateToken);
     }
 
     @Override
     public void afterFuncException(
         Throwable t, WindowedValue<?> templateElem, @Nullable Object stateToken) {
-      fastCtx.exitProcessUnscoped((ExecutionState) stateToken);
+      exitState(stateToken);
     }
 
     @Override
     public void finishFuncLazy() {
-      if (dfCounter != null) {
-        dfCounter.finishLazyRawUpdate();
+      DataflowOutputCounter c = this.dfCounter;
+      if (c != null) {
+        c.finishLazyRawUpdate();
       } else if (counter != null) {
         counter.finishLazyUpdate(null);
       }
@@ -182,9 +220,10 @@ final class FastStatelessParDoFn<InputT, OutputT>
 
     @Override
     public void afterRawNormal(@Nullable Object stateToken) {
-      fastCtx.exitProcessUnscoped((ExecutionState) stateToken);
-      if (dfCounter != null) {
-        dfCounter.finishLazyRawUpdate();
+      exitState(stateToken);
+      DataflowOutputCounter c = this.dfCounter;
+      if (c != null) {
+        c.finishLazyRawUpdate();
       } else if (counter != null) {
         counter.finishLazyUpdate(null);
       }

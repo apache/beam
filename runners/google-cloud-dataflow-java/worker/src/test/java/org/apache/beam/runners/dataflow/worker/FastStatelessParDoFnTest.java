@@ -490,7 +490,35 @@ public class FastStatelessParDoFnTest {
               }
             };
 
+    // Default minCodegenSteps (= 6) skips compiling short 4-step stages
+    long classesBeforeShort = FusedSegmentCompiler.generatedClassCount();
+    PipelineOptions shortDefaultOpts = PipelineOptionsFactory.create();
+    CounterSet shortCounters = new CounterSet();
+    BatchModeExecutionContext shortExecCtx =
+        BatchModeExecutionContext.forTesting(shortDefaultOpts, shortCounters, "ShortStage");
+    MutableNetwork<Node, Edge> shortNet =
+        new MapTaskToNetworkFunction(IdGenerators.decrementingLongs()).apply(mapTask);
+    DataflowMapTaskExecutor shortExec =
+        IntrinsicMapTaskExecutorFactory.defaultFactory()
+            .create(
+                shortNet,
+                shortDefaultOpts,
+                "ShortStage",
+                readerFactory,
+                sinkFactory,
+                shortExecCtx,
+                shortCounters,
+                IdGenerators.decrementingLongs());
+    shortExec.getReadOperation().setProgressUpdatePeriodMs(-1L);
+    shortExec.execute();
+    assertEquals(classesBeforeShort, FusedSegmentCompiler.generatedClassCount());
+    written.clear();
+
+    // With codegen_min_chain_steps=2, the 4-step chain compiles and caches generated classes
     PipelineOptions options = PipelineOptionsFactory.create();
+    options
+        .as(org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions.class)
+        .setExperiments(Collections.singletonList("codegen_min_chain_steps=2"));
     CounterSet counterSet = new CounterSet();
     BatchModeExecutionContext execCtx =
         BatchModeExecutionContext.forTesting(options, counterSet, "CompiledStage");

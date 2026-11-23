@@ -132,6 +132,14 @@ public class DataflowOperationContext implements OperationContext.FastProcessCon
     executionStateTracker.exitState(previous);
   }
 
+  ExecutionStateTracker executionStateTracker() {
+    return executionStateTracker;
+  }
+
+  ExecutionState processElementState() {
+    return processElementState;
+  }
+
   @Override
   public Closeable enterProcessTimers() {
     // TODO: It could be useful to capture enough context to report per-timer

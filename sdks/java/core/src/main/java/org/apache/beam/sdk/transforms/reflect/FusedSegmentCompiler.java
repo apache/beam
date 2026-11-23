@@ -44,6 +44,8 @@ import net.bytebuddy.description.modifier.Ownership;
 import net.bytebuddy.description.modifier.TypeManifestation;
 import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.dynamic.loading.ClassInjector;
+import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.dynamic.scaffold.subclass.ConstructorStrategy;
 import net.bytebuddy.implementation.Implementation;
@@ -102,8 +104,47 @@ public final class FusedSegmentCompiler {
 
   public static final String DISABLE_CODEGEN_EXPERIMENT = "disable_codegen_fused_segments";
 
+  /**
+   * Default minimum 1-to-1 chain length before ByteBuddy segment compilation activates. Chains of
+   * 1–5 steps already fit within HotSpot C2's {@code -XX:MaxInlineLevel=15} and {@code
+   * -XX:TypeProfileWidth=2} budgets without paying segment/hook bridge or classgen overhead.
+   */
+  public static final int DEFAULT_MIN_CODEGEN_CHAIN_STEPS = 6;
+
+  public static final String MIN_CODEGEN_CHAIN_STEPS_PREFIX = "codegen_min_chain_steps=";
+
+  private static final String GENERATED_PACKAGE =
+      "org.apache.beam.sdk.transforms.reflect.generated";
+
   /** Maximum number of consecutive functional (MAP/FILTER) steps fused into a single method. */
   static final int MAX_FUNCTIONS_PER_CHUNK = 16;
+
+  /**
+   * Resolves the minimum chain length required to trigger segment codegen, or {@code 0} when {@link
+   * #DISABLE_CODEGEN_EXPERIMENT} is active.
+   */
+  public static int resolveMinCodegenChainSteps(@Nullable List<String> experiments) {
+    if (experiments != null) {
+      if (experiments.contains(DISABLE_CODEGEN_EXPERIMENT)) {
+        return 0;
+      }
+      for (String exp : experiments) {
+        if (exp != null && exp.startsWith(MIN_CODEGEN_CHAIN_STEPS_PREFIX)) {
+          return Integer.parseInt(exp.substring(MIN_CODEGEN_CHAIN_STEPS_PREFIX.length()));
+        }
+      }
+    }
+    return DEFAULT_MIN_CODEGEN_CHAIN_STEPS;
+  }
+
+  @VisibleForTesting
+  static boolean hasGeneratedMethodHandleField(CompiledNode node) {
+    try {
+      return node.getClass().getDeclaredField("MH_PROCESS") != null;
+    } catch (NoSuchFieldException e) {
+      return false;
+    }
+  }
 
   private static final int MAX_CACHED_CLASSES_PER_LOADER = 4096;
 
@@ -869,15 +910,135 @@ public final class FusedSegmentCompiler {
     return LOADER_NAMESPACES.computeIfAbsent(chosen, LoaderNamespace::new);
   }
 
+  private static final class HostTarget {
+    final ClassLoader hostLoader;
+    final String hostPackage;
+    final MethodHandles.@Nullable Lookup packageLookup;
+    final @Nullable SegmentClassLoader fallbackSegmentLoader;
+
+    HostTarget(
+        ClassLoader hostLoader,
+        String hostPackage,
+        MethodHandles.@Nullable Lookup packageLookup,
+        @Nullable SegmentClassLoader fallbackSegmentLoader) {
+      this.hostLoader = hostLoader;
+      this.hostPackage = hostPackage;
+      this.packageLookup = packageLookup;
+      this.fallbackSegmentLoader = fallbackSegmentLoader;
+    }
+  }
+
+  private static String getPackageName(Class<?> cls) {
+    String name = cls.getName();
+    int slashIdx = name.indexOf('/');
+    if (slashIdx >= 0) {
+      name = name.substring(0, slashIdx);
+    }
+    int dotIdx = name.lastIndexOf('.');
+    return dotIdx > 0 ? name.substring(0, dotIdx) : "";
+  }
+
+  private static HostTarget resolveHostTarget(
+      @Nullable Class<?> anchorCandidate, LoaderNamespace fallbackNs) {
+    if (anchorCandidate != null
+        && anchorCandidate.getName().indexOf('/') < 0
+        && !anchorCandidate.isPrimitive()
+        && !anchorCandidate.isArray()) {
+      String pkg = getPackageName(anchorCandidate);
+      ClassLoader anchorLoader = anchorCandidate.getClassLoader();
+      if (!pkg.isEmpty()
+          && !pkg.startsWith("java.")
+          && !pkg.startsWith("javax.")
+          && !pkg.startsWith("jdk.")
+          && !pkg.startsWith("sun.")
+          && anchorLoader != null) {
+        try {
+          if (Class.forName(FusedSegmentCompiler.class.getName(), false, anchorLoader)
+                  == FusedSegmentCompiler.class
+              && ClassInjector.UsingLookup.isAvailable()) {
+            MethodHandles.Lookup privateLookup =
+                MethodHandles.privateLookupIn(anchorCandidate, MethodHandles.lookup());
+            if ((privateLookup.lookupModes() & MethodHandles.Lookup.PACKAGE) != 0) {
+              return new HostTarget(anchorLoader, pkg, privateLookup, null);
+            }
+          }
+        } catch (Throwable ignored) {
+          // Fall back to isolated SegmentClassLoader below
+        }
+      }
+    }
+    return new HostTarget(
+        fallbackNs.segmentLoader, GENERATED_PACKAGE, null, fallbackNs.segmentLoader);
+  }
+
+  private static Class<?> defineGeneratedClass(
+      HostTarget host, DynamicType.Unloaded<?> unloaded, String className) {
+    if (host.packageLookup != null) {
+      return unloaded
+          .load(host.hostLoader, ClassLoadingStrategy.UsingLookup.of(host.packageLookup))
+          .getLoaded();
+    }
+    return checkNotNull(host.fallbackSegmentLoader)
+        .defineGeneratedClass(className, unloaded.getBytes());
+  }
+
+  private static boolean isSameRuntimePackage(Class<?> target, HostTarget host) {
+    return target != null
+        && target.getName().indexOf('/') < 0
+        && target.getClassLoader() == host.hostLoader
+        && getPackageName(target).equals(host.hostPackage);
+  }
+
+  private static boolean isPublicClassChain(Class<?> target) {
+    if (target.getName().indexOf('/') >= 0 || !Modifier.isPublic(target.getModifiers())) {
+      return false;
+    }
+    for (Class<?> enc = target.getEnclosingClass(); enc != null; enc = enc.getEnclosingClass()) {
+      if (enc.getName().indexOf('/') >= 0 || !Modifier.isPublic(enc.getModifiers())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static boolean isAccessibleFromHost(Class<?> target, HostTarget host) {
+    if (target == null || target.getName().indexOf('/') >= 0) {
+      return false;
+    }
+    if (target.isPrimitive()) {
+      return true;
+    }
+    if (target.isArray()) {
+      return isAccessibleFromHost(target.getComponentType(), host);
+    }
+    try {
+      if (Class.forName(target.getName(), false, host.hostLoader) != target) {
+        return false;
+      }
+    } catch (Throwable t) {
+      return false;
+    }
+    return isSameRuntimePackage(target, host) || isPublicClassChain(target);
+  }
+
   private static Class<?> resolveNextNodeFieldClass(
-      Class<?> nextNodeRuntimeClass, SegmentClassLoader loader) {
-    if (isPubliclyAccessibleFrom(nextNodeRuntimeClass, loader)) {
+      Class<?> nextNodeRuntimeClass, HostTarget host) {
+    if (isAccessibleFromHost(nextNodeRuntimeClass, host)) {
       return nextNodeRuntimeClass;
     }
     if (TailReceiver.class.isAssignableFrom(nextNodeRuntimeClass)) {
       return TailReceiver.class;
     }
     return CompiledNode.class;
+  }
+
+  private static @Nullable Class<?> resolveHookFieldClass(
+      @Nullable StepHook hook, HostTarget host) {
+    if (hook == null) {
+      return null;
+    }
+    Class<?> hookCls = hook.getClass();
+    return isAccessibleFromHost(hookCls, host) ? hookCls : StepHook.class;
   }
 
   private static boolean isAncestor(@Nullable ClassLoader ancestor, ClassLoader descendant) {
@@ -893,13 +1054,8 @@ public final class FusedSegmentCompiler {
   }
 
   static boolean isPubliclyAccessibleFrom(Class<?> target, ClassLoader loader) {
-    if (target.getName().indexOf('/') >= 0 || !Modifier.isPublic(target.getModifiers())) {
+    if (!isPublicClassChain(target)) {
       return false;
-    }
-    for (Class<?> enc = target.getEnclosingClass(); enc != null; enc = enc.getEnclosingClass()) {
-      if (enc.getName().indexOf('/') >= 0 || !Modifier.isPublic(enc.getModifiers())) {
-        return false;
-      }
     }
     try {
       return Class.forName(target.getName(), false, loader) == target;
@@ -970,7 +1126,7 @@ public final class FusedSegmentCompiler {
   }
 
   private static @Nullable DirectProcessPlan resolveDirectProcessPlan(
-      Class<?> fnClass, SegmentClassLoader segmentLoader) {
+      Class<?> fnClass, HostTarget host) {
     try {
       DoFnSignature sig = DoFnSignatures.getSignature((Class) fnClass);
       DoFnSignature.ProcessElementMethod proc = sig.processElement();
@@ -986,7 +1142,7 @@ public final class FusedSegmentCompiler {
       }
       DirectParamKind[] kinds = new DirectParamKind[extraParams.size()];
       boolean needsCurrentVal = false;
-      boolean allElementTypesPublic = true;
+      boolean allElementTypesAccessible = true;
       for (int i = 0; i < extraParams.size(); i++) {
         DoFnSignature.Parameter p = extraParams.get(i);
         Class<?> jvmParam = jvmParamTypes[i];
@@ -995,8 +1151,8 @@ public final class FusedSegmentCompiler {
         }
         if (p instanceof DoFnSignature.Parameter.ElementParameter) {
           kinds[i] = DirectParamKind.ELEMENT;
-          if (!isPubliclyAccessibleFrom(jvmParam, segmentLoader)) {
-            allElementTypesPublic = false;
+          if (!isAccessibleFromHost(jvmParam, host)) {
+            allElementTypesAccessible = false;
           }
         } else if (p instanceof DoFnSignature.Parameter.OutputReceiverParameter) {
           if (jvmParam != DoFn.OutputReceiver.class) {
@@ -1034,10 +1190,14 @@ public final class FusedSegmentCompiler {
         }
       }
 
-      if (Modifier.isPublic(targetMethod.getModifiers())
-          && isPubliclyAccessibleFrom(fnClass, segmentLoader)
-          && isPubliclyAccessibleFrom(targetMethod.getDeclaringClass(), segmentLoader)
-          && allElementTypesPublic) {
+      boolean methodAccessible =
+          !Modifier.isPrivate(targetMethod.getModifiers())
+              && (Modifier.isPublic(targetMethod.getModifiers())
+                  || isSameRuntimePackage(targetMethod.getDeclaringClass(), host));
+      if (methodAccessible
+          && isAccessibleFromHost(fnClass, host)
+          && isAccessibleFromHost(targetMethod.getDeclaringClass(), host)
+          && allElementTypesAccessible) {
         return new DirectProcessPlan(
             true, fnClass, targetMethod, kinds, jvmParamTypes, needsCurrentVal, null, null);
       }
@@ -1069,34 +1229,33 @@ public final class FusedSegmentCompiler {
   private static CompiledNode instantiateDoFnNode(
       LoaderNamespace ns, DoFnStepSpec<?, ?> spec, CompiledNode nextNode) {
     Class<?> fnClass = spec.fn.getClass();
+    HostTarget host = resolveHostTarget(fnClass, ns);
     Class<?> invokerRuntimeClass = spec.invoker.getClass();
     Class<?> invokerFieldClass =
-        isPubliclyAccessibleFrom(invokerRuntimeClass, ns.segmentLoader)
-            ? invokerRuntimeClass
-            : DoFnInvoker.class;
+        isAccessibleFromHost(invokerRuntimeClass, host) ? invokerRuntimeClass : DoFnInvoker.class;
     Class<?> nextNodeRuntimeClass = nextNode.getClass();
-    Class<?> nextNodeFieldClass = resolveNextNodeFieldClass(nextNodeRuntimeClass, ns.segmentLoader);
-    boolean hasEntryHook = spec.entryHook != null;
+    Class<?> nextNodeFieldClass = resolveNextNodeFieldClass(nextNodeRuntimeClass, host);
+    Class<?> hookRuntimeClass = spec.entryHook != null ? spec.entryHook.getClass() : null;
+    Class<?> hookFieldClass = resolveHookFieldClass(spec.entryHook, host);
 
     DoFnNodeCacheKey key =
         new DoFnNodeCacheKey(
+            host.hostLoader,
+            host.hostPackage,
             fnClass,
             invokerRuntimeClass,
             invokerFieldClass,
             nextNodeRuntimeClass,
             nextNodeFieldClass,
-            hasEntryHook);
+            hookRuntimeClass,
+            hookFieldClass);
     try {
       Constructor<?> ctor =
           ns.constructorCache.get(
               key,
               () ->
                   generateDoFnNodeConstructor(
-                      ns.segmentLoader,
-                      fnClass,
-                      invokerFieldClass,
-                      nextNodeFieldClass,
-                      hasEntryHook));
+                      host, fnClass, invokerFieldClass, nextNodeFieldClass, hookFieldClass));
       return (CompiledNode)
           ctor.newInstance(
               spec.fn,
@@ -1114,10 +1273,33 @@ public final class FusedSegmentCompiler {
   private static CompiledNode instantiateFunctionalSegment(
       LoaderNamespace ns, List<FunctionalStepSpec> chunk, CompiledNode nextNode) {
     int k = chunk.size();
+    Class<?> anchorCandidate = null;
+    for (int i = 0; i < k; i++) {
+      Class<?> fnCls = chunk.get(i).fn.getClass();
+      if (fnCls.getName().indexOf('/') < 0) {
+        anchorCandidate = fnCls;
+        break;
+      }
+    }
+    if (anchorCandidate == null) {
+      for (int i = 0; i < k; i++) {
+        StepHook h = chunk.get(i).entryHook;
+        if (h != null && h.getClass().getName().indexOf('/') < 0) {
+          anchorCandidate = h.getClass();
+          break;
+        }
+      }
+    }
+    if (anchorCandidate == null) {
+      anchorCandidate = nextNode.getClass();
+    }
+    HostTarget host = resolveHostTarget(anchorCandidate, ns);
+
     InlineableFunctionProvider.Kind[] kinds = new InlineableFunctionProvider.Kind[k];
     Class<?>[] runtimeFnClasses = new Class<?>[k];
     Class<?>[] fieldFnClasses = new Class<?>[k];
-    boolean[] hasHookFlags = new boolean[k];
+    Class<?>[] runtimeHookClasses = new Class<?>[k];
+    Class<?>[] fieldHookClasses = new Class<?>[k];
     boolean[] isSystemFlags = new boolean[k];
     boolean[] wrapFlags = new boolean[k];
     ProcessFunction<?, ?>[] fns = new ProcessFunction<?, ?>[k];
@@ -1128,9 +1310,9 @@ public final class FusedSegmentCompiler {
       kinds[i] = s.kind;
       Class<?> fnCls = s.fn.getClass();
       runtimeFnClasses[i] = fnCls;
-      fieldFnClasses[i] =
-          isPubliclyAccessibleFrom(fnCls, ns.segmentLoader) ? fnCls : ProcessFunction.class;
-      hasHookFlags[i] = s.entryHook != null;
+      fieldFnClasses[i] = isAccessibleFromHost(fnCls, host) ? fnCls : ProcessFunction.class;
+      runtimeHookClasses[i] = s.entryHook != null ? s.entryHook.getClass() : null;
+      fieldHookClasses[i] = resolveHookFieldClass(s.entryHook, host);
       isSystemFlags[i] = s.isSystemDoFn;
       wrapFlags[i] = s.wrapExceptionsAsUserCode;
       fns[i] = s.fn;
@@ -1138,13 +1320,16 @@ public final class FusedSegmentCompiler {
     }
 
     Class<?> nextNodeRuntimeClass = nextNode.getClass();
-    Class<?> nextNodeFieldClass = resolveNextNodeFieldClass(nextNodeRuntimeClass, ns.segmentLoader);
+    Class<?> nextNodeFieldClass = resolveNextNodeFieldClass(nextNodeRuntimeClass, host);
     FuncSegmentCacheKey key =
         new FuncSegmentCacheKey(
+            host.hostLoader,
+            host.hostPackage,
             kinds,
             runtimeFnClasses,
             fieldFnClasses,
-            hasHookFlags,
+            runtimeHookClasses,
+            fieldHookClasses,
             isSystemFlags,
             wrapFlags,
             nextNodeRuntimeClass,
@@ -1155,10 +1340,10 @@ public final class FusedSegmentCompiler {
               key,
               () ->
                   generateFunctionalSegmentConstructor(
-                      ns.segmentLoader,
+                      host,
                       kinds,
                       fieldFnClasses,
-                      hasHookFlags,
+                      fieldHookClasses,
                       isSystemFlags,
                       wrapFlags,
                       nextNodeFieldClass));
@@ -1171,15 +1356,16 @@ public final class FusedSegmentCompiler {
   // ---- ByteBuddy Class Generators ----
 
   private static Constructor<?> generateDoFnNodeConstructor(
-      SegmentClassLoader loader,
+      HostTarget host,
       Class<?> fnClass,
       Class<?> invokerFieldClass,
       Class<?> nextNodeClass,
-      boolean hasEntryHook)
+      @Nullable Class<?> hookFieldClass)
       throws NoSuchMethodException, ClassNotFoundException {
     long id = GENERATED_CLASS_COUNTER.incrementAndGet();
-    String className = "org.apache.beam.sdk.transforms.reflect.generated.FusedDoFnNode$" + id;
-    DirectProcessPlan directPlan = resolveDirectProcessPlan(fnClass, loader);
+    String prefix = host.hostPackage.isEmpty() ? "" : host.hostPackage + ".";
+    String className = prefix + "FusedDoFnNode$" + id;
+    DirectProcessPlan directPlan = resolveDirectProcessPlan(fnClass, host);
     Class<?> fnFieldClass = (directPlan != null) ? directPlan.fnFieldClass : DoFn.class;
 
     DynamicType.Builder<?> builder =
@@ -1198,10 +1384,10 @@ public final class FusedSegmentCompiler {
                 FieldManifestation.FINAL)
             .defineField("nextNode", nextNodeClass, Visibility.PRIVATE, FieldManifestation.FINAL);
 
-    if (hasEntryHook) {
+    if (hookFieldClass != null) {
       builder =
           builder.defineField(
-              "entryHook", StepHook.class, Visibility.PRIVATE, FieldManifestation.FINAL);
+              "entryHook", hookFieldClass, Visibility.PRIVATE, FieldManifestation.FINAL);
     }
 
     if (directPlan != null && !directPlan.isDirectVirtual) {
@@ -1232,7 +1418,7 @@ public final class FusedSegmentCompiler {
             .intercept(
                 new SimpleByteCodeImplementation(
                     new DoFnNodeConstructorAppender(
-                        className, fnFieldClass, invokerFieldClass, nextNodeClass, hasEntryHook)))
+                        className, fnFieldClass, invokerFieldClass, nextNodeClass, hookFieldClass)))
             .method(ElementMatchers.named("emitWindowed"))
             .intercept(
                 new SimpleByteCodeImplementation(
@@ -1245,20 +1431,23 @@ public final class FusedSegmentCompiler {
             .intercept(
                 new SimpleByteCodeImplementation(
                     new DoFnAcceptRawAppender(
-                        className, invokerFieldClass, directPlan, hasEntryHook)))
+                        className, invokerFieldClass, directPlan, hookFieldClass)))
             .visit(
                 new AsmVisitorWrapper.ForDeclaredMethods()
                     .writerFlags(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS))
             .make();
 
-    Class<?> generated = loader.defineGeneratedClass(className, unloaded.getBytes());
+    Class<?> generated;
     if (directPlan != null && !directPlan.isDirectVirtual) {
       PENDING_CLINIT_MH.set(directPlan.methodHandle);
       try {
-        Class.forName(className, true, loader);
+        generated = defineGeneratedClass(host, unloaded, className);
+        Class.forName(className, true, generated.getClassLoader());
       } finally {
         PENDING_CLINIT_MH.remove();
       }
+    } else {
+      generated = defineGeneratedClass(host, unloaded, className);
     }
     return generated.getConstructor(
         DoFn.class,
@@ -1271,16 +1460,17 @@ public final class FusedSegmentCompiler {
   }
 
   private static Constructor<?> generateFunctionalSegmentConstructor(
-      SegmentClassLoader loader,
+      HostTarget host,
       InlineableFunctionProvider.Kind[] kinds,
       Class<?>[] fieldFnClasses,
-      boolean[] hasHookFlags,
+      @Nullable Class<?>[] fieldHookClasses,
       boolean[] isSystemFlags,
       boolean[] wrapFlags,
       Class<?> nextNodeClass)
       throws NoSuchMethodException {
     long id = GENERATED_CLASS_COUNTER.incrementAndGet();
-    String className = "org.apache.beam.sdk.transforms.reflect.generated.FusedFuncSegment$" + id;
+    String prefix = host.hostPackage.isEmpty() ? "" : host.hostPackage + ".";
+    String className = prefix + "FusedFuncSegment$" + id;
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
@@ -1294,10 +1484,10 @@ public final class FusedSegmentCompiler {
       builder =
           builder.defineField(
               "fn_" + i, fieldFnClasses[i], Visibility.PRIVATE, FieldManifestation.FINAL);
-      if (hasHookFlags[i]) {
+      if (fieldHookClasses[i] != null) {
         builder =
             builder.defineField(
-                "hook_" + i, StepHook.class, Visibility.PRIVATE, FieldManifestation.FINAL);
+                "hook_" + i, fieldHookClasses[i], Visibility.PRIVATE, FieldManifestation.FINAL);
       }
     }
 
@@ -1308,7 +1498,7 @@ public final class FusedSegmentCompiler {
             .intercept(
                 new SimpleByteCodeImplementation(
                     new FuncSegmentConstructorAppender(
-                        className, fieldFnClasses, hasHookFlags, nextNodeClass)))
+                        className, fieldFnClasses, fieldHookClasses, nextNodeClass)))
             .method(ElementMatchers.named("acceptWindowed"))
             .intercept(
                 new SimpleByteCodeImplementation(new FuncSegmentAcceptWindowedAppender(className)))
@@ -1320,7 +1510,7 @@ public final class FusedSegmentCompiler {
                         className,
                         kinds,
                         fieldFnClasses,
-                        hasHookFlags,
+                        fieldHookClasses,
                         isSystemFlags,
                         wrapFlags,
                         nextNodeClass)))
@@ -1332,7 +1522,7 @@ public final class FusedSegmentCompiler {
                         className,
                         kinds,
                         fieldFnClasses,
-                        hasHookFlags,
+                        fieldHookClasses,
                         isSystemFlags,
                         wrapFlags,
                         nextNodeClass)))
@@ -1341,7 +1531,7 @@ public final class FusedSegmentCompiler {
                     .writerFlags(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS))
             .make();
 
-    Class<?> generated = loader.defineGeneratedClass(className, unloaded.getBytes());
+    Class<?> generated = defineGeneratedClass(host, unloaded, className);
     return generated.getConstructor(ProcessFunction[].class, StepHook[].class, nextNodeClass);
   }
 
@@ -1350,7 +1540,6 @@ public final class FusedSegmentCompiler {
   private static final String INTERNAL_COMPILER = Type.getInternalName(FusedSegmentCompiler.class);
   private static final String INTERNAL_DOFN_BASE = Type.getInternalName(FusedDoFnNodeBase.class);
   private static final String INTERNAL_FUNC_BODY = Type.getInternalName(FuncSegmentBody.class);
-  private static final String INTERNAL_STEP_HOOK = Type.getInternalName(StepHook.class);
   private static final String INTERNAL_WINDOWED_VALUE = Type.getInternalName(WindowedValue.class);
   private static final String INTERNAL_DOFN_INVOKER = Type.getInternalName(DoFnInvoker.class);
   private static final String INTERNAL_ARG_PROVIDER =
@@ -1413,19 +1602,19 @@ public final class FusedSegmentCompiler {
     private final Class<?> fnFieldClass;
     private final Class<?> invokerFieldClass;
     private final Class<?> nextNodeClass;
-    private final boolean hasEntryHook;
+    private final @Nullable Class<?> hookFieldClass;
 
     DoFnNodeConstructorAppender(
         String className,
         Class<?> fnFieldClass,
         Class<?> invokerFieldClass,
         Class<?> nextNodeClass,
-        boolean hasEntryHook) {
+        @Nullable Class<?> hookFieldClass) {
       this.internalClassName = className.replace('.', '/');
       this.fnFieldClass = fnFieldClass;
       this.invokerFieldClass = invokerFieldClass;
       this.nextNodeClass = nextNodeClass;
-      this.hasEntryHook = hasEntryHook;
+      this.hookFieldClass = hookFieldClass;
     }
 
     @Override
@@ -1454,10 +1643,14 @@ public final class FusedSegmentCompiler {
       mv.visitFieldInsn(
           Opcodes.PUTFIELD, internalClassName, "invoker", Type.getDescriptor(invokerFieldClass));
 
-      if (hasEntryHook) {
+      if (hookFieldClass != null) {
         mv.visitVarInsn(Opcodes.ALOAD, 0);
         mv.visitVarInsn(Opcodes.ALOAD, 4);
-        mv.visitFieldInsn(Opcodes.PUTFIELD, internalClassName, "entryHook", DESC_STEP_HOOK);
+        if (hookFieldClass != StepHook.class) {
+          mv.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(hookFieldClass));
+        }
+        mv.visitFieldInsn(
+            Opcodes.PUTFIELD, internalClassName, "entryHook", Type.getDescriptor(hookFieldClass));
       }
 
       mv.visitVarInsn(Opcodes.ALOAD, 0);
@@ -1586,17 +1779,17 @@ public final class FusedSegmentCompiler {
     private final String internalClassName;
     private final Class<?> invokerFieldClass;
     private final @Nullable DirectProcessPlan directPlan;
-    private final boolean hasEntryHook;
+    private final @Nullable Class<?> hookFieldClass;
 
     DoFnAcceptRawAppender(
         String className,
         Class<?> invokerFieldClass,
         @Nullable DirectProcessPlan directPlan,
-        boolean hasEntryHook) {
+        @Nullable Class<?> hookFieldClass) {
       this.internalClassName = className.replace('.', '/');
       this.invokerFieldClass = invokerFieldClass;
       this.directPlan = directPlan;
-      this.hasEntryHook = hasEntryHook;
+      this.hookFieldClass = hookFieldClass;
     }
 
     private void emitDirectArgument(MethodVisitor mv, int idx, boolean castExactElement) {
@@ -1666,15 +1859,17 @@ public final class FusedSegmentCompiler {
 
       mv.visitTryCatchBlock(tryStart, tryEnd, catchHandler, "java/lang/Throwable");
 
-      if (hasEntryHook) {
+      if (hookFieldClass != null) {
+        String hookInternal = Type.getInternalName(hookFieldClass);
+        String hookDesc = Type.getDescriptor(hookFieldClass);
         mv.visitVarInsn(Opcodes.ALOAD, 0);
-        mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "entryHook", DESC_STEP_HOOK);
+        mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "entryHook", hookDesc);
         mv.visitVarInsn(Opcodes.ALOAD, 1);
         mv.visitVarInsn(Opcodes.ALOAD, 2);
         mv.visitVarInsn(Opcodes.ILOAD, 3);
         mv.visitMethodInsn(
             Opcodes.INVOKEVIRTUAL,
-            INTERNAL_STEP_HOOK,
+            hookInternal,
             "beforeFunc",
             "(" + DESC_OBJECT + DESC_WINDOWED_VALUE + "I)" + DESC_OBJECT,
             false);
@@ -1780,16 +1975,14 @@ public final class FusedSegmentCompiler {
       }
 
       mv.visitLabel(tryEnd);
-      if (hasEntryHook) {
+      if (hookFieldClass != null) {
+        String hookInternal = Type.getInternalName(hookFieldClass);
+        String hookDesc = Type.getDescriptor(hookFieldClass);
         mv.visitVarInsn(Opcodes.ALOAD, 0);
-        mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "entryHook", DESC_STEP_HOOK);
+        mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "entryHook", hookDesc);
         mv.visitVarInsn(Opcodes.ALOAD, 4);
         mv.visitMethodInsn(
-            Opcodes.INVOKEVIRTUAL,
-            INTERNAL_STEP_HOOK,
-            "afterRawNormal",
-            "(" + DESC_OBJECT + ")V",
-            false);
+            Opcodes.INVOKEVIRTUAL, hookInternal, "afterRawNormal", "(" + DESC_OBJECT + ")V", false);
       }
       mv.visitInsn(Opcodes.RETURN);
 
@@ -1797,10 +1990,11 @@ public final class FusedSegmentCompiler {
       mv.visitVarInsn(Opcodes.ASTORE, 5);
       mv.visitVarInsn(Opcodes.ALOAD, 5);
       mv.visitVarInsn(Opcodes.ALOAD, 2);
-      if (hasEntryHook) {
+      if (hookFieldClass != null) {
         mv.visitVarInsn(Opcodes.ALOAD, 4);
         mv.visitVarInsn(Opcodes.ALOAD, 0);
-        mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "entryHook", DESC_STEP_HOOK);
+        mv.visitFieldInsn(
+            Opcodes.GETFIELD, internalClassName, "entryHook", Type.getDescriptor(hookFieldClass));
       } else {
         mv.visitInsn(Opcodes.ACONST_NULL);
         mv.visitInsn(Opcodes.ACONST_NULL);
@@ -1829,17 +2023,17 @@ public final class FusedSegmentCompiler {
   private static final class FuncSegmentConstructorAppender implements ByteCodeAppender {
     private final String internalClassName;
     private final Class<?>[] fieldFnClasses;
-    private final boolean[] hasHookFlags;
+    private final @Nullable Class<?>[] fieldHookClasses;
     private final Class<?> nextNodeClass;
 
     FuncSegmentConstructorAppender(
         String className,
         Class<?>[] fieldFnClasses,
-        boolean[] hasHookFlags,
+        @Nullable Class<?>[] fieldHookClasses,
         Class<?> nextNodeClass) {
       this.internalClassName = className.replace('.', '/');
       this.fieldFnClasses = fieldFnClasses;
-      this.hasHookFlags = hasHookFlags;
+      this.fieldHookClasses = fieldHookClasses;
       this.nextNodeClass = nextNodeClass;
     }
 
@@ -1865,12 +2059,17 @@ public final class FusedSegmentCompiler {
         mv.visitFieldInsn(
             Opcodes.PUTFIELD, internalClassName, "fn_" + i, Type.getDescriptor(fieldFnClasses[i]));
 
-        if (hasHookFlags[i]) {
+        Class<?> hookCls = fieldHookClasses[i];
+        if (hookCls != null) {
           mv.visitVarInsn(Opcodes.ALOAD, 0);
           mv.visitVarInsn(Opcodes.ALOAD, 2);
           pushInt(mv, i);
           mv.visitInsn(Opcodes.AALOAD);
-          mv.visitFieldInsn(Opcodes.PUTFIELD, internalClassName, "hook_" + i, DESC_STEP_HOOK);
+          if (hookCls != StepHook.class) {
+            mv.visitTypeInsn(Opcodes.CHECKCAST, Type.getInternalName(hookCls));
+          }
+          mv.visitFieldInsn(
+              Opcodes.PUTFIELD, internalClassName, "hook_" + i, Type.getDescriptor(hookCls));
         }
       }
 
@@ -1918,7 +2117,7 @@ public final class FusedSegmentCompiler {
     private final String internalClassName;
     private final InlineableFunctionProvider.Kind[] kinds;
     private final Class<?>[] fieldFnClasses;
-    private final boolean[] hasHookFlags;
+    private final @Nullable Class<?>[] fieldHookClasses;
     private final boolean[] isSystemFlags;
     private final boolean[] wrapFlags;
     private final Class<?> nextNodeClass;
@@ -1928,7 +2127,7 @@ public final class FusedSegmentCompiler {
         String className,
         InlineableFunctionProvider.Kind[] kinds,
         Class<?>[] fieldFnClasses,
-        boolean[] hasHookFlags,
+        @Nullable Class<?>[] fieldHookClasses,
         boolean[] isSystemFlags,
         boolean[] wrapFlags,
         Class<?> nextNodeClass) {
@@ -1936,7 +2135,7 @@ public final class FusedSegmentCompiler {
       this.internalClassName = className.replace('.', '/');
       this.kinds = kinds;
       this.fieldFnClasses = fieldFnClasses;
-      this.hasHookFlags = hasHookFlags;
+      this.fieldHookClasses = fieldHookClasses;
       this.isSystemFlags = isSystemFlags;
       this.wrapFlags = wrapFlags;
       this.nextNodeClass = nextNodeClass;
@@ -1944,11 +2143,13 @@ public final class FusedSegmentCompiler {
 
     private void emitFinishHooksUpTo(MethodVisitor mv, int maxInclusive) {
       for (int j = maxInclusive; j >= 0; j--) {
-        if (hasHookFlags[j]) {
+        Class<?> hookCls = fieldHookClasses[j];
+        if (hookCls != null) {
           mv.visitVarInsn(Opcodes.ALOAD, 0);
-          mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "hook_" + j, DESC_STEP_HOOK);
+          mv.visitFieldInsn(
+              Opcodes.GETFIELD, internalClassName, "hook_" + j, Type.getDescriptor(hookCls));
           mv.visitMethodInsn(
-              Opcodes.INVOKEVIRTUAL, INTERNAL_STEP_HOOK, "finishFuncLazy", "()V", false);
+              Opcodes.INVOKEVIRTUAL, Type.getInternalName(hookCls), "finishFuncLazy", "()V", false);
         }
       }
     }
@@ -1956,7 +2157,7 @@ public final class FusedSegmentCompiler {
     @Override
     public Size apply(
         MethodVisitor mv, Implementation.Context ctx, MethodDescription instrumentedMethod) {
-      // Locals: 0=this, 1=v (rawValue), 2=templateElem, 3=winSize, 4=hook, 5=tok, 6=t, 7=keep
+      // Locals: 0=this, 1=v (rawValue), 2=templateElem, 3=winSize, 4=tok, 5=t, 6=keep
       int k = kinds.length;
       boolean nextIsInterface = nextNodeClass.isInterface();
       Label[] tryStarts = new Label[k];
@@ -2001,22 +2202,22 @@ public final class FusedSegmentCompiler {
 
       for (int i = 0; i < k; i++) {
         Label nextStep = new Label();
+        Class<?> hookCls = fieldHookClasses[i];
 
-        if (hasHookFlags[i]) {
+        if (hookCls != null) {
           mv.visitVarInsn(Opcodes.ALOAD, 0);
-          mv.visitFieldInsn(Opcodes.GETFIELD, internalClassName, "hook_" + i, DESC_STEP_HOOK);
-          mv.visitInsn(Opcodes.DUP);
-          mv.visitVarInsn(Opcodes.ASTORE, 4);
+          mv.visitFieldInsn(
+              Opcodes.GETFIELD, internalClassName, "hook_" + i, Type.getDescriptor(hookCls));
           mv.visitVarInsn(Opcodes.ALOAD, 1);
           mv.visitVarInsn(Opcodes.ALOAD, 2);
           mv.visitVarInsn(Opcodes.ILOAD, 3);
           mv.visitMethodInsn(
               Opcodes.INVOKEVIRTUAL,
-              INTERNAL_STEP_HOOK,
+              Type.getInternalName(hookCls),
               "beforeFunc",
               "(" + DESC_OBJECT + DESC_WINDOWED_VALUE + "I)" + DESC_OBJECT,
               false);
-          mv.visitVarInsn(Opcodes.ASTORE, 5);
+          mv.visitVarInsn(Opcodes.ASTORE, 4);
         }
 
         mv.visitLabel(tryStarts[i]);
@@ -2035,12 +2236,14 @@ public final class FusedSegmentCompiler {
 
         if (kinds[i] == InlineableFunctionProvider.Kind.MAP) {
           mv.visitVarInsn(Opcodes.ASTORE, 1);
-          if (hasHookFlags[i]) {
+          if (hookCls != null) {
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitFieldInsn(
+                Opcodes.GETFIELD, internalClassName, "hook_" + i, Type.getDescriptor(hookCls));
             mv.visitVarInsn(Opcodes.ALOAD, 4);
-            mv.visitVarInsn(Opcodes.ALOAD, 5);
             mv.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
-                INTERNAL_STEP_HOOK,
+                Type.getInternalName(hookCls),
                 "exitFuncState",
                 "(" + DESC_OBJECT + ")V",
                 false);
@@ -2049,20 +2252,22 @@ public final class FusedSegmentCompiler {
           mv.visitTypeInsn(Opcodes.CHECKCAST, "java/lang/Boolean");
           mv.visitMethodInsn(
               Opcodes.INVOKEVIRTUAL, "java/lang/Boolean", "booleanValue", "()Z", false);
-          mv.visitVarInsn(Opcodes.ISTORE, 7);
+          mv.visitVarInsn(Opcodes.ISTORE, 6);
 
-          if (hasHookFlags[i]) {
+          if (hookCls != null) {
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitFieldInsn(
+                Opcodes.GETFIELD, internalClassName, "hook_" + i, Type.getDescriptor(hookCls));
             mv.visitVarInsn(Opcodes.ALOAD, 4);
-            mv.visitVarInsn(Opcodes.ALOAD, 5);
             mv.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
-                INTERNAL_STEP_HOOK,
+                Type.getInternalName(hookCls),
                 "exitFuncState",
                 "(" + DESC_OBJECT + ")V",
                 false);
           }
 
-          mv.visitVarInsn(Opcodes.ILOAD, 7);
+          mv.visitVarInsn(Opcodes.ILOAD, 6);
           mv.visitJumpInsn(Opcodes.IFNE, nextStep);
 
           emitFinishHooksUpTo(mv, i);
@@ -2125,12 +2330,15 @@ public final class FusedSegmentCompiler {
       // Catch blocks for each step i
       for (int i = 0; i < k; i++) {
         mv.visitLabel(catchHandlers[i]);
-        mv.visitVarInsn(Opcodes.ASTORE, 6);
-        mv.visitVarInsn(Opcodes.ALOAD, 6);
+        mv.visitVarInsn(Opcodes.ASTORE, 5);
+        mv.visitVarInsn(Opcodes.ALOAD, 5);
         mv.visitVarInsn(Opcodes.ALOAD, 2);
-        if (hasHookFlags[i]) {
-          mv.visitVarInsn(Opcodes.ALOAD, 5);
+        Class<?> hookCls = fieldHookClasses[i];
+        if (hookCls != null) {
           mv.visitVarInsn(Opcodes.ALOAD, 4);
+          mv.visitVarInsn(Opcodes.ALOAD, 0);
+          mv.visitFieldInsn(
+              Opcodes.GETFIELD, internalClassName, "hook_" + i, Type.getDescriptor(hookCls));
         } else {
           mv.visitInsn(Opcodes.ACONST_NULL);
           mv.visitInsn(Opcodes.ACONST_NULL);
@@ -2152,7 +2360,7 @@ public final class FusedSegmentCompiler {
         mv.visitInsn(Opcodes.ATHROW);
       }
 
-      return new Size(6, 8);
+      return new Size(6, 7);
     }
   }
 
@@ -2190,35 +2398,47 @@ public final class FusedSegmentCompiler {
   }
 
   private static final class DoFnNodeCacheKey {
+    private final ClassLoader hostLoader;
+    private final String hostPackage;
     private final Class<?> doFnClass;
     private final Class<?> invokerRuntimeClass;
     private final Class<?> invokerFieldClass;
     private final Class<?> nextNodeRuntimeClass;
     private final Class<?> nextNodeFieldClass;
-    private final boolean hasEntryHook;
+    private final @Nullable Class<?> hookRuntimeClass;
+    private final @Nullable Class<?> hookFieldClass;
     private final int hash;
 
     DoFnNodeCacheKey(
+        ClassLoader hostLoader,
+        String hostPackage,
         Class<?> doFnClass,
         Class<?> invokerRuntimeClass,
         Class<?> invokerFieldClass,
         Class<?> nextNodeRuntimeClass,
         Class<?> nextNodeFieldClass,
-        boolean hasEntryHook) {
+        @Nullable Class<?> hookRuntimeClass,
+        @Nullable Class<?> hookFieldClass) {
+      this.hostLoader = hostLoader;
+      this.hostPackage = hostPackage;
       this.doFnClass = doFnClass;
       this.invokerRuntimeClass = invokerRuntimeClass;
       this.invokerFieldClass = invokerFieldClass;
       this.nextNodeRuntimeClass = nextNodeRuntimeClass;
       this.nextNodeFieldClass = nextNodeFieldClass;
-      this.hasEntryHook = hasEntryHook;
+      this.hookRuntimeClass = hookRuntimeClass;
+      this.hookFieldClass = hookFieldClass;
       this.hash =
           Objects.hash(
+              hostLoader,
+              hostPackage,
               doFnClass,
               invokerRuntimeClass,
               invokerFieldClass,
               nextNodeRuntimeClass,
               nextNodeFieldClass,
-              hasEntryHook);
+              hookRuntimeClass,
+              hookFieldClass);
     }
 
     @Override
@@ -2235,20 +2455,26 @@ public final class FusedSegmentCompiler {
         return false;
       }
       DoFnNodeCacheKey other = (DoFnNodeCacheKey) obj;
-      return doFnClass == other.doFnClass
+      return hostLoader == other.hostLoader
+          && hostPackage.equals(other.hostPackage)
+          && doFnClass == other.doFnClass
           && invokerRuntimeClass == other.invokerRuntimeClass
           && invokerFieldClass == other.invokerFieldClass
           && nextNodeRuntimeClass == other.nextNodeRuntimeClass
           && nextNodeFieldClass == other.nextNodeFieldClass
-          && hasEntryHook == other.hasEntryHook;
+          && hookRuntimeClass == other.hookRuntimeClass
+          && hookFieldClass == other.hookFieldClass;
     }
   }
 
   private static final class FuncSegmentCacheKey {
+    private final ClassLoader hostLoader;
+    private final String hostPackage;
     private final InlineableFunctionProvider.Kind[] kinds;
     private final Class<?>[] runtimeFnClasses;
     private final Class<?>[] fieldFnClasses;
-    private final boolean[] hasHookFlags;
+    private final @Nullable Class<?>[] runtimeHookClasses;
+    private final @Nullable Class<?>[] fieldHookClasses;
     private final boolean[] isSystemFlags;
     private final boolean[] wrapFlags;
     private final Class<?> nextNodeRuntimeClass;
@@ -2256,30 +2482,36 @@ public final class FusedSegmentCompiler {
     private final int hash;
 
     FuncSegmentCacheKey(
+        ClassLoader hostLoader,
+        String hostPackage,
         InlineableFunctionProvider.Kind[] kinds,
         Class<?>[] runtimeFnClasses,
         Class<?>[] fieldFnClasses,
-        boolean[] hasHookFlags,
+        @Nullable Class<?>[] runtimeHookClasses,
+        @Nullable Class<?>[] fieldHookClasses,
         boolean[] isSystemFlags,
         boolean[] wrapFlags,
         Class<?> nextNodeRuntimeClass,
         Class<?> nextNodeFieldClass) {
+      this.hostLoader = hostLoader;
+      this.hostPackage = hostPackage;
       this.kinds = kinds;
       this.runtimeFnClasses = runtimeFnClasses;
       this.fieldFnClasses = fieldFnClasses;
-      this.hasHookFlags = hasHookFlags;
+      this.runtimeHookClasses = runtimeHookClasses;
+      this.fieldHookClasses = fieldHookClasses;
       this.isSystemFlags = isSystemFlags;
       this.wrapFlags = wrapFlags;
       this.nextNodeRuntimeClass = nextNodeRuntimeClass;
       this.nextNodeFieldClass = nextNodeFieldClass;
-      int h = Arrays.hashCode(kinds);
+      int h = Objects.hash(hostLoader, hostPackage, nextNodeRuntimeClass, nextNodeFieldClass);
+      h = 31 * h + Arrays.hashCode(kinds);
       h = 31 * h + Arrays.hashCode(runtimeFnClasses);
       h = 31 * h + Arrays.hashCode(fieldFnClasses);
-      h = 31 * h + Arrays.hashCode(hasHookFlags);
+      h = 31 * h + Arrays.hashCode(runtimeHookClasses);
+      h = 31 * h + Arrays.hashCode(fieldHookClasses);
       h = 31 * h + Arrays.hashCode(isSystemFlags);
       h = 31 * h + Arrays.hashCode(wrapFlags);
-      h = 31 * h + nextNodeRuntimeClass.hashCode();
-      h = 31 * h + nextNodeFieldClass.hashCode();
       this.hash = h;
     }
 
@@ -2297,12 +2529,15 @@ public final class FusedSegmentCompiler {
         return false;
       }
       FuncSegmentCacheKey other = (FuncSegmentCacheKey) obj;
-      return nextNodeRuntimeClass == other.nextNodeRuntimeClass
+      return hostLoader == other.hostLoader
+          && hostPackage.equals(other.hostPackage)
+          && nextNodeRuntimeClass == other.nextNodeRuntimeClass
           && nextNodeFieldClass == other.nextNodeFieldClass
           && Arrays.equals(kinds, other.kinds)
           && Arrays.equals(runtimeFnClasses, other.runtimeFnClasses)
           && Arrays.equals(fieldFnClasses, other.fieldFnClasses)
-          && Arrays.equals(hasHookFlags, other.hasHookFlags)
+          && Arrays.equals(runtimeHookClasses, other.runtimeHookClasses)
+          && Arrays.equals(fieldHookClasses, other.fieldHookClasses)
           && Arrays.equals(isSystemFlags, other.isSystemFlags)
           && Arrays.equals(wrapFlags, other.wrapFlags);
     }
