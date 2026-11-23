@@ -18,64 +18,100 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Collections;
-import java.util.Map;
-import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.runners.core.ElementByteSizeObservable;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
+import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
+import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
+import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntryReader;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.DoFnInfo;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 
 /**
  * Package-private bridge exposing worker internals to JMH benchmarks in {@code
  * org.apache.beam.runners.dataflow.worker.jmh} without altering production visibility.
  */
-@SuppressWarnings("unchecked")
 public final class WorkerJmhAccess {
   private WorkerJmhAccess() {}
 
-  public static <InputT, OutputT, W extends BoundedWindow> ParDoFn createSimpleParDoFn(
-      PipelineOptions options,
-      DoFn<InputT, OutputT> fn,
-      Coder<InputT> inputCoder,
-      Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, W> windowingStrategy,
-      TupleTag<OutputT> mainOutputTag,
-      Map<TupleTag<?>, Integer> outputTagsToReceiverIndices,
-      BatchModeExecutionContext executionContext,
-      DataflowOperationContext operationContext) {
-    DoFnInfo<InputT, OutputT> info =
-        DoFnInfo.forFn(
-            fn,
-            windowingStrategy,
-            Collections.emptyList(),
-            inputCoder,
-            outputCoders,
-            mainOutputTag,
-            DoFnSchemaInformation.create(),
-            Collections.emptyMap());
-    return new SimpleParDoFn<>(
-        options,
-        DoFnInstanceManagers.singleInstance(info),
-        NullSideInputReader.empty(),
-        mainOutputTag,
-        outputTagsToReceiverIndices,
-        executionContext.getStepContext(operationContext),
-        operationContext,
-        DoFnSchemaInformation.create(),
+  /**
+   * Creates a {@link StreamingModeExecutionContext} backed by a {@link
+   * StreamingModeExecutionStateRegistry} and streaming-enabled {@link
+   * DataflowExecutionStateTracker} for JMH benchmarking.
+   */
+  public static StreamingModeExecutionContext createStreamingExecutionContext(
+      DataflowWorkerHarnessOptions options, String stageName) {
+    options.setStreaming(true);
+    CounterSet counterSet = new CounterSet();
+    StreamingModeExecutionStateRegistry stateRegistry = new StreamingModeExecutionStateRegistry();
+    DataflowExecutionStateTracker tracker =
+        new DataflowExecutionStateTracker(
+            ExecutionStateSampler.newForTest(),
+            stateRegistry.getState(
+                NameContext.forStage(stageName), "other", null, NoopProfileScope.NOOP),
+            counterSet,
+            options,
+            "jmh-work-item");
+    return new StreamingModeExecutionContext(
+        counterSet,
+        stageName,
+        new ReaderCache(Duration.standardMinutes(1), Runnable::run),
         Collections.emptyMap(),
-        SimpleDoFnRunnerFactory.INSTANCE);
+        WindmillStateCache.builder().setSizeMb(1).build().forComputation(stageName),
+        StreamingStepMetricsContainer.createRegistry(),
+        tracker,
+        stateRegistry,
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build()),
+        Long.MAX_VALUE,
+        /* throwExceptionOnLargeOutput= */ false,
+        new HotKeyLogger(),
+        /* hotKeyLoggingEnabled= */ false,
+        /* stepName= */ stageName,
+        /* systemName= */ stageName,
+        StreamingCounters.create(),
+        StreamingEngineFailureTracker.create(10, 10),
+        "sourceBytesProcessCounterName",
+        MultiKeyBundleOptions.fromOptions(options),
+        SideInputStateFetcherFactory.fromOptions(options));
   }
 
+  /**
+   * Creates a {@link DataflowOutputCounter} warmed through {@link
+   * OutputObjectAndByteCounter#SAMPLING_TOKEN_UPPER_BOUND} updates so its adaptive byte-size
+   * sampling is at the steady-state minimum probability (0.001%).
+   */
+  public static DataflowOutputCounter createWarmedOutputCounter(
+      String outputName,
+      ElementByteSizeObservable<?> observable,
+      CounterFactory counterFactory,
+      NameContext nameContext,
+      boolean isStreaming,
+      Object warmElem)
+      throws Exception {
+    DataflowOutputCounter counter =
+        DataflowOutputCounter.create(
+            outputName, observable, counterFactory, nameContext, isStreaming);
+    for (int i = 0; i < OutputObjectAndByteCounter.SAMPLING_TOKEN_UPPER_BOUND; i++) {
+      counter.update(warmElem);
+    }
+    return counter;
+  }
+
+  /** Creates a {@link GroupingShuffleReader} iterator backed by a custom entry reader. */
   public static <K, V>
       NativeReaderIterator<WindowedValue<KV<K, Reiterable<V>>>> createGroupingShuffleReaderIterator(
           GroupingShuffleReader<K, V> reader, ShuffleEntryReader entryReader) {

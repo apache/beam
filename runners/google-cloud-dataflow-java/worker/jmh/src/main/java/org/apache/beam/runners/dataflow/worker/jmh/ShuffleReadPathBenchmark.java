@@ -70,7 +70,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Microbenchmarks for Dataflow Runner v1 shuffle read and GroupAlsoByWindow iteration hot paths:
+ * Microbenchmarks for Dataflow Java Runner shuffle read and GroupAlsoByWindow iteration hot paths:
  * {@link GroupingShuffleEntryIterator}, {@link GroupingShuffleReader}, and {@link
  * BatchGroupAlsoByWindowsDoFns}.
  */
@@ -201,7 +201,7 @@ public class ShuffleReadPathBenchmark {
 
       WindowedValue<Long>[] globalValues = new WindowedValue[VALUES_PER_KEY];
       WindowedValue<Long>[] fixedValues = new WindowedValue[VALUES_PER_KEY];
-      Instant baseTs = new Instant(1_700_000_000_000L);
+      Instant baseTs = Instant.now();
       IntervalWindow w1 = new IntervalWindow(baseTs, baseTs.plus(Duration.standardMinutes(1)));
       for (int v = 0; v < VALUES_PER_KEY; v++) {
         globalValues[v] = WindowedValues.valueInGlobalWindow((long) v);

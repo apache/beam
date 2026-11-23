@@ -22,9 +22,11 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.BatchModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
+import org.apache.beam.runners.dataflow.worker.WorkerJmhAccess;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -94,9 +96,10 @@ public class ExecutionStateTrackerBenchmark {
 
     @Setup
     public void setUp() {
-      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-      options.setStreaming(true);
-      BatchModeExecutionContext execContext = BatchModeExecutionContext.forTesting(options, "S01");
+      DataflowWorkerHarnessOptions options =
+          PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+      StreamingModeExecutionContext execContext =
+          WorkerJmhAccess.createStreamingExecutionContext(options, "S01");
       streamingActivation = execContext.getExecutionStateTracker().activate();
       op1 =
           execContext.createOperationContext(

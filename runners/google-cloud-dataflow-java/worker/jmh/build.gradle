@@ -21,29 +21,25 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.dataflow.worker.jmh',
   enableJmh: true,
-  enableSpotbugs: false,
   exportJavadoc: false,
   publish: false)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow :: Worker :: JMH"
-ext.summary = "This contains JMH benchmarks for the Google Cloud Dataflow Runner v1 worker"
+ext.summary = "This contains JMH benchmarks for the Google Cloud Dataflow Java worker"
 
 dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(":runners:google-cloud-dataflow-java")
   implementation project(":runners:google-cloud-dataflow-java:worker")
-  // Required by javac to resolve super-interfaces of DataflowPipelineOptions (GcpOptions, BigQueryOptions).
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
-  permitUnusedDeclared project(":sdks:java:extensions:google-cloud-platform-core")
+  // Required by javac to resolve BigQueryOptions super-interface of DataflowPipelineOptions.
   implementation project(":sdks:java:io:google-cloud-platform")
   permitUnusedDeclared project(":sdks:java:io:google-cloud-platform")
+  implementation library.java.google_api_services_dataflow
   implementation library.java.joda_time
   implementation library.java.vendored_grpc_1_69_0
+  implementation library.java.vendored_guava_32_1_2_jre
   runtimeOnly library.java.slf4j_jdk14
   testImplementation library.java.junit
 }
-
-checkstyleMain.enabled = false
-checkstyleTest.enabled = false
-javadoc.enabled = false
