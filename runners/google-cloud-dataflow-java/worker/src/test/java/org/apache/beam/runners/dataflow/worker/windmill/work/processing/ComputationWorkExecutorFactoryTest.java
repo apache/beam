@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -54,25 +53,23 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfig
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
+import org.apache.beam.runners.dataflow.worker.testing.TestSplittableDoFns;
+import org.apache.beam.runners.dataflow.worker.testing.TestSplittableDoFns.IntegerSplittableDoFn;
+import org.apache.beam.runners.dataflow.worker.testing.TestSplittableDoFns.StringSplittableDoFn;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementByteSizeCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -91,34 +88,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ComputationWorkExecutorFactory}. */
 @RunWith(JUnit4.class)
 public class ComputationWorkExecutorFactoryTest {
-
-  private static class StringSplittableDoFn extends DoFn<String, String> {
-    @ProcessElement
-    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
-      if (tracker.tryClaim(tracker.currentRestriction().getFrom())) {
-        c.output(c.element());
-      }
-    }
-
-    @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element String element) {
-      return new OffsetRange(0, 1);
-    }
-  }
-
-  private static class IntegerSplittableDoFn extends DoFn<String, Integer> {
-    @ProcessElement
-    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
-      if (tracker.tryClaim(tracker.currentRestriction().getFrom())) {
-        c.output(c.element().length());
-      }
-    }
-
-    @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element String element) {
-      return new OffsetRange(0, 1);
-    }
-  }
 
   private static class IdentityDoFn extends DoFn<String, String> {
     @ProcessElement
@@ -166,28 +135,26 @@ public class ComputationWorkExecutorFactoryTest {
     cloudInput.setOutputNum(producerOutputNum);
 
     TupleTag<OutputT> mainOutputTag = new TupleTag<>(PropertyNames.OUTPUT);
-    String serializedFn =
-        StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(
-                DoFnInfo.forFn(
-                    fn,
-                    WindowingStrategy.globalDefault(),
-                    null /* side input views */,
-                    StringUtf8Coder.of() /* input coder */,
-                    Collections.singletonMap(mainOutputTag, elementOutputCoder),
-                    mainOutputTag,
-                    DoFnSchemaInformation.create(),
-                    Collections.emptyMap())));
-
-    CloudObject cloudUserFn =
-        CloudObject.forClassName(isSplittable ? "SplittableProcessFn" : "DoFn");
-    addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
+    CloudObject cloudUserFn;
     if (isSplittable) {
-      addObject(
-          cloudUserFn,
-          WorkerPropertyNames.RESTRICTION_CODER,
-          CloudObjects.asCloudObject(
-              KvCoder.of(OffsetRange.Coder.of(), VoidCoder.of()), /* sdkComponents= */ null));
+      cloudUserFn =
+          TestSplittableDoFns.createSplittableProcessFnCloudObject(
+              fn, mainOutputTag, elementOutputCoder);
+    } else {
+      String serializedFn =
+          StringUtils.byteArrayToJsonString(
+              SerializableUtils.serializeToByteArray(
+                  DoFnInfo.forFn(
+                      fn,
+                      WindowingStrategy.globalDefault(),
+                      null /* side input views */,
+                      StringUtf8Coder.of() /* input coder */,
+                      Collections.singletonMap(mainOutputTag, elementOutputCoder),
+                      mainOutputTag,
+                      DoFnSchemaInformation.create(),
+                      Collections.emptyMap())));
+      cloudUserFn = CloudObject.forClassName("DoFn");
+      addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
     }
 
     MultiOutputInfo multiOutputInfo = new MultiOutputInfo();
@@ -391,27 +358,11 @@ public class ComputationWorkExecutorFactoryTest {
 
     TupleTag<String> mainOutputTag = new TupleTag<>("main");
     TupleTag<Integer> sideOutputTag = new TupleTag<>("side");
-    String serializedFn =
-        StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(
-                DoFnInfo.forFn(
-                    new StringSplittableDoFn(),
-                    WindowingStrategy.globalDefault(),
-                    null /* side input views */,
-                    StringUtf8Coder.of() /* input coder */,
-                    ImmutableMap.of(
-                        mainOutputTag, StringUtf8Coder.of(), sideOutputTag, VarIntCoder.of()),
-                    mainOutputTag,
-                    DoFnSchemaInformation.create(),
-                    Collections.emptyMap())));
-
-    CloudObject cloudUserFn = CloudObject.forClassName("SplittableProcessFn");
-    addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
-    addObject(
-        cloudUserFn,
-        WorkerPropertyNames.RESTRICTION_CODER,
-        CloudObjects.asCloudObject(
-            KvCoder.of(OffsetRange.Coder.of(), VoidCoder.of()), /* sdkComponents= */ null));
+    CloudObject cloudUserFn =
+        TestSplittableDoFns.createSplittableProcessFnCloudObject(
+            new StringSplittableDoFn(),
+            mainOutputTag,
+            ImmutableMap.of(mainOutputTag, StringUtf8Coder.of(), sideOutputTag, VarIntCoder.of()));
 
     InstructionInput cloudInput = new InstructionInput();
     cloudInput.setProducerInstructionIndex(0);

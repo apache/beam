@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getElementCounterName;
 import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getMeanByteCounterName;
@@ -76,7 +75,8 @@ import org.apache.beam.runners.dataflow.worker.graph.Nodes.InstructionOutputNode
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.Node;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.OperationNode;
 import org.apache.beam.runners.dataflow.worker.graph.Nodes.ParallelInstructionNode;
-import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
+import org.apache.beam.runners.dataflow.worker.testing.TestSplittableDoFns;
+import org.apache.beam.runners.dataflow.worker.testing.TestSplittableDoFns.StringSplittableDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.FlattenOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
@@ -89,17 +89,14 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -578,20 +575,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     assertNull(parDoOperation.getBytesReadCoder(parDoOperation.receivers[0]));
   }
 
-  static class TestSplittableDoFn extends DoFn<String, String> {
-    @ProcessElement
-    public void processElement(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
-      if (tracker.tryClaim(tracker.currentRestriction().getFrom())) {
-        c.output(c.element());
-      }
-    }
-
-    @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element String element) {
-      return new OffsetRange(0, 1);
-    }
-  }
-
   @Test
   public void testCreateSplittableProcessFnParDoOperation() throws Exception {
     int producerIndex = 1;
@@ -600,30 +583,13 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     BatchModeExecutionContext context =
         BatchModeExecutionContext.forTesting(options, counterSet, "testStage");
     TupleTag<String> mainOutput = new TupleTag<>(PropertyNames.OUTPUT);
-    String serializedFn =
-        StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(
-                DoFnInfo.forFn(
-                    new TestSplittableDoFn(),
-                    WindowingStrategy.globalDefault(),
-                    null /* side input views */,
-                    StringUtf8Coder.of() /* input coder */,
-                    Collections.singletonMap(mainOutput, StringUtf8Coder.of()),
-                    mainOutput /* main output id */,
-                    DoFnSchemaInformation.create(),
-                    Collections.emptyMap())));
-
-    CloudObject cloudUserFn = CloudObject.forClassName("SplittableProcessFn");
-    addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
-    addObject(
-        cloudUserFn,
-        WorkerPropertyNames.RESTRICTION_CODER,
-        CloudObjects.asCloudObject(
-            KvCoder.of(OffsetRange.Coder.of(), VoidCoder.of()), /* sdkComponents= */ null));
+    CloudObject cloudUserFn =
+        TestSplittableDoFns.createSplittableProcessFnCloudObject(
+            new StringSplittableDoFn(), mainOutput, StringUtf8Coder.of());
 
     ParallelInstruction instruction =
         createParDoInstruction(
-            producerIndex, producerOutputNum, "SplittableParDo", "", new TestSplittableDoFn());
+            producerIndex, producerOutputNum, "SplittableParDo", "", new StringSplittableDoFn());
     instruction.getParDo().setUserFn(cloudUserFn);
 
     ParallelInstructionNode instructionNode =
@@ -677,27 +643,12 @@ public class IntrinsicMapTaskExecutorFactoryTest {
         BatchModeExecutionContext.forTesting(options, counterSet, "testStage");
     TupleTag<String> mainOutput = new TupleTag<>("main");
     TupleTag<Integer> sideOutput = new TupleTag<>("side");
-    String serializedFn =
-        StringUtils.byteArrayToJsonString(
-            SerializableUtils.serializeToByteArray(
-                DoFnInfo.forFn(
-                    new TestSplittableDoFn(),
-                    WindowingStrategy.globalDefault(),
-                    null /* side input views */,
-                    StringUtf8Coder.of() /* input coder */,
-                    ImmutableMap.of(
-                        mainOutput, StringUtf8Coder.of(), sideOutput, BigEndianIntegerCoder.of()),
-                    mainOutput /* main output id */,
-                    DoFnSchemaInformation.create(),
-                    Collections.emptyMap())));
-
-    CloudObject cloudUserFn = CloudObject.forClassName("SplittableProcessFn");
-    addString(cloudUserFn, PropertyNames.SERIALIZED_FN, serializedFn);
-    addObject(
-        cloudUserFn,
-        WorkerPropertyNames.RESTRICTION_CODER,
-        CloudObjects.asCloudObject(
-            KvCoder.of(OffsetRange.Coder.of(), VoidCoder.of()), /* sdkComponents= */ null));
+    CloudObject cloudUserFn =
+        TestSplittableDoFns.createSplittableProcessFnCloudObject(
+            new StringSplittableDoFn(),
+            mainOutput,
+            ImmutableMap.of(
+                mainOutput, StringUtf8Coder.of(), sideOutput, BigEndianIntegerCoder.of()));
 
     MultiOutputInfo mainOutputInfo = new MultiOutputInfo();
     mainOutputInfo.setTag("main");
@@ -720,7 +671,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
 
     ParallelInstruction instruction =
         createParDoInstruction(
-            producerIndex, producerOutputNum, "SplittableParDo", "", new TestSplittableDoFn());
+            producerIndex, producerOutputNum, "SplittableParDo", "", new StringSplittableDoFn());
     instruction.getParDo().setUserFn(cloudUserFn);
     instruction.getParDo().setNumOutputs(2);
     instruction.getParDo().setMultiOutputInfos(ImmutableList.of(mainOutputInfo, sideOutputInfo));
