@@ -128,6 +128,7 @@
 
 [comment]: # "generic breaking changes if not covered in following sections."
 * (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Python) Datatable support in the XGBoost model handler has been removed. ([#41586](https://github.com/apache/beam/issues/41586)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ### Package upgrades
