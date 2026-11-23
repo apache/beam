@@ -59,12 +59,15 @@ import argparse
 import hashlib
 import json
 import logging
+import threading
+import time
 from collections.abc import Iterable
 from typing import Any
 from typing import Optional
 
 import apache_beam as beam
 import numpy as np
+from apache_beam.examples.inference import table_row_inference_utils
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
@@ -74,6 +77,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.runner import PipelineState
 
 
 class TableRowModelHandler(SklearnModelHandlerNumpy):
@@ -224,7 +228,8 @@ def parse_known_args(argv):
       '(format: projects/PROJECT/subscriptions/SUBSCRIPTION)')
   parser.add_argument(
       '--input_file',
-      help='Input file path for batch mode (e.g., gs://bucket/input.jsonl)')
+      help='Input file path (JSONL). Required for batch; in streaming used '
+      'to publish rows to Pub/Sub for the benchmark.')
   parser.add_argument(
       '--output_table',
       help='BigQuery output table (format: PROJECT:DATASET.TABLE)')
@@ -256,6 +261,36 @@ def parse_known_args(argv):
   return parser.parse_known_args(argv)
 
 
+def _override_or_add(args, flag, value):
+  if flag in args:
+    idx = args.index(flag)
+    args[idx + 1] = str(value)
+  else:
+    args.extend([flag, str(value)])
+
+
+def run_load_pipeline(known_args, pipeline_args, topic_path):
+  """Reads JSONL rows and publishes them to Pub/Sub for streaming benchmarks."""
+  pipeline_args = list(pipeline_args)
+  _override_or_add(pipeline_args, '--num_workers', '5')
+  _override_or_add(pipeline_args, '--max_num_workers', '10')
+  _override_or_add(
+      pipeline_args, '--job_name', f'table-row-load-pubsub-{int(time.time())}')
+  pipeline_args = [
+      arg for arg in pipeline_args if not arg.startswith('--experiments')
+  ]
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline = beam.Pipeline(options=pipeline_options)
+  _ = (
+      pipeline
+      | 'ReadInputFile' >> beam.io.ReadFromText(known_args.input_file)
+      | 'FilterEmpty' >> beam.Filter(lambda line: line.strip())
+      | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
+      | 'ToPubSub' >> beam.io.WriteToPubSub(topic=topic_path))
+  return pipeline.run()
+
+
 def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   """Main pipeline execution function.
@@ -274,6 +309,9 @@ def run(
     raise ValueError('input_subscription is required for streaming mode')
   if known_args.mode == 'batch' and not known_args.input_file:
     raise ValueError('input_file is required for batch mode')
+  if known_args.mode == 'streaming' and not known_args.input_file:
+    raise ValueError(
+        'input_file is required for streaming mode to publish test data')
   if known_args.mode == 'streaming' and not known_args.output_table:
     raise ValueError('output_table is required for streaming mode')
   if (known_args.mode == 'batch' and not known_args.output_table and
@@ -281,6 +319,33 @@ def run(
     raise ValueError(
         'In batch mode, specify at least one of --output_table or --output_file'
     )
+
+  # Create the Pub/Sub topic and subscription before submit so Dataflow
+  # preflight validation finds them.
+  pubsub_project = None
+  topic_name = None
+  subscription_name = None
+  topic_path = None
+  if known_args.mode == 'streaming':
+    parts = known_args.input_subscription.strip('/').split('/')
+    if (len(parts) != 4 or parts[0] != 'projects' or
+        parts[2] != 'subscriptions'):
+      raise ValueError(
+          'input_subscription must be projects/PROJECT/subscriptions/NAME')
+    pubsub_project = parts[1]
+    subscription_name = parts[3]
+    topic_name = subscription_name
+    topic_path = table_row_inference_utils.ensure_pubsub_topic(
+        pubsub_project, topic_name)
+    table_row_inference_utils.ensure_pubsub_subscription(
+        pubsub_project, topic_name, subscription_name)
+
+    # Delay so main streaming workers can start before publishing.
+    threading.Thread(
+        target=lambda: (
+            time.sleep(60), run_load_pipeline(
+                known_args, pipeline_args, topic_path)),
+        daemon=True).start()
 
   feature_columns = [
       col.strip() for col in known_args.feature_columns.split(',')
@@ -358,8 +423,28 @@ def run(
 
   result = pipeline.run()
 
-  if known_args.mode == 'batch' and not test_pipeline:
+  if known_args.mode == 'batch':
     result.wait_until_finish()
+  else:
+    try:
+      result.wait_until_finish(duration=1800000)  # 30 min
+    finally:
+      try:
+        result.cancel()
+        # wait_until_finish raises on CANCELLED. Same settle approach as
+        # TestDataflowRunner.wait_until_in_state(CANCELLED).
+        start_time = time.time()
+        while time.time() - start_time <= 600:
+          job_state = result.state
+          if (result.is_in_terminal_state() or
+              job_state == PipelineState.CANCELLED):
+            break
+          time.sleep(5)
+      except Exception:
+        logging.debug('Failed to cancel pipeline result.', exc_info=True)
+      if pubsub_project and topic_name:
+        table_row_inference_utils.cleanup_pubsub_resources(
+            pubsub_project, topic_name, subscription_name)
 
   return result
 

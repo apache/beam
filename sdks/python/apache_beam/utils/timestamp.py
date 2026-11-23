@@ -194,7 +194,9 @@ class Timestamp(object):
       rfc3339: String in RFC 3339 form.
     """
     try:
-      dt = dateutil.parser.isoparse(rfc3339).astimezone(pytz.UTC)
+      dt = dateutil.parser.isoparse(rfc3339)
+      dt = dt.replace(
+          tzinfo=pytz.UTC) if dt.tzinfo is None else dt.astimezone(pytz.UTC)
     except ValueError as e:
       raise ValueError(
           "Could not parse RFC 3339 string '{}' due to error: '{}'.".format(

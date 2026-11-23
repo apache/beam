@@ -311,7 +311,8 @@ public class DeltaTableProviderTest {
                 ChangeRange.versions(1L, 3L),
                 ImmutableMap.of(
                     "include_metadata_columns",
-                    ImmutableList.of("_commit_timestamp", "_change_type", "_commit_version")));
+                    ImmutableList.of("_commit_timestamp", "_change_type", "_commit_version")),
+                ImmutableList.of());
 
     assertEquals(
         ImmutableList.of("id", "name", "_change_type", "_commit_version", "_commit_timestamp"),
@@ -361,7 +362,8 @@ public class DeltaTableProviderTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                    pinnedVersionTable.forChanges(ChangeRange.versions(0L, 1L), ImmutableMap.of()))
+                    pinnedVersionTable.forChanges(
+                        ChangeRange.versions(0L, 1L), ImmutableMap.of(), ImmutableList.of()))
             .getMessage()
             .contains("pins the version it reads"));
     assertTrue(
@@ -369,19 +371,14 @@ public class DeltaTableProviderTest {
                 IllegalArgumentException.class,
                 () ->
                     pinnedTimestampTable.forChanges(
-                        ChangeRange.versions(0L, 1L), ImmutableMap.of()))
+                        ChangeRange.versions(0L, 1L), ImmutableMap.of(), ImmutableList.of()))
             .getMessage()
             .contains("pins the version it reads"));
     assertTrue(
         assertThrows(
                 IllegalArgumentException.class,
-                () -> deltaTable.forChanges(ChangeRange.all(), ImmutableMap.of()))
-            .getMessage()
-            .contains("needs a start"));
-    assertTrue(
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> deltaTable.forChanges(ChangeRange.versions(null, 2L), ImmutableMap.of()))
+                () ->
+                    deltaTable.forChanges(ChangeRange.all(), ImmutableMap.of(), ImmutableList.of()))
             .getMessage()
             .contains("needs a start"));
     assertTrue(
@@ -389,7 +386,17 @@ public class DeltaTableProviderTest {
                 IllegalArgumentException.class,
                 () ->
                     deltaTable.forChanges(
-                        ChangeRange.versions(0L, 1L), ImmutableMap.of("start_version", 0L)))
+                        ChangeRange.versions(null, 2L), ImmutableMap.of(), ImmutableList.of()))
+            .getMessage()
+            .contains("needs a start"));
+    assertTrue(
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    deltaTable.forChanges(
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("start_version", 0L),
+                        ImmutableList.of()))
             .getMessage()
             .contains("Option 'start_version' cannot be set in WITH"));
     assertTrue(
@@ -397,7 +404,9 @@ public class DeltaTableProviderTest {
                 IllegalArgumentException.class,
                 () ->
                     deltaTable.forChanges(
-                        ChangeRange.versions(0L, 1L), ImmutableMap.of("table", "/other")))
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("table", "/other"),
+                        ImmutableList.of()))
             .getMessage()
             .contains("Option 'table' cannot be set in WITH"));
     assertTrue(
@@ -405,7 +414,9 @@ public class DeltaTableProviderTest {
                 IllegalArgumentException.class,
                 () ->
                     deltaTable.forChanges(
-                        ChangeRange.versions(0L, 1L), ImmutableMap.of("bogus", 1L)))
+                        ChangeRange.versions(0L, 1L),
+                        ImmutableMap.of("bogus", 1L),
+                        ImmutableList.of()))
             .getMessage()
             .contains("Unknown option 'bogus' for a CHANGES read"));
     assertTrue(
@@ -414,7 +425,8 @@ public class DeltaTableProviderTest {
                 () ->
                     deltaTable.forChanges(
                         ChangeRange.versions(0L, 1L),
-                        ImmutableMap.of("include_metadata_columns", ImmutableList.of("_bogus"))))
+                        ImmutableMap.of("include_metadata_columns", ImmutableList.of("_bogus")),
+                        ImmutableList.of()))
             .getMessage()
             .contains("Unknown metadata column '_bogus'"));
 
@@ -435,7 +447,8 @@ public class DeltaTableProviderTest {
                     collidingTable.forChanges(
                         ChangeRange.versions(0L, 1L),
                         ImmutableMap.of(
-                            "include_metadata_columns", ImmutableList.of("_change_type"))))
+                            "include_metadata_columns", ImmutableList.of("_change_type")),
+                        ImmutableList.of()))
             .getMessage()
             .contains("Metadata column '_change_type' collides with a column of the table"));
   }

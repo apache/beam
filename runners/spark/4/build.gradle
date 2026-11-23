@@ -90,24 +90,12 @@ tasks.register("validatesStructuredStreamingRunnerStreaming", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testPAssertEqualsSingletonFailsForEmptyPCollection'
     excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testPAssertEqualsSingletonFailsForNonSingletonPCollection'
 
-    // TODO(https://github.com/apache/beam/issues/40949): ParDo with additional outputs
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAllAttemptedMetrics'
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedBoundedTrieMetrics'
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedCounterMetrics'
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedDistributionMetrics'
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedGaugeMetrics'
-    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testAttemptedStringSetMetrics'
+    // TODO(https://github.com/apache/beam/issues/41199): hot key fanout computes a wrong result
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombining'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultiplePCollectionsHavingMultipleConsumers'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteMultiOutput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoEmptyWithTaggedOutput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWithEmptyTaggedOutput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWithOnlyTaggedOutput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testParDoWithTaggedOutput'
+
+    // TODO(https://github.com/apache/beam/issues/40949): stateful ParDo with additional outputs
     excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testValueStateTaggedOutput'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoTaggedOutputWithTimestamp'
-    excludeTestsMatching 'org.apache.beam.sdk.values.PCollectionTupleTest.testComposePCollectionTuple'
 
     // TODO(https://github.com/apache/beam/issues/36841): PeriodicImpulse uses a splittable DoFn
     excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithShuffle'

@@ -94,17 +94,32 @@ import org.slf4j.LoggerFactory;
  * <p>Before running this CDC pipeline to replicate incremental changes, you can perform the initial
  * full-table snapshot migration from the source Delta Lake table to the target GCP Lakehouse
  * Iceberg table using the Beam SQL Shell and the companion {@code delta_to_iceberg.sql} script in
- * this directory, and you can also run incremental CDC migrations directly in Beam SQL using {@code
- * delta_to_iceberg_cdc.sql}:
+ * {@code examples/java/iceberg/sql/}, and you can also run incremental CDC migrations directly in
+ * Beam SQL using {@code delta_to_iceberg_cdc.sql}:
  *
  * <pre>{@code
  * # Initial full-table snapshot migration via Beam SQL:
  * ./scripts/beam-sql.sh --runner dataflow --io delta --io iceberg \
- *   -f examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/delta_to_iceberg.sql
+ *   -f examples/java/iceberg/sql/delta_to_iceberg.sql
  *
  * # Incremental CDC migration via Beam SQL:
  * ./scripts/beam-sql.sh --runner dataflow --io delta --io iceberg \
- *   -f examples/java/iceberg/src/main/java/org/apache/beam/examples/iceberg/delta_to_iceberg_cdc.sql
+ *   -f examples/java/iceberg/sql/delta_to_iceberg_cdc.sql
+ * }</pre>
+ *
+ * <h2>Automating Repeated CDC Runs with Dataflow Flex Templates and Apache Airflow</h2>
+ *
+ * <p>To schedule continuous incremental CDC runs automatically across advancing Delta Lake commit
+ * version boundaries, package this pipeline as a <b>Dataflow Flex Template</b> and orchestrate it
+ * with Apache Airflow's {@code DataflowStartFlexTemplateOperator}. See {@code
+ * examples/java/iceberg/airflow/} for the Flex Template metadata specification ({@code
+ * flex_template_metadata.json}), a ready-to-use Airflow DAG ({@code
+ * delta_lake_to_lakehouse_cdc_dag.py}) with Delta commit watermark and schema-change boundary
+ * handling, and end-to-end instructions ({@code README.md}):
+ *
+ * <pre>{@code
+ * # Build the Flex Template uber-JAR:
+ * ./gradlew :examples:java:iceberg:deltaLakeToLakehouseCdcFlexTemplateJar
  * }</pre>
  *
  * <h2>Running the Example on Dataflow Portable Runner (Example Default)</h2>
@@ -331,6 +346,26 @@ public class DeltaLakeToLakehouseCdcExample {
     String getCatalogUri();
 
     void setCatalogUri(String value);
+
+    @Description(
+        "Optional stable identifier for the Iceberg CDC sink ('sink_id'), used to namespace "
+            + "idempotency tokens written to Iceberg snapshot summaries. For batch CDC runs, "
+            + "passing a deterministic range-scoped sinkId (for example "
+            + "'delta_lake_to_lakehouse_cdc_sync-v2-to-v4') allows the Iceberg CDC sink to "
+            + "recognize and skip duplicate commits if the same range is retried after committing.")
+    @Nullable String getSinkId();
+
+    void setSinkId(@Nullable String value);
+
+    @Description(
+        "If true (default), waits until the pipeline reaches a terminal state before returning "
+            + "from main(). Set to false for asynchronous submission. Note that when launched as a "
+            + "Dataflow Flex Template, Dataflow returns a DataflowTemplateJob and this pipeline "
+            + "automatically returns immediately after submitting the template graph.")
+    @Default.Boolean(true)
+    boolean getWaitUntilFinish();
+
+    void setWaitUntilFinish(boolean value);
   }
 
   /**
@@ -410,6 +445,11 @@ public class DeltaLakeToLakehouseCdcExample {
         writeConfig.put("equality_columns", equalityCols);
       }
     }
+
+    @Nullable String sinkId = options.getSinkId();
+    if (sinkId != null && !sinkId.trim().isEmpty()) {
+      writeConfig.put("sink_id", sinkId.trim());
+    }
     return writeConfig;
   }
 
@@ -451,11 +491,35 @@ public class DeltaLakeToLakehouseCdcExample {
     changes.apply(
         "ApplyChangesToLakehouse", Managed.write(Managed.ICEBERG).withConfig(writeConfig));
 
-    PipelineResult.State state = p.run().waitUntilFinish();
-    if (state != PipelineResult.State.DONE) {
-      throw new IllegalStateException(
-          String.format(
-              "Delta Lake to Lakehouse CDC pipeline failed with terminal state: %s", state));
+    PipelineResult result = p.run();
+    waitForPipelineResult(result, options.getWaitUntilFinish());
+  }
+
+  /**
+   * Waits for {@code result} to finish when {@code waitUntilFinish} is {@code true}. When the
+   * pipeline is launched as a Dataflow template (including Dataflow Flex Templates, where Dataflow
+   * sets {@code --templateLocation}), {@code DataflowRunner.run()} returns a {@code
+   * DataflowTemplateJob} whose {@code waitUntilFinish()} throws {@link
+   * UnsupportedOperationException}; in that case this method logs and returns cleanly so the
+   * template launcher exits after submitting the job graph.
+   */
+  @VisibleForTesting
+  static void waitForPipelineResult(PipelineResult result, boolean waitUntilFinish) {
+    if (!waitUntilFinish) {
+      return;
+    }
+    try {
+      PipelineResult.State state = result.waitUntilFinish();
+      if (state != PipelineResult.State.DONE) {
+        throw new IllegalStateException(
+            String.format(
+                "Delta Lake to Lakehouse CDC pipeline failed with terminal state: %s", state));
+      }
+    } catch (UnsupportedOperationException e) {
+      LOG.info(
+          "PipelineResult ({}) does not support waitUntilFinish() (for example, when launched as "
+              + "a Dataflow template); returning after job submission.",
+          result.getClass().getSimpleName());
     }
   }
 
