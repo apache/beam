@@ -64,6 +64,7 @@ Additional resources:
 
 {{< paragraph wrap="span" >}}
 * [IcebergIO configuration parameters](https://beam.apache.org/documentation/io/managed-io/#iceberg-write)
+* [Iceberg CDC quickstart](/documentation/io/built-in/iceberg-cdc/): keep one Iceberg table in sync with another, in batch or streaming
 * [IcebergIO source code](https://github.com/apache/beam/tree/master/sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg)
 * [IcebergIO Javadoc](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/iceberg/IcebergIO.html)
 * [Apache Iceberg spec](https://iceberg.apache.org/spec/)
@@ -343,6 +344,9 @@ pipeline:
 
 Check out the full [IcebergIO configuration](https://beam.apache.org/documentation/io/managed-io/#iceberg-write) to make
 use of other features like applying a partition spec, table properties, row filtering, column pruning, etc.
+
+To read a table's changes (inserts, updates, deletes) and apply them to another table, see the
+[Iceberg CDC quickstart](/documentation/io/built-in/iceberg-cdc/).
 
 ## Data Types
 
