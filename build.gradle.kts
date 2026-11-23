@@ -795,6 +795,8 @@ tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
   dependsOn(":sdks:python:test-suites:direct:py311:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
+  dependsOn(":sdks:python:test-suites:direct:py311:inferencePostCommitIT")
+  dependsOn(":sdks:python:test-suites:dataflow:py311:inferencePostCommitIT")
 }
 
 tasks.register("python312PostCommit") {
