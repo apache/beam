@@ -70,6 +70,8 @@ public abstract class AggregationQuery
     if (bucket() != null) {
       pipeline.add(bucket());
     }
-    return collection.aggregate(pipeline).iterator();
+    // stages such as $sort, $group and $bucketAuto are capped at 100 MB of memory. Servers older
+    // than 6.0 fail past that cap unless the request allows spilling to disk
+    return collection.aggregate(pipeline).allowDiskUse(true).iterator();
   }
 }
