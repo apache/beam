@@ -661,7 +661,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
   def translate_pattern(pattern: str) -> str:
     """
     Translate a *pattern* to a regular expression.
-    There is no way to quote meta-characters.
+    To match a meta-character literally, put it in brackets, such as ``[*]``.
 
     Pattern syntax:
       The pattern syntax is based on the fnmatch_ syntax, with the following
@@ -708,6 +708,9 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
           res = res + r'\['
         else:
           stuff = pattern[i:j].replace('\\', '\\\\')
+          # Escape '[' and the set operations '&', '~' and '|', so that a
+          # class such as '[[]' compiles without a FutureWarning.
+          stuff = re.sub(r'([&~|\[])', r'\\\1', stuff)
           i = j + 1
           if stuff[0] == '!':
             stuff = '^' + stuff[1:]
@@ -750,14 +753,16 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       # Get the part of the pattern before the first globbing character.
       # For example scheme://path/foo* will become scheme://path/foo for
       # filesystems like GCS, or converted to scheme://path for filesystems with
-      # directories.
-      prefix_or_dir = re.match('^[^[*?]*', pattern).group(0)
+      # directories. An escaped character such as [*], [?] or [[] matches
+      # itself, so it stays in the prefix.
+      prefix_match = re.match(r'^(?:[^[*?]|\[[*?[]\])*', pattern).group(0)
+      prefix_or_dir = re.sub(r'\[([*?[])\]', r'\1', prefix_match)
 
       file_metadatas = []
-      if prefix_or_dir == pattern:
+      if prefix_match == pattern:
         # Short-circuit calling self.list() if there's no glob pattern to match.
-        if self.exists(pattern):
-          file_metadatas = [self.metadata(pattern)]
+        if self.exists(prefix_or_dir):
+          file_metadatas = [self.metadata(prefix_or_dir)]
       else:
         if self.has_dirs():
           prefix_dirname = self._url_dirname(prefix_or_dir)
