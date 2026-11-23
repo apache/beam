@@ -467,6 +467,8 @@ public class SchemaTranslationTest {
           // INT16/INT32 subseconds representation boundary.
           .add(FieldType.logicalType(Timestamp.of(4)))
           .add(FieldType.logicalType(Timestamp.of(5)))
+          .add(FieldType.logicalType(DateTime.MILLIS))
+          .add(FieldType.logicalType(DateTime.NANOS))
           .add(FieldType.logicalType(new PortableNullArgLogicalType()))
           .add(FieldType.logicalType(new NullArgumentLogicalType()))
           .build();

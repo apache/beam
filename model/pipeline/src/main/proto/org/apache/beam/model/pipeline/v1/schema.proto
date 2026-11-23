@@ -247,6 +247,16 @@ message LogicalTypes {
     //     e.g. -1.5s at precision 6 is {seconds: -2, subseconds: 500000}.
     TIMESTAMP = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:logical_type:timestamp:v1"];
+
+    // A URN for DateTime type
+    //   - Representation type: ROW<Date: INT64, Time: INT64>
+    //   - Argument type: INT32, the precision, which defaults to 6.
+    //     A date and wall-clock time without a timezone. Date counts days
+    //     since the epoch, and Time counts nanoseconds since midnight at every
+    //     precision. The precision is the number of decimal digits of the
+    //     fraction of a second, and every finer digit is zero.
+    DATETIME = 10 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:datetime:v1"];
   }
 }
 
