@@ -18,10 +18,18 @@
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.apache.beam.runners.core.StateNamespace;
@@ -30,14 +38,20 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.WindmillComputationKey;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -692,5 +706,218 @@ public class WindmillStateCacheTest {
     assertEquals(
         Optional.of(new TestState("g1")),
         getFromCache(keyCache1, StateNamespaces.global(), new TestStateTagWithBadEquality("tag1")));
+  }
+
+  @Test
+  public void testMultimapStateCacheWeightTracksMutations() throws Exception {
+    WindmillStateCache multimapCache =
+        WindmillStateCache.builder().setSizeMb(10).setSupportMapViaMultimap(true).build();
+    InternedByteString stateKey = InternedByteString.of(ByteString.copyFromUtf8("mm_tag"));
+    int largePayloadBytes = 256 * 1024;
+    int smallPayloadBytes = 64;
+
+    WindmillStateCache.ForKeyAndFamily keyCache =
+        multimapCache
+            .forComputation(COMPUTATION)
+            .forKey(COMPUTATION_KEY, 0L, 1L)
+            .forFamily(STATE_FAMILY);
+    WindmillMultimap<String, byte[]> multimap =
+        new WindmillMultimap<>(
+            StateNamespaces.global(),
+            stateKey,
+            STATE_FAMILY,
+            StringUtf8Coder.of(),
+            ByteArrayCoder.of(),
+            /* isNewShardingKey= */ true);
+    WindmillMapViaMultimap<String, byte[]> map = new WindmillMapViaMultimap<>(multimap);
+
+    map.put("k1", new byte[largePayloadBytes]);
+    map.persistDirectly(keyCache);
+    keyCache.persist();
+    long weightAfterLargePut = multimapCache.getWeight();
+    assertTrue(
+        "Expected cache weight to reflect 256KB payload, got " + weightAfterLargePut,
+        weightAfterLargePut >= largePayloadBytes);
+
+    // Overwriting with a small value replaces the cached value weight instead of accumulating.
+    map.put("k1", new byte[smallPayloadBytes]);
+    map.persistDirectly(keyCache);
+    keyCache.persist();
+    long weightAfterOverwrite = multimapCache.getWeight();
+    assertTrue(
+        "Expected cache weight to drop after overwriting with 64B value, got "
+            + weightAfterOverwrite,
+        weightAfterOverwrite < 4 * 1024);
+
+    // Removing keys and clearing resets cached weight to baseline overhead.
+    map.put("k2", new byte[largePayloadBytes]);
+    map.persistDirectly(keyCache);
+    keyCache.persist();
+    assertTrue(multimapCache.getWeight() >= largePayloadBytes);
+
+    map.remove("k2");
+    map.persistDirectly(keyCache);
+    keyCache.persist();
+    assertTrue(multimapCache.getWeight() < 4 * 1024);
+
+    map.put("k3", new byte[largePayloadBytes]);
+    map.persistDirectly(keyCache);
+    keyCache.persist();
+    assertTrue(multimapCache.getWeight() >= largePayloadBytes);
+
+    map.clear();
+    map.persistDirectly(keyCache);
+    keyCache.persist();
+    assertTrue(multimapCache.getWeight() < 4 * 1024);
+  }
+
+  @Test
+  public void testMultimapStateCacheWeightTracksStorageReads() throws Exception {
+    WindmillStateCache multimapCache =
+        WindmillStateCache.builder().setSizeMb(10).setSupportMapViaMultimap(true).build();
+    InternedByteString stateKey = InternedByteString.of(ByteString.copyFromUtf8("mm_read_tag"));
+    int payloadBytes = 256 * 1024;
+    Supplier<Closeable> closeableSupplier = () -> mock(Closeable.class);
+    WindmillStateReader reader = mock(WindmillStateReader.class);
+
+    ByteStringOutputStream keyStream = new ByteStringOutputStream();
+    StringUtf8Coder.of().encode("hydrated_key", keyStream, Coder.Context.OUTER);
+    ByteString encodedHydratedKey = keyStream.toByteStringAndReset();
+
+    String missingKey = String.join("", Collections.nCopies(1024, "m"));
+    StringUtf8Coder.of().encode(missingKey, keyStream, Coder.Context.OUTER);
+    ByteString encodedMissingKey = keyStream.toByteStringAndReset();
+
+    WeightedList<byte[]> weightedSingleValues = new WeightedList<>(new ArrayList<>());
+    weightedSingleValues.addWeighted(new byte[payloadBytes], payloadBytes);
+    when(reader.multimapFetchSingleEntryFuture(
+            eq(encodedHydratedKey),
+            eq(stateKey.byteString()),
+            eq(STATE_FAMILY),
+            eq(ByteArrayCoder.of())))
+        .thenReturn(Futures.immediateFuture(weightedSingleValues));
+    when(reader.multimapFetchSingleEntryFuture(
+            eq(encodedMissingKey),
+            eq(stateKey.byteString()),
+            eq(STATE_FAMILY),
+            eq(ByteArrayCoder.of())))
+        .thenReturn(Futures.immediateFuture(new WeightedList<>(Collections.emptyList())));
+
+    // 1. Read-only get(key) hydration updates cached weight on persistDirectly without mutations.
+    WindmillStateCache.ForKeyAndFamily keyCache1 =
+        multimapCache
+            .forComputation(COMPUTATION)
+            .forKey(computationKey(COMPUTATION, "rk1", SHARDING_KEY), 0L, 1L)
+            .forFamily(STATE_FAMILY);
+    WindmillMultimap<String, byte[]> readSingleMultimap =
+        new WindmillMultimap<>(
+            StateNamespaces.global(),
+            stateKey,
+            STATE_FAMILY,
+            StringUtf8Coder.of(),
+            ByteArrayCoder.of(),
+            /* isNewShardingKey= */ false);
+    readSingleMultimap.initializeForWorkItem(reader, closeableSupplier);
+    assertEquals(1, Iterables.size(readSingleMultimap.get("hydrated_key").read()));
+    assertEquals(0, Iterables.size(readSingleMultimap.get(missingKey).read()));
+    readSingleMultimap.persistDirectly(keyCache1);
+    readSingleMultimap.cleanupAfterWorkItem();
+    keyCache1.persist();
+
+    long weightAfterSingleRead = multimapCache.getWeight();
+    assertTrue(
+        "Expected hydrated single-key read + negative-cached key weight, got "
+            + weightAfterSingleRead,
+        weightAfterSingleRead
+            >= payloadBytes + encodedHydratedKey.size() + encodedMissingKey.size());
+
+    // 2. Read-only entries() hydration updates cached weight on persistDirectly without mutations.
+    WeightedList<Map.Entry<ByteString, Iterable<byte[]>>> weightedAllEntries =
+        new WeightedList<>(new ArrayList<>());
+    weightedAllEntries.addWeighted(
+        new AbstractMap.SimpleEntry<>(encodedHydratedKey, weightedSingleValues),
+        encodedHydratedKey.size() + payloadBytes);
+    when(reader.multimapFetchAllFuture(
+            eq(false), eq(stateKey.byteString()), eq(STATE_FAMILY), eq(ByteArrayCoder.of())))
+        .thenReturn(Futures.immediateFuture(weightedAllEntries));
+
+    WindmillStateCache.ForKeyAndFamily keyCache2 =
+        multimapCache
+            .forComputation(COMPUTATION)
+            .forKey(computationKey(COMPUTATION, "rk2", SHARDING_KEY), 0L, 1L)
+            .forFamily(STATE_FAMILY);
+    WindmillMultimap<String, byte[]> readAllMultimap =
+        new WindmillMultimap<>(
+            StateNamespaces.global(),
+            stateKey,
+            STATE_FAMILY,
+            StringUtf8Coder.of(),
+            ByteArrayCoder.of(),
+            /* isNewShardingKey= */ false);
+    readAllMultimap.initializeForWorkItem(reader, closeableSupplier);
+    assertEquals(1, Iterables.size(readAllMultimap.entries().read()));
+    readAllMultimap.persistDirectly(keyCache2);
+    readAllMultimap.cleanupAfterWorkItem();
+    keyCache2.persist();
+
+    assertTrue(multimapCache.getWeight() >= 2L * payloadBytes);
+  }
+
+  @Test
+  public void testMultimapStateCacheEvictionAndEntryLimit() throws Exception {
+    WindmillStateCache smallCache =
+        WindmillStateCache.builder().setSizeMb(2).setSupportMapViaMultimap(true).build();
+    InternedByteString stateKey = InternedByteString.of(ByteString.copyFromUtf8("mm_evict_tag"));
+    int payloadBytes = 256 * 1024;
+
+    // 1. Verify Guava evicts WindmillMultimap entries once total weight exceeds workerCacheMb.
+    for (int i = 0; i < 12; i++) {
+      WindmillComputationKey compKey =
+          WindmillComputationKey.create(
+              COMPUTATION, ByteString.copyFromUtf8("key_" + i), SHARDING_KEY);
+      WindmillStateCache.ForKeyAndFamily keyCache =
+          smallCache.forComputation(COMPUTATION).forKey(compKey, 0L, 1L).forFamily(STATE_FAMILY);
+      WindmillMultimap<String, byte[]> mm =
+          new WindmillMultimap<>(
+              StateNamespaces.global(),
+              stateKey,
+              STATE_FAMILY,
+              StringUtf8Coder.of(),
+              ByteArrayCoder.of(),
+              /* isNewShardingKey= */ true);
+      mm.put("payload", new byte[payloadBytes]);
+      mm.persistDirectly(keyCache);
+      keyCache.persist();
+    }
+
+    assertTrue(
+        "Expected evictions when caching 12 x 256KB into 2MB cache",
+        smallCache.getCacheStats().evictionCount() > 0);
+    assertTrue(
+        "Expected bounded cache weight <= 2MB, got " + smallCache.getWeight(),
+        smallCache.getWeight() <= 2 * MEGABYTES);
+
+    // 2. Verify maxCachedEntryBytes rejects oversized WindmillMultimap entries.
+    smallCache.setMaxCachedEntryBytesOverride(64 * 1024);
+    WindmillComputationKey oversizedKey =
+        WindmillComputationKey.create(
+            COMPUTATION, ByteString.copyFromUtf8("oversized_key"), SHARDING_KEY);
+    WindmillStateCache.ForKeyAndFamily writeCache =
+        smallCache.forComputation(COMPUTATION).forKey(oversizedKey, 0L, 1L).forFamily(STATE_FAMILY);
+    WindmillMultimap<String, byte[]> oversizedMultimap =
+        new WindmillMultimap<>(
+            StateNamespaces.global(),
+            stateKey,
+            STATE_FAMILY,
+            StringUtf8Coder.of(),
+            ByteArrayCoder.of(),
+            /* isNewShardingKey= */ true);
+    oversizedMultimap.put("payload", new byte[payloadBytes]);
+    oversizedMultimap.persistDirectly(writeCache);
+    writeCache.persist();
+
+    WindmillStateCache.ForKeyAndFamily nextWorkItemCache =
+        smallCache.forComputation(COMPUTATION).forKey(oversizedKey, 0L, 2L).forFamily(STATE_FAMILY);
+    assertNull(nextWorkItemCache.get(StateNamespaces.global(), stateKey));
   }
 }
