@@ -171,10 +171,6 @@ qdrant_dependency = ['qdrant-client>=1.15.0']
 # in tox.ini.
 xgboost_dependency = [
     'xgboost>=2.0.0,<4',
-    # apache_beam.ml.inference.xgboost_inference imports datatable directly.
-    # 1.1.0 is the first release with Python 3.10+ wheels; no release has
-    # wheels for Python 3.13+.
-    'datatable>=1.1.0,<2',
 ]
 
 # tensorflow-transform 1.21 (via tfx-bsl 1.21) requires
@@ -617,7 +613,6 @@ if __name__ == '__main__':
           # extras. Keeping the bounds open as much as possible so that we
           # can find out early when Beam doesn't work with new versions.
           'ml_test': [
-              'datatable',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',  # match tft extra.
@@ -630,8 +625,6 @@ if __name__ == '__main__':
               # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          # xgboost_dependency includes datatable, which only has wheels for
-          # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
           'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
           'p312_ml_test': [
               'typesafe-sdk>=0.7.1,<0.8',

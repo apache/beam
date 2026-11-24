@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
-import java.util.stream.Stream;
+import java.util.Iterator;
 
 /**
  * A handler for buffering elements which cannot be processed yet because {@link
@@ -30,8 +30,11 @@ import java.util.stream.Stream;
  */
 interface BufferingElementsHandler {
 
-  /** Returns all buffered elements. */
-  Stream<BufferedElement> getElements();
+  /**
+   * Returns all buffered elements. For keyed state, the key of the state backend is set to the key
+   * of each element when that element is returned by {@link Iterator#next()}.
+   */
+  Iterator<BufferedElement> getElements();
 
   /** Adds the given element to the buffered elements. */
   void buffer(BufferedElement element);

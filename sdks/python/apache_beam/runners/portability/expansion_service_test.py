@@ -373,6 +373,13 @@ def update_sklearn_model_dependency(env):
       Stager._create_file_stage_to_artifact(model_file, staged_name))
 
 
+class _TestExpansionServiceServicer(expansion_service.ExpansionServiceServicer):
+  def _create_default_environment(self):
+    default_environment = super()._create_default_environment()
+    update_sklearn_model_dependency(default_environment)
+    return default_environment
+
+
 server = None
 
 
@@ -395,7 +402,7 @@ def main(unused_argv):
   with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
       options.fully_qualified_name_glob):
     server = grpc.server(thread_pool_executor.shared_unbounded_instance())
-    expansion_servicer = expansion_service.ExpansionServiceServicer(
+    expansion_servicer = _TestExpansionServiceServicer(
         PipelineOptions([
             "--experiments",
             "beam_fn_api",
@@ -404,7 +411,6 @@ def main(unused_argv):
             "--pickle_library",
             "cloudpickle"
         ]))
-    update_sklearn_model_dependency(expansion_servicer._default_environment)
     beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
         expansion_servicer, server)
     beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
@@ -418,7 +424,7 @@ def main(unused_argv):
     signal.signal(signal.SIGTERM, cleanup)
     signal.signal(signal.SIGINT, cleanup)
     # blocking main thread forever.
-    signal.pause()
+    server.wait_for_termination()
 
 
 if __name__ == '__main__':

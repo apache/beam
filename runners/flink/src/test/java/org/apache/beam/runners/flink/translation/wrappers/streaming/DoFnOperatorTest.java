@@ -2530,6 +2530,106 @@ public class DoFnOperatorTest {
     }
   }
 
+  /**
+   * Ensures that elements buffered because of {@code @RequiresStableInput} are replayed under the
+   * key they were buffered for, also when several keys share a key group (heap state backend). See
+   * https://github.com/apache/beam/issues/41512.
+   */
+  @Test
+  public void testExactlyOnceBufferingKeepsKeyContextForKeysInSameKeyGroup() throws Exception {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setCheckpointingInterval(100L);
+    options.setCheckpointingMode("EXACTLY_ONCE");
+
+    TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+    KvToFlinkKeyKeySelector<String, String> keySelector = new KvToFlinkKeyKeySelector<>(keyCoder);
+    KvCoder<String, String> kvCoder = KvCoder.of(keyCoder, StringUtf8Coder.of());
+    WindowedValues.FullWindowedValueCoder<KV<String, String>> windowedValueCoder =
+        WindowedValues.getFullCoder(kvCoder, GlobalWindow.Coder.INSTANCE);
+
+    final String timerId = "timer";
+    final Instant timerTimestamp = new Instant(50);
+    DoFn<KV<String, String>, KV<String, String>> doFn =
+        new DoFn<KV<String, String>, KV<String, String>>() {
+          @TimerId(timerId)
+          private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          // Use RequiresStableInput to force buffering elements and fired timers
+          @RequiresStableInput
+          public void processElement(
+              @Element KV<String, String> element,
+              OutputReceiver<KV<String, String>> out,
+              @TimerId(timerId) Timer timer) {
+            out.output(element);
+            // Registered for the current key of the keyed state backend.
+            timer.set(timerTimestamp);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(@Key String key, OutputReceiver<KV<String, String>> out) {
+            out.output(KV.of(key, "timer"));
+          }
+        };
+
+    DoFnOperator<KV<String, String>, KV<String, String>, KV<String, String>> doFnOperator =
+        new DoFnOperator<>(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                outputTag, windowedValueCoder, new SerializablePipelineOptions(options)),
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            keyCoder,
+            keySelector,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    // maxParallelism 1: there is only one key group, so both keys are in the same key group.
+    OneInputStreamOperatorTestHarness<
+            WindowedValue<KV<String, String>>, WindowedValue<KV<String, String>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator, keySelector, keySelector.getProducedType(), 1, 1, 0);
+
+    testHarness.open();
+
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "a"), new Instant(10))));
+    testHarness.processElement(
+        new StreamRecord<>(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k2", "b"), new Instant(10))));
+
+    // Replays both buffered elements; each must set the timer for its own key.
+    testHarness.snapshot(1L, 0L);
+    doFnOperator.notifyCheckpointComplete(1L);
+
+    // Fires both timers, which are buffered until the next checkpoint completes.
+    testHarness.processWatermark(new Watermark(100));
+    testHarness.snapshot(2L, 0L);
+    doFnOperator.notifyCheckpointComplete(2L);
+
+    assertThat(
+        stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        containsInAnyOrder(
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "a"), new Instant(10)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k2", "b"), new Instant(10)),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k1", "timer"), timerTimestamp),
+            WindowedValues.timestampedValueInGlobalWindow(KV.of("k2", "timer"), timerTimestamp)));
+
+    testHarness.close();
+  }
+
   @Test(expected = IllegalStateException.class)
   public void testFailOnRequiresStableInputAndDisabledCheckpointing() {
     TupleTag<KV<String, String>> outputTag = new TupleTag<>("main-output");
