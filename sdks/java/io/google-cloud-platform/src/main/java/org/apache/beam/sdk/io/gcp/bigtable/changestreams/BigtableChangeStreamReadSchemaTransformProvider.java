@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -100,10 +101,10 @@ public class BigtableChangeStreamReadSchemaTransformProvider
           .addByteArrayField("key")
           .addStringField("mutation_type")
           .addStringField("source_cluster_id")
-          .addDateTimeField("commit_timestamp")
+          .addLogicalTypeField("commit_timestamp", new MicrosInstant())
           .addInt32Field("tie_breaker")
           .addStringField("token")
-          .addDateTimeField("estimated_low_watermark")
+          .addLogicalTypeField("estimated_low_watermark", new MicrosInstant())
           .addArrayField("entries", Schema.FieldType.row(ENTRY_SCHEMA))
           .build();
 
@@ -112,10 +113,10 @@ public class BigtableChangeStreamReadSchemaTransformProvider
           .addByteArrayField("key")
           .addStringField("mutation_type")
           .addStringField("source_cluster_id")
-          .addDateTimeField("commit_timestamp")
+          .addLogicalTypeField("commit_timestamp", new MicrosInstant())
           .addInt32Field("tie_breaker")
           .addStringField("token")
-          .addDateTimeField("estimated_low_watermark")
+          .addLogicalTypeField("estimated_low_watermark", new MicrosInstant())
           .addInt32Field("entry_index")
           .addStringField("type")
           .addStringField("family_name")
@@ -428,10 +429,10 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .addValue(mutation.getRowKey().toByteArray())
         .addValue(mutation.getType().name())
         .addValue(mutation.getSourceClusterId())
-        .addValue(new Instant(mutation.getCommitTime().toEpochMilli()))
+        .addValue(mutation.getCommitTime())
         .addValue(mutation.getTieBreaker())
         .addValue(mutation.getToken())
-        .addValue(new Instant(mutation.getEstimatedLowWatermarkTime().toEpochMilli()))
+        .addValue(mutation.getEstimatedLowWatermarkTime())
         .addValue(entries)
         .build();
   }
@@ -445,10 +446,10 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .addValue(mutation.getRowKey().toByteArray())
         .addValue(mutation.getType().name())
         .addValue(mutation.getSourceClusterId())
-        .addValue(new Instant(mutation.getCommitTime().toEpochMilli()))
+        .addValue(mutation.getCommitTime())
         .addValue(mutation.getTieBreaker())
         .addValue(mutation.getToken())
-        .addValue(new Instant(mutation.getEstimatedLowWatermarkTime().toEpochMilli()))
+        .addValue(mutation.getEstimatedLowWatermarkTime())
         .addValue(entryIndex)
         .addValue(entryRow.getString("type"))
         .addValue(entryRow.getString("family_name"))

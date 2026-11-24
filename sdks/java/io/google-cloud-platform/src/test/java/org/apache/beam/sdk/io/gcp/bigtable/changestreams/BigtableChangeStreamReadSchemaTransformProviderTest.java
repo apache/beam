@@ -271,8 +271,9 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
             123L,
             ByteString.copyFromUtf8("value"));
 
-    java.time.Instant commitTime = java.time.Instant.parse("2026-10-19T10:00:00.123Z");
-    java.time.Instant estimatedLowWatermark = java.time.Instant.parse("2026-10-19T09:59:59.456Z");
+    java.time.Instant commitTime = java.time.Instant.parse("2026-10-19T10:00:00.123456Z");
+    java.time.Instant estimatedLowWatermark =
+        java.time.Instant.parse("2026-10-19T09:59:59.456789Z");
 
     when(mutation.getRowKey()).thenReturn(ByteString.copyFromUtf8("key"));
     when(mutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
@@ -288,13 +289,12 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     assertArrayEquals("key".getBytes(UTF_8), row.getBytes("key"));
     assertEquals("USER", row.getString("mutation_type"));
     assertEquals("cluster-1", row.getString("source_cluster_id"));
-    assertEquals(
-        new org.joda.time.Instant(commitTime.toEpochMilli()), row.getDateTime("commit_timestamp"));
+    assertEquals(commitTime, row.getLogicalTypeValue("commit_timestamp", java.time.Instant.class));
     assertEquals(Integer.valueOf(42), row.getInt32("tie_breaker"));
     assertEquals("token-1", row.getString("token"));
     assertEquals(
-        new org.joda.time.Instant(estimatedLowWatermark.toEpochMilli()),
-        row.getDateTime("estimated_low_watermark"));
+        estimatedLowWatermark,
+        row.getLogicalTypeValue("estimated_low_watermark", java.time.Instant.class));
 
     assertEquals(1, row.getArray("entries").size());
 
@@ -320,8 +320,9 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
             123L,
             ByteString.copyFromUtf8("value"));
 
-    java.time.Instant commitTime = java.time.Instant.parse("2026-10-19T10:00:00.123Z");
-    java.time.Instant estimatedLowWatermark = java.time.Instant.parse("2026-10-19T09:59:59.456Z");
+    java.time.Instant commitTime = java.time.Instant.parse("2026-10-19T10:00:00.123456Z");
+    java.time.Instant estimatedLowWatermark =
+        java.time.Instant.parse("2026-10-19T09:59:59.456789Z");
 
     when(mutation.getRowKey()).thenReturn(ByteString.copyFromUtf8("key"));
     when(mutation.getType()).thenReturn(ChangeStreamMutation.MutationType.USER);
@@ -340,13 +341,12 @@ public class BigtableChangeStreamReadSchemaTransformProviderTest {
     assertArrayEquals("key".getBytes(UTF_8), row.getBytes("key"));
     assertEquals("USER", row.getString("mutation_type"));
     assertEquals("cluster-1", row.getString("source_cluster_id"));
-    assertEquals(
-        new org.joda.time.Instant(commitTime.toEpochMilli()), row.getDateTime("commit_timestamp"));
+    assertEquals(commitTime, row.getLogicalTypeValue("commit_timestamp", java.time.Instant.class));
     assertEquals(Integer.valueOf(42), row.getInt32("tie_breaker"));
     assertEquals("token-1", row.getString("token"));
     assertEquals(
-        new org.joda.time.Instant(estimatedLowWatermark.toEpochMilli()),
-        row.getDateTime("estimated_low_watermark"));
+        estimatedLowWatermark,
+        row.getLogicalTypeValue("estimated_low_watermark", java.time.Instant.class));
 
     assertEquals("SET_CELL", row.getString("type"));
     assertEquals("family", row.getString("family_name"));
