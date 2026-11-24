@@ -149,6 +149,8 @@ public class DebeziumIO {
 
     abstract @Nullable Boolean getFullMetadata();
 
+    abstract @Nullable Boolean getSchemaChangeEvents();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -172,6 +174,8 @@ public class DebeziumIO {
       abstract Builder<T> setOffsetRetainer(OffsetRetainer retainer);
 
       abstract Builder<T> setFullMetadata(Boolean fullMetadata);
+
+      abstract Builder<T> setSchemaChangeEvents(Boolean schemaChangeEvents);
 
       abstract Read<T> build();
     }
@@ -327,24 +331,45 @@ public class DebeziumIO {
     }
 
     /**
-     * Returns the format function to use, taking {@link #withFullMetadata(boolean)} into account.
+     * Adds the schema change payload ({@code databaseName}, {@code schemaName}, {@code ddl}, {@code
+     * ts_ms} and {@code tableChanges}) to schema change events when reading as JSON.
      *
-     * @throws IllegalArgumentException if full metadata is requested but the format function is not
-     *     a {@link SourceRecordJson.SourceRecordJsonMapper}.
+     * <p>Only applies to {@link DebeziumIO#readAsJson()} / {@link
+     * SourceRecordJson.SourceRecordJsonMapper}; combining it with a custom {@link
+     * #withFormatFunction(SourceRecordMapper)} fails with an {@link IllegalArgumentException} when
+     * the transform is expanded. Default false.
+     *
+     * @param schemaChangeEvents Whether to emit the schema change payload.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withSchemaChangeEvents(boolean schemaChangeEvents) {
+      return toBuilder().setSchemaChangeEvents(schemaChangeEvents).build();
+    }
+
+    /**
+     * Returns the format function to use, taking {@link #withFullMetadata(boolean)} and {@link
+     * #withSchemaChangeEvents(boolean)} into account.
+     *
+     * @throws IllegalArgumentException if full metadata or schema change events are requested but
+     *     the format function is not a {@link SourceRecordJson.SourceRecordJsonMapper}.
      */
     SourceRecordMapper<T> resolveFormatFunction() {
       SourceRecordMapper<T> formatFunction = getFormatFunction();
-      if (!Boolean.TRUE.equals(getFullMetadata())) {
+      boolean fullMetadata = Boolean.TRUE.equals(getFullMetadata());
+      boolean schemaChangeEvents = Boolean.TRUE.equals(getSchemaChangeEvents());
+      if (!fullMetadata && !schemaChangeEvents) {
         return formatFunction;
       }
       if (formatFunction instanceof SourceRecordJson.SourceRecordJsonMapper) {
         @SuppressWarnings("unchecked")
-        SourceRecordMapper<T> fullMetadataMapper =
-            (SourceRecordMapper<T>) new SourceRecordJson.SourceRecordJsonMapper(true);
-        return fullMetadataMapper;
+        SourceRecordMapper<T> jsonMapper =
+            (SourceRecordMapper<T>)
+                new SourceRecordJson.SourceRecordJsonMapper(fullMetadata, schemaChangeEvents);
+        return jsonMapper;
       }
       throw new IllegalArgumentException(
-          "withFullMetadata(true) only applies to readAsJson() / SourceRecordJsonMapper");
+          (fullMetadata ? "withFullMetadata(true)" : "withSchemaChangeEvents(true)")
+              + " only applies to readAsJson() / SourceRecordJsonMapper");
     }
 
     protected Schema getRecordSchema() {

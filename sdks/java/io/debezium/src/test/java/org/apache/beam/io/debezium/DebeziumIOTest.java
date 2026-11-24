@@ -282,6 +282,63 @@ public class DebeziumIOTest implements Serializable {
   }
 
   @Test
+  public void testReadAsJsonWithSchemaChangeEvents() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.readAsJson().withSchemaChangeEvents(true).resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, false, true).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testReadAsJsonWithoutSchemaChangeEvents() {
+    DebeziumIO.Read<String> read = DebeziumIO.readAsJson().withSchemaChangeEvents(false);
+    assertSame(read.getFormatFunction(), read.resolveFormatFunction());
+  }
+
+  @Test
+  public void testReadAsJsonWithFullMetadataAndSchemaChangeEvents() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.readAsJson()
+            .withFullMetadata(true)
+            .withSchemaChangeEvents(true)
+            .resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, true, true).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testSchemaChangeEventsWithCustomFormatFunctionThrows() {
+    DebeziumIO.Read<String> read =
+        DebeziumIO.<String>read()
+            .withFormatFunction(sourceRecord -> sourceRecord.toString())
+            .withSchemaChangeEvents(true);
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, read::resolveFormatFunction);
+    assertEquals(
+        "withSchemaChangeEvents(true) only applies to readAsJson() / SourceRecordJsonMapper",
+        e.getMessage());
+  }
+
+  @Test
+  public void testBuildExternalWithSchemaChangeEvents() throws Exception {
+    DebeziumTransformRegistrar.ReadBuilder.Configuration config =
+        new DebeziumTransformRegistrar.ReadBuilder.Configuration();
+    config.setUsername("user");
+    config.setPassword("pass");
+    config.setHost("localhost");
+    config.setPort("3306");
+    config.setConnectorClass("MySQL");
+    config.setSchemaChangeEvents(true);
+    DebeziumIO.Read<String> read =
+        (DebeziumIO.Read<String>)
+            new DebeziumTransformRegistrar.ReadBuilder().buildExternal(config);
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    assertEquals(
+        new SourceRecordJson(record, false, true).toJson(),
+        read.resolveFormatFunction().mapSourceRecord(record));
+  }
+
+  @Test
   public void testBuildExternalThrowsOnMalformedStartOffsetEntry() {
     DebeziumTransformRegistrar.ReadBuilder.Configuration config =
         new DebeziumTransformRegistrar.ReadBuilder.Configuration();
