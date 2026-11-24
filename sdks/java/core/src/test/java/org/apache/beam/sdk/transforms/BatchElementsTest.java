@@ -867,6 +867,54 @@ public class BatchElementsTest implements Serializable {
 
   // LinearRegression unit tests
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testMeasureElementSizeNegativeThrows() {
+    BatchElements.measureElementSize(s -> -1, "a");
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMeasureElementSizeNullResultThrows() {
+    BatchElements.measureElementSize(s -> null, "a");
+  }
+
+  @Test
+  public void testMeasureElementSizeZeroAllowed() {
+    assertEquals(0, BatchElements.measureElementSize(String::length, ""));
+  }
+
+  @Test
+  public void testMeasureElementSizeDefaultIsOne() {
+    assertEquals(1, BatchElements.measureElementSize(null, "abc"));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSizedBatchesLargeElementSizeDoesNotOverflow() {
+    List<Integer> input = Arrays.asList(Integer.MAX_VALUE, Integer.MAX_VALUE);
+
+    PCollection<List<Integer>> batches =
+        pipeline
+            .apply("Create", Create.of(input))
+            .apply(
+                "Batch",
+                BatchElements.<Integer>withConfig(constantConfig(10)).withElementSizeFn(x -> x));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              int totalElements = 0;
+              for (List<Integer> batch : allBatches) {
+                assertEquals(
+                    "Each Integer.MAX_VALUE element must be its own batch", 1, batch.size());
+                totalElements += batch.size();
+              }
+              assertEquals(2, totalElements);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
   @Test
   public void testLinearRegressionPerfectFit() throws Exception {
     double[] ab = linearRegression(new double[] {1, 2, 3, 4, 5}, new double[] {3, 5, 7, 9, 11});

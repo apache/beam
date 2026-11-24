@@ -148,7 +148,8 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
    * with {@link #withMaxBatchWeight(long)}, the adaptive target is based on element count, and the
    * measured size is used to enforce the maximum batch weight.
    *
-   * @param elementSizeFn function for measuring an element's size
+   * @param elementSizeFn function for measuring an element's size (must return a non-negative
+   *     integer)
    * @throws IllegalArgumentException if {@code elementSizeFn} is {@code null}
    * @see #withMaxBatchWeight(long)
    */
@@ -157,6 +158,19 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       throw new IllegalArgumentException("elementSizeFn must not be null");
     }
     return new BatchElements<>(config, elementSizeFn, maxBatchWeight);
+  }
+
+  static <T> int measureElementSize(
+      @Nullable SerializableFunction<T, Integer> elementSizeFn, T element) {
+    if (elementSizeFn == null) {
+      return 1;
+    }
+    @Nullable Integer size = elementSizeFn.apply(element);
+    if (size == null || size < 0) {
+      throw new IllegalArgumentException(
+          "elementSizeFn must return a non-negative integer, got " + size);
+    }
+    return size;
   }
 
   /**
@@ -556,16 +570,16 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       int elementSize;
       long elementWeight;
       if (maxBatchWeight == null) {
-        elementSize = elementSizeFn != null ? elementSizeFn.apply(element) : 1;
+        elementSize = measureElementSize(elementSizeFn, element);
         elementWeight = 0L;
       } else {
         elementSize = 1;
-        elementWeight = elementSizeFn != null ? elementSizeFn.apply(element) : 1L;
+        elementWeight = measureElementSize(elementSizeFn, element);
       }
 
       boolean wouldExceedSize = runningBatchSize + (long) elementSize > targetBatchSize;
       boolean wouldExceedWeight =
-          maxBatchWeight != null && runningBatchWeight + elementWeight > maxBatchWeight;
+          maxBatchWeight != null && runningBatchWeight > maxBatchWeight - elementWeight;
 
       // Never emit an empty batch: an element that exceeds the limits on its own
       // is emitted in a batch by itself.
@@ -580,7 +594,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
         targetBatchSize = estimator.nextBatchSize();
       }
       batch.add(element);
-      runningBatchSize += elementSize;
+      runningBatchSize = (int) Math.min(Integer.MAX_VALUE, (long) runningBatchSize + elementSize);
       runningBatchWeight += elementWeight;
     }
 
@@ -652,16 +666,16 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       int elementSize;
       long elementWeight;
       if (maxBatchWeight == null) {
-        elementSize = elementSizeFn != null ? elementSizeFn.apply(element) : 1;
+        elementSize = measureElementSize(elementSizeFn, element);
         elementWeight = 0L;
       } else {
         elementSize = 1;
-        elementWeight = elementSizeFn != null ? elementSizeFn.apply(element) : 1L;
+        elementWeight = measureElementSize(elementSizeFn, element);
       }
 
       boolean wouldExceedSize = batch.size + (long) elementSize > targetBatchSize;
       boolean wouldExceedWeight =
-          maxBatchWeight != null && batch.weight + elementWeight > maxBatchWeight;
+          maxBatchWeight != null && batch.weight > maxBatchWeight - elementWeight;
 
       // Never emit an empty batch: an element that exceeds the limits on its own
       // is emitted in a batch by itself.
@@ -676,7 +690,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       }
 
       batch.elements.add(element);
-      batch.size += elementSize;
+      batch.size = (int) Math.min(Integer.MAX_VALUE, (long) batch.size + elementSize);
       batch.weight += elementWeight;
 
       // evict largest window if too many live windows
