@@ -777,6 +777,10 @@ class HuggingFacePipelineModelHandler(ModelHandler[str,
     """
     inference_args = {} if not inference_args else inference_args
     predictions = self._inference_fn(batch, pipeline, inference_args)
+    # Some Hugging Face pipelines (e.g. QuestionAnsweringPipeline) return a
+    # single dict instead of a list of dicts when given a single-element batch.
+    if isinstance(predictions, dict) and len(batch) == 1:
+      predictions = [predictions]
     return utils._convert_to_result(batch, predictions)
 
   def update_model_path(self, model_path: Optional[str] = None):

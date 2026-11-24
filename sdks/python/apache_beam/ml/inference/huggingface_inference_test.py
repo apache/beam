@@ -314,6 +314,38 @@ class HuggingFaceJobSubmissionTest(unittest.TestCase):
       self.assertFalse(huggingface_inference._is_tensorflow_tensor([1]))
     self.assertEqual(attempted_imports, [])
 
+  def test_pipeline_run_inference_single_dict_prediction(self):
+    # Pipelines like QuestionAnsweringPipeline return a single dict rather than
+    # a list of dicts for a batch of size 1.
+    fake_pipeline = lambda batch, **kwargs: {
+        'score': 0.99, 'start': 0, 'end': 5, 'answer': 'Paris'
+    }
+    model_handler = HuggingFacePipelineModelHandler(
+        task='question-answering', model='unused')
+    results = list(model_handler.run_inference(['example1'], fake_pipeline))
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].example, 'example1')
+    self.assertEqual(
+        results[0].inference, {
+            'score': 0.99, 'start': 0, 'end': 5, 'answer': 'Paris'
+        })
+
+  def test_pipeline_run_inference_batched_list_predictions(self):
+    fake_pipeline = lambda batch, **kwargs: [{
+        'score': 0.99, 'answer': 'Paris'
+    }, {
+        'score': 0.85, 'answer': 'NYC'
+    }]
+    model_handler = HuggingFacePipelineModelHandler(
+        task='question-answering', model='unused')
+    results = list(
+        model_handler.run_inference(['example1', 'example2'], fake_pipeline))
+    self.assertEqual(len(results), 2)
+    self.assertEqual(results[0].example, 'example1')
+    self.assertEqual(results[0].inference, {'score': 0.99, 'answer': 'Paris'})
+    self.assertEqual(results[1].example, 'example2')
+    self.assertEqual(results[1].inference, {'score': 0.85, 'answer': 'NYC'})
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -220,7 +220,7 @@ task torchInferenceTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "torchInferenceTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_pytorch and it_postcommit",
           "runner": "TestDirectRunner"
       ]
@@ -241,7 +241,7 @@ task sklearnInferenceTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "sklearnInferenceTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_sklearn and it_postcommit" ,
           "runner": "TestDirectRunner"
       ]
@@ -268,7 +268,7 @@ task tfxInferenceTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "tfxInferenceTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_tensorflow and it_postcommit" ,
           "runner": "TestDirectRunner"
       ]
@@ -295,7 +295,7 @@ task tensorflowInferenceTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "tensorflowInferenceTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_tf and it_postcommit" ,
           "runner": "TestDirectRunner"
       ]
@@ -322,7 +322,7 @@ task xgboostInferenceTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "xgboostInferenceTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_xgboost and it_postcommit",
           "runner": "TestDirectRunner"
       ]
@@ -350,7 +350,7 @@ task transformersInferenceTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "transformersInferenceTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_transformers and it_postcommit" ,
           "runner": "TestDirectRunner"
       ]
@@ -377,7 +377,7 @@ task testcontainersTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "testcontainersTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_testcontainer",
           "runner": "TestDirectRunner",
           "region": "us-central1",
@@ -405,7 +405,7 @@ task feastIntegrationTest {
       def testOpts = basicTestOpts
       def argMap = [
           "test_opts": testOpts,
-          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "suite": "feastIntegrationTest-direct-py${pythonVersionSuffix}",
           "collect": "uses_feast",
           "runner": "TestDirectRunner"
       ]
