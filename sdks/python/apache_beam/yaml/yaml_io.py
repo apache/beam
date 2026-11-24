@@ -23,6 +23,7 @@ Note that in the case that they overlap with other (likely Java)
 implementations of the same transforms, the configs must be kept in sync.
 """
 
+import csv
 import functools
 import io
 import itertools
@@ -142,15 +143,32 @@ def read_from_csv(
   if kwargs:
     raise ValueError(
         f'ReadFromCsv does not support {sorted(kwargs)} with error_handling.')
+  if len(sep) != 1:
+    raise ValueError(
+        'ReadFromCsv only supports a one-character sep with error_handling.')
+
+  def is_valid(record):
+    try:
+      pd.read_csv(io.StringIO(record), header=None, sep=sep, comment=comment)
+      return True
+    except Exception:  # pylint: disable=broad-except
+      return False
 
   def sample(handle):
+    # Use the same records as parse_file, so that a bad record in the
+    # sample, such as one with an unclosed quote, is skipped here and
+    # sent to the error output later.
+    lines = (line.decode('utf-8', 'replace') for line in _read_lines(handle))
+    records = (
+        record for record in _split_csv_records(lines, sep, comment)
+        if record.strip())
+    header = next(records, '')
+    good = itertools.islice(filter(is_valid, records), _SAMPLE_SIZE)
     return pd.read_csv(
-        handle,
+        io.StringIO(header + ''.join(good)),
         sep=sep,
         comment=comment,
-        nrows=_SAMPLE_SIZE,
-        on_bad_lines='skip',
-        encoding_errors='replace')
+        on_bad_lines='skip')
 
   def parse_record(header, record, dtypes):
     columns = list(dtypes)
@@ -170,7 +188,7 @@ def read_from_csv(
     dtypes = proxy.dtypes.to_dict()
     dtypes.pop(filename_column, None)
     header = None
-    for record in _join_quoted_lines(lines, comment):
+    for record in _split_csv_records(lines, sep, comment):
       if not record.strip():
         continue
       if header is None:
@@ -280,22 +298,44 @@ def _read_lines(handle):
 _SAMPLE_SIZE = 100
 
 
-def _join_quoted_lines(lines, comment=None):
-  """Joins lines so that a quoted csv field with newlines stays in one record.
+def _split_csv_records(lines, sep=',', comment=None):
+  """Splits csv lines into records, so a quoted field with newlines stays
+  in one record. Yields the raw text of each record.
 
-  A record is complete when it has an even number of quote characters.
+  The csv module finds where each record ends, using the same quote rules
+  as pandas: a quote only starts a quoted field at the start of a field.
   Comment lines between records are skipped.
+
+  If a quoted field is never closed, or the csv module rejects a record,
+  only the first line of that record is yielded as a record of its own,
+  and reading starts again from the next line. So one bad quote does not
+  take the rest of the file with it.
   """
-  record = ''
-  for line in lines:
-    if not record and comment and line.startswith(comment):
-      continue
-    record += line
-    if record.count('"') % 2 == 0:
-      yield record
-      record = ''
-  if record:
-    yield record
+  def feed(source, pending, at_end):
+    for line in source:
+      if not pending and comment and line.startswith(comment):
+        continue
+      pending.append(line)
+      yield line
+    at_end.append(True)
+
+  lines = iter(lines)
+  while True:
+    pending = []
+    at_end = []
+    try:
+      for _ in csv.reader(feed(lines, pending, at_end), delimiter=sep):
+        if at_end and pending:
+          # The file ended inside a quoted field.
+          break
+        yield ''.join(pending)
+        pending.clear()
+      else:
+        return
+    except csv.Error:
+      pass
+    yield pending[0]
+    lines = itertools.chain(pending[1:], lines)
 
 
 # The type of the error rows from _ReadFilesWithErrors.

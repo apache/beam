@@ -1138,6 +1138,31 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
           equal_to(['b,2,extra\n']),
           label='CheckErrors')
 
+  def test_read_csv_with_error_handling_unclosed_quote(self):
+    path = self.write_file(
+        'input.csv',
+        b'name,count\n'
+        b'a,1\n'
+        b'5"ft,3\n'
+        b'"b,2\n'
+        b'c,4,extra\n'
+        b'd,5\n')
+    # The unclosed quote is in the sample, and should not fail the read.
+    p, result = self.read_with_errors('ReadFromCsv', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(name='a', count=1),
+              beam.Row(name='5"ft', count=3),
+              beam.Row(name='d', count=5),
+          ]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['"b,2\n', 'c,4,extra\n']),
+          label='CheckErrors')
+
   def test_read_compressed_csv_with_error_handling(self):
     path = self.write_file(
         'input.csv.gz', gzip.compress(b'name,count\na,1\nb,2,extra\n'))
