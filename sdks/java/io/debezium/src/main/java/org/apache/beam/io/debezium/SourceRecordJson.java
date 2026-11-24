@@ -93,10 +93,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <h3>Schema change events</h3>
  *
- * <p>With {@code include.schema.changes=true}, the MySQL, Oracle and SQL Server connectors also
- * emit an event each time a table is created, altered or dropped. These are mapped to their own
- * payload ({@link #loadChangeSchemaEvent}): {@code databaseName}, {@code schemaName}, {@code ddl},
- * {@code ts_ms} and {@code tableChanges}, which lists each changed table and its columns.
+ * <p>The MySQL, Oracle, SQL Server and Db2 connectors emit a schema change event for each DDL
+ * statement they capture, unless the connector has {@code include.schema.changes=false} (Debezium
+ * defaults it to true). These events are also emitted during the initial snapshot: for MySQL, a
+ * {@code DROP TABLE IF EXISTS} and a {@code CREATE TABLE} per captured table, plus database level
+ * statements with an empty {@code tableChanges}. With full metadata, the {@code snapshot} field of
+ * {@code metadata} tells them apart from live schema changes.
+ *
+ * <p>By default, they are mapped like a data change event, with {@code metadata} and a null {@code
+ * before} and {@code after}. When constructed with {@code schemaChangeEvents = true} (see {@link
+ * SourceRecordJsonMapper#SourceRecordJsonMapper(boolean, boolean)} and {@link
+ * DebeziumIO.Read#withSchemaChangeEvents(boolean)}), they keep {@code metadata}, {@code before} and
+ * {@code after} (so full metadata still applies) and gain the schema change payload ({@link
+ * #loadSchemaChangeEvent}): {@code databaseName}, {@code schemaName}, {@code ddl}, {@code ts_ms}
+ * and {@code tableChanges}, which lists each changed table and its columns. For a {@code DROP}, the
+ * entry's {@code table} is null and only its {@code type} and {@code id} are set.
  *
  * <h3>Usage Example</h3>
  *
