@@ -1790,6 +1790,7 @@ class ShardedKeyCoderImpl(StreamCoderImpl):
 
 
 _TIMESTAMP_CODER_IMPL = TimestampCoderImpl()
+_TIMESTAMP_ENCODED_SIZE = _TIMESTAMP_CODER_IMPL.estimate_size(Timestamp(0))
 
 
 class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
@@ -1811,11 +1812,13 @@ class TimestampPrefixingWindowCoderImpl(StreamCoderImpl):
     self._window_coder_impl.encode_to_stream(value, stream, nested)
 
   def decode_from_stream(self, stream, nested):
-    stream.read_bigendian_int64()
+    _TIMESTAMP_CODER_IMPL.decode_from_stream(stream, nested)
     return self._window_coder_impl.decode_from_stream(stream, nested)
 
   def estimate_size(self, value: Any, nested: bool = False) -> int:
-    return 8 + self._window_coder_impl.estimate_size(value, nested)
+    return (
+        _TIMESTAMP_ENCODED_SIZE +
+        self._window_coder_impl.estimate_size(value, nested))
 
 
 _OpaqueWindow = None
@@ -1869,7 +1872,7 @@ class TimestampPrefixingOpaqueWindowCoderImpl(StreamCoderImpl):
         max_timestamp.successor(), stream.read_all(True))
 
   def estimate_size(self, value: Any, nested: bool = False) -> int:
-    return 8 + len(value.encoded_window)
+    return _TIMESTAMP_ENCODED_SIZE + len(value.encoded_window)
 
 
 row_coders_registered = False
