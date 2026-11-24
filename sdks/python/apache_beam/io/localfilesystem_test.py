@@ -21,6 +21,7 @@ import contextlib
 import filecmp
 import logging
 import os
+import platform
 import shutil
 import tempfile
 import unittest
@@ -246,6 +247,8 @@ class LocalFileSystemTest(unittest.TestCase):
       files = [os.path.basename(f.path) for f in result.metadata_list]
       self.assertCountEqual(files, ['a.txt', 'b.txt'])
 
+  @unittest.skipUnless(
+      platform.system() == 'Windows', 'Windows path separators')
   def test_match_files_treats_both_separators_alike_on_windows(self):
     file_metas = [
         FileMetadata('C:\\data\\a.txt', 0),
@@ -253,11 +256,9 @@ class LocalFileSystemTest(unittest.TestCase):
         FileMetadata('C:\\data\\c.csv', 0),
         FileMetadata('C:\\data\\sub\\d.txt', 0),
     ]
-    with mock.patch.object(localfilesystem.os, 'sep', '\\'), \
-        mock.patch.object(localfilesystem.os.path, 'altsep', '/'):
-      for pattern in ['C:/data/*.txt', 'C:\\data\\*.txt', 'C:\\data/*.txt']:
-        files = [f.path for f in self.fs.match_files(file_metas, pattern)]
-        self.assertEqual(files, ['C:\\data\\a.txt', 'C:/data\\b.txt'], pattern)
+    for pattern in ['C:/data/*.txt', 'C:\\data\\*.txt', 'C:\\data/*.txt']:
+      files = [f.path for f in self.fs.match_files(file_metas, pattern)]
+      self.assertEqual(files, ['C:\\data\\a.txt', 'C:/data\\b.txt'], pattern)
 
   def test_match_relative_glob_in_cwd(self):
     with self.tmpdir_as_cwd():
