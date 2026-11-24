@@ -89,6 +89,7 @@ public class StatefulParDoStreamingTest implements Serializable {
   private static final String TAG_EXPIRY = "stateful-expiry";
   private static final String TAG_MULTI_LEAF = "stateful-multi-leaf";
   private static final String TAG_TAGGED_OUTPUT = "stateful-tagged-output";
+  private static final String TAG_ADDITIONAL_ONLY = "stateful-additional-only";
 
   @After
   public void tearDown() {
@@ -99,6 +100,7 @@ public class StatefulParDoStreamingTest implements Serializable {
     TestUnboundedSource.forget(TAG_EXPIRY);
     TestUnboundedSource.forget(TAG_MULTI_LEAF);
     TestUnboundedSource.forget(TAG_TAGGED_OUTPUT);
+    TestUnboundedSource.forget(TAG_ADDITIONAL_ONLY);
   }
 
   private static Pipeline pipeline(
@@ -302,6 +304,40 @@ public class StatefulParDoStreamingTest implements Serializable {
     TestPipeline.verifyPAssertsSucceeded(pipeline, result);
   }
 
+  @Test
+  public void testStatefulParDoOnlyAdditionalOutputConsumed() throws Exception {
+    TupleTag<String> mainTag = new TupleTag<String>() {};
+    TupleTag<String> additionalTag = new TupleTag<String>() {};
+
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(tempFolder);
+    options.setMaxRecordsPerBatch(1L);
+    Pipeline pipeline = Pipeline.create(options);
+    PCollectionTuple outputs =
+        pipeline
+            .apply("Read", Read.from(new TestUnboundedSource(TAG_ADDITIONAL_ONLY, 1, 4)))
+            .apply("WithKeys", WithKeys.of("k1"))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(
+                "StatefulParDo",
+                ParDo.of(new TaggedStateAndTimerFn(mainTag, additionalTag))
+                    .withOutputTags(mainTag, TupleTagList.of(additionalTag)));
+    PAssert.that(outputs.get(additionalTag)).containsInAnyOrder("k1-timer-4");
+
+    PipelineResult result = StreamingTestUtils.run(pipeline);
+    assertEquals(PipelineResult.State.DONE, result.getState());
+    TestPipeline.verifyPAssertsSucceeded(pipeline, result);
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named(TaggedStateAndTimerFn.class, "processed"))
+                    .build());
+    // The unconsumed main output starts no query of its own.
+    assertEquals(4L, (long) Iterables.getOnlyElement(metrics.getCounters()).getAttempted());
+  }
+
   private static final class KeySelectorFn extends DoFn<String, KV<String, String>> {
     @ProcessElement
     public void process(@Element String element, OutputReceiver<KV<String, String>> out) {
@@ -464,6 +500,7 @@ public class StatefulParDoStreamingTest implements Serializable {
   }
 
   private static final class TaggedStateAndTimerFn extends DoFn<KV<String, String>, String> {
+    private final Counter processed = Metrics.counter(TaggedStateAndTimerFn.class, "processed");
     private final TupleTag<String> mainTag;
     private final TupleTag<String> additionalTag;
 
@@ -485,6 +522,7 @@ public class StatefulParDoStreamingTest implements Serializable {
         @StateId("count") ValueState<Integer> countState,
         @TimerId("timer") Timer timer,
         MultiOutputReceiver out) {
+      processed.inc();
       int count = (countState.read() == null ? 0 : countState.read()) + 1;
       countState.write(count);
       out.get(mainTag).output(element.getKey() + "-" + count);

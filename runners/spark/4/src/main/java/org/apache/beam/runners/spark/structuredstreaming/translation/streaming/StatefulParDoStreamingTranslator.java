@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -73,12 +74,16 @@ public class StatefulParDoStreamingTranslator<K, V, OutputT>
     Map<TupleTag<?>, PCollection<?>> outputs =
         ParDoTranslatorBatch.skipUnconsumedOutputs(
             cxt.getOutputs(), mainOutputTag, transform.getAdditionalOutputTags(), cxt);
+    // Drops an unconsumed main output when another output is consumed.
+    if (outputs.size() > 1 && cxt.isLeaf(cxt.getOutput(mainOutputTag))) {
+      outputs = Maps.filterKeys(outputs, tag -> !mainOutputTag.equals(tag));
+    }
 
     MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
     MapFunction<WindowedValue<KV<K, V>>, byte[]> keyFn =
         v -> CoderHelpers.toByteArray(v.getValue().getKey(), keyCoder);
 
-    if (outputs.size() > 1) {
+    if (outputs.size() > 1 || !outputs.containsKey(mainOutputTag)) {
       Map<String, Integer> tagColIdx = ParDoTranslatorBatch.tagsColumnIndex(outputs.keySet());
       List<Encoder<WindowedValue<Object>>> encoders =
           ParDoTranslatorBatch.createEncoders(outputs, tagColIdx, cxt);
