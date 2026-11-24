@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextStorage;
 import io.opentelemetry.context.Scope;
 import java.util.Collection;
 import java.util.Collections;
@@ -188,11 +189,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    Context openTelemetryContext = compressedElem.getOpenTelemetryContext();
-    if (openTelemetryContext == null) {
+    @Nullable Context desired = compressedElem.getOpenTelemetryContext();
+    @Nullable Context current = ContextStorage.get().current();
+    if (desired == current) {
+      // Fast path covers both (null, null) and identical active contexts with zero Scope
+      // allocation.
       processElementInternal(compressedElem);
     } else {
-      try (Scope ignore = openTelemetryContext.makeCurrent()) {
+      processElementWithContextChange(compressedElem, desired, current);
+    }
+  }
+
+  private void processElementWithContextChange(
+      WindowedValue<InputT> compressedElem, @Nullable Context desired, @Nullable Context current) {
+    Context root = Context.root();
+    Context target = desired != null ? desired : root;
+    if (current == target || (current == null && target == root)) {
+      processElementInternal(compressedElem);
+    } else {
+      try (Scope ignore = target.makeCurrent()) {
         processElementInternal(compressedElem);
       }
     }
@@ -470,7 +485,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
-      SimpleDoFnRunner.this.outputWindowedValue(tag, elem.withValue(output));
+      // Preserve ValueInEmptyWindows / legacy zero-window elements (e.g. Dataflow classic batch
+      // side inputs from GroupingShuffleReader) without triggering non-empty window validation.
+      WindowedValue<T> windowedOutput =
+          (WindowedValues.singleWindowOrNull(elem) == null && elem.getWindows().isEmpty())
+              ? elem.withValue(output)
+              : WindowedValues.ofWithCurrentContext(elem, output);
+      SimpleDoFnRunner.this.outputWindowedValue(tag, windowedOutput);
     }
 
     @Override

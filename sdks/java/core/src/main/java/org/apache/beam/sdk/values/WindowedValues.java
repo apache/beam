@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextStorage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -31,6 +32,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -76,20 +78,57 @@ public class WindowedValues {
     return new Builder<>();
   }
 
-  /** Create a Builder that takes element metadata from the provided delegate. */
+  /**
+   * Creates a {@link Builder} that copies element metadata (excluding OpenTelemetry {@link
+   * Context}) from the provided {@code template}.
+   *
+   * <p>The template's OpenTelemetry {@link Context} is intentionally not copied; {@link
+   * Builder#getOpenTelemetryContext()} captures the current thread's OpenTelemetry {@link Context}
+   * when built, normalizing {@link Context#root()} to {@code null}.
+   */
   public static <T> Builder<T> builder(WindowedValue<T> template) {
     return builder(template, template.getValue());
   }
 
   /**
-   * Create a Builder that takes element metadata from the provided delegate with a new element
-   * value.
+   * Creates a {@link Builder} that copies element metadata (excluding OpenTelemetry {@link
+   * Context}) from the provided {@code template} with a new element {@code value}, without invoking
+   * {@link WindowedValue#getValue()} on {@code template}.
+   *
+   * <p>The template's OpenTelemetry {@link Context} is intentionally not copied; {@link
+   * Builder#getOpenTelemetryContext()} captures the current thread's OpenTelemetry {@link Context}
+   * when built, normalizing {@link Context#root()} to {@code null}.
+   *
+   * @param template the template {@link WindowedValue} supplying metadata
+   * @param value the value to set on the returned builder
+   * @return a fresh mutable {@link Builder} containing {@code value} and metadata from {@code
+   *     template}
    */
   public static <T> Builder<T> builder(WindowedValue<?> template, T value) {
-    return new Builder<T>()
-        .setValue(value)
-        .setTimestamp(template.getTimestamp())
-        .setWindows(template.getWindows())
+    Builder<T> builder = new Builder<T>().setValue(value).setTimestamp(template.getTimestamp());
+    if (template instanceof SimpleWindowedValue) {
+      @Nullable BoundedWindow singleWindow =
+          ((SimpleWindowedValue<?>) template).singleWindowOrNull();
+      if (singleWindow != null) {
+        builder.setWindow(singleWindow);
+      } else {
+        builder.setWindows(template.getWindows());
+      }
+    } else if (template instanceof Builder) {
+      Builder<?> templateBuilder = (Builder<?>) template;
+      if (templateBuilder.singleWindow != null) {
+        builder.setWindow(templateBuilder.singleWindow);
+      } else if (templateBuilder.windows != null) {
+        builder.setWindows(templateBuilder.windows);
+      } else {
+        throw new IllegalStateException("Windows not set");
+      }
+    } else if (template instanceof SingleWindowedValue) {
+      builder.setWindow(((SingleWindowedValue) template).getWindow());
+    } else {
+      builder.setWindows(template.getWindows());
+    }
+    return builder
         .setPaneInfo(template.getPaneInfo())
         .setRecordOffset(template.getRecordOffset())
         .setRecordId(template.getRecordId())
@@ -113,7 +152,8 @@ public class WindowedValues {
     private @MonotonicNonNull WindowedValueReceiver<T> receiver;
     private @MonotonicNonNull PaneInfo paneInfo;
     private @MonotonicNonNull Instant timestamp;
-    private @MonotonicNonNull Collection<? extends BoundedWindow> windows;
+    private @Nullable Collection<? extends BoundedWindow> windows;
+    private @Nullable BoundedWindow singleWindow;
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
     private CausedByDrain causedByDrain = CausedByDrain.NORMAL;
@@ -135,6 +175,7 @@ public class WindowedValues {
     @Override
     public Builder<T> setWindows(Collection<? extends BoundedWindow> windows) {
       this.windows = windows;
+      this.singleWindow = null;
       return this;
     }
 
@@ -146,7 +187,9 @@ public class WindowedValues {
 
     @Override
     public Builder<T> setWindow(BoundedWindow window) {
-      return setWindows(Collections.singletonList(window));
+      this.singleWindow = window;
+      this.windows = null;
+      return this;
     }
 
     @Override
@@ -206,17 +249,28 @@ public class WindowedValues {
       return timestamp;
     }
 
+    /**
+     * Returns the current thread's OpenTelemetry {@link Context}, or {@code null} when no non-root
+     * context is active (normalizing {@link Context#root()} to {@code null} by identity
+     * comparison).
+     */
     @Override
     public @Nullable Context getOpenTelemetryContext() {
-      // builder may have different context set at the beginning of parDo
-      // when building WindowedValue we should take current context from storage.
+      // Builder may have been created under a different context at the beginning of a ParDo;
+      // when building a WindowedValue we take the current context from storage and omit root.
       return currentOpenTelemetryContextOrNull();
     }
 
     @Override
     public Collection<? extends BoundedWindow> getWindows() {
-      checkStateNotNull(windows, "Windows not set");
-      return windows;
+      Collection<? extends BoundedWindow> result = windows;
+      if (result != null) {
+        return result;
+      }
+      BoundedWindow sw = checkStateNotNull(singleWindow, "Windows not set");
+      result = sw == GlobalWindow.INSTANCE ? GLOBAL_WINDOWS : Collections.singletonList(sw);
+      this.windows = result;
+      return result;
     }
 
     @Override
@@ -256,8 +310,7 @@ public class WindowedValues {
     @Override
     @Pure
     public <OtherT> Builder<OtherT> withValue(OtherT newValue) {
-      // because of erasure, this type system lie is safe
-      return ((Builder<OtherT>) builder(this)).setValue(newValue);
+      return WindowedValues.builder(this, newValue);
     }
 
     @Override
@@ -275,9 +328,24 @@ public class WindowedValues {
     }
 
     public WindowedValue<T> build() {
+      T val = getValue();
+      Instant ts = getTimestamp();
+      BoundedWindow sw = singleWindow;
+      if (sw != null) {
+        return WindowedValues.of(
+            val,
+            ts,
+            sw,
+            getPaneInfo(),
+            getRecordId(),
+            getRecordOffset(),
+            causedByDrain(),
+            getOpenTelemetryContext(),
+            getValueKind());
+      }
       return WindowedValues.of(
-          getValue(),
-          getTimestamp(),
+          val,
+          ts,
           getWindows(),
           getPaneInfo(),
           getRecordId(),
@@ -315,176 +383,40 @@ public class WindowedValues {
         ValueKind.INSERT);
   }
 
-  /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
-  public static <T> WindowedValue<T> of(
-      T value,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo,
-      @Nullable String currentRecordId,
-      @Nullable Long currentRecordOffset,
-      CausedByDrain causedByDrain,
-      @Nullable Context openTelemetryContext,
-      ValueKind valueKind) {
-    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
-    checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
-    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
-    checkArgument(valueKind != null, "WindowedValue requires ValueKind, but it was null");
-    if (windows.size() == 1) {
-      BoundedWindow window =
-          windows instanceof List
-              ? ((List<? extends BoundedWindow>) windows).get(0)
-              : windows.iterator().next();
-      return of(
-          value,
-          timestamp,
-          window,
-          paneInfo,
-          currentRecordId,
-          currentRecordOffset,
-          causedByDrain,
-          openTelemetryContext,
-          valueKind);
-    } else {
-      return new TimestampedValueInMultipleWindows<>(
-          value,
-          timestamp,
-          windows,
-          paneInfo,
-          currentRecordId,
-          currentRecordOffset,
-          causedByDrain,
-          openTelemetryContext,
-          valueKind);
+  private static final long MIN_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+
+  /**
+   * 4-byte big-endian length prefix ({@code 1}) matching {@link CollectionCoder} / {@link
+   * org.apache.beam.sdk.coders.IterableLikeCoder} ({@code beam:coder:iterable:v1}) framing. Stored
+   * on the enclosing class so {@link FullWindowedValueCoder} does not introduce a {@code <clinit>}
+   * that would alter its default {@code serialVersionUID}.
+   */
+  private static final byte[] SINGLE_WINDOW_COUNT_BYTES = new byte[] {0, 0, 0, 1};
+
+  @SuppressWarnings("ReferenceEquality")
+  private static boolean isMinTimestamp(@Nullable Instant timestamp) {
+    return timestamp == BoundedWindow.TIMESTAMP_MIN_VALUE
+        || (timestamp != null && timestamp.getMillis() == MIN_TIMESTAMP_MILLIS);
+  }
+
+  @SuppressWarnings("ReferenceEquality")
+  private static boolean isGlobalWindow(@Nullable BoundedWindow window) {
+    return window == GlobalWindow.INSTANCE || GlobalWindow.INSTANCE.equals(window);
+  }
+
+  private static BoundedWindow extractSingleWindow(Collection<? extends BoundedWindow> windows) {
+    if (windows instanceof AbstractList) {
+      // Primary-super class check avoids JDK-8180450 _secondary_super_cache contention for
+      // SingletonList, ArrayList, Arrays$ArrayList, etc.
+      return ((AbstractList<? extends BoundedWindow>) windows).get(0);
     }
-  }
-
-  private static @Nullable Context currentOpenTelemetryContextOrNull() {
-    Context current = Context.current();
-    return current == Context.root() ? null : current;
-  }
-
-  /**
-   * Returns a {@code WindowedValue} copying metadata from {@code template} with a new {@code value}
-   * and capturing the current OpenTelemetry {@link Context}.
-   */
-  public static <T> WindowedValue<T> ofWithCurrentContext(WindowedValue<?> template, T value) {
-    return ofWithCurrentContext(template, value, template.getTimestamp());
-  }
-
-  /**
-   * Returns a {@code WindowedValue} copying metadata from {@code template} with a new {@code value}
-   * and {@code timestamp}, capturing the current OpenTelemetry {@link Context}.
-   */
-  public static <T> WindowedValue<T> ofWithCurrentContext(
-      WindowedValue<?> template, T value, Instant timestamp) {
-    Context otelContext = currentOpenTelemetryContextOrNull();
-    if (template instanceof SingleWindowedValue) {
-      return of(
-          value,
-          timestamp,
-          ((SingleWindowedValue) template).getWindow(),
-          template.getPaneInfo(),
-          template.getRecordId(),
-          template.getRecordOffset(),
-          template.causedByDrain(),
-          otelContext,
-          template.getValueKind());
+    if (windows instanceof List) {
+      return ((List<? extends BoundedWindow>) windows).get(0);
     }
-    return of(
-        value,
-        timestamp,
-        template.getWindows(),
-        template.getPaneInfo(),
-        template.getRecordId(),
-        template.getRecordOffset(),
-        template.causedByDrain(),
-        otelContext,
-        template.getValueKind());
+    return windows.iterator().next();
   }
 
-  /**
-   * Returns a {@code WindowedValue} copying non-windowed metadata from {@code template} with the
-   * specified {@code value}, {@code timestamp}, {@code windows}, and {@code paneInfo}, capturing
-   * the current OpenTelemetry {@link Context}.
-   */
-  public static <T> WindowedValue<T> ofWithCurrentContext(
-      WindowedValue<?> template,
-      T value,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo) {
-    return of(
-        value,
-        timestamp,
-        windows,
-        paneInfo,
-        template.getRecordId(),
-        template.getRecordOffset(),
-        template.causedByDrain(),
-        currentOpenTelemetryContextOrNull(),
-        template.getValueKind());
-  }
-
-  /**
-   * @deprecated for use only in compatibility with old broken code
-   */
-  @Deprecated
-  static <T> WindowedValue<T> createWithoutValidation(
-      T value,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo,
-      CausedByDrain causedByDrain,
-      @Nullable Context openTelemetryContext,
-      ValueKind valueKind) {
-    if (windows.size() == 1) {
-      BoundedWindow window =
-          windows instanceof List
-              ? ((List<? extends BoundedWindow>) windows).get(0)
-              : windows.iterator().next();
-      return of(
-          value,
-          timestamp,
-          window,
-          paneInfo,
-          null,
-          null,
-          causedByDrain,
-          openTelemetryContext,
-          valueKind);
-    } else {
-      return new TimestampedValueInMultipleWindows<>(
-          value,
-          timestamp,
-          windows,
-          paneInfo,
-          null,
-          null,
-          causedByDrain,
-          openTelemetryContext,
-          valueKind);
-    }
-  }
-
-  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
-  public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
-
-    return of(
-        value,
-        timestamp,
-        window,
-        paneInfo,
-        null,
-        null,
-        CausedByDrain.NORMAL,
-        null,
-        ValueKind.INSERT);
-  }
-
-  public static <T> WindowedValue<T> of(
+  private static <T> WindowedValue<T> ofValidated(
       T value,
       Instant timestamp,
       BoundedWindow window,
@@ -494,12 +426,8 @@ public class WindowedValues {
       CausedByDrain causedByDrain,
       @Nullable Context openTelemetryContext,
       ValueKind valueKind) {
-    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
-    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
-    checkArgument(valueKind != null, "WindowedValue requires ValueKind, but it was null");
-
-    boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
-    if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    boolean isGlobal = isGlobalWindow(window);
+    if (isGlobal && isMinTimestamp(timestamp)) {
       return new ValueInGlobalWindow<>(
           value,
           paneInfo,
@@ -532,6 +460,404 @@ public class WindowedValues {
     }
   }
 
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
+  public static <T> WindowedValue<T> of(
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext,
+      ValueKind valueKind) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
+    checkArgument(windows != null, "WindowedValue requires windows, but it was null");
+    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
+    checkArgument(valueKind != null, "WindowedValue requires ValueKind, but it was null");
+    if (windows == GLOBAL_WINDOWS) {
+      return ofValidated(
+          value,
+          timestamp,
+          GlobalWindow.INSTANCE,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
+    }
+    int size = windows.size();
+    checkArgument(size > 0, "WindowedValue requires windows, but there were none");
+    if (size == 1) {
+      return ofValidated(
+          value,
+          timestamp,
+          extractSingleWindow(windows),
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
+    } else {
+      return new TimestampedValueInMultipleWindows<>(
+          value,
+          timestamp,
+          windows,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
+    }
+  }
+
+  private static @Nullable Context currentOpenTelemetryContextOrNull() {
+    @Nullable Context current = ContextStorage.get().current();
+    return (current == null || current == Context.root()) ? null : current;
+  }
+
+  /**
+   * Returns the single {@link BoundedWindow} associated with {@code value} if {@code value} uses a
+   * known single-window representation without allocating a wrapper collection, or {@code null}
+   * otherwise.
+   *
+   * <p>A {@code null} return indicates only that the fast single-window lookup did not apply (for
+   * example, a multi-window or empty element, an unset {@link Builder}, a {@link Builder} populated
+   * via {@link Builder#setWindows(Collection)}, or a custom {@link WindowedValue} that does not
+   * implement {@link SingleWindowedValue}); callers should fall back to {@link
+   * WindowedValue#getWindows()}.
+   *
+   * <p>Dispatches via the {@code SimpleWindowedValue} / {@link Builder} class hierarchy first
+   * (HotSpot primary-super check) rather than {@code instanceof SingleWindowedValue} to avoid
+   * {@code _secondary_super_cache} contention (JDK-8180450) across concurrent worker threads when
+   * interleaved with {@link WindowedValue} interface casts.
+   *
+   * @param value the {@link WindowedValue} to inspect
+   * @return the single window, or {@code null} if {@code value} is not a known single-window
+   *     representation
+   */
+  public static @Nullable BoundedWindow singleWindowOrNull(WindowedValue<?> value) {
+    if (value instanceof SimpleWindowedValue) {
+      return ((SimpleWindowedValue<?>) value).singleWindowOrNull();
+    }
+    if (value instanceof Builder) {
+      return ((Builder<?>) value).singleWindow;
+    }
+    if (value instanceof SingleWindowedValue) {
+      return ((SingleWindowedValue) value).getWindow();
+    }
+    return null;
+  }
+
+  /**
+   * Returns a {@link WindowedValue} copying {@code timestamp}, {@code windows}, {@code paneInfo},
+   * {@code recordId}, {@code recordOffset}, {@code causedByDrain}, and {@code valueKind} from
+   * {@code template} with a new {@code value}, and replacing the OpenTelemetry {@link Context} with
+   * the current thread's OpenTelemetry {@link Context} (normalizing {@link Context#root()} to
+   * {@code null} by identity comparison).
+   *
+   * <p>Unlike {@link #withValue(WindowedValue, Object)}, which preserves {@code template}'s own
+   * OpenTelemetry {@link Context}, this method intentionally ignores {@code
+   * template.getOpenTelemetryContext()} and captures the current thread's active context.
+   *
+   * @param template the template {@link WindowedValue} supplying metadata
+   * @param value the element value for the returned {@link WindowedValue}
+   * @return a new {@link WindowedValue} containing {@code value} and metadata from {@code template}
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(WindowedValue<?> template, T value) {
+    @Nullable Context otelContext = currentOpenTelemetryContextOrNull();
+    if (template instanceof SimpleWindowedValue) {
+      return ((SimpleWindowedValue<?>) template).withValueAndContext(value, otelContext);
+    }
+    return ofWithCurrentContextFallback(template, value, template.getTimestamp(), otelContext);
+  }
+
+  /**
+   * Returns a {@link WindowedValue} copying {@code windows}, {@code paneInfo}, {@code recordId},
+   * {@code recordOffset}, {@code causedByDrain}, and {@code valueKind} from {@code template} with a
+   * new {@code value} and {@code timestamp}, and replacing the OpenTelemetry {@link Context} with
+   * the current thread's OpenTelemetry {@link Context} (normalizing {@link Context#root()} to
+   * {@code null} by identity comparison).
+   *
+   * <p>Unlike {@link #withValue(WindowedValue, Object)}, this method intentionally ignores {@code
+   * template.getOpenTelemetryContext()} and captures the current thread's active context.
+   *
+   * @param template the template {@link WindowedValue} supplying metadata
+   * @param value the element value for the returned {@link WindowedValue}
+   * @param timestamp the non-null event timestamp for the returned {@link WindowedValue}
+   * @return a new {@link WindowedValue} containing {@code value}, {@code timestamp}, and metadata
+   *     from {@code template}
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      WindowedValue<?> template, T value, Instant timestamp) {
+    @Nullable Context otelContext = currentOpenTelemetryContextOrNull();
+    if (template instanceof SimpleWindowedValue) {
+      return ((SimpleWindowedValue<?>) template)
+          .withValueAndTimestampAndContext(value, timestamp, otelContext);
+    }
+    return ofWithCurrentContextFallback(template, value, timestamp, otelContext);
+  }
+
+  private static <T> WindowedValue<T> ofWithCurrentContextFallback(
+      WindowedValue<?> template, T value, Instant timestamp, @Nullable Context otelContext) {
+    @Nullable BoundedWindow singleWindow = singleWindowOrNull(template);
+    if (singleWindow != null) {
+      return of(
+          value,
+          timestamp,
+          singleWindow,
+          template.getPaneInfo(),
+          template.getRecordId(),
+          template.getRecordOffset(),
+          template.causedByDrain(),
+          otelContext,
+          template.getValueKind());
+    }
+    return of(
+        value,
+        timestamp,
+        template.getWindows(),
+        template.getPaneInfo(),
+        template.getRecordId(),
+        template.getRecordOffset(),
+        template.causedByDrain(),
+        otelContext,
+        template.getValueKind());
+  }
+
+  /**
+   * Returns a {@link WindowedValue} copying {@code recordId}, {@code recordOffset}, {@code
+   * causedByDrain}, and {@code valueKind} from {@code template} with the specified {@code value},
+   * {@code timestamp}, {@code windows}, and {@code paneInfo}, and replacing the OpenTelemetry
+   * {@link Context} with the current thread's OpenTelemetry {@link Context} (normalizing {@link
+   * Context#root()} to {@code null} by identity comparison).
+   *
+   * @param template the template {@link WindowedValue} supplying record metadata, drain status, and
+   *     {@link ValueKind}
+   * @param value the element value
+   * @param timestamp the non-null event timestamp
+   * @param windows the non-empty collection of windows
+   * @param paneInfo the non-null {@link PaneInfo}
+   * @return a new {@link WindowedValue} with the specified attributes and metadata from {@code
+   *     template}
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      WindowedValue<?> template,
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo) {
+    return of(
+        value,
+        timestamp,
+        windows,
+        paneInfo,
+        template.getRecordId(),
+        template.getRecordOffset(),
+        template.causedByDrain(),
+        currentOpenTelemetryContextOrNull(),
+        template.getValueKind());
+  }
+
+  /**
+   * Returns a {@link WindowedValue} copying {@code recordId}, {@code recordOffset}, and {@code
+   * causedByDrain} from {@code template} with the specified {@code value}, {@code timestamp},
+   * {@code windows}, {@code paneInfo}, and {@code valueKind}, and replacing the OpenTelemetry
+   * {@link Context} with the current thread's OpenTelemetry {@link Context} (normalizing {@link
+   * Context#root()} to {@code null} by identity comparison).
+   *
+   * @param template the template {@link WindowedValue} supplying record metadata and drain status
+   * @param value the element value
+   * @param timestamp the non-null event timestamp
+   * @param windows the non-empty collection of windows
+   * @param paneInfo the non-null {@link PaneInfo}
+   * @param valueKind the non-null {@link ValueKind}
+   * @return a new {@link WindowedValue} with the specified attributes and metadata from {@code
+   *     template}
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      WindowedValue<?> template,
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      ValueKind valueKind) {
+    return of(
+        value,
+        timestamp,
+        windows,
+        paneInfo,
+        template.getRecordId(),
+        template.getRecordOffset(),
+        template.causedByDrain(),
+        currentOpenTelemetryContextOrNull(),
+        valueKind);
+  }
+
+  /**
+   * Returns a {@link WindowedValue} in a single {@code window} using the current thread's
+   * OpenTelemetry {@link Context} (normalizing {@link Context#root()} to {@code null} by identity
+   * comparison).
+   *
+   * @param value the element value
+   * @param timestamp the non-null event timestamp
+   * @param window the non-null {@link BoundedWindow}
+   * @param paneInfo the non-null {@link PaneInfo}
+   * @param currentRecordId the optional record id
+   * @param currentRecordOffset the optional record offset
+   * @param causedByDrain the non-null {@link CausedByDrain}
+   * @param valueKind the non-null {@link ValueKind}
+   * @return a new single-window {@link WindowedValue}
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
+      ValueKind valueKind) {
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        currentOpenTelemetryContextOrNull(),
+        valueKind);
+  }
+
+  /**
+   * Returns a {@link WindowedValue} with the given {@code windows} using the current thread's
+   * OpenTelemetry {@link Context} (normalizing {@link Context#root()} to {@code null} by identity
+   * comparison).
+   *
+   * @param value the element value
+   * @param timestamp the non-null event timestamp
+   * @param windows the non-empty collection of windows
+   * @param paneInfo the non-null {@link PaneInfo}
+   * @param currentRecordId the optional record id
+   * @param currentRecordOffset the optional record offset
+   * @param causedByDrain the non-null {@link CausedByDrain}
+   * @param valueKind the non-null {@link ValueKind}
+   * @return a new {@link WindowedValue}
+   */
+  public static <T> WindowedValue<T> ofWithCurrentContext(
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
+      ValueKind valueKind) {
+    return of(
+        value,
+        timestamp,
+        windows,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        currentOpenTelemetryContextOrNull(),
+        valueKind);
+  }
+
+  /**
+   * @deprecated for use only in compatibility with old broken code
+   */
+  @Deprecated
+  static <T> WindowedValue<T> createWithoutValidation(
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext,
+      ValueKind valueKind) {
+    if (windows == GLOBAL_WINDOWS) {
+      return of(
+          value,
+          timestamp,
+          GlobalWindow.INSTANCE,
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
+    }
+    if (windows.size() == 1) {
+      return of(
+          value,
+          timestamp,
+          extractSingleWindow(windows),
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
+    } else {
+      return new TimestampedValueInMultipleWindows<>(
+          value,
+          timestamp,
+          windows,
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
+    }
+  }
+
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
+  public static <T> WindowedValue<T> of(
+      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        null,
+        null,
+        CausedByDrain.NORMAL,
+        null,
+        ValueKind.INSERT);
+  }
+
+  public static <T> WindowedValue<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext,
+      ValueKind valueKind) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
+    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
+    checkArgument(valueKind != null, "WindowedValue requires ValueKind, but it was null");
+    return ofValidated(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        openTelemetryContext,
+        valueKind);
+  }
+
   /**
    * Returns a {@code WindowedValue} with the given value in the {@link GlobalWindow} using the
    * default timestamp and pane.
@@ -555,7 +881,7 @@ public class WindowedValues {
    * default pane.
    */
   public static <T> WindowedValue<T> timestampedValueInGlobalWindow(T value, Instant timestamp) {
-    if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
+    if (isMinTimestamp(timestamp)) {
       return valueInGlobalWindow(value);
     } else {
       return new TimestampedValueInGlobalWindow<>(
@@ -586,10 +912,27 @@ public class WindowedValues {
 
   /**
    * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
-   * which may have a new type {@code NewT}.
+   * which may have a new type {@code NewT}. Unlike {@link #ofWithCurrentContext(WindowedValue,
+   * Object)}, this preserves {@code windowedValue}'s existing OpenTelemetry {@link Context}.
    */
   public static <OldT, NewT> WindowedValue<NewT> withValue(
       WindowedValue<OldT> windowedValue, NewT newValue) {
+    if (windowedValue instanceof SimpleWindowedValue) {
+      return ((SimpleWindowedValue<OldT>) windowedValue).withValue(newValue);
+    }
+    @Nullable BoundedWindow singleWindow = singleWindowOrNull(windowedValue);
+    if (singleWindow != null) {
+      return WindowedValues.of(
+          newValue,
+          windowedValue.getTimestamp(),
+          singleWindow,
+          windowedValue.getPaneInfo(),
+          windowedValue.getRecordId(),
+          windowedValue.getRecordOffset(),
+          windowedValue.causedByDrain(),
+          windowedValue.getOpenTelemetryContext(),
+          windowedValue.getValueKind());
+    }
     return WindowedValues.of(
         newValue,
         windowedValue.getTimestamp(),
@@ -730,6 +1073,16 @@ public class WindowedValues {
       return WindowedValues.equals(this, (WindowedValue<T>) other);
     }
 
+    @Nullable BoundedWindow singleWindowOrNull() {
+      return null;
+    }
+
+    abstract <NewT> WindowedValue<NewT> withValueAndContext(
+        NewT newValue, @Nullable Context newContext);
+
+    abstract <NewT> WindowedValue<NewT> withValueAndTimestampAndContext(
+        NewT newValue, Instant newTimestamp, @Nullable Context newContext);
+
     @Override
     public int hashCode() {
       return WindowedValues.hashCode(this);
@@ -757,7 +1110,7 @@ public class WindowedValues {
   }
 
   /** The representation of a WindowedValue where timestamp == MIN and windows == {GlobalWindow}. */
-  private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
+  private static final class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
       implements SingleWindowedValue {
 
     public ValueInGlobalWindow(
@@ -783,6 +1136,16 @@ public class WindowedValues {
     }
 
     @Override
+    BoundedWindow singleWindowOrNull() {
+      return GlobalWindow.INSTANCE;
+    }
+
+    @Override
+    public Iterable<WindowedValue<T>> explodeWindows() {
+      return Collections.singletonList(this);
+    }
+
+    @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new ValueInGlobalWindow<>(
           newValue,
@@ -791,6 +1154,42 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
+          getValueKind());
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndContext(NewT newValue, @Nullable Context newContext) {
+      return new ValueInGlobalWindow<>(
+          newValue,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
+          getValueKind());
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndTimestampAndContext(
+        NewT newValue, Instant newTimestamp, @Nullable Context newContext) {
+      if (isMinTimestamp(newTimestamp)) {
+        return new ValueInGlobalWindow<>(
+            newValue,
+            getPaneInfo(),
+            getRecordId(),
+            getRecordOffset(),
+            causedByDrain(),
+            newContext,
+            getValueKind());
+      }
+      return new TimestampedValueInGlobalWindow<>(
+          newValue,
+          newTimestamp,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
           getValueKind());
     }
 
@@ -848,7 +1247,7 @@ public class WindowedValues {
    * The representation of a WindowedValue where timestamp {@code >} MIN and windows ==
    * {GlobalWindow}.
    */
-  private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
+  private static final class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
       implements SingleWindowedValue {
 
     public TimestampedValueInGlobalWindow(
@@ -882,6 +1281,16 @@ public class WindowedValues {
     }
 
     @Override
+    BoundedWindow singleWindowOrNull() {
+      return GlobalWindow.INSTANCE;
+    }
+
+    @Override
+    public Iterable<WindowedValue<T>> explodeWindows() {
+      return Collections.singletonList(this);
+    }
+
+    @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInGlobalWindow<>(
           newValue,
@@ -891,6 +1300,43 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
+          getValueKind());
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndContext(NewT newValue, @Nullable Context newContext) {
+      return new TimestampedValueInGlobalWindow<>(
+          newValue,
+          getTimestamp(),
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
+          getValueKind());
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndTimestampAndContext(
+        NewT newValue, Instant newTimestamp, @Nullable Context newContext) {
+      if (isMinTimestamp(newTimestamp)) {
+        return new ValueInGlobalWindow<>(
+            newValue,
+            getPaneInfo(),
+            getRecordId(),
+            getRecordOffset(),
+            causedByDrain(),
+            newContext,
+            getValueKind());
+      }
+      return new TimestampedValueInGlobalWindow<>(
+          newValue,
+          newTimestamp,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
           getValueKind());
     }
 
@@ -930,11 +1376,10 @@ public class WindowedValues {
    * The representation of a WindowedValue where timestamp is arbitrary and windows == a single
    * non-Global window.
    */
-  private static class TimestampedValueInSingleWindow<T> extends TimestampedWindowedValue<T>
+  private static final class TimestampedValueInSingleWindow<T> extends TimestampedWindowedValue<T>
       implements SingleWindowedValue {
 
     private final BoundedWindow window;
-    private transient @MonotonicNonNull Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInSingleWindow(
         T value,
@@ -973,18 +1418,52 @@ public class WindowedValues {
     }
 
     @Override
+    <NewT> WindowedValue<NewT> withValueAndContext(NewT newValue, @Nullable Context newContext) {
+      return new TimestampedValueInSingleWindow<>(
+          newValue,
+          getTimestamp(),
+          window,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
+          getValueKind());
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndTimestampAndContext(
+        NewT newValue, Instant newTimestamp, @Nullable Context newContext) {
+      return new TimestampedValueInSingleWindow<>(
+          newValue,
+          newTimestamp,
+          window,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
+          getValueKind());
+    }
+
+    @Override
     public Collection<? extends BoundedWindow> getWindows() {
-      Collection<? extends BoundedWindow> result = windows;
-      if (result == null) {
-        result = Collections.singletonList(window);
-        windows = result;
-      }
-      return result;
+      return Collections.singletonList(window);
     }
 
     @Override
     public BoundedWindow getWindow() {
       return window;
+    }
+
+    @Override
+    BoundedWindow singleWindowOrNull() {
+      return window;
+    }
+
+    @Override
+    public Iterable<WindowedValue<T>> explodeWindows() {
+      return Collections.singletonList(this);
     }
 
     @Override
@@ -1022,7 +1501,8 @@ public class WindowedValues {
   }
 
   /** The representation of a WindowedValue, excluding the special cases captured above. */
-  private static class TimestampedValueInMultipleWindows<T> extends TimestampedWindowedValue<T> {
+  private static final class TimestampedValueInMultipleWindows<T>
+      extends TimestampedWindowedValue<T> {
     private Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInMultipleWindows(
@@ -1063,6 +1543,38 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
+          getValueKind());
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndContext(NewT newValue, @Nullable Context newContext) {
+      return withValueAndTimestampAndContext(newValue, getTimestamp(), newContext);
+    }
+
+    @Override
+    <NewT> WindowedValue<NewT> withValueAndTimestampAndContext(
+        NewT newValue, Instant newTimestamp, @Nullable Context newContext) {
+      if (windows.size() > 1) {
+        return new TimestampedValueInMultipleWindows<>(
+            newValue,
+            newTimestamp,
+            windows,
+            getPaneInfo(),
+            getRecordId(),
+            getRecordOffset(),
+            causedByDrain(),
+            newContext,
+            getValueKind());
+      }
+      return of(
+          newValue,
+          newTimestamp,
+          windows,
+          getPaneInfo(),
+          getRecordId(),
+          getRecordOffset(),
+          causedByDrain(),
+          newContext,
           getValueKind());
     }
 
@@ -1205,8 +1717,10 @@ public class WindowedValues {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
-    private static final byte[] SINGLE_WINDOW_COUNT_BYTES = new byte[] {0, 0, 0, 1};
-
+    // NOTE: Window list wire encoding/decoding below matches CollectionCoder / IterableLikeCoder
+    // (beam:coder:iterable:v1): a 4-byte big-endian int element count, with negative count (-1)
+    // indicating chunked unknown-size encoding of VarInt-length-prefixed blocks terminated by 0.
+    // Keep this synchronized with org.apache.beam.sdk.coders.IterableLikeCoder.
     private static int readBigEndianInt(InputStream in) throws IOException {
       int b1 = in.read();
       int b2 = in.read();
@@ -1215,7 +1729,22 @@ public class WindowedValues {
       if ((b1 | b2 | b3 | b4) < 0) {
         throw new EOFException();
       }
-      return ((b1 & 0xFF) << 24) | ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
+      return (b1 << 24) | ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
+    }
+
+    private Collection<? extends BoundedWindow> decodeMultipleWindows(
+        int numWindows, InputStream inStream) throws IOException {
+      if (numWindows == 0) {
+        return Collections.emptyList();
+      }
+      if (numWindows > 1) {
+        List<BoundedWindow> windowList = new ArrayList<>(numWindows);
+        for (int i = 0; i < numWindows; i++) {
+          windowList.add(windowCoder.decode(inStream));
+        }
+        return windowList;
+      }
+      return decodeUnknownSizeWindows(inStream);
     }
 
     private Collection<? extends BoundedWindow> decodeUnknownSizeWindows(InputStream inStream)
@@ -1238,95 +1767,57 @@ public class WindowedValues {
               count));
     }
 
-    @Override
-    public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
-        throws CoderException, IOException {
-      encode(windowedElem, outStream, Coder.Context.NESTED);
+    private static <T> void encodeElementMetadata(
+        WindowedValue<T> windowedElem, OutputStream outStream) throws IOException {
+      BeamFnApi.Elements.ElementMetadata.Builder builder =
+          BeamFnApi.Elements.ElementMetadata.newBuilder();
+      io.opentelemetry.context.@Nullable Context openTelemetryContext =
+          windowedElem.getOpenTelemetryContext();
+      if (openTelemetryContext != null
+          && openTelemetryContext != io.opentelemetry.context.Context.root()) {
+        OpenTelemetryContextPropagator.set(openTelemetryContext, builder);
+      }
+      BeamFnApi.Elements.ElementMetadata em =
+          builder
+              .setDrain(
+                  windowedElem.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
+                      ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                      : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+              .setValueKind(ValueKindUtil.toProto(windowedElem.getValueKind()))
+              .build();
+      ByteArrayCoder.of().encode(em.toByteArray(), outStream);
     }
 
-    @Override
-    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
-      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
-      if (windowedElem instanceof SingleWindowedValue) {
-        outStream.write(SINGLE_WINDOW_COUNT_BYTES, 0, 4);
-        @SuppressWarnings("unchecked")
-        Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
-        typedWindowCoder.encode(((SingleWindowedValue) windowedElem).getWindow(), outStream);
-      } else {
-        windowsCoder.encode(windowedElem.getWindows(), outStream);
+    private WindowedValue<T> decodeWithMetadata(
+        InputStream inStream,
+        Coder.Context context,
+        Instant timestamp,
+        int numWindows,
+        @Nullable BoundedWindow singleWindow,
+        @Nullable Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo)
+        throws IOException {
+      BeamFnApi.Elements.ElementMetadata elementMetadata =
+          BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
+      CausedByDrain causedByDrain =
+          elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+              ? CausedByDrain.CAUSED_BY_DRAIN
+              : CausedByDrain.NORMAL;
+      io.opentelemetry.context.@Nullable Context openTelemetryContext = null;
+      if (!elementMetadata.getTraceparent().isEmpty()
+          || !elementMetadata.getTracestate().isEmpty()) {
+        io.opentelemetry.context.Context extracted =
+            OpenTelemetryContextPropagator.read(elementMetadata);
+        openTelemetryContext =
+            extracted == io.opentelemetry.context.Context.root() ? null : extracted;
       }
-      boolean metadataSupported = isMetadataSupported();
-      PaneInfoCoder.INSTANCE.encode(
-          windowedElem.getPaneInfo().withElementMetadata(metadataSupported), outStream);
-      if (metadataSupported) {
-        BeamFnApi.Elements.ElementMetadata.Builder builder =
-            BeamFnApi.Elements.ElementMetadata.newBuilder();
-        io.opentelemetry.context.Context openTelemetryContext =
-            windowedElem.getOpenTelemetryContext();
-        if (openTelemetryContext != null) {
-          OpenTelemetryContextPropagator.set(openTelemetryContext, builder);
-        }
-        BeamFnApi.Elements.ElementMetadata em =
-            builder
-                .setDrain(
-                    windowedElem.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
-                        ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
-                        : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
-                .setValueKind(ValueKindUtil.toProto(windowedElem.getValueKind()))
-                .build();
-
-        ByteArrayCoder.of().encode(em.toByteArray(), outStream);
-      }
-      valueCoder.encode(windowedElem.getValue(), outStream, context);
-    }
-
-    @Override
-    public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
-      return decode(inStream, Coder.Context.NESTED);
-    }
-
-    @Override
-    public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
-        throws CoderException, IOException {
-      Instant timestamp = InstantCoder.of().decode(inStream);
-      int numWindows = readBigEndianInt(inStream);
-      @Nullable BoundedWindow singleWindow = null;
-      @Nullable Collection<? extends BoundedWindow> windows = null;
-      if (numWindows == 1) {
-        singleWindow = windowCoder.decode(inStream);
-      } else if (numWindows == 0) {
-        windows = Collections.emptyList();
-      } else if (numWindows > 1) {
-        List<BoundedWindow> windowList = new ArrayList<>(numWindows);
-        for (int i = 0; i < numWindows; i++) {
-          windowList.add(windowCoder.decode(inStream));
-        }
-        windows = windowList;
-      } else {
-        windows = decodeUnknownSizeWindows(inStream);
-      }
-      PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
-      CausedByDrain causedByDrain = CausedByDrain.NORMAL;
-      io.opentelemetry.context.Context openTelemetryContext = null;
-      ValueKind valueKind = ValueKind.INSERT;
-      if (isMetadataSupported() && paneInfo.isElementMetadata()) {
-        BeamFnApi.Elements.ElementMetadata elementMetadata =
-            BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
-        causedByDrain =
-            elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
-                ? CausedByDrain.CAUSED_BY_DRAIN
-                : CausedByDrain.NORMAL;
-        openTelemetryContext = OpenTelemetryContextPropagator.read(elementMetadata);
-        valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
-      }
+      ValueKind valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
       T value = valueCoder.decode(inStream, context);
-
-      if (singleWindow != null) {
+      if (numWindows == 1) {
         return WindowedValues.of(
             value,
             timestamp,
-            singleWindow,
+            checkStateNotNull(singleWindow),
             paneInfo,
             null,
             null,
@@ -1347,6 +1838,78 @@ public class WindowedValues {
     }
 
     @Override
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(windowedElem, outStream, Coder.Context.NESTED);
+    }
+
+    @Override
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Coder.Context context)
+        throws CoderException, IOException {
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
+      @Nullable BoundedWindow singleWindow = singleWindowOrNull(windowedElem);
+      if (singleWindow != null) {
+        outStream.write(SINGLE_WINDOW_COUNT_BYTES, 0, 4);
+        // Same invariant as constructor: callers must ensure windows match windowCoder.
+        @SuppressWarnings("unchecked")
+        Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
+        typedWindowCoder.encode(singleWindow, outStream);
+      } else {
+        windowsCoder.encode(windowedElem.getWindows(), outStream);
+      }
+      boolean metadataSupported = isMetadataSupported();
+      PaneInfo paneInfo = windowedElem.getPaneInfo();
+      if (paneInfo.isElementMetadata() != metadataSupported) {
+        paneInfo = paneInfo.withElementMetadata(metadataSupported);
+      }
+      PaneInfoCoder.INSTANCE.encode(paneInfo, outStream);
+      if (metadataSupported) {
+        encodeElementMetadata(windowedElem, outStream);
+      }
+      valueCoder.encode(windowedElem.getValue(), outStream, context);
+    }
+
+    @Override
+    public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Coder.Context.NESTED);
+    }
+
+    @Override
+    public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
+        throws CoderException, IOException {
+      Instant timestamp = InstantCoder.of().decode(inStream);
+      int numWindows = readBigEndianInt(inStream);
+      @Nullable BoundedWindow singleWindow = null;
+      @Nullable Collection<? extends BoundedWindow> windows = null;
+      if (numWindows == 1) {
+        singleWindow =
+            checkNotNull(windowCoder.decode(inStream), "Decoded single window must not be null");
+      } else {
+        windows = decodeMultipleWindows(numWindows, inStream);
+      }
+      PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+      // Check plain paneInfo field before volatile metadataSupported load-acquire.
+      if (paneInfo.isElementMetadata() && isMetadataSupported()) {
+        return decodeWithMetadata(
+            inStream, context, timestamp, numWindows, singleWindow, windows, paneInfo);
+      }
+      T value = valueCoder.decode(inStream, context);
+      if (numWindows == 1) {
+        return WindowedValues.of(value, timestamp, checkStateNotNull(singleWindow), paneInfo);
+      }
+      // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
+      // we call this deprecated no-validation path when decoding
+      return WindowedValues.createWithoutValidation(
+          value,
+          timestamp,
+          checkStateNotNull(windows),
+          paneInfo,
+          CausedByDrain.NORMAL,
+          null,
+          ValueKind.INSERT);
+    }
+
+    @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
           this, "FullWindowedValueCoder requires a deterministic valueCoder", valueCoder);
@@ -1358,12 +1921,13 @@ public class WindowedValues {
     public void registerByteSizeObserver(WindowedValue<T> value, ElementByteSizeObserver observer)
         throws Exception {
       InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
-      if (value instanceof SingleWindowedValue) {
+      @Nullable BoundedWindow singleWindow = singleWindowOrNull(value);
+      if (singleWindow != null) {
         observer.update(4L);
+        // Same invariant as constructor: callers must ensure windows match windowCoder.
         @SuppressWarnings("unchecked")
         Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
-        typedWindowCoder.registerByteSizeObserver(
-            ((SingleWindowedValue) value).getWindow(), observer);
+        typedWindowCoder.registerByteSizeObserver(singleWindow, observer);
       } else {
         windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
       }
