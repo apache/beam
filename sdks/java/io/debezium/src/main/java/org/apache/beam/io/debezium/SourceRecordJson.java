@@ -767,8 +767,9 @@ public class SourceRecordJson {
   }
 
   /**
-   * Whether the record is a schema change event, emitted for each DDL statement when {@code
-   * include.schema.changes} is enabled. These are identified by their key schema name.
+   * Whether the record is a schema change event, emitted for each DDL statement unless {@code
+   * include.schema.changes} is disabled. These are identified by their key schema name, {@code
+   * io.debezium.connector.<connector>.SchemaChangeKey}, for every connector.
    */
   private static boolean isSchemaChangeEvent(@Nullable Schema keySchema) {
     return SchemaFactory.get().isSchemaChangeSchema(keySchema);
