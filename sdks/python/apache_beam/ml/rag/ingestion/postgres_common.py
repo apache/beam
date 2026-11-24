@@ -503,18 +503,23 @@ class ConflictResolution:
 
   def get_conflict_clause(self) -> str:
     """Get conflict clause with update fields."""
-    conflict_fields = [self.on_conflict_fields] \
-      if isinstance(self.on_conflict_fields, str) \
-        else self.on_conflict_fields
+    conflict_fields = (
+        [self.on_conflict_fields]
+        if isinstance(self.on_conflict_fields, str)
+        else self.on_conflict_fields)
+    target = (
+        f" ({', '.join(conflict_fields)})" if conflict_fields else "")
 
     if self.action == "IGNORE":
-      conflict_fields_string = f"({', '.join(conflict_fields)})" \
-        if len(conflict_fields) > 0 else ""
-      return f"ON CONFLICT {conflict_fields_string} DO NOTHING"
+      return f"ON CONFLICT{target} DO NOTHING"
+
+    if not conflict_fields:
+      raise ValueError(
+          "on_conflict_fields must be non-empty when action='UPDATE'")
 
     # update_fields should be set by query builder before this is called
-    assert self.update_fields is not None, \
-      "update_fields must be set before generating conflict clause"
-    updates = [f"{field} = EXCLUDED.{field}" for field in self.update_fields]
-    return f"ON CONFLICT " \
-      f"({', '.join(conflict_fields)}) DO UPDATE SET {', '.join(updates)}"
+    assert self.update_fields is not None, (
+        "update_fields must be set before generating conflict clause")
+    updates = ", ".join(
+        f"{field} = EXCLUDED.{field}" for field in self.update_fields)
+    return f"ON CONFLICT{target} DO UPDATE SET {updates}"  
