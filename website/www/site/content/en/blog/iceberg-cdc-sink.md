@@ -41,9 +41,30 @@ two more:
 - a sequence number that goes up with each change to the same key. Both halves of an update share
   one.
 
-Here's a Python pipeline that applies those changes to `sales.orders`:
+Here's a pipeline that applies those changes to `sales.orders`:
 
-```python
+{{< highlight sql >}}
+INSERT INTO lakehouse.sales.orders
+  WITH ('mode' = 'merge-on-read',
+        'change_type_column' = 'op',
+        'sequence_number_column' = 'seq',
+        'triggering_frequency_seconds' = 10)
+SELECT id, item, qty, op, seq FROM order_changes;
+{{< /highlight >}}
+{{< highlight java >}}
+Map<String, Object> config =
+    Map.of(
+        "catalog_properties", catalogProperties,
+        "table", "sales.orders",
+        "mode", "merge-on-read",
+        "equality_columns", List.of("id"),
+        "change_type_column", "op",
+        "sequence_number_column", "seq",
+        "triggering_frequency_seconds", 10);
+
+changes.apply(Managed.write(Managed.ICEBERG).withConfig(config));
+{{< /highlight >}}
+{{< highlight py >}}
 changes | beam.managed.Write(beam.managed.ICEBERG, config={
     "catalog_properties": {...},
     "table": "sales.orders",
@@ -53,24 +74,58 @@ changes | beam.managed.Write(beam.managed.ICEBERG, config={
     "sequence_number_column": "seq",
     "triggering_frequency_seconds": 10,
 })
-```
+{{< /highlight >}}
+{{< highlight yaml >}}
+- type: WriteToIceberg
+  input: Changes
+  config:
+    catalog_properties: {...}
+    table: sales.orders
+    mode: merge-on-read
+    equality_columns: [id]
+    change_type_column: op
+    sequence_number_column: seq
+    triggering_frequency_seconds: 10
+{{< /highlight >}}
 
-Setting `"mode"` to `"merge-on-read"` turns on the CDC sink. `equality_columns` is the primary key,
-and the sink uses it to create the table if it doesn't exist yet. The sink drops the `op` and `seq`
-columns before writing to the table.
+Setting `mode` to `merge-on-read` turns on the CDC sink. `equality_columns` is the primary key,
+and the sink uses it to create the table if it doesn't exist yet. In SQL, the table has to exist
+already, and the key comes from its `PRIMARY KEY`. The sink drops the `op` and `seq` columns before
+writing to the table.
 
 If your changes use their own labels, like Debezium's `c`, `u` and `d`, map them with
 `change_type_map`. If your source doesn't send a before-image for each update, set `upsert` to
 `true`, and the sink applies inserts and updates as upserts. For a Debezium stream, that looks
 like this:
 
-```python
+{{< highlight sql >}}
+  WITH (...,
+        'change_type_map' = MAP['c', 'INSERT',
+                                'u', 'UPDATE_AFTER',
+                                'd', 'DELETE'],
+        'upsert' = true)
+{{< /highlight >}}
+{{< highlight java >}}
+Map<String, Object> config =
+    Map.of(
+        ...,
+        "change_type_map",
+            Map.of("c", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE"),
+        "upsert", true);
+{{< /highlight >}}
+{{< highlight py >}}
 config={
     ...
     "change_type_map": {"c": "INSERT", "u": "UPDATE_AFTER", "d": "DELETE"},
     "upsert": True,
 }
-```
+{{< /highlight >}}
+{{< highlight yaml >}}
+config:
+  ...
+  change_type_map: {c: INSERT, u: UPDATE_AFTER, d: DELETE}
+  upsert: true
+{{< /highlight >}}
 
 If your changes come from Beam's [Iceberg CDC source](/blog/iceberg-cdc-source/), you only need
 to point `change_type_column` at `_change_type`.

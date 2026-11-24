@@ -37,39 +37,26 @@ delete their data.
 
 ## What it looks like
 
-Consider an `orders` table, and a commit that modifies order 1, deletes order 2, and adds order 4.
-Beam reads that commit as four rows:
+Consider an `orders` table that gets three new orders, followed by an update that modifies order 1,
+deletes order 2, and adds order 4. Read as a stream of changes, these commits look like this:
 
-<style>
-  /* Change rows: a dark header on a bordered, rounded table. */
-  .change-rows table {
-    width: 100%; margin: 8px 0 24px; font-size: 15px;
-    border: 1px solid #e5e5e5; border-collapse: separate; border-spacing: 0; border-radius: 8px;
-    overflow: hidden; box-shadow: 0 3px 20px rgba(0, 0, 0, 0.075);
-  }
-  .change-rows th { background: #37424b; color: #fff; font-weight: 600; padding: 12px 16px; }
-  .change-rows th code { background: none; color: inherit; }
-  .change-rows td { padding: 12px 16px; border-top: 1px solid #eee; }
-</style>
+<img class="center-block" src="/images/blog/iceberg-cdc/changes-live-view.gif"
+     alt="A Beam SQL live view of CHANGES(orders). Three inserts stream in from the first commit,
+     then the second commit's changes: order 1's old and new versions, a delete of order 2, and an
+     insert of order 4.">
 
-<div class="change-rows">
-
-| id | item | qty | `_change_type` | `_commit_snapshot_sequence_number` |
-|---:|---|---:|---|---:|
-| 1 | apple | 3 | UPDATE_BEFORE | 2 |
-| 1 | apple | 4 | UPDATE_AFTER | 2 |
-| 2 | pear | 5 | DELETE | 2 |
-| 4 | kiwi | 1 | INSERT | 2 |
-
-</div>
-
-Each row is one change to one key. The `_change_type` column describes what happened, and
+Each row is one change to one key. The `op` column describes what happened, and
 `_commit_snapshot_sequence_number` says which commit it came from. An update shows up as two rows:
 the old version and the new one.
 
-Here's how to read a table's changes as a stream in Java:
+Here's how to read a table's changes as a stream:
 
-```java
+{{< highlight sql >}}
+SELECT *, _change_type, _commit_snapshot_sequence_number
+FROM CHANGES(lakehouse.sales.orders)
+WITH ('streaming' = true, 'poll_interval_seconds' = 5);
+{{< /highlight >}}
+{{< highlight java >}}
 Map<String, Object> config =
     Map.of(
         "table", "sales.orders",
@@ -84,15 +71,49 @@ PCollection<Row> changes =
     pipeline
         .apply(Managed.read(Managed.ICEBERG_CDC).withConfig(config))
         .getSinglePCollection();
-```
 
-Setting `"streaming"` to `true` keeps the source polling for new snapshots, and their changes come
-out as they're committed. `include_metadata_columns` adds the two columns from the table above.
-From there, `changes` is a regular `PCollection`, so you can send each change wherever it needs to
-go. To apply the changes to another Iceberg table, use Beam's [CDC sink](/blog/iceberg-cdc-sink/).
+changes.apply(LogElements.stdout());
+{{< /highlight >}}
+{{< highlight py >}}
+changes = pipeline | beam.managed.Read("iceberg_cdc", config={
+    "table": "sales.orders",
+    "catalog_name": "lakehouse",
+    "catalog_properties": {...},
+    "streaming": True,
+    "poll_interval_seconds": 5,
+    "include_metadata_columns": [
+        "_change_type", "_commit_snapshot_sequence_number"],
+})
 
-The same source is available in Python and YAML, and in Beam SQL as the `CHANGES` function. You can
-also choose where to start and stop reading, by snapshot or by time. The quickstart's
+changes | beam.Map(print)
+{{< /highlight >}}
+{{< highlight yaml >}}
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromIcebergCDC
+      config:
+        table: sales.orders
+        catalog_name: lakehouse
+        catalog_properties: {...}
+        streaming: true
+        poll_interval_seconds: 5
+        include_metadata_columns:
+          [_change_type, _commit_snapshot_sequence_number]
+    - type: LogForTesting
+options:
+  streaming: true
+{{< /highlight >}}
+
+Turning on `streaming` keeps the source polling for new snapshots every `poll_interval_seconds`, and
+their changes come out as they're committed. The metadata columns are opt-in: list them in
+`include_metadata_columns`, or select them by name in SQL. `_change_type` carries the same
+information as the `op` column above, spelled out as `INSERT`, `UPDATE_BEFORE`, `UPDATE_AFTER` or
+`DELETE`.
+
+From there, you can send each change wherever it needs to go. To apply the changes to another
+Iceberg table, use Beam's [CDC sink](/blog/iceberg-cdc-sink/). You can also choose where to start
+and stop reading, by snapshot or by time. The quickstart's
 [options table](/documentation/io/built-in/iceberg-cdc/#options) lists them all.
 
 ## How the source works

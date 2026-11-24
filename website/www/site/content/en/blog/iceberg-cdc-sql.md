@@ -113,9 +113,9 @@ it on to gold.
 
 Two shorter posts go into each half:
 
-* [Read an Iceberg table's row-level change stream with Apache Beam](/blog/iceberg-cdc-source/) covers
+* [Read an Iceberg table's change stream with Apache Beam](/blog/iceberg-cdc-source/) covers
   how the source turns each snapshot into changes, and what Spark and Flink can't read yet.
-* [Apply inserts, updates and deletes to Iceberg with Apache Beam](/blog/iceberg-cdc-sink/) covers
+* [Apply row-level changes to Iceberg with Apache Beam](/blog/iceberg-cdc-sink/) covers
   how the sink orders each key's changes, and why it writes less than Flink's sink for keys that
   change often.
 
