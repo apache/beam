@@ -539,13 +539,25 @@ The specified schema is used to read and write Parquet files. The schema is conv
    </td>
   </tr>
   <tr>
-   <td>TINYINT, SMALLINT, INTEGER, BIGINT &nbsp;
+   <td>TINYINT, SMALLINT, INTEGER
+   </td>
+   <td>int
+   </td>
+  </tr>
+  <tr>
+   <td>BIGINT
    </td>
    <td>long
    </td>
   </tr>
   <tr>
-   <td>FLOAT, DOUBLE
+   <td>FLOAT
+   </td>
+   <td>float
+   </td>
+  </tr>
+  <tr>
+   <td>DOUBLE
    </td>
    <td>double
    </td>
@@ -553,7 +565,7 @@ The specified schema is used to read and write Parquet files. The schema is conv
   <tr>
    <td>DECIMAL
    </td>
-   <td>bytes (with logical type)
+   <td>bytes (<code>decimal</code> logical type)
    </td>
   </tr>
   <tr>
@@ -563,9 +575,21 @@ The specified schema is used to read and write Parquet files. The schema is conv
    </td>
   </tr>
   <tr>
-   <td>DATE, TIME, TIMESTAMP
+   <td>DATE
    </td>
-   <td>long (with logical type)
+   <td>int (<code>date</code> logical type)
+   </td>
+  </tr>
+  <tr>
+   <td>TIME
+   </td>
+   <td>Not supported yet (<a href="https://github.com/apache/beam/issues/40994">#40994</a>)
+   </td>
+  </tr>
+  <tr>
+   <td>TIMESTAMP
+   </td>
+   <td>long (<code>timestamp-millis</code> logical type)
    </td>
   </tr>
   <tr>
@@ -575,9 +599,21 @@ The specified schema is used to read and write Parquet files. The schema is conv
    </td>
   </tr>
   <tr>
+   <td>BINARY, VARBINARY
+   </td>
+   <td>bytes
+   </td>
+  </tr>
+  <tr>
    <td>ARRAY
    </td>
    <td>array
+   </td>
+  </tr>
+  <tr>
+   <td>MAP
+   </td>
+   <td>map (keys must be CHAR or VARCHAR, because Avro maps only support string keys)
    </td>
   </tr>
   <tr>
