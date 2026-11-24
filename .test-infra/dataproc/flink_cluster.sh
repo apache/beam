@@ -87,9 +87,10 @@ if [[ -z "${HIGH_MEM_MACHINE:=}" ]]; then
 fi
 FLINK_PROPS+=",flink:jobmanager.memory.process.size=1600m"
 FLINK_PROPS+=",flink:taskmanager.numberOfTaskSlots=${FLINK_TASKMANAGER_SLOTS}"
-# Keep idle TaskManagers alive between sequential load test steps to avoid
-# racing with TaskExecutor shutdown when the next job starts (default is 30s).
-FLINK_PROPS+=",flink:resourcemanager.taskmanager-timeout=5min"
+# Keep idle TaskManagers alive across sequential load test steps and cluster
+# resizes to avoid racing with TaskExecutor shutdown when the next job starts
+# (default is 30s).
+FLINK_PROPS+=",flink:resourcemanager.taskmanager-timeout=1h"
 
 YARN_APPLICATION_MASTER=""
 
