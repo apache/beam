@@ -10,7 +10,7 @@
     "cypress-multi-reporters": "^2.0.5",
     "eslint": "^8.15.0",
     "istanbul": "^0.4.5",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.3.2",
     "mocha": "^11.8.0",
     "prettier": "^3.1.1",
     "typedoc": "^0.23.23",
@@ -63,9 +63,15 @@
     "./*": "./dist/src/apache_beam/*.js"
   },
   "overrides": {
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.3.2",
     "serialize-javascript": "^7.1.4",
     "@tootallnate/once": "^3.0.1",
-    "diff": "^8.0.3"
+    "diff": "^8.0.3",
+    "mocha": {
+      "minimatch": "^11.0.1",
+      "glob": {
+        "minimatch": "^11.0.1"
+      }
+    }
   }
 }

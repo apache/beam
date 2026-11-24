@@ -16,6 +16,7 @@
 #
 
 # This should match the saved version of your trained model.
+# Subdirectory requirements.txt files manage standalone example dependencies.
 # Beam's tests use saved models with sklearn 1.0.2, which supports py3.7-3.10
 # However, newer sklearn is needed for testing on newer Python version
 scikit-learn==1.0.2; python_version < '3.11'

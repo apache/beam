@@ -32,6 +32,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # ruff: noqa: UP006
 import dataclasses
+import datetime
 import decimal
 import enum
 import itertools
@@ -353,6 +354,9 @@ NAMED_TUPLE_TYPE = 102
 ENUM_TYPE = 103
 NESTED_STATE_TYPE = 104
 DATACLASS_KW_ONLY_TYPE = 105
+DATE_TYPE = 106
+DATETIME_TYPE = 107
+TIMEDELTA_TYPE = 108
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -548,6 +552,22 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         self.encode_to_stream(state_value, stream, True)
       except Exception as e:
         raise TypeError(self._deterministic_encoding_error_msg(value)) from e
+    elif type(value) is datetime.date:
+      stream.write_byte(DATE_TYPE)
+      stream.write_var_int64(value.toordinal())
+    elif type(value) is datetime.timedelta:
+      stream.write_byte(TIMEDELTA_TYPE)
+      stream.write_var_int64(value.days)
+      stream.write_var_int64(value.seconds)
+      stream.write_var_int64(value.microseconds)
+    elif type(value) is datetime.datetime and (
+        value.tzinfo is None or value.tzinfo is datetime.timezone.utc):
+      stream.write_byte(DATETIME_TYPE)
+      stream.write_var_int64(value.toordinal())
+      stream.write_var_int64((
+          (value.hour * 60 + value.minute) * 60 + value.second) * 1000000 +
+                             value.microsecond)
+      stream.write_byte(value.fold | (value.tzinfo is not None) << 1)
     else:
       raise TypeError(self._deterministic_encoding_error_msg(value))
 
@@ -642,6 +662,27 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       value = cls.__new__(cls)
       value.__setstate__(state)
       return value
+    elif t == DATE_TYPE:
+      return datetime.date.fromordinal(stream.read_var_int64())
+    elif t == DATETIME_TYPE:
+      day = datetime.date.fromordinal(stream.read_var_int64())
+      micros = stream.read_var_int64()
+      flags = stream.read_byte()
+      return datetime.datetime(
+          day.year,
+          day.month,
+          day.day,
+          micros // 3600000000,
+          micros // 60000000 % 60,
+          micros // 1000000 % 60,
+          micros % 1000000,
+          tzinfo=datetime.timezone.utc if flags & 2 else None,
+          fold=flags & 1)
+    elif t == TIMEDELTA_TYPE:
+      days = stream.read_var_int64()
+      seconds = stream.read_var_int64()
+      return datetime.timedelta(
+          days=days, seconds=seconds, microseconds=stream.read_var_int64())
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:

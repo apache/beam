@@ -67,6 +67,13 @@ class TimestampTest(unittest.TestCase):
       self.assertEqual(
           rfc3339_str, Timestamp.from_rfc3339(rfc3339_str).to_rfc3339())
 
+  def test_from_rfc3339_naive_iso8601(self):
+    self.assertEqual(
+        Timestamp(10000000), Timestamp.from_rfc3339('1970-04-26T17:46:40'))
+    self.assertEqual(
+        Timestamp(10000000, 123456789, 9),
+        Timestamp.from_rfc3339('1970-04-26T17:46:40.123456789'))
+
   def test_from_rfc3339_with_timezone(self):
     test_cases = [
         (1458328979.123456, '2016-03-18T23:22:59.123456+04:00'),
@@ -470,6 +477,23 @@ class DurationTest(unittest.TestCase):
     actual_dur_proto = Duration.to_proto(dur)
     expected_dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
     self.assertEqual(actual_dur_proto, expected_dur_proto)
+
+  def test_to_proto_negative(self):
+    # A Duration proto with a nonzero nanos must have nanos with the same sign
+    # as seconds, and seconds=0 when the duration is under one second.
+    for dur, seconds, nanos in [
+        (Duration(micros=-1), 0, -1000),
+        (Duration(micros=-1500000), -1, -500000000),
+        (Duration(seconds=-1234, micros=-56), -1234, -56000),
+        (Duration(seconds=-2), -2, 0),
+    ]:
+      with self.subTest(dur=dur):
+        dur_proto = dur.to_proto()
+        self.assertEqual(
+            dur_proto, duration_pb2.Duration(seconds=seconds, nanos=nanos))
+        # ToJsonString validates the proto and raises on a sign mismatch.
+        dur_proto.ToJsonString()
+        self.assertEqual(Duration.from_proto(dur_proto), dur)
 
 
 if __name__ == '__main__':

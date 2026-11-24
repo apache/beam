@@ -256,14 +256,16 @@ async function openPull(updates: configUpdates) {
   const branch = `pr-bot-${
     curDate.getMonth() + 1
   }-${curDate.getDay()}-${curDate.getFullYear()}-${curDate.getHours()}-${curDate.getMinutes()}-${curDate.getSeconds()}`;
-  await exec.exec(`git config user.email ${BOT_NAME}@github.com`);
-  await exec.exec("git config pull.rebase false");
-  await exec.exec(`git checkout -b ${branch}`);
-  await exec.exec(`git add ${PATH_TO_CONFIG_FILE}`);
-  await exec.exec(
-    `git commit -m "Updating reviewer config based on historical trends"`
-  );
-  await exec.exec(`git push origin ${branch}`);
+  await exec.exec("git", ["config", "user.email", `${BOT_NAME}@github.com`]);
+  await exec.exec("git", ["config", "pull.rebase", "false"]);
+  await exec.exec("git", ["checkout", "-b", branch]);
+  await exec.exec("git", ["add", PATH_TO_CONFIG_FILE]);
+  await exec.exec("git", [
+    "commit",
+    "-m",
+    "Updating reviewer config based on historical trends",
+  ]);
+  await exec.exec("git", ["push", "origin", branch]);
 
   const prBody = commentStrings.updateReviewerConfig(
     updates.reviewersAddedForLabels,
