@@ -634,24 +634,16 @@ public class ExecutionStateSampler {
     @Override
     public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
       this.monitoringReported = true;
-      try {
-        for (int i = 0, size = executionStates.size(); i < size; i++) {
-          executionStates.get(i).updateMonitoringData(monitoringData);
-        }
-      } finally {
-        this.monitoringReported = true;
+      for (int i = 0, size = executionStates.size(); i < size; i++) {
+        executionStates.get(i).updateMonitoringData(monitoringData);
       }
     }
 
     @Override
     public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
       this.monitoringReported = true;
-      try {
-        for (int i = 0, size = executionStates.size(); i < size; i++) {
-          executionStates.get(i).updateMonitoringData(monitoringData);
-        }
-      } finally {
-        this.monitoringReported = true;
+      for (int i = 0, size = executionStates.size(); i < size; i++) {
+        executionStates.get(i).updateMonitoringData(monitoringData);
       }
     }
 
