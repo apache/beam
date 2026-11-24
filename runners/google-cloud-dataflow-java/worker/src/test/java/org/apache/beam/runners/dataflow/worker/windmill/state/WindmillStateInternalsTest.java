@@ -3904,6 +3904,33 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testCachedMultimapReadOnly() throws Exception {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final byte[] key = "key1".getBytes(StandardCharsets.UTF_8);
+
+    assertEquals(0, cache.getWeight());
+
+    SettableFuture<Iterable<Integer>> entryFuture = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(entryFuture);
+    waitAndSet(entryFuture, weightedList(1, 2, 3), 30);
+    assertThat(multimapState.get(key).read(), Matchers.containsInAnyOrder(1, 2, 3));
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    // The read values weigh 1 each and the key encodes to 4 bytes.
+    assertEquals(357, cache.getWeight());
+  }
+
+  @Test
   public void testCachedMapViaMultimap() throws Exception {
     StateTag<MapState<byte[], byte[]>> addr =
         StateTags.map("map", ByteArrayCoder.of(), ByteArrayCoder.of());

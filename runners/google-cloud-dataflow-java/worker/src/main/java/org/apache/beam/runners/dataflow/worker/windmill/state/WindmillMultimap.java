@@ -146,16 +146,20 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
             || keyState.valuesCached);
   }
 
-  // Initiates a backend state read to fetch a single entry if necessary.
-  private Future<Iterable<V>> necessaryKeyEntriesFromStorageFuture(K key) {
+  private ByteString encodeKey(K key) {
     try {
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
-      return reader.multimapFetchSingleEntryFuture(
-          keyStream.toByteString(), stateKey.byteString(), stateFamily, valueCoder);
+      return keyStream.toByteString();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  // Initiates a backend state read to fetch a single entry if necessary.
+  private Future<Iterable<V>> necessaryKeyEntriesFromStorageFuture(ByteString encodedKey) {
+    return reader.multimapFetchSingleEntryFuture(
+        encodedKey, stateKey.byteString(), stateFamily, valueCoder);
   }
 
   @Override
@@ -401,9 +405,11 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
             Iterables.concat(
                 Iterables.limit(keyState.values, keyState.valuesSize), localNewValues));
       }
-      Future<Iterable<V>> persistedData = necessaryKeyEntriesFromStorageFuture(key);
+      ByteString encodedKey = encodeKey(key);
+      Future<Iterable<V>> persistedData = necessaryKeyEntriesFromStorageFuture(encodedKey);
       try (Closeable scope = scopedReadState()) {
         final Iterable<V> persistedValues = persistedData.get();
+        keyState.setKeyWeight(encodedKey.size());
         // Iterables.isEmpty() is O(1).
         if (Iterables.isEmpty(persistedValues)) {
           if (keyState.localAdditions.isEmpty()) {
@@ -435,7 +441,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     @SuppressWarnings("FutureReturnValueIgnored")
     public ReadableState<Iterable<V>> readLater() {
       if (!isKeyValuesCached(structuralKey)) {
-        WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(key);
+        WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(encodeKey(key));
       }
       return this;
     }
