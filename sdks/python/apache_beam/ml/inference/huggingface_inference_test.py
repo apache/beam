@@ -346,6 +346,21 @@ class HuggingFaceJobSubmissionTest(unittest.TestCase):
     self.assertEqual(results[1].example, 'example2')
     self.assertEqual(results[1].inference, {'score': 0.85, 'answer': 'NYC'})
 
+  def test_pipeline_run_inference_custom_columnar_dict_inference_fn(self):
+    # A custom inference_fn returning a columnar dict (as used by Beam YAML)
+    # must still be transposed by utils._convert_to_result for batch size 1.
+    def custom_inference_fn(batch, pipeline, inference_args):
+      return {'label': ['POSITIVE'], 'score': [0.99]}
+
+    model_handler = HuggingFacePipelineModelHandler(
+        task='text-classification',
+        model='unused',
+        inference_fn=custom_inference_fn)
+    results = list(model_handler.run_inference(['I love Beam!'], object()))
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].example, 'I love Beam!')
+    self.assertEqual(results[0].inference, {'label': 'POSITIVE', 'score': 0.99})
+
 
 if __name__ == '__main__':
   unittest.main()

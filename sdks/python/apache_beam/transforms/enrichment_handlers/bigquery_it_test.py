@@ -369,7 +369,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         throw_exception_on_empty_results=True,
     )
 
-    with self.assertRaisesRegex(Exception, "no matching row found for query"):
+    with self.assertRaisesRegex((ValueError, RuntimeError),
+                                "no matching row found for query"):
       with TestPipeline(is_integration_test=True) as test_pipeline:
         _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
@@ -455,7 +456,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         throw_exception_on_empty_results=True,
     )
 
-    with self.assertRaisesRegex(Exception, "no matching row found for query"):
+    with self.assertRaisesRegex((ValueError, RuntimeError),
+                                "no matching row found for query"):
       with TestPipeline(is_integration_test=True) as test_pipeline:
         _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
@@ -494,7 +496,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         throw_exception_on_empty_results=True,
     )
 
-    with self.assertRaisesRegex(Exception, "no matching row found for query"):
+    with self.assertRaisesRegex((ValueError, RuntimeError),
+                                "no matching row found for query"):
       with TestPipeline(is_integration_test=True) as test_pipeline:
         _ = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
