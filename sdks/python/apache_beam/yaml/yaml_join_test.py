@@ -26,7 +26,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.yaml import yaml_join
 from apache_beam.yaml.yaml_join import _parse_fields
 from apache_beam.yaml.yaml_join import _SqlJoinTransform
-from apache_beam.yaml.yaml_join import _SqlJoinTransform
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
