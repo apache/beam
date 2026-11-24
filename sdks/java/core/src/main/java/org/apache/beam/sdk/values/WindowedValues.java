@@ -26,14 +26,12 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextStorage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.AbstractList;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,12 +46,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -384,14 +382,6 @@ public class WindowedValues {
   }
 
   private static final long MIN_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
-
-  /**
-   * 4-byte big-endian length prefix ({@code 1}) matching {@link CollectionCoder} / {@link
-   * org.apache.beam.sdk.coders.IterableLikeCoder} ({@code beam:coder:iterable:v1}) framing. Stored
-   * on the enclosing class so {@link FullWindowedValueCoder} does not introduce a {@code <clinit>}
-   * that would alter its default {@code serialVersionUID}.
-   */
-  private static final byte[] SINGLE_WINDOW_COUNT_BYTES = new byte[] {0, 0, 0, 1};
 
   @SuppressWarnings("ReferenceEquality")
   private static boolean isMinTimestamp(@Nullable Instant timestamp) {
@@ -1717,54 +1707,11 @@ public class WindowedValues {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
-    // NOTE: Window list wire encoding/decoding below matches CollectionCoder / IterableLikeCoder
-    // (beam:coder:iterable:v1): a 4-byte big-endian int element count, with negative count (-1)
-    // indicating chunked unknown-size encoding of VarInt-length-prefixed blocks terminated by 0.
-    // Keep this synchronized with org.apache.beam.sdk.coders.IterableLikeCoder.
-    private static int readBigEndianInt(InputStream in) throws IOException {
-      int b1 = in.read();
-      int b2 = in.read();
-      int b3 = in.read();
-      int b4 = in.read();
-      if ((b1 | b2 | b3 | b4) < 0) {
-        throw new EOFException();
-      }
-      return (b1 << 24) | ((b2 & 0xFF) << 16) | ((b3 & 0xFF) << 8) | (b4 & 0xFF);
-    }
-
+    @SuppressWarnings("unchecked")
     private Collection<? extends BoundedWindow> decodeMultipleWindows(
         int numWindows, InputStream inStream) throws IOException {
-      if (numWindows == 0) {
-        return Collections.emptyList();
-      }
-      if (numWindows > 1) {
-        List<BoundedWindow> windowList = new ArrayList<>(numWindows);
-        for (int i = 0; i < numWindows; i++) {
-          windowList.add(windowCoder.decode(inStream));
-        }
-        return windowList;
-      }
-      return decodeUnknownSizeWindows(inStream);
-    }
-
-    private Collection<? extends BoundedWindow> decodeUnknownSizeWindows(InputStream inStream)
-        throws IOException {
-      List<BoundedWindow> elements = new ArrayList<>();
-      long count = VarInt.decodeLong(inStream);
-      while (count > 0L) {
-        elements.add(windowCoder.decode(inStream));
-        --count;
-        if (count == 0L) {
-          count = VarInt.decodeLong(inStream);
-        }
-      }
-      if (count == 0L) {
-        return elements;
-      }
-      throw new IllegalStateException(
-          String.format(
-              "Collection does not support non zero terminator values. Received stream with terminator %s.",
-              count));
+      return ((CollectionCoder<BoundedWindow>) (Coder<?>) windowsCoder)
+          .decodeAfterSizeHeader(numWindows, inStream);
     }
 
     private static <T> void encodeElementMetadata(
@@ -1849,11 +1796,10 @@ public class WindowedValues {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       @Nullable BoundedWindow singleWindow = singleWindowOrNull(windowedElem);
       if (singleWindow != null) {
-        outStream.write(SINGLE_WINDOW_COUNT_BYTES, 0, 4);
         // Same invariant as constructor: callers must ensure windows match windowCoder.
         @SuppressWarnings("unchecked")
         Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
-        typedWindowCoder.encode(singleWindow, outStream);
+        IterableLikeCoder.encodeSingleElement(typedWindowCoder, singleWindow, outStream);
       } else {
         windowsCoder.encode(windowedElem.getWindows(), outStream);
       }
@@ -1878,7 +1824,7 @@ public class WindowedValues {
     public WindowedValue<T> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
-      int numWindows = readBigEndianInt(inStream);
+      int numWindows = IterableLikeCoder.readSizeHeader(inStream);
       @Nullable BoundedWindow singleWindow = null;
       @Nullable Collection<? extends BoundedWindow> windows = null;
       if (numWindows == 1) {
@@ -1923,11 +1869,10 @@ public class WindowedValues {
       InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
       @Nullable BoundedWindow singleWindow = singleWindowOrNull(value);
       if (singleWindow != null) {
-        observer.update(4L);
         // Same invariant as constructor: callers must ensure windows match windowCoder.
         @SuppressWarnings("unchecked")
         Coder<BoundedWindow> typedWindowCoder = (Coder<BoundedWindow>) windowCoder;
-        typedWindowCoder.registerByteSizeObserver(singleWindow, observer);
+        IterableLikeCoder.registerSingleElementByteSize(typedWindowCoder, singleWindow, observer);
       } else {
         windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
       }
