@@ -69,6 +69,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
@@ -126,6 +127,8 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -370,6 +373,177 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       }
     }
     assertFalse(foundDisable);
+  }
+
+  @Test
+  public void testPerKeyCombinerLiftingDisabledByDefaultInStreaming() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(
+            "create",
+            Create.of(KV.of("a", 1), KV.of("b", 2))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+        .setIsBoundedInternal(IsBounded.UNBOUNDED)
+        .apply(
+            "window",
+            Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(DefaultTrigger.of())
+                .discardingFiredPanes())
+        .apply("sum", Combine.perKey(Sum.ofIntegers()));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(p);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    JobSpecification jobSpecification =
+        translator.translate(p, pipelineProto, sdkComponents, runner, Collections.emptyList());
+
+    int gbkCount = 0;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if ("GroupByKey".equals(step.getKind())) {
+        gbkCount++;
+        assertTrue(
+            getBoolean(step.getProperties(), PropertyNames.DISALLOW_COMBINER_LIFTING, false));
+      }
+    }
+    assertEquals(1, gbkCount);
+  }
+
+  @Test
+  public void testPerKeyCombinerLiftingEnabledWithMultiKeyBundleExperiment() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStreaming(true);
+    options.setExperiments(
+        Collections.singletonList(
+            DataflowStreamingPipelineOptions.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE));
+    Pipeline p = Pipeline.create(options);
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+                "create",
+                Create.of(KV.of("a", 1), KV.of("b", 2))
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .setIsBoundedInternal(IsBounded.UNBOUNDED);
+
+    input
+        .apply(
+            "window1",
+            Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(DefaultTrigger.of())
+                .discardingFiredPanes())
+        .apply("sum1", Combine.perKey(Sum.ofIntegers()));
+
+    input
+        .apply(
+            "window2",
+            Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(AfterWatermark.pastEndOfWindow())
+                .withAllowedLateness(Duration.ZERO)
+                .discardingFiredPanes())
+        .apply("sum2", Combine.perKey(Sum.ofIntegers()));
+
+    input
+        .apply(
+            "window3",
+            Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withEarlyFirings(
+                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.ZERO))
+                        .withLateFirings(AfterSynchronizedProcessingTime.ofFirstElement()))
+                .withAllowedLateness(Duration.ZERO)
+                .discardingFiredPanes())
+        .apply("sum3", Combine.perKey(Sum.ofIntegers()));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(p);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    JobSpecification jobSpecification =
+        translator.translate(p, pipelineProto, sdkComponents, runner, Collections.emptyList());
+
+    int gbkCount = 0;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if ("GroupByKey".equals(step.getKind())) {
+        gbkCount++;
+        assertFalse(
+            getBoolean(step.getProperties(), PropertyNames.DISALLOW_COMBINER_LIFTING, true));
+      }
+    }
+    assertEquals(3, gbkCount);
+  }
+
+  @Test
+  public void testPerKeyCombinerLiftingDisabledWithMultiKeyBundleForIncompatibleWindowing()
+      throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStreaming(true);
+    options.setExperiments(
+        Collections.singletonList(
+            DataflowStreamingPipelineOptions.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE));
+    Pipeline p = Pipeline.create(options);
+
+    PCollection<KV<String, Integer>> input =
+        p.apply(
+                "create",
+                Create.of(KV.of("a", 1), KV.of("b", 2))
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
+            .setIsBoundedInternal(IsBounded.UNBOUNDED);
+
+    // Count trigger is incompatible with combiner lifting.
+    input
+        .apply(
+            "countTriggerWindow",
+            Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(1)))
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .withAllowedLateness(Duration.ZERO)
+                .discardingFiredPanes())
+        .apply("sumCountTrigger", Combine.perKey(Sum.ofIntegers()));
+
+    // Merging windows are incompatible with combiner lifting.
+    input
+        .apply(
+            "sessionsWindow",
+            Window.<KV<String, Integer>>into(Sessions.withGapDuration(Duration.standardMinutes(1)))
+                .triggering(DefaultTrigger.of())
+                .discardingFiredPanes())
+        .apply("sumSessions", Combine.perKey(Sum.ofIntegers()));
+
+    // WindowFns that assign elements to multiple windows are incompatible with combiner lifting.
+    input
+        .apply(
+            "slidingWindow",
+            Window.<KV<String, Integer>>into(
+                    SlidingWindows.of(Duration.standardMinutes(2))
+                        .every(Duration.standardMinutes(1)))
+                .triggering(DefaultTrigger.of())
+                .discardingFiredPanes())
+        .apply("sumSliding", Combine.perKey(Sum.ofIntegers()));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceV1Transforms(p);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    JobSpecification jobSpecification =
+        translator.translate(p, pipelineProto, sdkComponents, runner, Collections.emptyList());
+
+    int gbkCount = 0;
+    for (Step step : jobSpecification.getJob().getSteps()) {
+      if ("GroupByKey".equals(step.getKind())) {
+        gbkCount++;
+        assertTrue(
+            getBoolean(step.getProperties(), PropertyNames.DISALLOW_COMBINER_LIFTING, false));
+      }
+    }
+    assertEquals(3, gbkCount);
   }
 
   // Test that the transform names for Storage Write API for streaming pipelines are what we expect
