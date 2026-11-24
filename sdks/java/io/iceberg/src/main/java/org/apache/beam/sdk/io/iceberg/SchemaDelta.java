@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableUtil;
 import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.types.Type;
@@ -57,7 +58,9 @@ final class SchemaDelta {
   /**
    * What registering a file with {@code fileSchema} would need from the table, as changes ordered
    * by column path; the table itself is never modified. File column names no table can absorb
-   * (dotted, empty, case-colliding) come back as conflicts without attempting the union.
+   * (dotted, empty, case-colliding) come back as conflicts without attempting the union. So does a
+   * union the table's format version cannot hold, such as a v3-only column on a v2 table: AddFiles
+   * never upgrades a table.
    */
   static SchemaDelta classify(Table table, Schema fileSchema) {
     return classify(table, table.schema(), fileSchema, Collections.emptySet());
@@ -111,6 +114,17 @@ final class SchemaDelta {
     } catch (ValidationException | IllegalArgumentException e) {
       // SchemaUpdate reports type conflicts through both exception types
       return conflict(e.getClass().getSimpleName() + ": " + AddFiles.errorMessage(e));
+    }
+    // Iceberg checks a schema against the format version only when commit builds the metadata
+    int formatVersion = TableUtil.formatVersion(table);
+    try {
+      Schema.checkCompatibility(merged, formatVersion);
+    } catch (IllegalStateException e) {
+      return conflict(
+          "table format-version "
+              + formatVersion
+              + " cannot hold the file's columns, and AddFiles never upgrades a table: "
+              + AddFiles.errorMessage(e).replace('\n', ' '));
     }
     Map<String, SchemaChange> absentByPath = new HashMap<>();
     for (SchemaChange change : absent) {
