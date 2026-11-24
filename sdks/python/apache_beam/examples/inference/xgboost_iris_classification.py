@@ -24,16 +24,14 @@ from typing import Union
 import numpy
 import pandas
 import scipy
+import xgboost
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 
 import apache_beam as beam
-import datatable
-import xgboost
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerDatatable
 from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerNumpy
 from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerPandas
 from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerSciPy
@@ -59,7 +57,7 @@ def parse_known_args(argv):
       '--input_type',
       dest='input_type',
       required=True,
-      choices=['numpy', 'pandas', 'scipy', 'datatable'],
+      choices=['numpy', 'pandas', 'scipy'],
       help='Datatype of the input data.')
   parser.add_argument(
       '--output',
@@ -122,7 +120,6 @@ def run(
       'numpy': (numpy.array, XGBoostModelHandlerNumpy),
       'pandas': (pandas.DataFrame, XGBoostModelHandlerPandas),
       'scipy': (scipy.sparse.csr_matrix, XGBoostModelHandlerSciPy),
-      'datatable': (datatable.Frame, XGBoostModelHandlerDatatable),
   }
 
   input_data_type, model_handler = data_types[known_args.input_type]
