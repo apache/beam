@@ -90,6 +90,7 @@ from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import Secret
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
@@ -2961,6 +2962,76 @@ class ReifyTest(unittest.TestCase):
       pc = p | beam.Create(l) | beam.Map(lambda x: x)
       reified_pc = pc | util.Reify.WindowInValue()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
+
+  @parameterized.expand([
+      ('default', {}, False),
+      ('runtime_type_check', {
+          'runtime_type_check': True
+      }, False),
+      (
+          'compat_2_78_0',
+          {
+              'update_compatibility_version': '2.78.0'
+          },
+          True,
+      ),
+      (
+          'compat_2_78_0_runtime_type_check',
+          {
+              'update_compatibility_version': '2.78.0',
+              'runtime_type_check': True
+          },
+          True,
+      ),
+  ])
+  def test_typed_input(self, _, options, legacy_hints):
+    # Create infers the element type, and the coders of the outputs come from
+    # the output types of the transforms.
+    ts_hint = typehints.Tuple[str, TimestampedValue]
+    if legacy_hints:
+      # An input that worked on 2.78.0: the key type is kept and the value is
+      # Any, so WindowInValue keeps the key coder it had in 2.78.0.
+      input_hint = typehints.Tuple[str, typehints.Any]
+      window_hint = typehints.Any
+      window_in_value_hint = typehints.Tuple[str, typehints.Any]
+      window_in_value_coder = 'TupleCoder[StrUtf8Coder, FastPrimitivesCoder]'
+    else:
+      input_hint = typehints.Tuple[str, int]
+      window_hint = typehints.Tuple[typehints.Tuple[str, int],
+                                    Timestamp,
+                                    window.BoundedWindow]
+      window_in_value_hint = typehints.Tuple[str,
+                                             typehints.Tuple[
+                                                 int,
+                                                 Timestamp,
+                                                 window.BoundedWindow]]
+      window_in_value_coder = None
+    with TestPipeline(options=PipelineOptions(**options)) as p:
+      kvs = p | beam.Create([('a', 1), ('b', 2)]).with_output_types(input_hint)
+      windowed = kvs | 'Window' >> util.Reify.Window()
+      self.assertEqual(windowed.element_type, window_hint)
+      assert_that(
+          windowed | 'GetElement' >> beam.Map(lambda x: x[0]),
+          equal_to([('a', 1), ('b', 2)]),
+          label='CheckWindow')
+      timestamped = kvs | util.Reify.TimestampInValue()
+      self.assertEqual(timestamped.element_type, ts_hint)
+      assert_that(
+          timestamped
+          | 'GetTsValue' >> beam.MapTuple(lambda k, v: (k, v.value)),
+          equal_to([('a', 1), ('b', 2)]),
+          label='CheckTimestamp')
+      window_in_value = kvs | util.Reify.WindowInValue()
+      self.assertEqual(window_in_value.element_type, window_in_value_hint)
+      if window_in_value_coder:
+        self.assertEqual(
+            str(beam.coders.registry.get_coder(window_in_value.element_type)),
+            window_in_value_coder)
+      assert_that(
+          window_in_value
+          | 'GetValue' >> beam.MapTuple(lambda k, v: (k, v[0])),
+          equal_to([('a', 1), ('b', 2)]),
+          label='CheckWindowInValue')
 
 
 class RegexTest(unittest.TestCase):
