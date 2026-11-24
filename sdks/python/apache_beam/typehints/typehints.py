@@ -109,6 +109,51 @@ class CompositeTypeHintError(TypeError):
   pass
 
 
+class ProtocolTypeHintError(TypeError):
+  """A typing.Protocol type hint that Beam cannot check."""
+  pass
+
+
+def _is_protocol_class(hint):
+  return (
+      isinstance(hint, type) and getattr(hint, '_is_protocol', False) and
+      hint is not typing.Protocol)
+
+
+def _protocol_non_method_members(protocol):
+  members = getattr(protocol, '__non_callable_proto_members__', None)
+  if members is None:
+    attrs = getattr(protocol, '__protocol_attrs__', None)
+    if attrs is None:
+      attrs = typing._get_protocol_attrs(protocol)  # pylint: disable=protected-access
+    members = {a for a in attrs if not callable(getattr(protocol, a, None))}
+  return sorted(members)
+
+
+def _check_protocol_hint(protocol, needs_issubclass):
+  """Raises ProtocolTypeHintError if Beam cannot check against 'protocol'.
+
+  isinstance() needs a @typing.runtime_checkable Protocol. issubclass(), which
+  is used when comparing type hints, additionally does not support Protocols
+  with non-method members.
+  """
+  if not getattr(protocol, '_is_runtime_protocol', False):
+    raise ProtocolTypeHintError(
+        'Protocol type hint %s cannot be used for type checking because it is '
+        'not decorated with @typing.runtime_checkable. Decorate it with '
+        '@typing.runtime_checkable, or use a concrete class or typing.Any as '
+        'the type hint instead.' % protocol.__qualname__)
+  if needs_issubclass:
+    members = _protocol_non_method_members(protocol)
+    if members:
+      raise ProtocolTypeHintError(
+          'Protocol type hint %s has non-method members (%s), so Beam cannot '
+          'check other type hints against it. Use a @typing.runtime_checkable '
+          'Protocol that only declares methods, or use a concrete class or '
+          'typing.Any as the type hint instead.' %
+          (protocol.__qualname__, ', '.join(members)))
+
+
 class GetitemConstructor(type):
   """A metaclass that makes Cls[arg] an alias for Cls(arg)."""
   def __getitem__(cls, arg):
@@ -429,8 +474,11 @@ def check_constraint(type_constraint, object_instance):
     pass
   elif not isinstance(type_constraint, type):
     raise RuntimeError("bad type: %s" % (type_constraint, ))
-  elif not isinstance(object_instance, type_constraint):
-    raise SimpleTypeHintError
+  else:
+    if _is_protocol_class(type_constraint):
+      _check_protocol_hint(type_constraint, needs_issubclass=False)
+    if not isinstance(object_instance, type_constraint):
+      raise SimpleTypeHintError
 
 
 class AnyTypeConstraint(TypeConstraint):
@@ -548,6 +596,8 @@ class UnionHint(CompositeTypeHint):
         try:
           check_constraint(t, instance)
           return
+        except ProtocolTypeHintError:
+          raise
         except TypeError as e:
           error_msg = str(e)
           continue
@@ -1536,6 +1586,8 @@ def is_consistent_with(
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
     return False
+  if _is_protocol_class(base):
+    _check_protocol_hint(base, needs_issubclass=True)
   if use_beartype:
     try:
       return is_subhint(sub, base)

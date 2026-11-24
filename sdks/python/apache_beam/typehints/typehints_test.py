@@ -2006,6 +2006,95 @@ class TestPTransformAnnotations(unittest.TestCase):
     self.assertIsInstance(normalized_2, typehints.UnionConstraint)
 
 
+class DummyMethodProtocol(typing.Protocol):
+  def method(self) -> int:
+    ...
+
+
+@typing.runtime_checkable
+class DummyRuntimeMethodProtocol(typing.Protocol):
+  def method(self) -> int:
+    ...
+
+
+@typing.runtime_checkable
+class DummyRuntimeDataProtocol(typing.Protocol):
+  value: int
+
+
+class DummyProtocolImpl(object):
+  value = 1
+
+  def method(self):
+    return 1
+
+
+class ProtocolTypeHintTestCase(TypeHintTestCase):
+  def test_not_runtime_checkable_is_consistent_with(self):
+    msg = (
+        r'Protocol type hint DummyMethodProtocol cannot be used for type '
+        r'checking because it is not decorated with '
+        r'@typing.runtime_checkable.*concrete class or typing.Any')
+    for use_beartype in (True, False):
+      with self.assertRaisesRegex(typehints.ProtocolTypeHintError, msg):
+        is_consistent_with(
+            DummyProtocolImpl, DummyMethodProtocol, use_beartype=use_beartype)
+
+  def test_not_runtime_checkable_check_constraint(self):
+    with self.assertRaisesRegex(
+        typehints.ProtocolTypeHintError,
+        r'not decorated with @typing.runtime_checkable'):
+      typehints.check_constraint(DummyMethodProtocol, DummyProtocolImpl())
+
+  def test_not_runtime_checkable_in_composite_hint(self):
+    with self.assertRaisesRegex(
+        typehints.ProtocolTypeHintError,
+        r'not decorated with @typing.runtime_checkable'):
+      typehints.List[DummyMethodProtocol].type_check([DummyProtocolImpl()])
+    with self.assertRaisesRegex(
+        typehints.ProtocolTypeHintError,
+        r'not decorated with @typing.runtime_checkable'):
+      typehints.Union[DummyMethodProtocol, int].type_check(DummyProtocolImpl())
+
+  def test_not_runtime_checkable_is_still_a_type_error(self):
+    with self.assertRaises(TypeError):
+      is_consistent_with(DummyProtocolImpl, DummyMethodProtocol)
+
+  def test_non_method_members_is_consistent_with(self):
+    for use_beartype in (True, False):
+      with self.assertRaisesRegex(
+          typehints.ProtocolTypeHintError,
+          r'DummyRuntimeDataProtocol has non-method members \(value\).*'
+          r'concrete class or typing.Any'):
+        is_consistent_with(
+            DummyProtocolImpl,
+            DummyRuntimeDataProtocol,
+            use_beartype=use_beartype)
+
+  def test_non_method_members_check_constraint_uses_isinstance(self):
+    typehints.check_constraint(DummyRuntimeDataProtocol, DummyProtocolImpl())
+    with self.assertRaises(typehints.SimpleTypeHintError):
+      typehints.check_constraint(DummyRuntimeDataProtocol, object())
+
+  def test_runtime_checkable_method_protocol(self):
+    for use_beartype in (True, False):
+      self.assertTrue(
+          is_consistent_with(
+              DummyProtocolImpl,
+              DummyRuntimeMethodProtocol,
+              use_beartype=use_beartype))
+      self.assertFalse(
+          is_consistent_with(
+              int, DummyRuntimeMethodProtocol, use_beartype=use_beartype))
+    typehints.check_constraint(DummyRuntimeMethodProtocol, DummyProtocolImpl())
+    with self.assertRaises(typehints.SimpleTypeHintError):
+      typehints.check_constraint(DummyRuntimeMethodProtocol, 1)
+
+  def test_protocol_hint_consistent_with_itself(self):
+    self.assertTrue(
+        is_consistent_with(DummyMethodProtocol, DummyMethodProtocol))
+
+
 class TestNonBuiltInGenerics(unittest.TestCase):
   def test_no_error_thrown(self):
     input = NonBuiltInGeneric[str]
