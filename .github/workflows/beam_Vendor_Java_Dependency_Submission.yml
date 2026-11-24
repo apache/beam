@@ -44,7 +44,7 @@ jobs:
   validate_vendor_dependency_graph:
     name: Validate Vendor Java Dependency Graph
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-24.04, small]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -82,7 +82,7 @@ jobs:
   submit_vendor_dependency_graph:
     name: Submit Vendor Java Dependency Graph
     if: github.event_name != 'pull_request' && github.repository == 'apache/beam'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-24.04, small]
     timeout-minutes: 30
     permissions:
       contents: write # Required by GitHub's Dependency Submission API (/dependency-graph/snapshots).
