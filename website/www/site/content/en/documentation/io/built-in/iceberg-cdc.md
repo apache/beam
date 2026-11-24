@@ -411,7 +411,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 with beam.Pipeline(options=PipelineOptions(streaming=True, runner="PrismRunner")) as p:
   _ = (
       p
-      | beam.managed.Read("iceberg_cdc", config={
+      | beam.managed.Read(beam.managed.ICEBERG_CDC, config={
           **catalog,
           "table": "shop.orders",
           "include_metadata_columns": [
@@ -810,10 +810,14 @@ with beam.Pipeline(options=options) as p:
   ...
 {{< /highlight >}}
 {{< highlight yaml >}}
-# pip install 'apache-beam[gcp,yaml]>=2.79.0', then:
-# python -m apache_beam.yaml.main --yaml_pipeline_file=mirror.yaml \
-#     --runner=DataflowRunner --project=my-project --region=us-central1 \
-#     --temp_location=gs://my-bucket/tmp
+# pip install 'apache-beam[gcp,yaml]>=2.79.0'
+# In mirror.yaml, replace the options block with:
+options:
+  streaming: true
+  runner: DataflowRunner
+  project: my-project
+  region: us-central1
+  temp_location: gs://my-bucket/tmp
 {{< /highlight >}}
 
 On Dataflow, a streaming job keeps running after the shell or program exits. Cancel it from the

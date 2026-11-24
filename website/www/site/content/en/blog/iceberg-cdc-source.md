@@ -75,7 +75,7 @@ PCollection<Row> changes =
 changes.apply(LogElements.stdout());
 {{< /highlight >}}
 {{< highlight py >}}
-changes = pipeline | beam.managed.Read("iceberg_cdc", config={
+changes = pipeline | beam.managed.Read(beam.managed.ICEBERG_CDC, config={
     "table": "sales.orders",
     "catalog_name": "lakehouse",
     "catalog_properties": {...},

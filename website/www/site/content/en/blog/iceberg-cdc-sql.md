@@ -1,6 +1,6 @@
 ---
 title: "Stream changes between Iceberg tables with Apache Beam"
-date: 2026-10-06 00:00:00 -0700
+date: 2026-11-22 00:00:00 -0800
 categories:
   - blog
 authors:
@@ -121,7 +121,7 @@ Two shorter posts go into each half:
 
 ## Try it
 
-You can use the CDC sink feature starting with the Beam SDK 2.79.0 version. This works for table format v2 or v3.
+You can use the Iceberg CDC source and sink starting with the Beam SDK 2.79.0 version. This works for table format v2 or v3.
 Equality deletes are not allowed in v4, and the sink will later be updated to accommodate for
 that.
 

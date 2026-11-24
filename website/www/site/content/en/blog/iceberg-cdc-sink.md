@@ -127,8 +127,9 @@ config:
   upsert: true
 {{< /highlight >}}
 
-If your changes come from Beam's [Iceberg CDC source](/blog/iceberg-cdc-source/), you only need
-to point `change_type_column` at `_change_type`.
+If your changes come from Beam's [Iceberg CDC source](/blog/iceberg-cdc-source/), point
+`change_type_column` at `_change_type`. You don't need to set `sequence_number_column`, because it
+already defaults to `_commit_snapshot_sequence_number`.
 
 ## How the sink works
 
