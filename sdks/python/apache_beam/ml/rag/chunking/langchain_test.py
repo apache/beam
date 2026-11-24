@@ -28,8 +28,12 @@ from apache_beam.testing.util import is_not_empty
 
 # pylint: disable=ungrouped-imports
 try:
-  from langchain.text_splitter import CharacterTextSplitter
-  from langchain.text_splitter import RecursiveCharacterTextSplitter
+  try:
+    from langchain_text_splitters import CharacterTextSplitter
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+  except ImportError:
+    from langchain.text_splitter import CharacterTextSplitter
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 
   from apache_beam.ml.rag.chunking.langchain import LangChainChunker
   LANGCHAIN_AVAILABLE = True
@@ -226,6 +230,33 @@ class LangChainChunkingTest(unittest.TestCase):
           | provider.get_ptransform_for_processing())
 
       assert_that(chunks, equal_to([]))
+
+  def test_chunks_have_independent_metadata(self):
+    """Test that each chunk receives an independent copy of metadata."""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=30, chunk_overlap=0, separators=[".", " "])
+    provider = LangChainChunker(
+        document_field='content',
+        metadata_fields=['source', 'language'],
+        text_splitter=splitter)
+
+    def check_independent_metadata(chunks):
+      if len(chunks) < 2:
+        raise BeamAssertException(
+            f"Expected at least 2 chunks, got {len(chunks)}")
+      chunks[0].metadata['source'] = 'mutated.txt'
+      for chunk in chunks[1:]:
+        if chunk.metadata['source'] != 'simple.txt':
+          raise BeamAssertException(
+              "Mutating one chunk's metadata affected another chunk.")
+      return True
+
+    with TestPipeline() as p:
+      chunks = (
+          p
+          | beam.Create([self.simple_text])
+          | provider.get_ptransform_for_processing())
+      assert_that(chunks, check_independent_metadata)
 
 
 if __name__ == '__main__':

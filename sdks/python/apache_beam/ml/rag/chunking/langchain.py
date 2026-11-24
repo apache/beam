@@ -25,9 +25,12 @@ from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 
 try:
-  from langchain.text_splitter import TextSplitter
+  from langchain_text_splitters import TextSplitter
 except ImportError:
-  TextSplitter = None
+  try:
+    from langchain.text_splitter import TextSplitter
+  except ImportError:
+    TextSplitter = None
 
 
 class LangChainChunker(ChunkingTransformProvider):
@@ -38,32 +41,32 @@ class LangChainChunker(ChunkingTransformProvider):
       metadata_fields: list[str],
       chunk_id_fn: Optional[ChunkIdFn] = None):
     """A ChunkingTransformProvider that uses LangChain text splitters.
-  
+
     This provider integrates LangChain's text splitting capabilities into
     Beam's MLTransform framework. It supports various text splitting strategies
     through LangChain's TextSplitter interface, including recursive character
-    splitting and other methods. 
+    splitting and other methods.
 
     The provider:
-    - Takes documents with text content and metadata
-    - Splits text using configured LangChain splitter
-    - Preserves document metadata in resulting chunks
-    - Assigns unique IDs to chunks (configurable via chunk_id_fn)
+      - Takes documents with text content and metadata
+      - Splits text using configured LangChain splitter
+      - Preserves document metadata in resulting chunks
+      - Assigns unique IDs to chunks (configurable via chunk_id_fn)
 
     Example usage:
       ```python
-      from langchain.text_splitter import RecursiveCharacterTextSplitter
-      
+      from langchain_text_splitters import RecursiveCharacterTextSplitter
+
       splitter = RecursiveCharacterTextSplitter(
           chunk_size=100,
           chunk_overlap=20
       )
-      
+
       chunker = LangChainChunker(text_splitter=splitter)
-      
+
       with beam.Pipeline() as p:
         chunks = (
-            p 
+            p
             | beam.Create([{'text': 'long document...', 'source': 'doc.txt'}])
             | MLTransform(...).with_transform(chunker))
       ```
@@ -79,8 +82,9 @@ class LangChainChunker(ChunkingTransformProvider):
     """
     if not TextSplitter:
       raise ImportError(
-          "langchain is required to use LangChainChunker"
-          "Please install it with using `pip install langchain`.")
+          "langchain-text-splitters (or langchain) is required to use "
+          "LangChainChunker. Please install it using "
+          "`pip install langchain-text-splitters`.")
     if not isinstance(text_splitter, TextSplitter):
       raise TypeError("text_splitter must be a LangChain TextSplitter")
     if not document_field:
@@ -115,4 +119,5 @@ class _LangChainTextSplitter(beam.DoFn):
     text_chunks = self.text_splitter.split_text(element[self.document_field])
     metadata = {field: element[field] for field in self.metadata_fields}
     for i, text_chunk in enumerate(text_chunks):
-      yield Chunk(content=Content(text=text_chunk), index=i, metadata=metadata)
+      yield Chunk(
+          content=Content(text=text_chunk), index=i, metadata=metadata.copy())
