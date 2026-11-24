@@ -97,6 +97,9 @@ public class CommonJms implements Serializable {
   void startBroker() throws Exception {
     broker = new BrokerService();
     broker.setUseJmx(false);
+    // Advisory topics are unused by tests and can race under concurrent vm:// connections
+    // (ActiveMQDestination.getDestinationPaths NPE in DestinationMapNode).
+    broker.setAdvisorySupport(false);
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
     TransportFactory.registerTransportFactory("amqp", new AmqpTransportFactory());
     if (shouldAppendPort()) {
@@ -136,6 +139,20 @@ public class CommonJms implements Serializable {
           InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass.getConstructor(String.class).newInstance(getBrokerUrlWithPort());
+  }
+
+  ConnectionFactory createConnectionFactoryWithLocalReceiveNoWait()
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
+          IllegalAccessException {
+    String url = getBrokerUrlWithPort();
+    if (brokerUrl.startsWith("amqp://") && !url.contains("jms.receiveNoWaitLocalOnly=")) {
+      // With non-zero prefetch on ActiveMQ 5.x AMQP, Qpid's remote drain on receiveNoWait()
+      // is ignored by PrefetchSubscription.pullMessage() and hangs for the 60s drainTimeout.
+      url = url + (url.contains("?") ? "&" : "?") + "jms.receiveNoWaitLocalOnly=true";
+    }
+    return connectionFactoryClass.getConstructor(String.class).newInstance(url);
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()

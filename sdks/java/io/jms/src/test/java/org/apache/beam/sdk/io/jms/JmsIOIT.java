@@ -226,7 +226,7 @@ public class JmsIOIT implements Serializable {
     if (acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE) {
       connectionFactory = this.commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
     } else {
-      connectionFactory = this.commonJms.createConnectionFactory();
+      connectionFactory = this.commonJms.createConnectionFactoryWithLocalReceiveNoWait();
     }
     connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
   }
@@ -313,7 +313,7 @@ public class JmsIOIT implements Serializable {
               CommonJms.toSerializableFunction(
                   acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE
                       ? commonJms::createConnectionFactoryWithSyncAcksAndWithoutPrefetch
-                      : commonJms::createConnectionFactory));
+                      : commonJms::createConnectionFactoryWithLocalReceiveNoWait));
     } else {
       jmsIORead = jmsIORead.withConnectionFactory(connectionFactory);
     }
