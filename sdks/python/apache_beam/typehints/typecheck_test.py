@@ -26,6 +26,7 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 # ruff: noqa: UP006
 import os
 import tempfile
+import typing
 import unittest
 from typing import Iterable
 from typing import Tuple
@@ -45,6 +46,22 @@ decorators._enable_from_callable = True
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
+
+
+class ProtocolWithoutRuntimeCheck(typing.Protocol):
+  def method(self) -> int:
+    ...
+
+
+@typing.runtime_checkable
+class RuntimeCheckableProtocol(typing.Protocol):
+  def method(self) -> int:
+    ...
+
+
+class ProtocolImpl(object):
+  def method(self):
+    return 1
 
 
 class MyDoFn(beam.DoFn):
@@ -133,6 +150,45 @@ class RuntimeTypeCheckTest(unittest.TestCase):
       dofn = MyDoFnBadAnnotation(f.name)
       with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
         _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+
+
+class ProtocolHintTest(unittest.TestCase):
+  not_runtime_checkable_regex = (
+      r'Protocol type hint ProtocolWithoutRuntimeCheck cannot be used for '
+      r'type checking because it is not decorated with '
+      r'@typing.runtime_checkable')
+
+  def test_runtime_type_check_not_runtime_checkable(self):
+    p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
+    with self.assertRaisesRegex(Exception, self.not_runtime_checkable_regex):
+      _ = (
+          p
+          | beam.Create([ProtocolImpl()])
+          | beam.Map(lambda x: x).with_input_types(ProtocolWithoutRuntimeCheck))
+      p.run().wait_until_finish()
+
+  def test_performance_runtime_type_check_not_runtime_checkable(self):
+    p = Pipeline(
+        options=PipelineOptions(
+            performance_runtime_type_check=True, pipeline_type_check=False))
+    with self.assertRaisesRegex(Exception, self.not_runtime_checkable_regex):
+      _ = (
+          p
+          | beam.Create([ProtocolImpl()])
+          | beam.Map(lambda x: x).with_input_types(ProtocolWithoutRuntimeCheck))
+      p.run().wait_until_finish()
+
+  def test_runtime_checkable_method_protocol(self):
+    for options in (PipelineOptions(runtime_type_check=True),
+                    PipelineOptions(performance_runtime_type_check=True,
+                                    pipeline_type_check=False)):
+      with TestPipeline(options=options) as p:
+        result = (
+            p
+            | beam.Create([ProtocolImpl()])
+            | beam.Map(lambda x: x.method()).with_input_types(
+                RuntimeCheckableProtocol))
+        assert_that(result, equal_to([1]))
 
 
 class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
