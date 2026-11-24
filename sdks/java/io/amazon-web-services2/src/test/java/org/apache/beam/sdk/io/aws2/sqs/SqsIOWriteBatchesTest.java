@@ -44,6 +44,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -427,6 +430,59 @@ public class SqsIOWriteBatchesTest {
       }
     }
     assertEquals("Invalid message count", 100000, capturedMessages.size());
+  }
+
+  private static volatile CountDownLatch expirationCheckStarted = new CountDownLatch(1);
+
+  @Test
+  public void testFinishBundleWaitsForInFlightExpirationCheck() {
+    expirationCheckStarted = new CountDownLatch(1);
+    AtomicBoolean inFlightCheckCompleted = new AtomicBoolean(false);
+    AtomicBoolean submitAllRacedWithCheck = new AtomicBoolean(false);
+
+    when(sqs.sendMessageBatch(any(SendMessageBatchRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              SendMessageBatchRequest req = invocation.getArgument(0);
+              if ("q0".equals(req.queueUrl())) {
+                expirationCheckStarted.countDown();
+                Thread.sleep(200);
+                inFlightCheckCompleted.set(true);
+              } else if ("q1".equals(req.queueUrl()) && !inFlightCheckCompleted.get()) {
+                submitAllRacedWithCheck.set(true);
+              }
+              return completedFuture(SendMessageBatchResponse.builder().build());
+            });
+
+    EntryMapperFn.Builder<String> waitBeforeSecondMessage =
+        (builder, msg) -> {
+          if ("1".equals(msg)) {
+            try {
+              assertTrue(
+                  "Timed out waiting for expiration check to start",
+                  expirationCheckStarted.await(5, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(e);
+            }
+          }
+          SET_MESSAGE_BODY.accept(builder, msg);
+        };
+
+    p.apply(Create.of(2))
+        .apply(ParDo.of(new CreateMessages()))
+        .apply(
+            SqsIO.<String>writeBatches()
+                .withEntryMapper(waitBeforeSecondMessage)
+                .withBatchTimeout(millis(50), true)
+                .to(msg -> "q" + msg));
+
+    p.run().waitUntilFinish();
+
+    assertThat(inFlightCheckCompleted.get()).isTrue();
+    assertThat(submitAllRacedWithCheck.get()).isFalse();
+    Map<String, List<SendMessageBatchRequest>> requests = captureBatchRequests(times(2));
+    assertThat(requests.keySet()).containsExactlyInAnyOrder("q0", "q1");
   }
 
   private SendMessageBatchRequest anyRequest() {
