@@ -124,6 +124,9 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       BatchConfig config,
       @Nullable SerializableFunction<T, Integer> elementSizeFn,
       @Nullable Long maxBatchWeight) {
+    if (config == null) {
+      throw new IllegalArgumentException("config must not be null");
+    }
     this.config = config;
     this.elementSizeFn = elementSizeFn;
     this.maxBatchWeight = maxBatchWeight;
@@ -134,6 +137,12 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     return withConfig(BatchConfig.defaults());
   }
 
+  /**
+   * Batch Elements with the given configuration.
+   *
+   * @param config configuration controlling batch sizing and adaptation
+   * @throws IllegalArgumentException if {@code config} is {@code null}
+   */
   public static <T> BatchElements<T> withConfig(BatchConfig config) {
     return new BatchElements<>(config, null, null);
   }

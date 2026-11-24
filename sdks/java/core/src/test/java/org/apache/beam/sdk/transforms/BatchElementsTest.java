@@ -119,6 +119,11 @@ public class BatchElementsTest implements Serializable {
   }
 
   @Test(expected = IllegalArgumentException.class)
+  public void testNullConfigThrows() {
+    BatchElements.<String>withConfig(null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
   public void testNullElementSizeFnThrows() {
     BatchElements.<String>withDefaults().withElementSizeFn(null);
   }
