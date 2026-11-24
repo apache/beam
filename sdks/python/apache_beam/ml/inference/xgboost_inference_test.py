@@ -34,7 +34,6 @@ try:
   from apache_beam.ml.inference import RunInference
   from apache_beam.ml.inference.base import KeyedModelHandler
   from apache_beam.ml.inference.base import PredictionResult
-  from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerDatatable
   from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerNumpy
   from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerPandas
   from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerSciPy
