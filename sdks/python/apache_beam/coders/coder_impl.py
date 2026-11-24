@@ -1614,6 +1614,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # TODO(lcwik): Remove the timestamp coder field
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
+    self._timestamp_encoded_size = timestamp_coder.estimate_size(
+        Timestamp(0), nested=True)
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
     self._pane_info_coder = PaneInfoCoderImpl()
 
@@ -1675,10 +1677,10 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     value_estimated_size, observables = (
         self._value_coder.get_estimated_size_and_observables(
             value.value, nested=nested))
-    # Timestamp is always encoded as an 8-byte big-endian uint64; avoid
-    # accessing value.timestamp which lazily allocates a Timestamp object.
+    # Timestamp has a fixed encoded size; reuse the size computed in __init__
+    # to avoid accessing value.timestamp (which lazily allocates a Timestamp).
     estimated_size = (
-        value_estimated_size + 8 +
+        value_estimated_size + self._timestamp_encoded_size +
         self._windows_coder.estimate_size(value.windows, nested=True) +
         self._pane_info_coder.estimate_size(value.pane_info, nested=True))
     return estimated_size, observables

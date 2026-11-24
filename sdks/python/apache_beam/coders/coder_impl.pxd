@@ -251,6 +251,7 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
   cdef CoderImpl _value_coder
   cdef CoderImpl _timestamp_coder
+  cdef int _timestamp_encoded_size
   cdef CoderImpl _windows_coder
   cdef CoderImpl _pane_info_coder
 
