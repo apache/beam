@@ -1648,8 +1648,25 @@ public class AvroUtils {
   }
 
   private static Object convertIntStrict(Integer value, FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), TypeName.INT32, "int");
-    return value;
+    // toAvroSchema writes BYTE and INT16 fields as Avro ints, so they can be read back into
+    // those types as long as the value fits.
+    switch (fieldType.getTypeName()) {
+      case BYTE:
+        checkArgument(
+            value.intValue() == value.byteValue(),
+            "Can't convert 'int' value %s to BYTE: out of range",
+            value);
+        return value.byteValue();
+      case INT16:
+        checkArgument(
+            value.intValue() == value.shortValue(),
+            "Can't convert 'int' value %s to INT16: out of range",
+            value);
+        return value.shortValue();
+      default:
+        checkTypeName(fieldType.getTypeName(), TypeName.INT32, "int");
+        return value;
+    }
   }
 
   private static Object convertLongStrict(Long value, FieldType fieldType) {
@@ -1663,6 +1680,13 @@ public class AvroUtils {
   }
 
   private static Object convertDateStrict(Integer epochDays, FieldType fieldType) {
+    // toAvroSchema writes SqlTypes.DATE fields, backed by java.time.LocalDate, as Avro dates.
+    if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE
+        && SqlTypes.DATE
+            .getIdentifier()
+            .equals(checkNotNull(fieldType.getLogicalType()).getIdentifier())) {
+      return java.time.LocalDate.ofEpochDay(epochDays);
+    }
     checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "date");
     return Instant.EPOCH.plus(Duration.standardDays(epochDays));
   }

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.avro.schemas.utils;
 import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1083,6 +1084,67 @@ public class AvroUtilsTest {
             .build();
 
     assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
+  }
+
+  @Test
+  public void testGenericRecordToRowWithSqlDateAndSmallIntegers() {
+    // toAvroSchema writes SqlTypes.DATE as an Avro date and BYTE and INT16 as Avro ints. A record
+    // converted back with the same Beam schema gets the original values and types back.
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("local_date", FieldType.logicalType(SqlTypes.DATE)))
+            .addField(Field.nullable("nullable_date", FieldType.logicalType(SqlTypes.DATE)))
+            .addByteField("byte_field")
+            .addInt16Field("int16_field")
+            .addField(Field.nullable("nullable_byte", FieldType.BYTE))
+            .build();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+
+    Row row =
+        Row.withSchema(beamSchema)
+            .addValues(
+                java.time.LocalDate.of(1979, 3, 14),
+                java.time.LocalDate.of(1969, 12, 31),
+                (byte) -128,
+                (short) 32767,
+                (byte) 127)
+            .build();
+    GenericRecord record = AvroUtils.toGenericRecord(row, avroSchema);
+    assertEquals((int) java.time.LocalDate.of(1979, 3, 14).toEpochDay(), record.get("local_date"));
+    assertEquals(row, AvroUtils.toBeamRowStrict(record, beamSchema));
+
+    Row withNulls =
+        Row.withSchema(beamSchema)
+            .addValues(java.time.LocalDate.of(1979, 3, 14), null, (byte) 0, (short) 0, null)
+            .build();
+    assertEquals(
+        withNulls, AvroUtils.toBeamRowStrict(AvroUtils.toGenericRecord(withNulls), beamSchema));
+  }
+
+  @Test
+  public void testGenericRecordToRowRejectsOutOfRangeSmallIntegers() {
+    Schema beamSchema =
+        Schema.builder().addByteField("byte_field").addInt16Field("int16_field").build();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+
+    GenericRecord tooBigForByte =
+        new GenericRecordBuilder(avroSchema).set("byte_field", 128).set("int16_field", 0).build();
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> AvroUtils.toBeamRowStrict(tooBigForByte, beamSchema));
+    assertEquals("Can't convert 'int' value 128 to BYTE: out of range", e.getMessage());
+
+    GenericRecord tooSmallForInt16 =
+        new GenericRecordBuilder(avroSchema)
+            .set("byte_field", 0)
+            .set("int16_field", -32769)
+            .build();
+    e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> AvroUtils.toBeamRowStrict(tooSmallForInt16, beamSchema));
+    assertEquals("Can't convert 'int' value -32769 to INT16: out of range", e.getMessage());
   }
 
   @Test
