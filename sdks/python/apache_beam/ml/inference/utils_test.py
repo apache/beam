@@ -154,16 +154,25 @@ class WatchFilePatternTest(unittest.TestCase):
           label='UpdatedModelIds')
       assert_that(emitted, equal_to(['older.py', 'newer.py']))
 
-  def test_later_poll_does_not_emit_an_older_model(self):
+  def test_each_poll_emits_one_model_and_keeps_the_newest(self):
+    # Each processing-time advance closes a poll. One pane at the final
+    # watermark would emit only v2.py, and a lost timestamp would emit stale.py.
     options = PipelineOptions(flags=['--streaming'])
     with TestPipeline(options=options) as p:
       stream = (
-          TestStream().advance_watermark_to(0).add_elements(
-              [_file('newer.py', 50)]).advance_processing_time(5).add_elements([
-                  _file('older.py', 10)
-              ]).advance_processing_time(5).advance_watermark_to_infinity())
+          TestStream().advance_watermark_to(0).add_elements([
+              _file('initial_a.py', -20),
+              _file('initial_b.py', -5),
+          ]).advance_processing_time(5).add_elements([
+              _file('v1.py', 10),
+          ]).advance_processing_time(5).add_elements([
+              _file('stale.py', 5),
+          ]).advance_processing_time(5).add_elements([
+              _file('also_new.py', 20),
+              _file('v2.py', 40),
+          ]).advance_processing_time(5).advance_watermark_to_infinity())
       emitted = _model_ids(p | stream | _select(), label='PolledModelIds')
-      assert_that(emitted, equal_to(['newer.py']))
+      assert_that(emitted, equal_to(['', 'v1.py', 'v2.py']))
 
   def test_construction_time_is_serialized_with_the_dofn(self):
     dofn = _emit()
