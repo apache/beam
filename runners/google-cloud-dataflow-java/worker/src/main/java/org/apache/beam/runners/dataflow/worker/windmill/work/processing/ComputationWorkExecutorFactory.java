@@ -52,8 +52,10 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementByteSizeCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -162,27 +164,15 @@ final class ComputationWorkExecutorFactory {
         .equals(readNode.getParallelInstruction().getRead().getSource().getSpec().get("@type"));
   }
 
+  private static final int AUTOSCALING_BYTES_READ_SAMPLING_PERIOD = 100;
+
   private static void trackAutoscalingBytesRead(
-      MapTask mapTask,
-      Nodes.ParallelInstructionNode readNode,
-      Coder<?> readCoder,
-      ReadOperation readOperation,
-      MapTaskExecutor mapTaskExecutor,
-      String counterName) {
-    NameContext nameContext =
-        NameContext.create(
-            mapTask.getStageName(),
-            readNode.getParallelInstruction().getOriginalName(),
-            readNode.getParallelInstruction().getSystemName(),
-            readNode.getParallelInstruction().getName());
-    readOperation.receivers[0].addOutputCounter(
-        counterName,
-        new OutputObjectAndByteCounter(
-                new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
-                mapTaskExecutor.getOutputCounters(),
-                nameContext)
-            .setSamplingPeriod(100)
-            .countBytes(counterName));
+      Coder<?> readCoder, OutputReceiver receiver, StreamingModeExecutionContext context) {
+    receiver.addOutputCounter(
+        new ElementByteSizeCounter(
+            new IntrinsicMapTaskExecutorFactory.ElementByteSizeObservableCoder<>(readCoder),
+            context::addSourceBytesProcessed,
+            AUTOSCALING_BYTES_READ_SAMPLING_PERIOD));
   }
 
   private static ReadOperation getValidatedReadOperation(MapTaskExecutor mapTaskExecutor) {
@@ -225,15 +215,28 @@ final class ComputationWorkExecutorFactory {
             CloudObject.fromSpec(readOutputNode.getInstructionOutput().getCodec()));
     Coder<?> keyCoder = extractKeyCoder(readCoder);
 
-    // If using a custom source, count bytes read for autoscaling.
+    // If using a custom source or an SDF, count bytes read for autoscaling.
     if (isCustomSource(readNode)) {
-      trackAutoscalingBytesRead(
-          mapTask,
-          readNode,
-          readCoder,
-          readOperation,
-          mapTaskExecutor,
-          computationState.sourceBytesProcessCounterName());
+      if (readOperation.receivers != null) {
+        for (OutputReceiver receiver : readOperation.receivers) {
+          if (receiver != null) {
+            trackAutoscalingBytesRead(readCoder, receiver, context);
+          }
+        }
+      }
+    } else {
+      for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
+        if (parDoOp.shouldReportBytesRead() && parDoOp.receivers != null) {
+          for (OutputReceiver receiver : parDoOp.receivers) {
+            if (receiver != null) {
+              Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder(receiver);
+              if (bytesReadCoder != null) {
+                trackAutoscalingBytesRead(bytesReadCoder, receiver, context);
+              }
+            }
+          }
+        }
+      }
     }
 
     ComputationWorkExecutor.Builder executionStateBuilder =
@@ -300,7 +303,6 @@ final class ComputationWorkExecutorFactory {
         stageInfo.systemName(),
         streamingCounters,
         failureTracker,
-        computationState.sourceBytesProcessCounterName(),
         multiKeyBundleOptions,
         sideInputStateFetcherFactory);
   }

@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -173,27 +174,36 @@ final class GrpcDirectGetWorkStream
   }
 
   /**
-   * @implNote Do not lock/synchronize here due to this running on grpc serial executor for message
-   *     which can deadlock since we send on the stream beneath the synchronization. {@link
-   *     AbstractWindmillStream#trySend(Object)} is synchronized so the sends are already guarded.
+   * @implNote Do not lock/synchronize on the calling thread due to this running on grpc serial
+   *     executor for message which can deadlock since we send on the stream beneath the
+   *     synchronization. Instead, synchronize on {@code this} inside the async {@link
+   *     #executeSafely(Runnable)} task to verify {@code targetStream} is still the active physical
+   *     stream before calling {@link AbstractWindmillStream#trySend(Object)}.
    */
-  private void maybeSendRequestExtension(GetWorkBudget extension) {
-    if (extension.items() > 0 || extension.bytes() > 0) {
+  @SuppressWarnings("ReferenceEquality")
+  private void maybeSendRequestExtension(
+      DirectGetWorkPhysicalStreamHandler targetStream, GetWorkBudget budget) {
+    if (budget.items() > 0 || budget.bytes() > 0) {
       executeSafely(
           () -> {
             StreamingGetWorkRequest request =
                 StreamingGetWorkRequest.newBuilder()
                     .setRequestExtension(
                         Windmill.StreamingGetWorkRequestExtension.newBuilder()
-                            .setMaxItems(extension.items())
-                            .setMaxBytes(extension.bytes()))
+                            .setMaxItems(budget.items())
+                            .setMaxBytes(budget.bytes()))
                     .build();
-            lastRequest.set(request);
-            budgetTracker.recordBudgetRequested(extension);
-            try {
-              trySend(request);
-            } catch (WindmillStreamShutdownException e) {
-              // Stream was closed.
+            synchronized (this) {
+              if (currentPhysicalStream != targetStream || clientClosed || isShutdown) {
+                // Drop extensions queued before a reset, half-close, or shutdown.
+                return;
+              }
+              lastRequest.set(request);
+              try {
+                trySend(request);
+              } catch (WindmillStreamShutdownException e) {
+                // Stream was closed.
+              }
             }
           });
     }
@@ -215,7 +225,7 @@ final class GrpcDirectGetWorkStream
       workItemAssemblers
           .computeIfAbsent(response.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
           .append(response)
-          .forEach(GrpcDirectGetWorkStream.this::consumeAssembledWorkItem);
+          .forEach(item -> consumeAssembledWorkItem(item, this));
     }
 
     @Override
@@ -224,7 +234,10 @@ final class GrpcDirectGetWorkStream
     }
 
     @Override
-    public void onDone(Status status) {}
+    public void onDone(Status status) {
+      workItemAssemblers.clear();
+      budgetTracker.clearActiveStream(this);
+    }
 
     @Override
     public void appendHtml(PrintWriter writer) {
@@ -244,8 +257,10 @@ final class GrpcDirectGetWorkStream
     if (!isNewStream) {
       return;
     }
-    budgetTracker.reset();
-    GetWorkBudget initialGetWorkBudget = budgetTracker.computeBudgetExtension();
+    // Reset and record initial budget before sending the header so concurrent updates observe it.
+    GetWorkBudget initialGetWorkBudget =
+        budgetTracker.resetAndRecordInitialBudget(
+            (DirectGetWorkPhysicalStreamHandler) checkNotNull(currentPhysicalStream));
     StreamingGetWorkRequest request =
         StreamingGetWorkRequest.newBuilder()
             .setRequest(
@@ -256,7 +271,6 @@ final class GrpcDirectGetWorkStream
             .setSupportsMultipleWorkItemsInChunk(requestBatchedGetWorkResponse)
             .build();
     lastRequest.set(request);
-    budgetTracker.recordBudgetRequested(initialGetWorkBudget);
     trySend(request);
   }
 
@@ -271,7 +285,8 @@ final class GrpcDirectGetWorkStream
     trySend(HEALTH_CHECK_REQUEST);
   }
 
-  private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
+  private void consumeAssembledWorkItem(
+      AssembledWorkItem assembledWorkItem, DirectGetWorkPhysicalStreamHandler responseStream) {
     WorkItem workItem = assembledWorkItem.workItem();
     GetWorkResponseChunkAssembler.ComputationMetadata metadata =
         assembledWorkItem.computationMetadata();
@@ -283,9 +298,10 @@ final class GrpcDirectGetWorkStream
         metadata.drainMode(),
         assembledWorkItem.appliedFinalizeIds(),
         assembledWorkItem.latencyAttributions());
-    budgetTracker.recordBudgetReceived(assembledWorkItem.bufferedSize());
-    GetWorkBudget extension = budgetTracker.computeBudgetExtension();
-    maybeSendRequestExtension(extension);
+    GetWorkBudget extension =
+        budgetTracker.recordReceivedAndComputeExtension(
+            assembledWorkItem.bufferedSize(), responseStream);
+    maybeSendRequestExtension(responseStream, extension);
   }
 
   private Work.ProcessingContext createProcessingContext(String computationId) {
@@ -295,8 +311,21 @@ final class GrpcDirectGetWorkStream
 
   @Override
   public void setBudget(GetWorkBudget newBudget) {
-    GetWorkBudget extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
-    maybeSendRequestExtension(extension);
+    @Nullable BudgetExtension extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);
+    if (extension != null) {
+      maybeSendRequestExtension(extension.targetStream, extension.budget);
+    }
+  }
+
+  /** Extension budget paired with the physical stream under which it was computed. */
+  private static final class BudgetExtension {
+    private final DirectGetWorkPhysicalStreamHandler targetStream;
+    private final GetWorkBudget budget;
+
+    private BudgetExtension(DirectGetWorkPhysicalStreamHandler targetStream, GetWorkBudget budget) {
+      this.targetStream = targetStream;
+      this.budget = budget;
+    }
   }
 
   /**
@@ -305,6 +334,9 @@ final class GrpcDirectGetWorkStream
    */
   @ThreadSafe
   private static final class GetWorkBudgetTracker {
+
+    @GuardedBy("GetWorkBudgetTracker.this")
+    private @Nullable DirectGetWorkPhysicalStreamHandler activeStream = null;
 
     @GuardedBy("GetWorkBudgetTracker.this")
     private GetWorkBudget maxGetWorkBudget;
@@ -325,13 +357,6 @@ final class GrpcDirectGetWorkStream
       this.maxGetWorkBudget = maxGetWorkBudget;
     }
 
-    private synchronized void reset() {
-      itemsRequested = 0;
-      bytesRequested = 0;
-      itemsReceived = 0;
-      bytesReceived = 0;
-    }
-
     private synchronized String debugString() {
       return String.format(
           "max budget: %s; "
@@ -341,15 +366,44 @@ final class GrpcDirectGetWorkStream
           maxGetWorkBudget, inFlightBudget(), totalRequestedBudget(), totalReceivedBudget());
     }
 
-    /** Consumes the new budget and computes an extension based on the new budget. */
-    private synchronized GetWorkBudget consumeAndComputeBudgetUpdate(GetWorkBudget newBudget) {
-      maxGetWorkBudget = newBudget;
-      return computeBudgetExtension();
+    private synchronized GetWorkBudget resetAndRecordInitialBudget(
+        DirectGetWorkPhysicalStreamHandler newStream) {
+      activeStream = newStream;
+      itemsRequested = 0;
+      bytesRequested = 0;
+      itemsReceived = 0;
+      bytesReceived = 0;
+      return computeAndRecordBudgetExtension();
     }
 
-    private synchronized void recordBudgetRequested(GetWorkBudget budgetRequested) {
-      itemsRequested += budgetRequested.items();
-      bytesRequested += budgetRequested.bytes();
+    @SuppressWarnings("ReferenceEquality")
+    private synchronized void clearActiveStream(DirectGetWorkPhysicalStreamHandler stream) {
+      if (activeStream == stream) {
+        activeStream = null;
+      }
+    }
+
+    /** Consumes the new budget and computes an extension based on the new budget. */
+    private synchronized @Nullable BudgetExtension consumeAndComputeBudgetUpdate(
+        GetWorkBudget newBudget) {
+      maxGetWorkBudget = newBudget;
+      DirectGetWorkPhysicalStreamHandler stream = activeStream;
+      // Stream has not opened yet (or previous stream ended); onFlushPending sends the header.
+      if (stream == null) {
+        return null;
+      }
+      return new BudgetExtension(stream, computeAndRecordBudgetExtension());
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private synchronized GetWorkBudget recordReceivedAndComputeExtension(
+        long returnedBudget, DirectGetWorkPhysicalStreamHandler responseStream) {
+      // Draining items from a half-closed stream must not count toward the active stream's budget.
+      if (responseStream != activeStream) {
+        return GetWorkBudget.noBudget();
+      }
+      recordBudgetReceived(returnedBudget);
+      return computeAndRecordBudgetExtension();
     }
 
     private synchronized void recordBudgetReceived(long returnedBudget) {
@@ -362,7 +416,7 @@ final class GrpcDirectGetWorkStream
      * GetWorkExtension. The goal is to keep the limits relatively close to their maximum values
      * without sending too many extension requests.
      */
-    private synchronized GetWorkBudget computeBudgetExtension() {
+    private synchronized GetWorkBudget computeAndRecordBudgetExtension() {
       // Expected items and bytes can go negative here, since WorkItems returned might be larger
       // than the initially requested budget.
       long inFlightItems = itemsRequested - itemsReceived;
@@ -372,9 +426,15 @@ final class GrpcDirectGetWorkStream
       long requestBytes = Math.max(0, maxGetWorkBudget.bytes() - inFlightBytes);
       long requestItems = Math.max(0, maxGetWorkBudget.items() - inFlightItems);
 
-      return (inFlightItems > requestItems / 2 && inFlightBytes > requestBytes / 2)
-          ? GetWorkBudget.noBudget()
-          : GetWorkBudget.builder().setItems(requestItems).setBytes(requestBytes).build();
+      if (inFlightItems > requestItems / 2 && inFlightBytes > requestBytes / 2) {
+        return GetWorkBudget.noBudget();
+      }
+      GetWorkBudget extension =
+          GetWorkBudget.builder().setItems(requestItems).setBytes(requestBytes).build();
+      // Record synchronously before returning so queued sends cannot cause duplicate extensions.
+      itemsRequested += extension.items();
+      bytesRequested += extension.bytes();
+      return extension;
     }
 
     private synchronized GetWorkBudget inFlightBudget() {

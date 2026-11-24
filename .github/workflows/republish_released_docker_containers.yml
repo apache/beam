@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Workflow that enables republishing released docker images to avoid vulnerabilities
+# Workflow that enables republishing released docker images and Python SDK wheels to avoid vulnerabilities
 
 name: Republish Released Docker Images
 
@@ -32,7 +32,7 @@ on:
   - cron: "0 6 * * *"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.77.0' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.78.0' }}"
   rc: "${{ github.event.inputs.RC || '4' }}"
 
 jobs:
@@ -104,3 +104,45 @@ jobs:
           --no-daemon \
           --no-parallel
 
+  publish_python_wheels:
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: "release-${{ env.release }}-postrelease"
+          repository: apache/beam
+          persist-credentials: false
+      - name: Authenticate on GCP
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Check if wheels are already published for commit
+        id: check_published
+        run: bash scripts/ci/run_snapshot_publish.sh postrelease-check
+      - name: Free Disk Space (Ubuntu)
+        if: steps.check_published.outputs.already_published != 'true'
+        uses: jlumbroso/free-disk-space@v2.0.0
+      - name: Install Python 3.11
+        if: steps.check_published.outputs.already_published != 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - name: Prepare Python source distribution
+        if: steps.check_published.outputs.already_published != 'true'
+        run: bash scripts/ci/run_snapshot_publish.sh postrelease-prepare-sdist sdks/python/apache-beam-source
+      - name: Build Linux amd64 wheels
+        if: steps.check_published.outputs.already_published != 'true'
+        uses: ./.github/actions/build-python-wheels
+        with:
+          package-dir: sdks/python/apache-beam-source
+          output-dir: wheelhouse
+          build-identifiers: ${{ steps.check_published.outputs.build_identifiers }}
+          archs-linux: x86_64
+      - name: Publish wheels to GCS
+        if: steps.check_published.outputs.already_published != 'true'
+        run: bash scripts/ci/run_snapshot_publish.sh postrelease-publish wheelhouse

@@ -1238,10 +1238,20 @@ class PGBKOperation(Operation):
 
 
 class PGBKCVOperation(Operation):
-  """Partial group-by-key operation.
+  """Partial GroupByKey operation with value combining.
 
-  This operation handles grouped values with
-a combine function applied.
+  PGBKCV stands for Partial GroupByKey on CombineValues. This is the
+  precombine stage of an optimized CombinePerKey: the values for each key
+  and window are combined as they arrive on a worker, so a single
+  accumulator per key and window is emitted downstream instead of every
+  input value. It is created for a ``WorkerPartialGroupByKey``
+  specification that carries a combine function.
+
+  Accumulators are kept in a table keyed by key, or by window and key when
+  the windowing is not the default one, and the table is bounded by
+  ``max_keys``: once that many keys have been seen, a portion of it is
+  emitted early to keep memory use in check. The remaining entries are
+  emitted in ``finish``.
   """
   def __init__(
       self, name_context, spec, counter_factory, state_sampler, windowing=None):

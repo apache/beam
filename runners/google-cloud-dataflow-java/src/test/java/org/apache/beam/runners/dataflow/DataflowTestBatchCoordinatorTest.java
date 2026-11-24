@@ -43,6 +43,7 @@ import com.google.api.services.dataflow.model.ComponentTransform;
 import com.google.api.services.dataflow.model.ExecutionStageState;
 import com.google.api.services.dataflow.model.ExecutionStageSummary;
 import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
@@ -74,6 +75,8 @@ import org.apache.beam.runners.dataflow.DataflowTestBatchCoordinator.ScopedDataf
 import org.apache.beam.runners.dataflow.DataflowTestBatchCoordinator.StageAttribution;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
+import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.sdk.CompositePipeline;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -109,6 +112,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -306,15 +310,17 @@ public class DataflowTestBatchCoordinatorTest {
     boundedPipeline.apply(Create.of(1, 2, 3));
     assertTrue(coordinator.isEligibleForBatching(boundedPipeline, options));
 
-    // Streaming pipelines bypass batching.
+    // Streaming pipelines are merged too (into streaming-only batches, since `streaming` is part
+    // of the compatibility key), subject to the same bounded-source requirement.
     TestDataflowPipelineOptions streamingOpts = createTestOptions("StreamingApp");
     streamingOpts.setStreaming(true);
-    assertFalse(coordinator.isEligibleForBatching(boundedPipeline, streamingOpts));
+    assertTrue(coordinator.isEligibleForBatching(boundedPipeline, streamingOpts));
 
-    // Unbounded pipelines bypass batching.
+    // Unbounded pipelines bypass batching, in either mode.
     TestPipeline unboundedPipeline = namedTestPipeline(options, "Unbounded");
     unboundedPipeline.apply(GenerateSequence.from(0));
     assertFalse(coordinator.isEligibleForBatching(unboundedPipeline, options));
+    assertFalse(coordinator.isEligibleForBatching(unboundedPipeline, streamingOpts));
 
     // Only TestPipelines with a unique root name can be told apart inside a merged job.
     Pipeline plainPipeline = Pipeline.create(options);
@@ -1178,13 +1184,13 @@ public class DataflowTestBatchCoordinatorTest {
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  public void testMergedJobExceedingShortestMemberTimeoutIsCancelledAndMembersRerun()
-      throws Exception {
+  public void testMergedJobExceedingItsTimeoutIsCancelledAndMembersRerun() throws Exception {
     Member m0 = new Member("App0").withStep("Step0", 1, 2);
     Member m1 = new Member("App1").withStep("Step1", 1, 2);
-    // Different per-test timeouts do not prevent merging; the merged job gets the shortest one.
+    // Different per-test timeouts do not prevent merging; the merged job's bound derives from the
+    // shortest one: 1 s + 20 s slack for the second member, capped at twice the shortest = 2 s.
     m0.opts.setTestTimeoutSeconds(7L);
-    m1.opts.setTestTimeoutSeconds(3L);
+    m1.opts.setTestTimeoutSeconds(1L);
 
     AtomicReference<DataflowPipelineJob> batchJob = new AtomicReference<>();
     AtomicReference<Duration> waitedFor = new AtomicReference<>();
@@ -1198,10 +1204,13 @@ public class DataflowTestBatchCoordinatorTest {
               assertThat(submitted, instanceOf(CompositePipeline.class));
               DataflowPipelineJob job =
                   newBatchJob("batch-job", State.RUNNING, PipelineTranslation.toProto(submitted));
-              // The merged job never terminates: waitUntilFinish gives up and returns null.
+              // The merged job never terminates: waitUntilFinish waits out the deadline and gives
+              // up with null, exactly as the real implementation does.
               Mockito.doAnswer(
                       inv -> {
-                        waitedFor.set(inv.getArgument(0));
+                        Duration timeout = inv.getArgument(0);
+                        waitedFor.set(timeout);
+                        Thread.sleep(timeout.getMillis());
                         return null;
                       })
                   .when(job)
@@ -1214,18 +1223,299 @@ public class DataflowTestBatchCoordinatorTest {
     Future<DataflowPipelineJob> f0 = m0.submit(delegate);
     Future<DataflowPipelineJob> f1 = m1.submit(delegate);
 
-    // Nobody waited beyond the shortest member timeout; the runaway job was cancelled and every
-    // member is sent back to be executed again from scratch.
-    assertThat(rerunReasonOf(f0), containsString("did not terminate within PT3S"));
-    assertThat(rerunReasonOf(f1), containsString("did not terminate within PT3S"));
-    assertEquals(Duration.standardSeconds(3), waitedFor.get());
+    // Nobody waited beyond the bound; the runaway job was cancelled and every member is sent
+    // back to be executed again from scratch.
+    assertThat(rerunReasonOf(f0), containsString("did not terminate within PT2S"));
+    assertThat(rerunReasonOf(f1), containsString("did not terminate within PT2S"));
+    assertEquals(Duration.standardSeconds(2), waitedFor.get());
     Mockito.verify(batchJob.get()).cancel();
     assertEquals(1, submittedJobs.get());
   }
 
   @Test
+  public void testMergedJobThatCannotBeObservedIsLeftAloneAndMembersRerun() throws Exception {
+    Member m0 = new Member("App0").withStep("Step0", 1, 2);
+    Member m1 = new Member("App1").withStep("Step1", 1, 2);
+    m0.opts.setTestTimeoutSeconds(60L);
+    m1.opts.setTestTimeoutSeconds(60L);
+
+    AtomicReference<DataflowPipelineJob> batchJob = new AtomicReference<>();
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              DataflowPipelineJob job =
+                  newBatchJob(
+                      "batch-job",
+                      State.RUNNING,
+                      PipelineTranslation.toProto(invocation.getArgument(0)));
+              // Polling gave up long before the 60 s deadline (e.g. the credential died): null
+              // comes back almost immediately.
+              Mockito.doReturn(null).when(job).waitUntilFinish(any(), any());
+              batchJob.set(job);
+              return job;
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+
+    // The members are re-run (we have no verdict), but the job, which may be perfectly healthy,
+    // is not cancelled on the strength of our own inability to observe it.
+    assertThat(rerunReasonOf(f0), containsString("could not be fetched"));
+    assertThat(rerunReasonOf(f1), containsString("could not be fetched"));
+    Mockito.verify(batchJob.get(), Mockito.never()).cancel();
+  }
+
+  @Test
+  public void testMergedJobTimeoutScalesWithBatchSizeUpToTwiceTheShortestMember() throws Exception {
+    configureBatching(3, NEVER_EXPIRING_WINDOW_MS);
+    Member m0 = new Member("App0").withStep("Step0", 1, 2);
+    Member m1 = new Member("App1").withStep("Step1", 1, 2);
+    Member m2 = new Member("App2").withStep("Step2", 1, 2);
+    m0.opts.setTestTimeoutSeconds(100L);
+    m1.opts.setTestTimeoutSeconds(50L);
+    m2.opts.setTestTimeoutSeconds(100L);
+
+    AtomicReference<Duration> waitedFor = new AtomicReference<>();
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(invocation.getArgument(0));
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step2", PAssert.SUCCESS_COUNTER))));
+              DataflowPipelineJob job = newBatchJob("batch-job", State.DONE, proto);
+              Mockito.doAnswer(
+                      inv -> {
+                        waitedFor.set(inv.getArgument(0));
+                        return State.DONE;
+                      })
+                  .when(job)
+                  .waitUntilFinish(any(), any());
+              return job;
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    Future<DataflowPipelineJob> f2 = m2.submit(delegate);
+    f0.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    f1.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    f2.get(WAIT_SECONDS, TimeUnit.SECONDS);
+
+    // Shortest member 50 s, plus 20 s for each of the two other members = 90 s (< 2 x 50 s).
+    assertEquals(
+        Duration.standardSeconds(
+            50 + 2 * DataflowTestBatchCoordinator.MERGED_JOB_SLACK_PER_MEMBER.getStandardSeconds()),
+        waitedFor.get());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Streaming verdicts
+  // ---------------------------------------------------------------------------------------------
+
+  private Member streamingMember(String appName, String stepName) {
+    Member member = new Member(appName).withStep(stepName, 1, 2);
+    member.opts.setStreaming(true);
+    return member;
+  }
+
+  private static JobMessage errorMessage(String text) {
+    JobMessage message = new JobMessage();
+    message.setMessageText(text);
+    message.setTime(TimeUtil.toCloudTime(Instant.now()));
+    message.setMessageImportance("JOB_MESSAGE_ERROR");
+    return message;
+  }
+
+  /**
+   * Builds a merged streaming job whose {@code waitUntilFinish} first delivers {@code messages} to
+   * the error monitor and then reports {@code finalState}.
+   */
+  private DataflowPipelineJob streamingBatchJob(
+      RunnerApi.Pipeline proto, State finalState, List<JobMessage> messages) throws Exception {
+    DataflowPipelineJob job = newBatchJob("batch-job", finalState, proto);
+    Mockito.doAnswer(
+            inv -> {
+              JobMessagesHandler handler = inv.getArgument(1);
+              if (!messages.isEmpty()) {
+                handler.process(messages);
+              }
+              return finalState;
+            })
+        .when(job)
+        .waitUntilFinish(any(), any());
+    return job;
+  }
+
+  @Test
+  public void testStreamingMembersAreCreditedFromACleanlyFinishedMergedJob() throws Exception {
+    Member m0 = streamingMember("Stream0", "Step0");
+    Member m1 = streamingMember("Stream1", "Step1");
+
+    AtomicInteger submittedJobs = new AtomicInteger(0);
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              submittedJobs.incrementAndGet();
+              Pipeline submitted = invocation.getArgument(0);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
+              assertTrue(submitted.getOptions().as(StreamingOptions.class).isStreaming());
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER))));
+              return streamingBatchJob(proto, State.DONE, ImmutableList.of());
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    assertThat(f0.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
+    assertThat(f1.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
+    assertEquals(1, submittedJobs.get());
+  }
+
+  @Test
+  public void testStreamingMergedJobWithFatalErrorCreditsNobody() throws Exception {
+    Member m0 = streamingMember("Stream0", "Step0");
+    Member m1 = streamingMember("Stream1", "Step1");
+
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(invocation.getArgument(0));
+              // Stream0's assertions all passed before Stream1 blew up and the job was cancelled.
+              // That is not enough: the error cannot be attributed, so Stream0 could just as well
+              // own a failing step its PAsserts do not cover.
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER))));
+              return streamingBatchJob(
+                  proto,
+                  State.CANCELLED,
+                  ImmutableList.of(errorMessage("java.lang.AssertionError: Step1 exploded")));
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    String reason0 = rerunReasonOf(f0);
+    String reason1 = rerunReasonOf(f1);
+    assertThat(reason0, containsString("with errors"));
+    assertThat(reason0, containsString("Step1 exploded"));
+    assertThat(reason1, containsString("with errors"));
+  }
+
+  @Test
+  public void testStreamingMergedJobSurvivesRetryableInfrastructureError() throws Exception {
+    Member m0 = streamingMember("Stream0", "Step0");
+    Member m1 = streamingMember("Stream1", "Step1");
+
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(invocation.getArgument(0));
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER))));
+              // The worker pool took a while to come up, then the job ran to completion.
+              return streamingBatchJob(
+                  proto,
+                  State.DONE,
+                  ImmutableList.of(
+                      errorMessage(
+                          "Startup of the worker pool in us-central1-c failed to bring up any of"
+                              + " the desired 1 workers. The service will retry."
+                              + " ZONE_RESOURCE_POOL_EXHAUSTED")));
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    assertThat(f0.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
+    assertThat(f1.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
+  }
+
+  @Test
+  public void testStreamingMergedJobNotEndingDoneCreditsNobodyEvenWithGoodCounters()
+      throws Exception {
+    Member m0 = streamingMember("Stream0", "Step0");
+    Member m1 = streamingMember("Stream1", "Step1");
+
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(invocation.getArgument(0));
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER))));
+              return streamingBatchJob(proto, State.FAILED, ImmutableList.of());
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    assertThat(rerunReasonOf(f0), containsString("streaming job FAILED"));
+    assertThat(rerunReasonOf(f1), containsString("streaming job FAILED"));
+  }
+
+  @Test
+  public void testStreamingMemberWithUnverifiedCountersIsRerunWhileOthersAreCredited()
+      throws Exception {
+    configureBatching(3, NEVER_EXPIRING_WINDOW_MS);
+    Member good0 = streamingMember("Good0", "GoodStep0");
+    Member short1 = streamingMember("Short1", "ShortStep1");
+    Member good2 = streamingMember("Good2", "GoodStep2");
+
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(invocation.getArgument(0));
+              // ShortStep1's assertion never reported: the job is DONE and error-free, but that
+              // member has no evidence of its own.
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "GoodStep0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "GoodStep2", PAssert.SUCCESS_COUNTER))));
+              return streamingBatchJob(proto, State.DONE, ImmutableList.of());
+            });
+
+    Future<DataflowPipelineJob> f0 = good0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = short1.submit(delegate);
+    Future<DataflowPipelineJob> f2 = good2.submit(delegate);
+    assertThat(f0.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
+    assertThat(f2.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
+    assertThat(rerunReasonOf(f1), containsString("streaming job DONE, PAsserts unverified"));
+  }
+
+  @Test
   public void testStalledHarnessFailsTestWithDiagnosticsInsteadOfHanging() throws Exception {
-    // Short enough to keep the verdict timeout (2 windows + 2 x test timeout = 4 s) small, long
+    // Short enough to keep the verdict timeout (2 windows + 3 x test timeout = 5 s) small, long
     // enough that both members reliably enqueue before the batch would close without the second.
     configureBatching(2, 1000L);
     Member m0 = new Member("App0").withStep("Step0", 1, 2);
