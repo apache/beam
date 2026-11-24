@@ -112,6 +112,7 @@
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
 * (Python) vLLM model handlers accept a `prefix_batching_config` to batch requests that share a prompt prefix, and publish a capacity-based autoscaling signal (`num_loaded_models_<model_identifier>`, estimated from vLLM's completion rate and in-flight requests) so Dataflow's GPU autoscaling scales vLLM workers with load (tunable via `autoscaling_config`). Other model-server handlers can publish the same signal with `apache_beam.ml.inference.autoscaling_metrics.PrometheusNumLoadedModelsPublisher` ([#40907](https://github.com/apache/beam/pull/40907)) ([#40908](https://github.com/apache/beam/pull/40908)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
+* FirestoreIO batch writes now ramp up from a single pipeline-wide start time instead of each worker's first write, as DatastoreIO does. This adds a side input to the write transforms; set `--updateCompatibilityVersion` to 2.78.0 or earlier to keep the previous pipeline shape (Java) ([#27170](https://github.com/apache/beam/issues/27170)).
 
 ### Performance
 
