@@ -124,4 +124,3 @@ class _LangChainTextSplitter(beam.DoFn):
           content=Content(text=text_chunk),
           index=i,
           metadata=copy.deepcopy(metadata))
-      

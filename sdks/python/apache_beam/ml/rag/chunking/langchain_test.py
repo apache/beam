@@ -36,6 +36,7 @@ try:
     from langchain.text_splitter import RecursiveCharacterTextSplitter
 
   from apache_beam.ml.rag.chunking.langchain import LangChainChunker
+  from apache_beam.ml.rag.chunking.langchain import _LangChainTextSplitter
   LANGCHAIN_AVAILABLE = True
 except ImportError:
   LANGCHAIN_AVAILABLE = False
@@ -236,34 +237,22 @@ class LangChainChunkingTest(unittest.TestCase):
     doc = {**self.simple_text, 'tags': ['a']}
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=30, chunk_overlap=0, separators=[".", " "])
-    provider = LangChainChunker(
+    dofn = _LangChainTextSplitter(
+        text_splitter=splitter,
         document_field='content',
-        metadata_fields=['source', 'language', 'tags'],
-        text_splitter=splitter)
+        metadata_fields=['source', 'language', 'tags'])
 
-    def check_independent_metadata(chunks):
-      if len(chunks) < 2:
-        raise BeamAssertException(
-            f"Expected at least 2 chunks, got {len(chunks)}")
-      chunks[0].metadata['source'] = 'mutated.txt'
-      chunks[0].metadata['tags'].append('b')
-      for chunk in chunks[1:]:
-        if chunk.metadata['source'] != 'simple.txt':
-          raise BeamAssertException(
-              "Mutating one chunk's metadata affected another chunk.")
-        if chunk.metadata['tags'] != ['a']:
-          raise BeamAssertException(
-              "Mutating nested metadata in one chunk affected another chunk.")
-      return True
+    chunks = list(dofn.process(doc))
+    self.assertGreaterEqual(len(chunks), 2)
 
-    with TestPipeline() as p:
-      chunks = (
-          p
-          | beam.Create([doc])
-          | provider.get_ptransform_for_processing())
-      assert_that(chunks, check_independent_metadata)
+    chunks[0].metadata['source'] = 'mutated.txt'
+    chunks[0].metadata['tags'].append('b')
+
+    for chunk in chunks[1:]:
+      self.assertEqual(chunk.metadata['source'], 'simple.txt')
+      self.assertEqual(chunk.metadata['tags'], ['a'])
+    self.assertEqual(doc['tags'], ['a'])
 
 
 if __name__ == '__main__':
   unittest.main()
-  
