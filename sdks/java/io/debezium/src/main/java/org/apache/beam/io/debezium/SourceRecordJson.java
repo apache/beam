@@ -770,8 +770,8 @@ public class SourceRecordJson {
    * Whether the record is a schema change event, emitted for each DDL statement when {@code
    * include.schema.changes} is enabled. These are identified by their key schema name.
    */
-  private static boolean isSchemaChangeEventKeyName(@Nullable Schema keySchema) {
-    return keySchema != null && SCHEMA_CHANGE_EVENT_KEY_NAMES.contains(keySchema.name());
+  private static boolean isSchemaChangeEvent(@Nullable Schema keySchema) {
+    return SchemaFactory.get().isSchemaChangeSchema(keySchema);
   }
 
   /** Returns the string field's value, or null if the struct's schema has no such field. */
