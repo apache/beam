@@ -41,13 +41,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  validate_vendor_dependency_graph:
-    name: Validate Vendor Java Dependency Graph
-    if: github.event_name == 'pull_request'
+  vendor_dependency_graph:
+    name: Vendor Java Dependency Graph
+    if: github.event_name == 'pull_request' || github.repository == 'apache/beam'
     runs-on: [self-hosted, ubuntu-24.04, small]
     timeout-minutes: 30
     permissions:
-      contents: read
+      contents: write # Required by GitHub's Dependency Submission API (/dependency-graph/snapshots) on master pushes.
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,45 +63,7 @@ jobs:
       - name: Remove runner Maven settings.xml
         run: |
           # Workaround for net.linguica.maven-settings decryption issue with
-          # GitHub-hosted runner's default ~/.m2/settings.xml.
-          rm -f ~/.m2/settings.xml
-
-      - name: Generate vendor Java dependency graph artifact
-        uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
-        env:
-          GRADLE_OPTS: -Xms2g -Xmx5g
-        with:
-          cache-disabled: true
-          validate-wrappers: false
-          dependency-graph: generate-and-upload
-          dependency-graph-include-projects: ':vendor:.*'
-          dependency-graph-include-configurations: 'runtimeClasspath'
-          artifact-retention-days: 5
-          additional-arguments: -Dorg.gradle.vfs.watch=false
-
-  submit_vendor_dependency_graph:
-    name: Submit Vendor Java Dependency Graph
-    if: github.event_name != 'pull_request' && github.repository == 'apache/beam'
-    runs-on: [self-hosted, ubuntu-24.04, small]
-    timeout-minutes: 30
-    permissions:
-      contents: write # Required by GitHub's Dependency Submission API (/dependency-graph/snapshots).
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Remove runner Maven settings.xml
-        run: |
-          # Workaround for net.linguica.maven-settings decryption issue with
-          # GitHub-hosted runner's default ~/.m2/settings.xml.
+          # runner's default ~/.m2/settings.xml.
           rm -f ~/.m2/settings.xml
 
       - name: Generate and submit vendor Java dependency graph
@@ -111,7 +73,7 @@ jobs:
         with:
           cache-disabled: true
           validate-wrappers: false
-          dependency-graph: generate-submit-and-upload
+          dependency-graph: ${{ github.event_name == 'pull_request' && 'generate-and-upload' || 'generate-submit-and-upload' }}
           dependency-graph-include-projects: ':vendor:.*'
           dependency-graph-include-configurations: 'runtimeClasspath'
           artifact-retention-days: 5
