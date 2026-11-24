@@ -45,10 +45,12 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -133,7 +135,15 @@ public class BigtableChangeStreamReadSchemaTransformProvider
 
   @Override
   protected SchemaTransform from(BigtableChangeStreamReadConfiguration configuration) {
-    return new BigtableChangeStreamReadSchemaTransform(configuration);
+    return from(configuration, read -> read);
+  }
+
+  @VisibleForTesting
+  protected SchemaTransform from(
+      BigtableChangeStreamReadConfiguration configuration,
+      SerializableFunction<BigtableIO.ReadChangeStream, BigtableIO.ReadChangeStream>
+          readCustomizer) {
+    return new BigtableChangeStreamReadSchemaTransform(configuration, readCustomizer);
   }
 
   @Override
@@ -283,10 +293,16 @@ public class BigtableChangeStreamReadSchemaTransformProvider
   private static class BigtableChangeStreamReadSchemaTransform extends SchemaTransform {
 
     private final BigtableChangeStreamReadConfiguration configuration;
+    private final SerializableFunction<BigtableIO.ReadChangeStream, BigtableIO.ReadChangeStream>
+        readCustomizer;
 
-    BigtableChangeStreamReadSchemaTransform(BigtableChangeStreamReadConfiguration configuration) {
+    BigtableChangeStreamReadSchemaTransform(
+        BigtableChangeStreamReadConfiguration configuration,
+        SerializableFunction<BigtableIO.ReadChangeStream, BigtableIO.ReadChangeStream>
+            readCustomizer) {
       configuration.validate();
       this.configuration = configuration;
+      this.readCustomizer = readCustomizer;
     }
 
     @Override
@@ -353,7 +369,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
       }
 
       PCollection<KV<ByteString, ChangeStreamMutation>> mutations =
-          input.getPipeline().apply(readChangeStream);
+          input.getPipeline().apply(readCustomizer.apply(readChangeStream));
 
       PCollection<Row> rows;
 
