@@ -210,7 +210,9 @@ function restart() {
 function delete() {
   local rc=0
   gcloud dataproc clusters delete "$CLUSTER_NAME" --region="$GCLOUD_REGION" --quiet || rc=$?
-  gcloud storage rm -r "${INIT_ACTIONS_GCS_DIR}" || true
+  if [[ -n "${CLUSTER_NAME}" ]]; then
+    gcloud storage rm -r "${INIT_ACTIONS_GCS_DIR}" || true
+  fi
   return "$rc"
 }
 
