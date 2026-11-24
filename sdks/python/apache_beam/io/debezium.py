@@ -110,7 +110,8 @@ ReadFromDebeziumSchema = NamedTuple(
      ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
      ('connection_properties', list[str]),
      ('start_offset', Optional[list[str]]),
-     ('offset_storage_path', Optional[str]), ('full_metadata', Optional[bool])])
+     ('offset_storage_path', Optional[str]), ('full_metadata', Optional[bool]),
+     ('schema_change_events', Optional[bool])])
 
 
 class ReadFromDebezium(PTransform):
@@ -135,6 +136,7 @@ class ReadFromDebezium(PTransform):
       start_offset=None,
       offset_storage_path=None,
       full_metadata=None,
+      schema_change_events=None,
       expansion_service=None):
     """
         Initializes a read operation from Debezium.
@@ -152,9 +154,6 @@ class ReadFromDebezium(PTransform):
                                       Set ``provide.transaction.metadata=true``
                                       to add a ``transaction`` key to records
                                       and emit transaction BEGIN/END records.
-                                      Set ``include.schema.changes=true``
-                                      to emit schema change records
-                                      (MySQL, Oracle and SQL Server).
         :param start_offset: starting offset to resume the connector from
                              a previously seen position. Provided as a list
                              of "key=value" strings, where numeric values are
@@ -191,6 +190,17 @@ class ReadFromDebezium(PTransform):
                               ``file``, ``pos``, ``row``, ``ts_ms``;
                               PostgreSQL ``lsn``, ``txId``, ``ts_ms``) to
                               ``metadata``. Defaults to False.
+        :param schema_change_events: when True, adds ``databaseName``,
+                                     ``schemaName``, ``ddl``, ``ts_ms`` and
+                                     ``tableChanges`` to the schema change
+                                     records that the MySQL, Oracle, SQL
+                                     Server and Db2 connectors emit for each
+                                     DDL statement, including during the
+                                     initial snapshot. They keep
+                                     ``metadata``, ``before`` and ``after``.
+                                     Debezium emits these records unless
+                                     ``include.schema.changes=false``.
+                                     Defaults to False.
         :param expansion_service: The address (host:port)
                                   of the ExpansionService.
     """
@@ -205,7 +215,8 @@ class ReadFromDebezium(PTransform):
         connection_properties=connection_properties,
         start_offset=start_offset,
         offset_storage_path=offset_storage_path,
-        full_metadata=full_metadata)
+        full_metadata=full_metadata,
+        schema_change_events=schema_change_events)
     self.expansion_service = expansion_service or default_io_expansion_service()
 
   def expand(self, pbegin):
