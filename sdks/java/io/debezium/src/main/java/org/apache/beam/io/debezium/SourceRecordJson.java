@@ -732,7 +732,7 @@ public class SourceRecordJson {
        *
        * @param type Kind of change: {@code CREATE}, {@code ALTER} or {@code DROP}
        * @param id Fully qualified table id, for example {@code "inventory"."customers"}
-       * @param table Table definition after the change
+       * @param table Table definition after the change, null for a {@code DROP}
        */
       public TableChange(@Nullable String type, @Nullable String id, @Nullable Table table) {
         this.type = type;
