@@ -149,7 +149,8 @@ def read_from_csv(
         sep=sep,
         comment=comment,
         nrows=_SAMPLE_SIZE,
-        on_bad_lines='skip')
+        on_bad_lines='skip',
+        encoding_errors='replace')
 
   def parse_record(header, record, dtypes):
     columns = list(dtypes)
@@ -211,7 +212,8 @@ def read_from_json(
 
   def sample(handle):
     good_lines = []
-    for line in itertools.islice(handle, _SAMPLE_SIZE):
+    for line in itertools.islice(_read_lines(handle), _SAMPLE_SIZE):
+      line = line.decode('utf-8', 'replace')
       try:
         if isinstance(json.loads(line), dict):
           good_lines.append(line)
@@ -238,6 +240,14 @@ def read_from_json(
         yield line, functools.partial(parse_record, line, proxy)
 
   return _ReadFilesWithErrors(path, sample, parse_file, None, error_handling)
+
+
+def _read_lines(handle):
+  """Yields the lines of a binary file handle.
+
+  Compressed file handles are not iterable, but they do have readline().
+  """
+  return iter(handle.readline, b'')
 
 
 # The number of records used to infer column types when error_handling is set.
@@ -277,7 +287,7 @@ class _ReadFilesWithErrors(beam.PTransform):
 
   Args:
     path: The file pattern to read.
-    sample: A function that takes a text file handle and returns a
+    sample: A function that takes a binary file handle and returns a
       pandas DataFrame. Its column types are the output column types.
     parse_file: A function that takes the lines of one file and the sample.
       It yields (record, parse) pairs. Calling parse() returns a DataFrame
@@ -299,8 +309,7 @@ class _ReadFilesWithErrors(beam.PTransform):
       raise FileNotFoundError(f'Found no files that match {self._path!r}')
     with beam_io.filesystems.FileSystems.open(
         match.metadata_list[0].path) as handle:
-      proxy = self._sample(
-          io.TextIOWrapper(handle, encoding='utf-8', errors='replace'))[:0]
+      proxy = self._sample(handle)[:0]
     if self._filename_column:
       proxy[self._filename_column] = ''
     # Use the string dtype for text columns, as ReadFromCsv and ReadFromJson
@@ -340,7 +349,7 @@ class _ReadFilesWithErrors(beam.PTransform):
     def decoded_lines():
       # Lines that are not valid UTF-8 are skipped and reported as errors.
       with readable_file.open() as handle:
-        for line in handle:
+        for line in _read_lines(handle):
           try:
             yield line.decode('utf-8')
           except UnicodeDecodeError as exn:

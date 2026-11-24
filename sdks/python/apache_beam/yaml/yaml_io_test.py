@@ -19,6 +19,7 @@ import datetime
 import io
 import json
 import logging
+import gzip
 import os
 import shutil
 import tempfile
@@ -1129,11 +1130,38 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
     p, result = self.read_with_errors('ReadFromCsv', path)
     with p:
       assert_that(
-          result['good'], equal_to([beam.Row(name='a', count=1)]),
+          result['good'],
+          equal_to([beam.Row(name='a', count=1)]),
           label='CheckGood')
       assert_that(
           result['errors'] | beam.Map(lambda e: e.element.record),
           equal_to(['b,2,extra\n']),
+          label='CheckErrors')
+
+  def test_read_compressed_csv_with_error_handling(self):
+    path = self.write_file(
+        'input.csv.gz', gzip.compress(b'name,count\na,1\nb,2,extra\n'))
+    p, result = self.read_with_errors('ReadFromCsv', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([beam.Row(name='a', count=1)]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['b,2,extra\n']),
+          label='CheckErrors')
+
+  def test_read_compressed_json_with_error_handling(self):
+    path = self.write_file(
+        'input.json.gz', gzip.compress(b'{"name": "a"}\n{"name": \n'))
+    p, result = self.read_with_errors('ReadFromJson', path)
+    with p:
+      assert_that(
+          result['good'], equal_to([beam.Row(name='a')]), label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['{"name": \n']),
           label='CheckErrors')
 
   def test_read_json_with_error_handling(self):
