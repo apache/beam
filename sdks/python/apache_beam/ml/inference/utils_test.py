@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import pickle
 import unittest
 
 import numpy
@@ -27,17 +28,32 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import PipelineVisitor
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Timestamp
+
+# Fixed construction time, well before the test process starts. A file a few
+# seconds after this is a model uploaded after submission. Comparing it with
+# Timestamp.now() inside process() would treat it as a pre-start file.
+_PIPELINE_START = Timestamp(1_700_000_000)
 
 
 def _file(path, seconds_from_start):
   return FileMetadata(
       path,
       10,
-      last_updated_in_seconds=utils._START_TIME_STAMP + seconds_from_start)
+      last_updated_in_seconds=float(_PIPELINE_START) + seconds_from_start)
+
+
+def _select():
+  return utils._SelectLatestModel(_PIPELINE_START)
+
+
+def _emit():
+  return utils._EmitLatestModel(_PIPELINE_START)
 
 
 def _model_ids(pcoll, label='ModelIds'):
@@ -76,7 +92,7 @@ class WatchFilePatternTest(unittest.TestCase):
     # once (an empty model id), not one value per file.
     files = [_file('path1.py', -20), _file('path2.py', -10), _file('now.py', 0)]
     with TestPipeline() as p:
-      emitted = _model_ids(p | beam.Create(files) | utils._SelectLatestModel())
+      emitted = _model_ids(p | beam.Create(files) | _select())
       assert_that(emitted, equal_to(['']))
 
   def test_configured_model_then_a_newer_file(self):
@@ -86,14 +102,13 @@ class WatchFilePatternTest(unittest.TestCase):
           p
           | beam.Create(files)
           | beam.Map(lambda metadata: (utils._GLOBAL_MODEL_KEY, metadata))
-          | beam.ParDo(utils._EmitLatestModel()),
+          | beam.ParDo(_emit()),
           label='ConfiguredThenUpdated')
       assert_that(emitted, equal_to(['', 'newer.py']))
 
   def test_file_newer_than_pipeline_start_is_emitted(self):
     with TestPipeline() as p:
-      emitted = _model_ids(
-          p | beam.Create([_file('path1.py', 10)]) | utils._SelectLatestModel())
+      emitted = _model_ids(p | beam.Create([_file('path1.py', 10)]) | _select())
       assert_that(emitted, equal_to(['path1.py']))
 
   def test_one_poll_emits_only_the_newest_model(self):
@@ -106,7 +121,7 @@ class WatchFilePatternTest(unittest.TestCase):
         _file('path2.py', -10),
     ]
     with TestPipeline() as p:
-      updates = p | 'Files' >> beam.Create(files) | utils._SelectLatestModel()
+      updates = p | 'Files' >> beam.Create(files) | _select()
       assert_that(_model_ids(updates), equal_to(['path4.py']), label='emitted')
       singleton = (
           p
@@ -125,7 +140,7 @@ class WatchFilePatternTest(unittest.TestCase):
           p
           | beam.Create(files)
           | beam.Map(lambda metadata: (utils._GLOBAL_MODEL_KEY, metadata))
-          | beam.ParDo(utils._EmitLatestModel()))
+          | beam.ParDo(_emit()))
       assert_that(emitted, equal_to(['newer.py']))
 
   def test_newer_update_replaces_an_older_model(self):
@@ -135,7 +150,7 @@ class WatchFilePatternTest(unittest.TestCase):
           p
           | beam.Create(files)
           | beam.Map(lambda metadata: (utils._GLOBAL_MODEL_KEY, metadata))
-          | beam.ParDo(utils._EmitLatestModel()),
+          | beam.ParDo(_emit()),
           label='UpdatedModelIds')
       assert_that(emitted, equal_to(['older.py', 'newer.py']))
 
@@ -147,9 +162,29 @@ class WatchFilePatternTest(unittest.TestCase):
               [_file('newer.py', 50)]).advance_processing_time(5).add_elements([
                   _file('older.py', 10)
               ]).advance_processing_time(5).advance_watermark_to_infinity())
-      emitted = _model_ids(
-          p | stream | utils._SelectLatestModel(), label='PolledModelIds')
+      emitted = _model_ids(p | stream | _select(), label='PolledModelIds')
       assert_that(emitted, equal_to(['newer.py']))
+
+  def test_construction_time_is_serialized_with_the_dofn(self):
+    dofn = _emit()
+    restored = pickle.loads(pickle.dumps(dofn))
+    self.assertEqual(restored._start_ts, float(_PIPELINE_START))
+
+    class FindEmit(PipelineVisitor):
+      def __init__(self):
+        self.start_ts = None
+
+      def visit_transform(self, transform_node):
+        transform = transform_node.transform
+        if isinstance(getattr(transform, 'dofn', None), utils._EmitLatestModel):
+          self.start_ts = transform.dofn._start_ts
+
+    pipeline = beam.Pipeline()
+    _ = pipeline | utils.WatchFilePattern(
+        'models/*', start_timestamp=_PIPELINE_START)
+    finder = FindEmit()
+    pipeline.visit(finder)
+    self.assertEqual(finder.start_ts, float(_PIPELINE_START))
 
 
 class _ModelHandlerWithMissingPredictions(ModelHandler[int,

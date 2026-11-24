@@ -38,8 +38,6 @@ from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
-_START_TIME_STAMP = Timestamp.now()
-
 # Beam keeps DoFn state per key. Keying each file by its own path gives every
 # path a fresh timestamp and never compares models with each other, so every
 # watched file is keyed the same way.
@@ -76,6 +74,20 @@ def _convert_to_result(
 
 def _as_seconds(timestamp: Union[Timestamp, float]) -> float:
   return float(timestamp)
+
+
+def _pipeline_start_seconds(
+    start_timestamp: Optional[Union[Timestamp, float]]) -> float:
+  """Seconds since the epoch for the pipeline construction time.
+
+  ``None`` means the time at which the transform is constructed on the machine
+  that submits the job. The result is stored on the DoFn and serialized with
+  the pipeline. Workers must not call ``Timestamp.now()`` themselves: that is
+  when the worker imports this module, which can be minutes later.
+  """
+  if start_timestamp is None:
+    start_timestamp = Timestamp.now()
+  return _as_seconds(start_timestamp)
 
 
 def _is_newer(
@@ -142,15 +154,23 @@ class _EmitLatestModel(beam.DoFn):
   available and ``RunInference`` uses the model configured on the handler.
   A later file is emitted only when it is newer than that. Emitting at most
   one value per pane keeps the output usable as a singleton side input.
+
+  Args:
+    start_timestamp: Pipeline construction time. Defaults to the time this
+      DoFn is created. Stored on the instance so a worker uses the submitting
+      machine's time.
   """
   LATEST_TS = ReadModifyWriteStateSpec('latest_ts', FloatCoder())
+
+  def __init__(self, start_timestamp: Optional[Union[Timestamp, float]] = None):
+    self._start_ts = _pipeline_start_seconds(start_timestamp)
 
   def process(self, element, latest_ts=beam.DoFn.StateParam(LATEST_TS)):
     _, file_metadata = element
     if file_metadata is None:
       return
     new_ts = _as_seconds(file_metadata.last_updated_in_seconds)
-    start_ts = _as_seconds(_START_TIME_STAMP)
+    start_ts = self._start_ts
     old_ts = latest_ts.read()
     if old_ts is None and new_ts <= start_ts:
       # Remember that the configured model was published so a later poll of
@@ -170,7 +190,16 @@ class _SelectLatestModel(beam.PTransform):
   """Reduce watched files to singleton updates of the newest model.
 
   Internal only; no backwards compatibility.
+
+  Args:
+    start_timestamp: Pipeline construction time forwarded to
+      ``_EmitLatestModel``. Defaults to the time this transform is created.
   """
+  def __init__(self, start_timestamp: Optional[Union[Timestamp, float]] = None):
+    super().__init__()
+    self._start_timestamp = (
+        Timestamp.now() if start_timestamp is None else start_timestamp)
+
   def expand(self, pcoll) -> beam.PCollection[ModelMetadata]:
     # Window first so one poll's files are reduced together. RunInference
     # reads this output with AsSingleton, which rejects a pane that contains
@@ -189,7 +218,8 @@ class _SelectLatestModel(beam.PTransform):
                 early=trigger.AfterProcessingTime(1)),
             accumulation_mode=trigger.AccumulationMode.DISCARDING)
         | 'LatestFilePerPane' >> beam.CombinePerKey(_LatestFileCombineFn())
-        | 'EmitLatestModel' >> beam.ParDo(_EmitLatestModel()))
+        | 'EmitLatestModel' >> beam.ParDo(
+            _EmitLatestModel(self._start_timestamp)))
 
 
 class WatchFilePattern(beam.PTransform):
@@ -198,6 +228,7 @@ class WatchFilePattern(beam.PTransform):
       file_pattern,
       interval=360,
       stop_timestamp=MAX_TIMESTAMP,
+      start_timestamp: Optional[Union[Timestamp, float]] = None,
   ):
     """Watches a directory for updates to files matching a given file pattern.
 
@@ -212,6 +243,11 @@ class WatchFilePattern(beam.PTransform):
       interval: Interval, in seconds, at which to check for files matching
         ``file_pattern``.
       stop_timestamp: Timestamp after which no more files will be checked.
+      start_timestamp: Time of pipeline construction. A file last modified at
+        or before this time is the model already configured on the handler.
+        Defaults to the time this transform is created. The value is saved on
+        the transform and sent with the job, so workers compare against this
+        time rather than the time they start.
 
     **Note**:
 
@@ -236,6 +272,10 @@ class WatchFilePattern(beam.PTransform):
     self.file_pattern = file_pattern
     self.interval = interval
     self.stop_timestamp = stop_timestamp
+    # Captured here, on the machine that constructs the pipeline, and passed
+    # into the DoFn so worker startup cannot move this threshold later.
+    self._start_timestamp = (
+        Timestamp.now() if start_timestamp is None else start_timestamp)
 
   def expand(self, pcoll) -> beam.PCollection[ModelMetadata]:
     return (
@@ -245,4 +285,4 @@ class WatchFilePattern(beam.PTransform):
             interval=self.interval,
             stop_timestamp=self.stop_timestamp,
             empty_match_treatment=EmptyMatchTreatment.DISALLOW)
-        | 'SelectLatestModel' >> _SelectLatestModel())
+        | 'SelectLatestModel' >> _SelectLatestModel(self._start_timestamp))
