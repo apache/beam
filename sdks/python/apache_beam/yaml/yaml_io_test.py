@@ -1193,6 +1193,36 @@ class YamlFileErrorHandlingTest(unittest.TestCase):
           ]),
           label='CheckErrors')
 
+  def test_read_json_with_error_handling_checks_types(self):
+    path = self.write_file(
+        'input.json',
+        b'{"name": "a", "count": 1, "flag": true, "score": 1.5}\n'
+        b'{"name": "b", "count": 3.7, "flag": true, "score": 1.5}\n'
+        b'{"name": "c", "count": "7", "flag": true, "score": 1.5}\n'
+        b'{"name": "d", "count": true, "flag": true, "score": 1.5}\n'
+        b'{"name": "e", "count": 1, "flag": "false", "score": 1.5}\n'
+        b'{"name": "f", "count": 1, "flag": null, "score": 1.5}\n'
+        b'{"name": "g", "count": 1, "flag": 0, "score": 1.5}\n'
+        b'{"name": "h", "count": 1, "flag": true, "score": "2.5"}\n'
+        b'{"name": 5, "count": 1, "flag": true, "score": 1.5}\n'
+        b'{"name": "i", "count": 2, "flag": false, "score": 2}\n')
+    # Infer the column types from the first line only.
+    with mock.patch.object(yaml_io, '_SAMPLE_SIZE', 1):
+      p, result = self.read_with_errors('ReadFromJson', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(name='a', count=1, flag=True, score=1.5),
+              beam.Row(name='i', count=2, flag=False, score=2.0),
+          ]),
+          label='CheckGood')
+      assert_that(
+          result['errors']
+          | beam.Map(lambda e: json.loads(e.element.record)['name']),
+          equal_to(['b', 'c', 'd', 'e', 'f', 'g', 'h', 5]),
+          label='CheckErrors')
+
   def test_read_csv_without_error_handling_fails(self):
     path = self.write_file('input.csv', b'name,count\na,1\nb,2,extra\n')
     with self.assertRaises(Exception):

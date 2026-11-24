@@ -232,6 +232,7 @@ def read_from_json(
     unknown_fields = set(value) - set(proxy.columns)
     if unknown_fields:
       raise ValueError(f'Unknown fields {sorted(unknown_fields)}.')
+    _check_json_types(value, proxy.dtypes)
     return read_json(line).reindex(columns=proxy.columns)
 
   def parse_file(lines, proxy):
@@ -240,6 +241,31 @@ def read_from_json(
         yield line, functools.partial(parse_record, line, proxy)
 
   return _ReadFilesWithErrors(path, sample, parse_file, None, error_handling)
+
+
+def _check_json_types(record, dtypes):
+  """Raises ValueError if a JSON value does not have its column's type.
+
+  Values are checked rather than converted, so that a value such as 3.7
+  in an integer column, or "false" in a boolean column, is an error
+  instead of becoming 3 or True.
+  """
+  for column, dtype in dtypes.items():
+    value = record.get(column)
+    if pd.api.types.is_bool_dtype(dtype):
+      ok = isinstance(value, bool)
+    elif pd.api.types.is_integer_dtype(dtype):
+      ok = isinstance(value, int) and not isinstance(value, bool)
+    elif pd.api.types.is_float_dtype(dtype):
+      ok = value is None or (
+          isinstance(value, (int, float)) and not isinstance(value, bool))
+    elif pd.api.types.is_string_dtype(dtype):
+      ok = value is None or isinstance(value, str)
+    else:
+      ok = True
+    if not ok:
+      raise ValueError(
+          f'Expected a {dtype} value for {column!r}, got {value!r}.')
 
 
 def _read_lines(handle):
