@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import copy
 from typing import Any
 from typing import Optional
 
@@ -48,10 +49,10 @@ class LangChainChunker(ChunkingTransformProvider):
     splitting and other methods.
 
     The provider:
-      - Takes documents with text content and metadata
-      - Splits text using configured LangChain splitter
-      - Preserves document metadata in resulting chunks
-      - Assigns unique IDs to chunks (configurable via chunk_id_fn)
+    - Takes documents with text content and metadata
+    - Splits text using configured LangChain splitter
+    - Preserves document metadata in resulting chunks
+    - Assigns unique IDs to chunks (configurable via chunk_id_fn)
 
     Example usage:
       ```python
@@ -120,4 +121,7 @@ class _LangChainTextSplitter(beam.DoFn):
     metadata = {field: element[field] for field in self.metadata_fields}
     for i, text_chunk in enumerate(text_chunks):
       yield Chunk(
-          content=Content(text=text_chunk), index=i, metadata=metadata.copy())
+          content=Content(text=text_chunk),
+          index=i,
+          metadata=copy.deepcopy(metadata))
+      

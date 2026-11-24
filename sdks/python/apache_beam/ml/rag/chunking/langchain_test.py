@@ -233,11 +233,12 @@ class LangChainChunkingTest(unittest.TestCase):
 
   def test_chunks_have_independent_metadata(self):
     """Test that each chunk receives an independent copy of metadata."""
+    doc = {**self.simple_text, 'tags': ['a']}
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=30, chunk_overlap=0, separators=[".", " "])
     provider = LangChainChunker(
         document_field='content',
-        metadata_fields=['source', 'language'],
+        metadata_fields=['source', 'language', 'tags'],
         text_splitter=splitter)
 
     def check_independent_metadata(chunks):
@@ -245,19 +246,24 @@ class LangChainChunkingTest(unittest.TestCase):
         raise BeamAssertException(
             f"Expected at least 2 chunks, got {len(chunks)}")
       chunks[0].metadata['source'] = 'mutated.txt'
+      chunks[0].metadata['tags'].append('b')
       for chunk in chunks[1:]:
         if chunk.metadata['source'] != 'simple.txt':
           raise BeamAssertException(
               "Mutating one chunk's metadata affected another chunk.")
+        if chunk.metadata['tags'] != ['a']:
+          raise BeamAssertException(
+              "Mutating nested metadata in one chunk affected another chunk.")
       return True
 
     with TestPipeline() as p:
       chunks = (
           p
-          | beam.Create([self.simple_text])
+          | beam.Create([doc])
           | provider.get_ptransform_for_processing())
       assert_that(chunks, check_independent_metadata)
 
 
 if __name__ == '__main__':
   unittest.main()
+  
