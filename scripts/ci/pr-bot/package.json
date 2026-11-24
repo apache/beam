@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@actions/exec": "^1.1.0",
-    "@actions/github": "^5.0.0",
-    "@octokit/rest": "^18.12.0",
+    "@actions/github": "^8.0.1",
+    "@octokit/rest": "^20.1.2",
     "js-yaml": "^4.3.2"
   },
   "devDependencies": {
@@ -25,5 +25,11 @@
     "mocha": "^12.0.3",
     "prettier": "^2.5.1",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "mocha": {
+      "minimatch": "^11.0.1",
+      "glob": "^14.0.2"
+    }
   }
 }

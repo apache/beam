@@ -106,6 +106,7 @@ class BeamModulePluginProcessor:
       "google_api_client": "com.google.api-client:google-api-client",
       "grpc":
           "io.grpc:grpc-netty",  # use "grpc-netty" to pick up proper netty version
+      "guava": "com.google.guava:guava",
       "netty": "io.netty:netty-transport",
       "opentelemetry": "io.opentelemetry:opentelemetry-sdk",
       "protobuf": "com.google.protobuf:protobuf-java"

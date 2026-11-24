@@ -28,8 +28,10 @@ import os
 import posixpath
 import tempfile
 import unittest
+import warnings
 import zlib
 from io import BytesIO
+from unittest import mock
 
 import zstandard
 from parameterized import param
@@ -249,11 +251,36 @@ class TestFileSystem(unittest.TestCase):
         (join('b', '*') + sep, sep_re.join(['b', star]) + sep_re),
         (r'*[abc\]', star + r'[abc\\]'),
         (join('d', '**', '*'), sep_re.join(['d', double_star, star])),
+        ('e[[]1]', r'e[\[]1\]'),
     ]
     for pattern, expected in pattern__expected:
       expected = r'(?ms)' + expected + r'\Z'
       result = self.fs.translate_pattern(pattern)
       self.assertEqual(expected, result)
+
+  def test_match_escaped_path_without_listing(self):
+    # [[], [*] and [?] match the characters themselves, so a pattern made of
+    # escaped characters only is looked up directly instead of listed.
+    path = 'gs://bucket/run[1]/out*?'
+    with mock.patch.object(self.fs, 'exists', return_value=True) as exists, \
+        mock.patch.object(self.fs, 'metadata',
+                          return_value=FileMetadata(path, 1)), \
+        mock.patch.object(self.fs, '_list') as list_files, \
+        warnings.catch_warnings():
+      warnings.simplefilter('error')
+      result = self.fs.match(['gs://bucket/run[[]1]/out[*][?]'])
+    exists.assert_called_once_with(path)
+    list_files.assert_not_called()
+    self.assertEqual(self._flatten_match(result), [FileMetadata(path, 1)])
+
+  def test_match_lists_from_escaped_prefix(self):
+    self.fs._insert_random_file('gs://bucket/run[1]/out', 1)
+    self.fs._insert_random_file('gs://bucket/run1/out', 2)
+    with mock.patch.object(self.fs, '_list', wraps=self.fs._list) as list_files:
+      result = self.fs.match(['gs://bucket/run[[]1]/*'])
+    self.assertTrue(list_files.call_args[0][0].startswith('gs://bucket/run[1]'))
+    self.assertEqual([m.path for m in self._flatten_match(result)],
+                     ['gs://bucket/run[1]/out'])
 
 
 class TestFileSystemWithDirs(TestFileSystem):
@@ -504,6 +531,46 @@ atomized in instants hammered around the
         self.assertEqual(current_offset, readable.tell())
         if not line:
           break
+
+  def test_close_after_flush(self):
+    # fileio.WriteToFiles flushes the sink and then closes the file.
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
+      with self.subTest(compression_type=compression_type):
+        file_name = self._create_temp_file()
+        with open(file_name, 'wb') as f:
+          writeable = CompressedFile(f, compression_type)
+          writeable.write(self.content)
+          writeable.flush()
+          writeable.close()
+
+        with open(file_name, 'rb') as f:
+          readable = CompressedFile(
+              f, compression_type, read_size=self.read_block_size)
+          self.assertEqual(readable.read(), self.content)
+
+  def test_write_after_flush(self):
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
+      with self.subTest(compression_type=compression_type):
+        file_name = self._create_temp_file()
+        with open(file_name, 'wb') as f:
+          writeable = CompressedFile(f, compression_type)
+          writeable.write(self.content[:10])
+          writeable.flush()
+          writeable.write(self.content[10:])
+          writeable.close()
+
+        with open(file_name, 'rb') as f:
+          readable = CompressedFile(
+              f, compression_type, read_size=self.read_block_size)
+          self.assertEqual(readable.read(), self.content)
 
   def test_concatenated_compressed_file(self):
     # The test apache_beam.io.textio_test.test_read_gzip_concat
