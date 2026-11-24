@@ -618,7 +618,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         try {
           if (records.isEmpty()) {
             stopwatch.start();
-            records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
+            records = consumer.poll(KAFKA_POLL_TIMEOUT);
             stopwatch.stop();
             for (String kafkaTopic : kafkaTopics) {
               kafkaResults.updateSuccessfulRpcMetrics(
