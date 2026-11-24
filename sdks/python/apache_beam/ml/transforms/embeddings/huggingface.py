@@ -211,11 +211,15 @@ class _InferenceAPIHandler(ModelHandler):
   def run_inference(
       self, batch, session: requests.Session, inference_args=None):
     # HF router feature-extraction accepts inputs only (not nested options).
-    response = session.post(
-        self._config.api_url,
-        headers=self._config.authorization_token,
-        json={"inputs": batch})
-    return response.json()
+    response = session.post(self._config.api_url, json={"inputs": batch})
+    response.raise_for_status()
+    result = response.json()
+    # Reject {"error": ...} so it is not treated as embedding values.
+    if isinstance(result, dict) and 'error' in result:
+      raise RuntimeError(
+          'Hugging Face Inference API error for %s: %s' %
+          (self._config.api_url, result['error']))
+    return result
 
 
 class InferenceAPIEmbeddings(EmbeddingsManager):
@@ -253,7 +257,7 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
     else:
       self._api_url = api_url
 
-    _LOGGER.info("HuggingFace API URL: %s")
+    _LOGGER.info("HuggingFace API URL: %s", self._api_url)
 
   def get_token(self):
     return os.environ.get('HF_TOKEN')

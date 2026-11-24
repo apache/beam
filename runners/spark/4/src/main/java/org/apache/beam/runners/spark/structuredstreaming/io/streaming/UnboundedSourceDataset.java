@@ -570,14 +570,16 @@ public final class UnboundedSourceDataset {
    *
    * <p>The batch ends at the record quota or at the deadline. The reader then writes its checkpoint
    * mark durably at the end epoch and stays in {@link BeamReaderCache} for the next batch. A failed
-   * mark write fails the task. An attempt Spark killed or failed writes nothing and its reader is
-   * dropped, the retry restores from the durable mark at the start epoch.
+   * mark write fails the task and drops the reader. An attempt Spark killed or failed writes
+   * nothing and its reader is dropped, the retry restores from the durable mark at the start epoch.
    *
    * @param <T> the element type of the split
    */
   static final class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
 
     private static final Duration INITIAL_BACKOFF = Duration.millis(10);
+    // StreamExecution sets the job group to the query run id.
+    private static final String JOB_GROUP_ID = "spark.jobGroup.id";
 
     private final String key;
     private final UnboundedSource<T, ?> split;
@@ -615,6 +617,8 @@ public final class UnboundedSourceDataset {
           BeamReaderCache.acquire(
               key,
               startEpoch,
+              endEpoch,
+              runId(),
               split,
               options,
               partition.readerIdleTimeoutMillis,
@@ -681,35 +685,49 @@ public final class UnboundedSourceDataset {
     }
 
     /**
-     * Ends the batch once. A discarded attempt drops the reader and writes nothing. A reader that
-     * was never started has not moved, its start mark is written forward, an empty file standing
-     * for a fresh start.
+     * Ends the batch once. A detached reader closes without writing marks. A discarded attempt
+     * drops the reader and writes nothing. A reader that was never started has not moved, its start
+     * mark is written forward, an empty file standing for a fresh start.
      */
     private void endBatch(boolean discarded) throws IOException {
       if (batchEnded) {
         return;
       }
       batchEnded = true;
+      if (cached.isDetached()) {
+        cached.close();
+        return;
+      }
       if (discarded) {
         LOG.info("Attempt for Beam reader {} was discarded, dropping the reader.", key);
         BeamReaderCache.invalidate(key);
         return;
       }
-      if (!cached.started()) {
-        byte[] startMark = cached.positionMark();
-        byte[] codedMark = startMark == null ? new byte[0] : startMark;
+      try {
+        if (!cached.started()) {
+          byte[] startMark = cached.positionMark();
+          byte[] codedMark = startMark == null ? new byte[0] : startMark;
+          checkpoint.writeMark(splitId, endEpoch, codedMark);
+          cached.endBatch(endEpoch, null, codedMark);
+          return;
+        }
+        CheckpointMark mark = cached.reader().getCheckpointMark();
+        byte[] codedMark = encodeMark(split, mark);
         checkpoint.writeMark(splitId, endEpoch, codedMark);
-        cached.endBatch(endEpoch, null, codedMark);
-        return;
+        if (cached.shouldWriteDone()) {
+          checkpoint.writeDone(splitId);
+        }
+        cached.endBatch(endEpoch, mark, codedMark);
+        LOG.debug("Beam reader {} read {} record(s) up to epoch {}.", key, recordsRead, endEpoch);
+      } catch (IOException | RuntimeException e) {
+        BeamReaderCache.invalidate(key);
+        throw e;
       }
-      CheckpointMark mark = cached.reader().getCheckpointMark();
-      byte[] codedMark = encodeMark(split, mark);
-      checkpoint.writeMark(splitId, endEpoch, codedMark);
-      if (cached.shouldWriteDone()) {
-        checkpoint.writeDone(splitId);
-      }
-      cached.endBatch(endEpoch, mark, codedMark);
-      LOG.debug("Beam reader {} read {} record(s) up to epoch {}.", key, recordsRead, endEpoch);
+    }
+
+    private static @Nullable String runId() {
+      TaskContext context = TaskContext.get();
+      return context == null ? null : context.getLocalProperty(JOB_GROUP_ID);
     }
 
     private static boolean attemptDiscarded() {

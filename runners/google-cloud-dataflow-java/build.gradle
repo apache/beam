@@ -247,19 +247,18 @@ def commonRunnerV2ExcludeCategories = [
 ]
 
 // ValidatesRunner parallelism. Each test worker JVM runs ValidatesRunner tests on several threads;
-// where TestDataflowRunner can merge tests into one Dataflow job (-PtestBatching, batch mode only
-// for now) many more threads are useful since most of them just contribute a member to the next
-// merged job rather than a job of their own. Tests that cannot be merged, including every test
-// of a streaming task, are still one job each, so their thread count is kept at the pre-batching
-// level to bound the number of concurrent jobs per worker JVM.
+// where TestDataflowRunner can merge tests into one Dataflow job (-PtestBatching) many more threads
+// are useful since most of them just contribute a member to the next merged job rather than a job of
+// their own. Tests that cannot be merged are still one job each, so where merging is off the thread
+// count is kept low to bound the number of concurrent jobs per worker JVM.
 def validatesRunnerTestBatching = project.findProperty('testBatching') ?: 'true'
 def validatesRunnerTestBatchWindowMs = project.findProperty('testBatchWindowMs') ?: '3000'
 def validatesRunnerMaxConcurrentStandaloneJobs = project.findProperty('maxConcurrentStandaloneJobs') ?: '12'
 
 def configureValidatesRunnerParallelism = { Test task, List pipelineOptions ->
   def streaming = pipelineOptions.any { it == '--streaming' || it == '--streaming=true' }
-  def batching = validatesRunnerTestBatching == 'true' && !streaming
-  def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '6')
+  def batching = validatesRunnerTestBatching == 'true'
+  def parallelThreads = project.findProperty('parallelThreads') ?: (batching ? '30' : '2')
   def batchMaxSize = project.findProperty('testBatchMaxSize') ?: parallelThreads
 
   task.systemProperty "beam.validatesRunner.parallelThreads", parallelThreads
@@ -764,7 +763,6 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   ])
 
   include '**/*IT.class'
-  exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/BigQueryIODynamicQueryIT.class'
   exclude '**/BigQueryIODynamicReadIT.class'
@@ -781,6 +779,10 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
     filter {
+      // Smaller reads run in PreCommit; the 1 TB read runs in the performance suite.
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryReadEmpty'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1M'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1T'
       // Error handling tests, only needs to run on direct runner
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableReadWithSkippingLargeRows'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
@@ -846,12 +848,34 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
   useJUnit {
     filter {
+      // Smaller reads run in PreCommit; the 1 TB read runs in the performance suite.
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryReadEmpty'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1M'
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1T'
       // Error handling tests, only needs to run on direct runner
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithOversizedQualifierFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.spanner.SpannerReadIT.testReadFailsBadSession'
+    }
+  }
+}
+
+task bigQueryReadPerformanceTest(type: Test) {
+  group = "Verification"
+  description = "Runs the 1 TB BigQuery read using the Dataflow Portable Runner."
+  dependsOn buildAndPushDockerJavaContainer
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+
+  include '**/BigQueryIOReadIT.class'
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
+  useJUnit {
+    filter {
+      includeTestsMatching 'org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOReadIT.testBigQueryRead1T'
     }
   }
 }

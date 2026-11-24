@@ -115,7 +115,7 @@ func Process(ctx context.Context, cacheService cache.Cache, lc *fs_tool.LifeCycl
 		if errors.As(err, &pipelineCanceledError) {
 			logger.Warnf("%s: pipeline execution has been canceled: %s", pipelineId, pipelineCanceledError.Error())
 		} else if errors.As(err, &runError) {
-			logger.Warnf("%s: pipeline execution ended with error from child process: %s", runError.Error())
+			logger.Warnf("%s: pipeline execution ended with error from child process: %s", pipelineId, runError.Error())
 		} else {
 			logger.Errorf("%s: error during run step: %s", pipelineId, err.Error())
 		}
@@ -572,7 +572,7 @@ func writeLogsToCache(cacheService cache.Cache, logFilePath string, pipelineId u
 func DeleteResources(pipelineId uuid.UUID, lc *fs_tool.LifeCycle) {
 	logger.Infof("%s: DeleteResources() ...\n", pipelineId)
 	if err := lc.DeleteFolders(); err != nil {
-		logger.Error("%s: DeleteResources(): %s\n", pipelineId, err.Error())
+		logger.Errorf("%s: DeleteResources(): %s\n", pipelineId, err.Error())
 	}
 	lc.StopEmulators()
 	logger.Infof("%s: DeleteResources() complete\n", pipelineId)

@@ -17,19 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.types.Types;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -61,7 +66,14 @@ public class IcebergMetastoreTest {
 
   @Test
   public void testBuildBeamSqlTable() {
-    Table table = Table.builder().name("my_table").schema(Schema.of()).type("iceberg").build();
+    Table table =
+        Table.builder()
+            .name("my_table")
+            .schema(Schema.of())
+            .type("iceberg")
+            .properties(
+                TableUtils.parseProperties("{\"beam.write.triggering_frequency_seconds\": 10}"))
+            .build();
     BeamSqlTable sqlTable = metastore().buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -70,6 +82,11 @@ public class IcebergMetastoreTest {
     IcebergTable icebergTable = (IcebergTable) sqlTable;
     assertEquals(catalog.currentDatabase() + ".my_table", icebergTable.tableIdentifier);
     assertEquals(catalog.catalogConfig, icebergTable.catalogConfig);
+    assertEquals(10, icebergTable.writeConfig().get("triggering_frequency_seconds"));
+    // An INSERT's WITH options override the table's
+    IcebergTable insertTarget =
+        (IcebergTable) icebergTable.forWrite(ImmutableMap.of("triggering_frequency_seconds", 30L));
+    assertEquals(30, insertTarget.writeConfig().get("triggering_frequency_seconds"));
   }
 
   @Test
@@ -95,11 +112,21 @@ public class IcebergMetastoreTest {
     String tableName = "uncached_table";
     catalog.catalogConfig.createTable(
         catalog.currentDatabase() + "." + tableName, Schema.of(), null, null);
+    // Listing skips a table whose schema Beam can't convert, but loading it by name still fails.
+    catalog
+        .catalogConfig
+        .catalog()
+        .buildTable(
+            TableIdentifier.of(catalog.currentDatabase(), "unknown_table"),
+            new org.apache.iceberg.Schema(optional(1, "c", Types.UnknownType.get())))
+        .withProperty("format-version", "3")
+        .create();
 
     Map<String, Table> tables = metastore().getTables();
 
     assertEquals(ImmutableSet.of(tableName), tables.keySet());
     assertEquals(tableName, tables.get(tableName).getName());
+    assertThrows(RuntimeException.class, () -> metastore().getTable("unknown_table"));
   }
 
   @Test

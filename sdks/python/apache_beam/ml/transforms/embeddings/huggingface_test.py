@@ -16,6 +16,7 @@
 
 import contextlib
 import importlib.util
+import json
 import os
 import shutil
 import sys
@@ -23,10 +24,12 @@ import tempfile
 import types
 import unittest
 import uuid
+from unittest import mock
 
 import jsonpickle
 import numpy as np
 import pytest
+import requests
 from parameterized import parameterized
 
 import apache_beam as beam
@@ -70,7 +73,33 @@ DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 # InferenceAPIEmbeddings calls /pipeline/feature-extraction.
 INFERENCE_API_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 INFERENCE_API_EMBEDDING_DIM = 384
+INFERENCE_API_URL = (
+    'https://router.huggingface.co/hf-inference/models/'
+    f'{INFERENCE_API_MODEL_NAME}/pipeline/feature-extraction')
 IMAGE_MODEL_NAME = "clip-ViT-B-32"
+
+
+def _hf_inference_api_available():
+  """Returns (ready, reason) for the optional live Inference API dependency."""
+  if not _HF_TOKEN:
+    return False, 'HF_INFERENCE_TOKEN environment variable not set.'
+  try:
+    response = requests.post(
+        INFERENCE_API_URL,
+        headers={'Authorization': f'Bearer {_HF_TOKEN}'},
+        json={'inputs': test_query},
+        timeout=60)
+    payload = response.json()
+  except Exception as exc:  # pylint: disable=broad-except
+    return False, 'HF Inference API unavailable: %s' % exc
+  if response.status_code >= 400:
+    return False, 'HF Inference API HTTP %s: %s' % (
+        response.status_code, payload)
+  if isinstance(payload, dict) and 'error' in payload:
+    return False, 'HF Inference API error: %s' % payload['error']
+  return True, ''
+
+
 _parameterized_inputs = [
     ([{
         test_query_column: 'That is a happy person'
@@ -476,7 +505,59 @@ class SentenceTransformerJobSubmissionTest(unittest.TestCase):
     self.assertEqual(model.model_name, DEFAULT_MODEL_NAME)
 
 
-@unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
+class InferenceAPIHandlerTest(unittest.TestCase):
+  _API_URL = 'https://example.test/embeddings'
+
+  def _handler(self, token):
+    return huggingface.InferenceAPIEmbeddings(
+        hf_token=token, columns=['text'],
+        api_url=self._API_URL).get_model_handler()
+
+  def _response(self, status_code, body):
+    response = requests.Response()
+    response.status_code = status_code
+    response.url = self._API_URL
+    response._content = json.dumps(body).encode('utf-8')
+    return response
+
+  @parameterized.expand([
+      ('explicit-token', 'explicit-token'),
+      (None, 'environment-token'),
+  ])
+  def test_run_inference_uses_session_token(self, token, expected_token):
+    embeddings = [[0.1, 0.2]]
+    with mock.patch.dict(os.environ, {'HF_TOKEN': 'environment-token'}):
+      handler = self._handler(token)
+      with handler.load_model() as session:
+        with mock.patch.object(session,
+                               'send',
+                               return_value=self._response(200,
+                                                           embeddings)) as send:
+          result = handler.run_inference(
+              ['some text'], session, inference_args={'wait_for_model': True})
+    self.assertEqual(result, embeddings)
+    request = send.call_args.args[0]
+    self.assertEqual(request.url, self._API_URL)
+    self.assertEqual(
+        request.headers['Authorization'], f'Bearer {expected_token}')
+    self.assertEqual(json.loads(request.body), {'inputs': ['some text']})
+
+  @parameterized.expand([401, 429, 503])
+  def test_run_inference_raises_http_errors(self, status_code):
+    handler = self._handler('test-token')
+    response = self._response(
+        status_code, {'error': 'inference request failed'})
+    with handler.load_model() as session:
+      with mock.patch.object(session, 'send', return_value=response):
+        with self.assertRaises(requests.HTTPError) as error:
+          handler.run_inference(['some text'], session)
+    self.assertIs(error.exception.response, response)
+    self.assertIn(str(status_code), str(error.exception))
+    self.assertIn(self._API_URL, str(error.exception))
+
+
+@unittest.skipIf(
+    not _HF_TOKEN, 'HF_INFERENCE_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPITest(unittest.TestCase):
   def setUp(self):
     self.artifact_location = tempfile.mkdtemp()
@@ -494,6 +575,9 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
       _ = inference_embeddings.api_url
 
   def test_embeddings_with_inference_api(self):
+    ready, reason = _hf_inference_api_available()
+    if not ready:
+      self.skipTest(reason)
     embedding_config = InferenceAPIEmbeddings(
         hf_token=_HF_TOKEN,
         model_name=INFERENCE_API_MODEL_NAME,
@@ -516,7 +600,8 @@ class HuggingfaceInferenceAPITest(unittest.TestCase):
           equal_to([(INFERENCE_API_EMBEDDING_DIM, True)]))
 
 
-@unittest.skipIf(not _HF_TOKEN, 'HF_TOKEN environment variable not set.')
+@unittest.skipIf(
+    not _HF_TOKEN, 'HF_INFERENCE_TOKEN environment variable not set.')
 class HuggingfaceInferenceAPIGCSLocationTest(HuggingfaceInferenceAPITest):
   def setUp(self):
     self.artifact_location = self.gcs_artifact_location = os.path.join(

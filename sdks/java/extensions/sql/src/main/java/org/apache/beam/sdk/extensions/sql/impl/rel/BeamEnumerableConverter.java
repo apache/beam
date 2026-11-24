@@ -27,15 +27,15 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
@@ -48,6 +48,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -61,11 +62,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.DataContext;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.EnumerableRelImplementor;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.PhysType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.PhysTypeImpl;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.AbstractEnumerable2;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Enumerable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.Linq4j;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.linq4j.tree.BlockBuilder;
@@ -180,8 +183,126 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       return count(options, node, cancelFlag);
     } else if (isLimitQuery(node)) {
       return limitCollect(options, node, cancelFlag);
+    } else if (node.isBounded() == IsBounded.UNBOUNDED) {
+      return liveCollect(options, node, cancelFlag);
     }
     return Linq4j.asEnumerable(rowToAvaticaAndUnboxValues(collectRows(options, node, cancelFlag)));
+  }
+
+  /**
+   * Runs the pipeline of an unbounded query and hands over its rows while it runs.
+   *
+   * <p>If the shell set a {@link LiveResult.Viewer}, it shows the rows and the query returns none.
+   * Otherwise the query returns the rows as they arrive, until the pipeline ends, the statement is
+   * cancelled, or the result set is closed.
+   */
+  private static Enumerable<Object> liveCollect(
+      PipelineOptions options, BeamRelNode node, AtomicBoolean cancelFlag) {
+    checkArgument(
+        isDirectRunner(options),
+        "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<Row> rows = BeamSqlRelUtils.toPCollection(pipeline, node);
+    rows.apply(ParDo.of(new LiveCollector()));
+    LiveResult.Viewer viewer = LiveResult.getViewer();
+    LiveResult result = LiveResult.start(pipeline, rows.getSchema(), cancelFlag);
+    if (viewer == null) {
+      return new LiveRows(result);
+    }
+
+    RuntimeException failure;
+    try {
+      viewer.show(result);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to show the rows of the query", e);
+    } finally {
+      // Read the failure first: errors after closing come from cancelling the pipeline.
+      failure = result.getFailure();
+      result.close();
+    }
+    if (failure != null) {
+      throw failure;
+    }
+    // Ctrl+C closes the view by cancelling the statement. Clear the flag so that the statement
+    // ends the same way as when the user quits with q, instead of failing as cancelled.
+    cancelFlag.set(false);
+    return Linq4j.emptyEnumerable();
+  }
+
+  /** The rows of a {@link LiveResult} as they arrive. Closing them cancels the pipeline. */
+  private static class LiveRows extends AbstractEnumerable2<Object> {
+    private final LiveResult result;
+
+    LiveRows(LiveResult result) {
+      this.result = result;
+    }
+
+    /**
+     * JDBC reads the rows through this iterator, and {@link #enumerator()} wraps it. It doesn't
+     * wait for the next row before it returns the current one, which would hold back the newest
+     * row.
+     */
+    @Override
+    public Iterator<Object> iterator() {
+      return new LiveIterator();
+    }
+
+    private class LiveIterator implements Iterator<Object>, AutoCloseable {
+      private LiveResult.@Nullable Change next;
+
+      @Override
+      public boolean hasNext() {
+        // A cancelled statement ends the rows.
+        while (next == null && !result.isCancelRequested()) {
+          // No rows come after the pipeline ends, so then an empty poll means there are no more.
+          boolean finished = result.isFinished();
+          try {
+            next = result.poll(finished ? 0 : 100, TimeUnit.MILLISECONDS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+          if (next == null && finished) {
+            RuntimeException failure = result.getFailure();
+            close();
+            if (failure != null) {
+              throw failure;
+            }
+            return false;
+          }
+        }
+        if (next == null) {
+          close();
+        }
+        return next != null;
+      }
+
+      @Override
+      public Object next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        Row row = next.getRow();
+        next = null;
+        return rowToAvaticaAndUnbox(row);
+      }
+
+      @Override
+      public void close() {
+        result.close();
+      }
+    }
+  }
+
+  /** Adds each row and its change kind to the {@link LiveResult} of its pipeline. */
+  private static class LiveCollector extends DoFn<Row, Void> {
+    @ProcessElement
+    public void processElement(@Element Row row, ValueKind kind, PipelineOptions options) {
+      LiveResult result = LiveResult.forOptionsId(options.getOptionsId());
+      if (result != null) {
+        result.add(kind, row);
+      }
+    }
   }
 
   private static PipelineResult limitRun(
@@ -191,7 +312,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       Queue<Row> values,
       int limitCount,
       AtomicBoolean cancelFlag) {
-    options.as(DirectOptions.class).setBlockOnRun(false);
+    options.as(BlockOnRunOptions.class).setBlockOnRun(false);
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Row> resultCollection = BeamSqlRelUtils.toPCollection(pipeline, node);
     resultCollection.apply(ParDo.of(doFn));
@@ -201,7 +322,12 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     State state;
     while (true) {
       // Check pipeline state in every second
-      state = result.waitUntilFinish(Duration.standardSeconds(1));
+      try {
+        state = result.waitUntilFinish(Duration.standardSeconds(1));
+      } catch (RuntimeException e) {
+        checkNotCancelled(cancelFlag, e);
+        throw e;
+      }
       if (state != null && state.isTerminal()) {
         if (PipelineResult.State.FAILED.equals(state)) {
           throw new RuntimeException("Pipeline failed for unknown reason");
@@ -240,16 +366,35 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
    * finishes, waits here instead, where the wait can be cancelled.
    */
   private static PipelineResult run(Pipeline pipeline, AtomicBoolean cancelFlag) {
-    DirectOptions options = pipeline.getOptions().as(DirectOptions.class);
-    boolean blockOnRun =
-        options.isBlockOnRun()
-            && options.getRunner().getCanonicalName().equals(DirectRunner.class.getName());
+    BlockOnRunOptions options = pipeline.getOptions().as(BlockOnRunOptions.class);
+    boolean blockOnRun = options.isBlockOnRun() && isDirectRunner(options);
     options.setBlockOnRun(false);
     PipelineResult result = pipeline.run();
     if (blockOnRun) {
       waitUntilFinish(result, cancelFlag);
     }
     return result;
+  }
+
+  /**
+   * Whether the pipeline runs on the DirectRunner. Beam SQL doesn't compile against the
+   * DirectRunner, so this checks the runner's name.
+   */
+  private static boolean isDirectRunner(PipelineOptions options) {
+    return options.getRunner().getSimpleName().equals("DirectRunner");
+  }
+
+  /**
+   * The DirectRunner's {@code blockOnRun} option, declared here so that Beam SQL doesn't compile
+   * against the DirectRunner. Options of the same name share a value, so setting this sets {@code
+   * DirectOptions#isBlockOnRun()}. The default has to match it, and pipeline options interfaces
+   * have to be public.
+   */
+  public interface BlockOnRunOptions extends PipelineOptions {
+    @Default.Boolean(true)
+    boolean isBlockOnRun();
+
+    void setBlockOnRun(boolean value);
   }
 
   /**
@@ -278,14 +423,25 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       State state = result.waitUntilFinish();
       checkNotCancelled(cancelFlag);
       return state;
+    } catch (RuntimeException e) {
+      checkNotCancelled(cancelFlag, e);
+      throw e;
     } finally {
       canceller.interrupt();
     }
   }
 
   private static void checkNotCancelled(AtomicBoolean cancelFlag) {
+    checkNotCancelled(cancelFlag, null);
+  }
+
+  private static void checkNotCancelled(AtomicBoolean cancelFlag, @Nullable Throwable suppressed) {
     if (cancelFlag.get()) {
-      throw new CancellationException("Statement canceled");
+      CancellationException e = new CancellationException("Statement canceled");
+      if (suppressed != null) {
+        e.addSuppressed(suppressed);
+      }
+      throw e;
     }
   }
 
@@ -294,12 +450,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     long id = options.getOptionsId();
     Queue<Row> values = new ConcurrentLinkedQueue<>();
 
-    checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
-        "collectRowList is only available in direct runner.");
+    checkArgument(isDirectRunner(options), "collectRowList is only available in direct runner.");
 
     Collector.globalValues.put(id, values);
     try {
@@ -316,10 +467,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
 
     checkArgument(
-        options
-            .getRunner()
-            .getCanonicalName()
-            .equals("org.apache.beam.runners.direct.DirectRunner"),
+        isDirectRunner(options),
         "SELECT without INSERT is only supported in DirectRunner in SQL Shell.");
 
     int limitCount = getLimitCount(node);
@@ -360,19 +508,20 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static List<Object> rowToAvaticaAndUnboxValues(Queue<Row> values) {
     return values.stream()
-        .map(
-            row -> {
-              Object[] objects = rowToAvatica(row);
-              if (objects.length == 1) {
-                // if objects.length == 1, that means input Row contains only 1 column/element,
-                // then an Object instead of Object[] should be returned because of
-                // CalciteResultSet's behaviour that tries to convert one column row to an Object.
-                return objects[0];
-              } else {
-                return objects;
-              }
-            })
+        .map(BeamEnumerableConverter::rowToAvaticaAndUnbox)
         .collect(Collectors.toList());
+  }
+
+  private static Object rowToAvaticaAndUnbox(Row row) {
+    Object[] objects = rowToAvatica(row);
+    if (objects.length == 1) {
+      // if objects.length == 1, that means input Row contains only 1 column/element,
+      // then an Object instead of Object[] should be returned because of
+      // CalciteResultSet's behaviour that tries to convert one column row to an Object.
+      return objects[0];
+    } else {
+      return objects;
+    }
   }
 
   private static Object[] rowToAvatica(Row row) {

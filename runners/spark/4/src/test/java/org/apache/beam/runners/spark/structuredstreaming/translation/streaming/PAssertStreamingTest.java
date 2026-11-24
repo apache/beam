@@ -27,13 +27,22 @@ import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.io.streaming.TestUnboundedSource;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Keys;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -144,6 +153,31 @@ public class PAssertStreamingTest implements Serializable {
   public void testCreateMultipleElements() throws Exception {
     PCollection<String> out = pipeline.apply(Create.of("one", "two", "three"));
     PAssert.that(out).containsInAnyOrder("one", "two", "three");
+    pipeline.run(options());
+  }
+
+  @Test
+  public void testFlattenSameSource() throws Exception {
+    PCollection<String> in = pipeline.apply(Create.of("one", "two", "three"));
+    PCollection<String> out = PCollectionList.of(in).and(in).apply(Flatten.pCollections());
+    PAssert.that(out).containsInAnyOrder("one", "one", "two", "two", "three", "three");
+    pipeline.run(options());
+  }
+
+  @Test
+  public void testReshuffleFeedingTwoGroupByKeys() throws Exception {
+    PCollection<KV<String, String>> shuffled =
+        pipeline
+            .apply(Create.of("one", "two", "three"))
+            .apply(WithKeys.of("k"))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(Reshuffle.of());
+    PCollection<String> first =
+        shuffled.apply("GroupFirst", GroupByKey.create()).apply("KeysFirst", Keys.create());
+    PCollection<String> second =
+        shuffled.apply("GroupSecond", GroupByKey.create()).apply("KeysSecond", Keys.create());
+    PAssert.that(PCollectionList.of(first).and(second).apply(Flatten.pCollections()))
+        .containsInAnyOrder("k", "k");
     pipeline.run(options());
   }
 }

@@ -3001,11 +3001,29 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
   def test_failure_in_some_rows_does_not_duplicate(self, retry_strategy=None):
     with mock.patch('time.sleep'):
       # In this test we simulate a failure to write out two out of three rows.
-      # Row 0 and row 2 fail to be written on the first attempt, and then
-      # succeed on the next attempt (if there is one).
+      # Rows 'value1' and 'value5' fail to be written on the first attempt, and
+      # then succeed on the next attempt (if there is one).
       tempdir = '%s%s' % (self._new_tempdir(), os.sep)
       file_name_1 = os.path.join(tempdir, 'file1_partial')
       file_name_2 = os.path.join(tempdir, 'file2_partial')
+
+      # Errors to return on the first attempt, keyed by 'columnA' of the failed
+      # rows. Failed rows are identified by their value rather than by their
+      # position in the batch, since _StreamToBigQuery assigns random shard
+      # keys and reshuffles the rows, so the order in which they reach the
+      # client is not guaranteed to match the input order.
+      first_attempt_errors = {
+          'value1': [{
+              'reason': 'i dont like this row'
+          }, {
+              'reason': 'its bad'
+          }],
+          'value5': [{
+              'reason': 'i het this row'
+          }, {
+              'reason': 'its no gud'
+          }],
+      }
 
       def store_callback(table, **kwargs):
         insert_ids = [r for r in kwargs['row_ids']]
@@ -3013,11 +3031,17 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
 
         # The first time this function is called, all rows are included
         # so we need to filter out 'failed' rows.
+        passed_indices = [
+            i for i, value in enumerate(colA_values)
+            if value not in first_attempt_errors
+        ]
         json_output_1 = {
-            'insertIds': [insert_ids[1]], 'colA_values': [colA_values[1]]
+            'insertIds': [insert_ids[i] for i in passed_indices],
+            'colA_values': [colA_values[i] for i in passed_indices]
         }
-        # The second time this function is called, only rows 0 and 2 are incl
-        # so we don't need to filter any of them. We just write them all out.
+        # The second time this function is called, only the rows that failed
+        # the first time are included, so we don't need to filter any of them.
+        # We just write them all out.
         json_output_2 = {'insertIds': insert_ids, 'colA_values': colA_values}
 
         # The first time we try to insert, we save those insertions in
@@ -3025,24 +3049,10 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
         if not os.path.exists(file_name_1):
           with open(file_name_1, 'w') as f:
             json.dump(json_output_1, f)
-          return [
-              {
-                  'index': 0,
-                  'errors': [{
-                      'reason': 'i dont like this row'
-                  }, {
-                      'reason': 'its bad'
-                  }]
-              },
-              {
-                  'index': 2,
-                  'errors': [{
-                      'reason': 'i het this row'
-                  }, {
-                      'reason': 'its no gud'
-                  }]
-              },
-          ]
+          return [{
+              'index': i, 'errors': first_attempt_errors[value]
+          } for i, value in enumerate(colA_values)
+                  if value in first_attempt_errors]
         else:
           with open(file_name_2, 'w') as f:
             json.dump(json_output_2, f)

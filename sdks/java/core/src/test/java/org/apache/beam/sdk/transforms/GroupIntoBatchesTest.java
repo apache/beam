@@ -805,4 +805,61 @@ public class GroupIntoBatchesTest implements Serializable {
     }
     return true;
   }
+
+  /**
+   * Tests that when elements arrive out of order, the watermark hold is updated to the minimum
+   * timestamp. With ofSize(3) and 2 elements, elements remain buffered while the watermark advances
+   * past the second element's timestamp. If the watermark hold were not updated to the minimum
+   * timestamp, the watermark would advance past the window of the second element and the batch
+   * would be dropped as late data downstream.
+   */
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    NeedsRunner.class,
+    UsesTimersInParDo.class,
+    UsesStatefulParDo.class,
+    UsesTestStream.class,
+    UsesOnWindowExpiration.class
+  })
+  public void testOutOfOrderTimestampsInBatch() {
+    Instant baseTs = new Instant(0L);
+    TestStream<KV<String, String>> stream =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(baseTs)
+            .addElements(
+                TimestampedValue.of(
+                    KV.of("key", "val1"), baseTs.plus(Duration.standardSeconds(10))))
+            .addElements(
+                TimestampedValue.of(KV.of("key", "val2"), baseTs.plus(Duration.standardSeconds(2))))
+            .advanceWatermarkTo(baseTs.plus(Duration.standardSeconds(7)))
+            .advanceWatermarkToInfinity();
+
+    PCollection<KV<String, Iterable<String>>> output =
+        pipeline
+            .apply(stream)
+            .apply(GroupIntoBatches.ofSize(3))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, Iterable<String>> element,
+                          OutputReceiver<KV<String, String>> receiver) {
+                        receiver.output(KV.of(element.getKey(), "val"));
+                      }
+                    }))
+            .apply(GroupByKey.create());
+
+    PAssert.that(output)
+        .satisfies(
+            iterable -> {
+              assertTrue(
+                  "Expected output from GroupByKey but was dropped as late data",
+                  iterable.iterator().hasNext());
+              return null;
+            });
+    pipeline.run();
+  }
 }

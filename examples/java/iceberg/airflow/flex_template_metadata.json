@@ -1,0 +1,113 @@
+{
+  "name": "Delta Lake to Lakehouse CDC Flex Template",
+  "description": "Reads Change Data Feed (CDC) records from a Delta Lake table on Google Cloud Storage and applies row-level changes (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE) to a GCP Lakehouse (Apache Iceberg) table.",
+  "parameters": [
+    {
+      "name": "deltaTable",
+      "label": "Source Delta Lake Table GCS Path",
+      "helpText": "GCS path of the source Delta Lake table repository to read CDC data from (e.g., gs://my-delta-lake-bucket/delta_lake/employee_data/).",
+      "isOptional": false,
+      "paramType": "TEXT",
+      "regexes": [
+        "^gs://[^/]+/.*$"
+      ]
+    },
+    {
+      "name": "lakehouseTable",
+      "label": "Target GCP Lakehouse Table",
+      "helpText": "Target GCP Lakehouse Iceberg table identifier: '<project>.<warehouse_bucket>.<namespace>.<table>', '<warehouse_bucket>.<namespace>.<table>', or '<namespace>.<table>'.",
+      "isOptional": false,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "startVersion",
+      "label": "Start Delta Commit Version (Inclusive)",
+      "helpText": "Starting Delta Lake commit version (inclusive) to read changes from. Either startVersion or startTimestamp must be provided.",
+      "isOptional": true,
+      "paramType": "TEXT",
+      "regexes": [
+        "^[0-9]+$"
+      ]
+    },
+    {
+      "name": "endVersion",
+      "label": "End Delta Commit Version (Inclusive)",
+      "helpText": "Ending Delta Lake commit version (inclusive) to read changes up to.",
+      "isOptional": true,
+      "paramType": "TEXT",
+      "regexes": [
+        "^[0-9]+$"
+      ]
+    },
+    {
+      "name": "startTimestamp",
+      "label": "Start Timestamp (ISO-8601)",
+      "helpText": "Starting timestamp in ISO-8601 format (e.g., '2026-10-01T00:00:00Z') to read Delta Lake changes from.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "endTimestamp",
+      "label": "End Timestamp (ISO-8601)",
+      "helpText": "Ending timestamp in ISO-8601 format (e.g., '2026-10-01T23:59:59Z') to read Delta Lake changes up to.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "warehouse",
+      "label": "Lakehouse Warehouse GCS URI",
+      "helpText": "GCS warehouse location for the GCP Lakehouse catalog (e.g., 'gs://my-lakehouse-warehouse-bucket'). Optional when lakehouseTable includes the warehouse bucket.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "equalityColumns",
+      "label": "Primary Key / Equality Columns",
+      "helpText": "Comma-separated list of primary-key (equality-delete) column names in the target Lakehouse Iceberg table (e.g., 'employee_id').",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "upsert",
+      "label": "Enable Upsert Mode",
+      "helpText": "If true, drops UPDATE_BEFORE records and applies INSERT/UPDATE_AFTER records as upserts. Defaults to false.",
+      "isOptional": true,
+      "paramType": "BOOLEAN"
+    },
+    {
+      "name": "usePortableRunner",
+      "label": "Use Dataflow Portable Runner (Runner v2)",
+      "helpText": "If true (default), runs on Dataflow Portable Runner (use_runner_v2) with _change_type column mapping.",
+      "isOptional": true,
+      "paramType": "BOOLEAN"
+    },
+    {
+      "name": "catalogName",
+      "label": "Iceberg Catalog Name",
+      "helpText": "Name of the Iceberg catalog instance. Defaults to 'lakehouse'.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "catalogUri",
+      "label": "Lakehouse REST Catalog URI",
+      "helpText": "Lakehouse Iceberg REST Catalog endpoint URI. Defaults to https://biglake.googleapis.com/iceberg/v1/restcatalog.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "sinkId",
+      "label": "Iceberg CDC Sink ID",
+      "helpText": "Optional stable identifier for the Iceberg CDC sink ('sink_id') used for idempotency tokens in snapshot summaries (e.g., '<dag_id>-v2-to-v4'). Retries reusing the same sinkId skip already-committed ranges.",
+      "isOptional": true,
+      "paramType": "TEXT"
+    },
+    {
+      "name": "waitUntilFinish",
+      "label": "Wait Until Finish",
+      "helpText": "If true, waits until the pipeline completes. When launched as a Dataflow Flex Template, the pipeline automatically exits after submitting the job graph.",
+      "isOptional": true,
+      "paramType": "BOOLEAN"
+    }
+  ]
+}

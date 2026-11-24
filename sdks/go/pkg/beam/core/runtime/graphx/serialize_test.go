@@ -91,8 +91,10 @@ func TestEncodeType(t *testing.T) {
 	})
 	t.Run("StandardLogicalTypes", func(t *testing.T) {
 		rt := reflect.TypeOf(struct {
-			D schema.Date
-			M schema.MicrosInstant
+			D   schema.Date
+			M   schema.MicrosInstant
+			Ms  schema.MillisInstant
+			Dec schema.Decimal
 		}{})
 		pbT, err := encodeType(rt)
 		if err != nil {

@@ -32,6 +32,7 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -70,7 +71,11 @@ class SparkTransformOverrides {
                   PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
                   new SplittableParDoNaiveBounded.OverrideFactory()));
     } else {
+      // Before the Impulse override, the empty Flatten replacement expands to an Impulse.
       builder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.emptyFlatten(), EmptyFlattenAsCreateFactory.instance()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(SplittableParDo.PrimitiveBoundedRead.class),

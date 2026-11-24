@@ -38,10 +38,6 @@ plugins {
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
   if (useMirror) {
-    logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror for buildSrc.")
-  }
-
-  if (useMirror) {
     maven { url = uri(mavenCentralMirrorUrl!!) }
   }
   maven { url = uri("https://plugins.gradle.org/m2/") }
@@ -114,6 +110,10 @@ gradlePlugin {
     create("vendorJava") {
       id = "org.apache.beam.vendor-java"
       implementationClass = "org.apache.beam.gradle.VendorJavaPlugin"
+    }
+    create("beamRust") {
+      id = "org.apache.beam.rust"
+      implementationClass = "org.apache.beam.gradle.rust.BeamRustPlugin"
     }
   }
 }

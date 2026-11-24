@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
@@ -57,6 +56,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.encryption.EncryptedKey;
+import org.apache.iceberg.hadoop.HadoopConfigurable;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.types.Types;
 import org.junit.Before;
@@ -409,8 +409,8 @@ public class SerializableTableSpecTest {
 
     FileIO fileIO = spec.getFileIO(conf);
     assertNotNull(fileIO);
-    assertTrue("FileIO must be Configurable", fileIO instanceof Configurable);
-    assertEquals("test-value-123", ((Configurable) fileIO).getConf().get("custom.test.prop"));
+    assertTrue("FileIO must be Configurable", fileIO instanceof HadoopConfigurable);
+    assertEquals("test-value-123", ((HadoopConfigurable) fileIO).getConf().get("custom.test.prop"));
 
     // Also verify that zero-arg getFileIO() returns cached instance
     assertEquals(fileIO, spec.getFileIO());
@@ -420,11 +420,12 @@ public class SerializableTableSpecTest {
     SerializableTableSpec spec2 = SerializableTableSpec.fromTable(table);
     FileIO fileIO2 = spec2.getFileIO();
     assertNotNull(fileIO2);
-    assertNull(((Configurable) fileIO2).getConf().get("custom.test.prop"));
+    assertNull(((HadoopConfigurable) fileIO2).getConf().get("custom.test.prop"));
 
     FileIO configuredFileIO2 = spec2.getFileIO(conf);
     assertEquals(fileIO2, configuredFileIO2);
     assertEquals(
-        "test-value-123", ((Configurable) configuredFileIO2).getConf().get("custom.test.prop"));
+        "test-value-123",
+        ((HadoopConfigurable) configuredFileIO2).getConf().get("custom.test.prop"));
   }
 }
