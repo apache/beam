@@ -139,6 +139,30 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
 
 
 class ReadTest(_TestCaseWithTempDirCleanUp):
+  def test_read_large_compressed_file(self):
+    import gzip
+
+    content = b'a' * (16 * 1024 * 1024)
+    tail = b'last row\n'
+    path = os.path.join(self._new_tempdir(), 'large.gz')
+    with open(path, 'wb') as f:
+      f.write(gzip.compress(content) + gzip.compress(tail))
+
+    with TestPipeline() as p:
+      files = p | beam.Create([path]) | fileio.ReadMatches()
+      contents = files | 'Read bytes' >> beam.Map(lambda f: f.read())
+      text = files | 'Read text' >> beam.Map(lambda f: f.read_utf8())
+      assert_that(
+          contents
+          | 'Check bytes' >> beam.Map(lambda data: data == content + tail),
+          equal_to([True]),
+          label='Assert bytes')
+      assert_that(
+          text | 'Check text' >>
+          beam.Map(lambda data: data == (content + tail).decode('utf-8')),
+          equal_to([True]),
+          label='Assert text')
+
   def test_basic_file_name_provided(self):
     content = 'TestingMyContent\nIn multiple lines\nhaha!'
     dir = '%s%s' % (self._new_tempdir(), os.sep)

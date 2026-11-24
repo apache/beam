@@ -232,10 +232,12 @@ class CompressedFile(object):
     if compressed:
       self._file.write(compressed)
 
-  def _fetch_to_internal_buffer(self, num_bytes: int) -> None:
-    """Fetch up to num_bytes into the internal buffer."""
+  def _fetch_to_internal_buffer(self, num_bytes: Optional[int]) -> None:
+    """Fetch num_bytes, or all remaining bytes for None or a negative value."""
+    read_all = num_bytes is None or num_bytes < 0
     if (not self._read_eof and self._read_position > 0 and
-        (self._read_buffer.tell() - self._read_position) < num_bytes):
+        (read_all or
+         (self._read_buffer.tell() - self._read_position) < num_bytes)):
       # There aren't enough number of bytes to accommodate a read, so we
       # prepare for a possibly large read by clearing up all internal buffers
       # but without dropping any previous held data.
@@ -245,8 +247,9 @@ class CompressedFile(object):
       self._read_buffer.write(data)
 
     assert self._decompressor
-    while not self._read_eof and (self._read_buffer.tell() -
-                                  self._read_position) < num_bytes:
+    while not self._read_eof and (read_all or
+                                  (self._read_buffer.tell() -
+                                   self._read_position) < num_bytes):
       # Continue reading from the underlying file object until enough bytes are
       # available, or EOF is reached.
       if not self._decompressor.unused_data:
@@ -289,7 +292,8 @@ class CompressedFile(object):
     self._read_buffer.seek(0, os.SEEK_END)  # Allow future writes.
     return result
 
-  def read(self, num_bytes: Optional[int] = DEFAULT_READ_BUFFER_SIZE) -> bytes:
+  def read(self, num_bytes: Optional[int] = None) -> bytes:
+    """Read up to num_bytes, or all remaining bytes if omitted or negative."""
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
@@ -429,6 +433,7 @@ class CompressedFile(object):
 
     # Determine how many bytes needs to be read before we reach
     # the requested offset. Rewind if we already passed the position.
+    absolute_offset = max(0, absolute_offset)
     if absolute_offset < self._uncompressed_position:
       self._rewind()
     bytes_to_skip = absolute_offset - self._uncompressed_position
