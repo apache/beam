@@ -486,6 +486,17 @@ class Job(object):
     return (Job, (self.options, ))
 
 
+def _retry_on_modify_job_state_error(exception):
+  """Retries server errors and transient Dataflow job-state preconditions."""
+  if retry.retry_on_server_errors_filter(exception):
+    return True
+  if isinstance(exception, exceptions.FailedPrecondition):
+    msg = str(exception).lower()
+    return (
+        'not yet ready for canceling' in msg or 'no backend assigned' in msg)
+  return False
+
+
 class DataflowApplicationClient(object):
   _HASH_CHUNK_SIZE = 1024 * 8
   _GCS_CACHE_PREFIX = "artifact_cache"
@@ -930,7 +941,7 @@ class DataflowApplicationClient(object):
 
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(retry_filter=_retry_on_modify_job_state_error)
   def modify_job_state(self, job_id, new_state) -> bool:
     """Modify the run state of the job.
 

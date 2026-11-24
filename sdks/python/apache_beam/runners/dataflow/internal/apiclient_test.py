@@ -50,11 +50,13 @@ from apache_beam.utils import retry
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   import google.auth
+  from google.api_core import exceptions as api_core_exceptions
   from google.cloud import dataflow
 
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
   apiclient = None  # type: ignore
+  api_core_exceptions = None  # type: ignore
   dataflow = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -2131,6 +2133,47 @@ class UtilTest(unittest.TestCase):
           mock_stage_file.assert_not_called()
           mock_sleep.assert_not_called()
           mock_file_open.assert_not_called()
+
+  def test_modify_job_state_retries_transient_failed_precondition(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test-project',
+        '--region',
+        'us-central1',
+        '--temp_location',
+        'gs://test-location/temp',
+    ])
+    pipeline_options.view_as(GoogleCloudOptions).no_auth = True
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+
+    for transient_msg in (
+        'Operation cancel not allowed for job 123. '
+        'Job is not yet ready for canceling.',
+        'Operation cancel not allowed for job 123. '
+        'Job has no backend assigned..',
+    ):
+      with mock.patch.object(
+          client._jobs_client,
+          'update_job',
+          side_effect=[
+              api_core_exceptions.FailedPrecondition(transient_msg),
+              mock.MagicMock(),
+          ]) as mock_update, mock.patch.object(time, 'sleep') as mock_sleep:
+        self.assertTrue(
+            client.modify_job_state('job-123', 'JOB_STATE_CANCELLED'))
+        self.assertEqual(mock_update.call_count, 2)
+        self.assertEqual(mock_sleep.call_count, 1)
+
+    with mock.patch.object(
+        client._jobs_client,
+        'update_job',
+        side_effect=api_core_exceptions.FailedPrecondition(
+            'Job has already terminated in state JOB_STATE_DONE.')
+    ) as mock_update, mock.patch.object(time, 'sleep') as mock_sleep:
+      with self.assertRaises(api_core_exceptions.FailedPrecondition):
+        client.modify_job_state('job-123', 'JOB_STATE_CANCELLED')
+      self.assertEqual(mock_update.call_count, 1)
+      mock_sleep.assert_not_called()
 
 
 if __name__ == '__main__':
