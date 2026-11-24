@@ -2465,7 +2465,7 @@ class Reify(object):
       return pcoll | ParDo(self.add_window_info)
 
   @typehints.with_input_types(tuple[K, V])
-  @typehints.with_output_types(tuple[K, Any])
+  @typehints.with_output_types(tuple[K, TimestampedValue])
   class TimestampInValue(PTransform):
     """PTransform to wrap the Value in a KV pair in a TimestampedValue with
     the element's associated timestamp."""

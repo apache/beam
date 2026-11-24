@@ -90,6 +90,7 @@ from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import Secret
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
@@ -2962,10 +2963,15 @@ class ReifyTest(unittest.TestCase):
       reified_pc = pc | util.Reify.WindowInValue()
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
-  def test_typed_input(self):
+  @parameterized.expand([
+      ('default', False),
+      ('runtime_type_check', True),
+  ])
+  def test_typed_input(self, _, runtime_type_check):
     # Create infers the element type, and the coders of the outputs come from
-    # the declared output types of the transforms.
-    with TestPipeline() as p:
+    # the output types of the transforms.
+    options = PipelineOptions(runtime_type_check=runtime_type_check)
+    with TestPipeline(options=options) as p:
       kvs = p | beam.Create([('a', 1), ('b', 2)])
       windowed = (
           kvs | 'Window' >> util.Reify.Window()
