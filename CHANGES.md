@@ -111,6 +111,7 @@
 * [Beam SQL] Added `CHANGES(table [, start [, end]])` to read a table's changes in `FROM`, starting with Iceberg tables. A query can select metadata columns such as `_change_type` by name, without listing them in `include_metadata_columns` ([#40982](https://github.com/apache/beam/issues/40982)).
 * [Beam SQL] Added a live view to the SQL shell. A streaming (unbounded) SELECT shows its rows as they arrive, with an `op` column for each row's change kind ([#41313](https://github.com/apache/beam/issues/41313)).
 * (Python) `BatchElements` can group elements by key across workers (`key_fn`, `num_shards`), and RunInference model handlers can use it through `batch_key_fn` / `batch_key_num_shards`. `apache_beam.ml.inference.prefix_batching` adds a `PrefixBatchingConfig` and prompt/chat prefix extractors so LLM handlers can batch requests that share a prompt prefix and hit the server's prefix cache ([#40905](https://github.com/apache/beam/pull/40905)).
+* (Python) vLLM model handlers accept a `prefix_batching_config` to batch requests that share a prompt prefix, and publish a capacity-based autoscaling signal (`num_loaded_models_<model_identifier>`, estimated from vLLM's completion rate and in-flight requests) so Dataflow's GPU autoscaling scales vLLM workers with load (tunable via `autoscaling_config`). Other model-server handlers can publish the same signal with `apache_beam.ml.inference.autoscaling_metrics.PrometheusNumLoadedModelsPublisher` ([#40907](https://github.com/apache/beam/pull/40907)) ([#40908](https://github.com/apache/beam/pull/40908)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
 
 ### Performance
@@ -129,6 +130,7 @@
 
 [comment]: # "generic breaking changes if not covered in following sections."
 * (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
+* (Python) Datatable support in the XGBoost model handler has been removed. ([#41586](https://github.com/apache/beam/issues/41586)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ### Package upgrades
@@ -151,6 +153,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed local filesystem copies deleting source data when copying onto the same file or directory, and deleting an existing destination when the source is missing ([#41561](https://github.com/apache/beam/issues/41561)).
 * (Java) Fixed Dataflow's streaming `WriteFiles` sharding override dropping options configured on the transform (such as `maxNumWritersPerBundle`, `evictWritersWhenFull`, `skipIfEmpty`, `shardingFunction`, and `badRecordErrorHandler`) when a fixed shard count is not set ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
 * (Python/YAML) Fixed YAML Flatten schema unification causing non-deterministic field ordering, type degradation from Optional[T] to Optional[Any], and unnecessary per-element overhead on identical schemas ([#41238](https://github.com/apache/beam/issues/41238)).
@@ -166,13 +169,17 @@
 * (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
 * (Python) The result of `beam.Partition` applied to a list, such as `[1, 2, 3] | beam.Partition(fn, 2)`, can now be indexed with ints (`partitions[0]`) as inside a pipeline, instead of raising `KeyError` ([#19154](https://github.com/apache/beam/issues/19154)).
 * (Python) RunInference now raises a `ValueError` when a model handler returns fewer predictions than inputs, instead of silently dropping the inputs that have no prediction. For example, this happened with PyTorch and Keras models that return a tuple or list of outputs, and with Hugging Face causal language models that return `past_key_values` ([#40928](https://github.com/apache/beam/issues/40928)).
+* (Python) Fixed `fileio.WriteToFiles` failing for sinks that ask for a compressed file in `create_metadata`. Flushing a compressed file ended the compressed stream, so closing the file afterwards raised ([#31863](https://github.com/apache/beam/issues/31863)).
 * (Java/Python) The SQL `SqlTransformSchemaTransformProvider` configuration schema (`schematransform:org.apache.beam:sql_transform:v1`) now uses only portable types so it can be discovered from Python: `dialect` is a string, `tableproviders` is an array of strings, and the unused `parameters` field was removed. Invalid dialects and unknown table providers are rejected with a clear error ([#34613](https://github.com/apache/beam/issues/34613)).
 * (Python) An unknown pipeline option is no longer given the value of a later argument that does not directly follow it, which made `Pipeline.run()` and `get_all_options(retain_unknown_options=True)` fail with `expected one argument` for flags like `--unknown_flag --job_name=foo bar` ([#22434](https://github.com/apache/beam/issues/22434)).
 * (Python) Fixed `WriteToJson` silently rounding floats to 10 decimal places: it now defaults pandas' `double_precision` to 15, so values such as `0.1234567890123` and `1e-11` are written correctly. Floats that need 16-17 significant digits may still be rounded ([#41102](https://github.com/apache/beam/issues/41102)).
+* (Java) Makes some fixes to IcebergIO's hash distribution mode, which sometimes wrote incorrect partition values. ([#41012](https://github.com/apache/beam/issues/41012)).
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Fixed MLTransform embeddings created with `columns=`, the RAG embedding transforms and `VertexAIMultiModalEmbeddings` modifying their input elements, so that other transforms reading the same PCollection could see the embeddings ([#41233](https://github.com/apache/beam/issues/41233)).
 * (Python) Dataflow runner: artifacts from different environments that share a name but have different content (for example each environment's `requirements.txt` in a Beam YAML pipeline with a `pythonPackage` provider) are now staged to distinct objects in the staging location instead of overwriting each other, which made workers fail the staged-file integrity check ([#40699](https://github.com/apache/beam/issues/40699)).
 * (Python/YAML) Fixed `MapToFields` `output_type` validation rejecting `None` on nullable object properties, and added JSON Schema nullable type support (`type: [<type>, 'null']` and `nullable: true`) to `json_type_to_beam_type` ([#41373](https://github.com/apache/beam/issues/41373)).
 * (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
+* (Python) Fixed file-based sinks such as `WriteToText` treating glob characters in the output path as a pattern: a path such as `out[12]` deleted other files that the pattern matched and then failed to finalize ([#41567](https://github.com/apache/beam/issues/41567)).
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
 
 ## Security Fixes
