@@ -27,6 +27,7 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.help
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.mapEncoder;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.oneOfEncoder;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.windowedValueEncoder;
+import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.tuple;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates.notNull;
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
@@ -34,6 +35,7 @@ import static org.apache.spark.sql.types.DataTypes.StringType;
 import static org.apache.spark.sql.types.DataTypes.createStructField;
 import static org.apache.spark.sql.types.DataTypes.createStructType;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.FloatCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -203,6 +206,18 @@ public class EncoderHelpersTest {
 
     Dataset<List<String>> dataset = createDataset(data, encoder);
     assertThat(dataset.collect(), equalTo(data.toArray()));
+  }
+
+  @Test
+  public void testBeamBinaryEncoderGroupByKeyAgg() {
+    Encoder<KV<String, Integer>> keyEncoder =
+        encoderFor(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    Dataset<KV<String, Integer>> dataset =
+        createDataset(asList(KV.of("a", 1), KV.of("a", 1), KV.of("b", 2)), keyEncoder);
+
+    assertThat(
+        dataset.groupByKey(fun1(k -> k), keyEncoder).count().collectAsList(),
+        containsInAnyOrder(tuple(KV.of("a", 1), (Object) 2L), tuple(KV.of("b", 2), (Object) 1L)));
   }
 
   @Test

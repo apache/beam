@@ -32,6 +32,7 @@ import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -62,10 +63,15 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ExecutorTestUtils.TestReader;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.DoFnInfo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -219,6 +225,11 @@ public class MapTaskExecutorTest {
 
     @Override
     public void finishKey(Object key) throws Exception {}
+
+    @Override
+    public @Nullable DoFnInfo<?, ?> getDoFnInfo() {
+      return null;
+    }
   }
 
   /** Verify counts for the per-element-output-time counter are correct. */
@@ -572,5 +583,41 @@ public class MapTaskExecutorTest {
     Mockito.verifyNoMoreInteractions(o1);
     // Closing after already closed should not call abort again.
     executor.close();
+  }
+
+  @Test
+  public void testGetParDoOperations() throws Exception {
+    TestOutputReceiver receiver =
+        new TestOutputReceiver(counterSet, NameContextsForTests.nameContextForTest());
+    ReadOperation readOp = new TestReadOperation(receiver, createContext("ReadOperation"));
+    OutputReceiver reportingReceiver1 = new OutputReceiver();
+    OutputReceiver reportingReceiver2 = new OutputReceiver();
+    ParDoOperation regularParDo =
+        new ParDoOperation(
+            new NoopParDoFn(), new OutputReceiver[0], createContext("RegularParDo"), null);
+    ParDoOperation reportingParDo1 =
+        new ParDoOperation(
+            new NoopParDoFn(),
+            new OutputReceiver[] {reportingReceiver1},
+            createContext("ReportingParDo1"),
+            ImmutableMap.of(reportingReceiver1, StringUtf8Coder.of()));
+    ParDoOperation reportingParDo2 =
+        new ParDoOperation(
+            new NoopParDoFn(),
+            new OutputReceiver[] {reportingReceiver2},
+            createContext("ReportingParDo2"),
+            ImmutableMap.of(reportingReceiver2, VarIntCoder.of()));
+
+    List<Operation> operations =
+        Arrays.asList(readOp, regularParDo, reportingParDo1, reportingParDo2);
+    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
+      List<ParDoOperation> parDoOps = executor.getParDoOperations();
+      assertThat(parDoOps, contains(regularParDo, reportingParDo1, reportingParDo2));
+      assertTrue(parDoOps.get(0).getBytesReadCoders().isEmpty());
+      Assert.assertNull(parDoOps.get(0).getBytesReadCoder(reportingReceiver1));
+      assertEquals(StringUtf8Coder.of(), parDoOps.get(1).getBytesReadCoder(reportingReceiver1));
+      assertEquals(VarIntCoder.of(), parDoOps.get(2).getBytesReadCoder(reportingReceiver2));
+    }
   }
 }

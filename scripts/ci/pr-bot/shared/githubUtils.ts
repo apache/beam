@@ -30,7 +30,28 @@ export function getGitHubClient() {
       "No github token provided - process.env['GITHUB_TOKEN'] must be set."
     );
   }
-  return new Octokit({ auth });
+  const octokit = new Octokit({ auth });
+  octokit.hook.wrap("request", async (request: any, options: any) => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await request(options);
+      } catch (err: any) {
+        const status = err && err.status;
+        if (
+          attempt < 3 &&
+          (status === 500 || status === 502 || status === 503 || status === 504)
+        ) {
+          console.log(
+            `Transient GitHub API error (HTTP ${status}), retrying (attempt ${attempt}/3)...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+          continue;
+        }
+        throw err;
+      }
+    }
+  });
+  return octokit;
 }
 
 export async function addPrComment(pullNumber: number, body: string) {

@@ -133,6 +133,10 @@ public class ReadUtils {
     return maybeApplyFilter(records, scanConfig, requiredSchema);
   }
 
+  /**
+   * Returns the first snapshot to read, or null to start from the earliest one. When from_timestamp
+   * is set, null means that no snapshot was committed at or after it.
+   */
   public static @Nullable Long getFromSnapshotInclusive(Table table, IcebergScanConfig scanConfig) {
     @Nullable StartingStrategy startingStrategy = scanConfig.getStartingStrategy();
     boolean isStreaming = MoreObjects.firstNonNull(scanConfig.getStreaming(), false);
@@ -145,7 +149,8 @@ public class ReadUtils {
     // 2. fetch from from_timestamp
     @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
     if (fromTimestamp != null) {
-      fromSnapshot = SnapshotUtil.oldestAncestorAfter(table, fromTimestamp).snapshotId();
+      @Nullable Snapshot snapshot = SnapshotUtil.oldestAncestorAfter(table, fromTimestamp);
+      return snapshot != null ? snapshot.snapshotId() : null;
     }
     // 3. get current snapshot if starting_strategy is LATEST
     if (fromSnapshot == null && startingStrategy.equals(StartingStrategy.LATEST)) {
@@ -172,16 +177,44 @@ public class ReadUtils {
     return fromSnapshot;
   }
 
+  /**
+   * Returns true if the range holds no snapshot and none can still arrive. A batch read looks at
+   * the snapshots committed so far. A streaming read can only be empty once its to_timestamp has
+   * passed, since until then new commits can still fall in its range. Snapshot bounds never make a
+   * range empty, because they must name existing snapshots.
+   */
+  public static boolean isEmptyRange(Table table, IcebergScanConfig scanConfig) {
+    if (scanConfig.getFromSnapshotInclusive() != null || scanConfig.getToSnapshot() != null) {
+      return false;
+    }
+    @Nullable Long toTimestamp = scanConfig.getToTimestamp();
+    if (MoreObjects.firstNonNull(scanConfig.getStreaming(), false)
+        && (toTimestamp == null || !hasPassed(toTimestamp))) {
+      return false;
+    }
+    @Nullable Long fromTimestamp = scanConfig.getFromTimestamp();
+    @Nullable Snapshot first =
+        fromTimestamp != null
+            ? SnapshotUtil.oldestAncestorAfter(table, fromTimestamp)
+            : SnapshotUtil.oldestAncestor(table);
+    return first == null || (toTimestamp != null && first.timestampMillis() > toTimestamp);
+  }
+
+  /** Returns true if no new commit can come at or before {@code timestampMillis} anymore. */
+  public static boolean hasPassed(long timestampMillis) {
+    return timestampMillis < System.currentTimeMillis();
+  }
+
+  /**
+   * Returns the last snapshot to read: to_snapshot, or the last snapshot committed at or before
+   * to_timestamp, which is null if there is none. Null without either bound reads to the latest.
+   */
   public static @Nullable Long getToSnapshot(Table table, IcebergScanConfig scanConfig) {
-    // 1. fetch from to_snapshot
-    @Nullable Long toSnapshot = scanConfig.getToSnapshot();
-    // 2. fetch from to_timestamp
     @Nullable Long toTimestamp = scanConfig.getToTimestamp();
     if (toTimestamp != null) {
-      toSnapshot = SnapshotUtil.snapshotIdAsOfTime(table, toTimestamp);
+      return SnapshotUtil.nullableSnapshotIdAsOfTime(table, toTimestamp);
     }
-
-    return toSnapshot;
+    return scanConfig.getToSnapshot();
   }
 
   /**

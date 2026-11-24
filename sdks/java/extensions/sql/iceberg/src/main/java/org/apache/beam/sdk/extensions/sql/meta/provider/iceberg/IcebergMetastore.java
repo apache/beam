@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig.IcebergTableInfo;
 import org.apache.beam.sdk.io.iceberg.TableAlreadyExistsException;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -105,8 +106,16 @@ public class IcebergMetastore extends InMemoryMetaStore {
       String name = tableName(id);
       @Nullable Table cachedTable = cachedTables.get(name);
       if (cachedTable == null) {
-        Table table = checkStateNotNull(loadTable(id));
-        cachedTables.put(name, table);
+        IcebergTableInfo tableInfo = checkStateNotNull(catalogConfig.loadTable(id));
+        Schema schema;
+        try {
+          schema = tableInfo.getSchema();
+        } catch (RuntimeException e) {
+          // One table Beam SQL can't read shouldn't break listing for its whole namespace.
+          LOG.warn("Skipping Iceberg table '{}' because Beam SQL cannot read its schema.", id, e);
+          continue;
+        }
+        cachedTables.put(name, toTable(tableInfo, schema));
       }
     }
     return ImmutableMap.copyOf(cachedTables);
@@ -140,14 +149,15 @@ public class IcebergMetastore extends InMemoryMetaStore {
 
   private @Nullable Table loadTable(String identifier) {
     @Nullable IcebergTableInfo tableInfo = catalogConfig.loadTable(identifier);
-    if (tableInfo == null) {
-      return null;
-    }
+    return tableInfo == null ? null : toTable(tableInfo, tableInfo.getSchema());
+  }
+
+  private Table toTable(IcebergTableInfo tableInfo, Schema schema) {
     List<String> identifierFields = tableInfo.getIdentifierFields();
     return Table.builder()
         .type(getTableType())
-        .name(tableName(identifier))
-        .schema(tableInfo.getSchema())
+        .name(tableName(tableInfo.getIdentifier()))
+        .schema(schema)
         .primaryKey(identifierFields.isEmpty() ? null : identifierFields)
         .properties(TableUtils.parseProperties(tableInfo.getProperties()))
         .build();

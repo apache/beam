@@ -51,6 +51,7 @@ from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 
 def context(element, timestamp):
@@ -136,6 +137,21 @@ class WindowTest(unittest.TestCase):
                      windowfn.assign(context('v', 1.7)))
     self.assertEqual([IntervalWindow(4.0, 7.5), IntervalWindow(1.5, 5.0)],
                      windowfn.assign(context('v', 4.5)))
+
+  def test_window_fns_reject_non_positive_parameters(self):
+    for value in (0, -5):
+      with self.subTest(window_fn='FixedWindows', size=value):
+        with self.assertRaisesRegex(ValueError, 'size'):
+          FixedWindows(size=value)
+      with self.subTest(window_fn='SlidingWindows', size=value):
+        with self.assertRaisesRegex(ValueError, 'size'):
+          SlidingWindows(size=value, period=5)
+      with self.subTest(window_fn='SlidingWindows', period=value):
+        with self.assertRaisesRegex(ValueError, 'period'):
+          SlidingWindows(size=10, period=value)
+      with self.subTest(window_fn='Sessions', gap_size=value):
+        with self.assertRaisesRegex(ValueError, 'size'):
+          Sessions(gap_size=value)
 
   def test_sessions_merging(self):
     windowfn = Sessions(10)
@@ -356,6 +372,18 @@ class WindowTest(unittest.TestCase):
       assert_that(
           result,
           equal_to([('key', [[[0]]]), ('key', [[[2]]]), ('key', [[[4]]])]))
+
+  def test_interval_window_lt_intersects_union(self):
+    w1 = IntervalWindow(10, 20)
+    w2 = IntervalWindow(15, 25)
+    w3 = IntervalWindow(30, 40)
+    self.assertTrue(w1 < w2)
+    self.assertFalse(w2 < w1)
+    self.assertTrue(w1.intersects(w2))
+    u = w1.union(w3)
+    self.assertEqual(u, IntervalWindow(10, 40))
+    self.assertEqual(u.start, Timestamp(10))
+    self.assertEqual(u.end, Timestamp(40))
 
 
 class RunnerApiTest(unittest.TestCase):

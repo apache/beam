@@ -1991,6 +1991,131 @@ public class DeltaIOTest {
     readPipeline.run().waitUntilFinish();
   }
 
+  /**
+   * Creates a table with a single column {@code name} and these versions: version 0 inserts row-1
+   * (with Change Data Feed enabled), version 1 disables Change Data Feed, version 2 inserts row-2,
+   * version 3 enables Change Data Feed again and version 4 inserts row-3.
+   */
+  private static void setupTableWithChangeDataFeedDisabledInVersions1To2(
+      Engine engine, String tablePath) throws Exception {
+    Schema schema = Schema.builder().addStringField("name").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tablePath,
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(Row.withSchema(schema).addValue("row-1").build()));
+    DeltaWriteTestUtils.writeTablePropertiesCommit(
+        engine,
+        tablePath,
+        1L,
+        200000000000L,
+        ImmutableMap.of(DeltaChangeDataFeedUtils.ENABLE_CHANGE_DATA_FEED_PROPERTY, "false"));
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tablePath,
+        2L,
+        300000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(Row.withSchema(schema).addValue("row-2").build()));
+    DeltaWriteTestUtils.writeTablePropertiesCommit(
+        engine,
+        tablePath,
+        3L,
+        400000000000L,
+        ImmutableMap.of(DeltaChangeDataFeedUtils.ENABLE_CHANGE_DATA_FEED_PROPERTY, "true"));
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tablePath,
+        4L,
+        500000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(Row.withSchema(schema).addValue("row-3").build()));
+  }
+
+  @Test
+  public void testReadChangesWithoutChangeDataFeedAtStartOrEndThrows() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-cdf-disabled-at-bounds");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+    setupTableWithChangeDataFeedDisabledInVersions1To2(engine, tablePath);
+
+    // Change Data Feed was disabled at the start version.
+    org.apache.beam.sdk.Pipeline p = org.apache.beam.sdk.Pipeline.create();
+    IllegalArgumentException atStart =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () -> p.apply(DeltaIO.readChanges().from(tablePath).withStartVersion(1L)));
+    Assert.assertTrue(
+        atStart.getMessage(),
+        atStart
+            .getMessage()
+            .contains(
+                "Cannot read the changes of Delta Lake table '"
+                    + tablePath
+                    + "' in versions [1, 4]: Change Data Feed was not enabled at version 1"));
+
+    // Change Data Feed was disabled at the end version.
+    IllegalArgumentException atEnd =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                p.apply(
+                    DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(2L)));
+    Assert.assertTrue(
+        atEnd.getMessage(),
+        atEnd
+            .getMessage()
+            .contains("in versions [0, 2]: Change Data Feed was not enabled at version 2"));
+
+    // The planning DoFn checks the start version again when the pipeline runs.
+    writePipeline
+        .apply(Create.of(tablePath))
+        .apply(ParDo.of(new CreateCDCReadTasksDoFn(null, 2L, null, null, null)));
+    org.apache.beam.sdk.Pipeline.PipelineExecutionException doFnEx =
+        Assert.assertThrows(
+            org.apache.beam.sdk.Pipeline.PipelineExecutionException.class,
+            () -> writePipeline.run().waitUntilFinish());
+    Assert.assertTrue(
+        doFnEx.getCause().getMessage(),
+        doFnEx
+            .getCause()
+            .getMessage()
+            .contains("in versions [2, 4]: Change Data Feed was not enabled at version 2"));
+
+    // Changes can be read again from the version that re-enabled Change Data Feed.
+    PCollection<Row> output =
+        readPipeline.apply(DeltaIO.readChanges().from(tablePath).withStartVersion(3L));
+    PAssert.that(output.apply(ParDo.of(new FormatValueKindAndRow())))
+        .containsInAnyOrder("INSERT:row-3");
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithoutChangeDataFeedWithinRangeThrows() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-cdf-disabled-within-range");
+    String tablePath = tableDir.getAbsolutePath();
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+    setupTableWithChangeDataFeedDisabledInVersions1To2(engine, tablePath);
+
+    // Change Data Feed was enabled at both ends of the range, so expanding the transform succeeds,
+    // but planning the read tasks finds the version that disabled it. Without the check, versions 1
+    // and 2 would be read from their data files, which loses any updates and deletes they made.
+    readPipeline.apply(
+        DeltaIO.readChanges().from(tablePath).withStartVersion(0L).withEndVersion(4L));
+    org.apache.beam.sdk.Pipeline.PipelineExecutionException e =
+        Assert.assertThrows(
+            org.apache.beam.sdk.Pipeline.PipelineExecutionException.class,
+            () -> readPipeline.run().waitUntilFinish());
+    Assert.assertTrue(
+        e.getCause().getMessage(),
+        e.getCause()
+            .getMessage()
+            .contains("in versions [0, 4]: Change Data Feed was not enabled at version 1"));
+  }
+
   @Test
   public void testS3SchemeRegistrationWithAnonymousCredentials() {
     org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();

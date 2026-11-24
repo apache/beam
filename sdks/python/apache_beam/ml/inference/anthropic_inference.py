@@ -75,6 +75,7 @@ from typing import Optional
 from typing import Union
 
 from anthropic import Anthropic
+from anthropic import APIConnectionError
 from anthropic import APIStatusError
 
 from apache_beam.ml.inference import utils
@@ -86,14 +87,18 @@ LOGGER = logging.getLogger("AnthropicModelHandler")
 
 
 def _retry_on_appropriate_error(exception: Exception) -> bool:
-  """Retry filter that returns True for 5xx errors or 429 (rate limiting).
+  """Retry filter that returns True for 5xx errors, 429 (rate limiting) and
+  connection errors.
 
   Args:
     exception: the exception encountered during the request/response loop.
 
   Returns:
-    True if the exception is retriable (429 or 5xx), False otherwise.
+    True if the exception is retriable (429, 5xx or a connection error),
+    False otherwise.
   """
+  if isinstance(exception, APIConnectionError):
+    return True
   if not isinstance(exception, APIStatusError):
     return False
   return exception.status_code == 429 or exception.status_code >= 500
@@ -260,13 +265,14 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
   def create_client(self) -> Anthropic:
     """Creates the Anthropic client used to send requests.
 
-    If api_key was provided at construction time, it is used directly.
-    Otherwise, the client will fall back to the ANTHROPIC_API_KEY
-    environment variable.
+    Sets ``max_retries=0`` so that Apache Beam's ``RemoteModelHandler`` retry
+    and client-side throttling mechanics are the only retry layer. If api_key
+    was provided at construction time, it is used directly. Otherwise, the
+    client will fall back to the ANTHROPIC_API_KEY environment variable.
     """
     if self.api_key:
-      return Anthropic(api_key=self.api_key)
-    return Anthropic()
+      return Anthropic(api_key=self.api_key, max_retries=0)
+    return Anthropic(max_retries=0)
 
   def request(
       self,

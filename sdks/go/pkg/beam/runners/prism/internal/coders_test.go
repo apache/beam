@@ -348,7 +348,25 @@ func Test_pullDecoder(t *testing.T) {
 					},
 				},
 			},
-			[]byte{4, 0, 1, 2, 3},
+			// A big endian length of 4, then that many elements.
+			[]byte{0, 0, 0, 4, 0, 1, 2, 3},
+		}, {
+			"iterable_unknown_length",
+			&pipepb.Coder{
+				Spec: &pipepb.FunctionSpec{
+					Urn: urns.CoderIterable,
+				},
+				ComponentCoderIds: []string{"elm"},
+			},
+			map[string]*pipepb.Coder{
+				"elm": {
+					Spec: &pipepb.FunctionSpec{
+						Urn: urns.CoderVarInt,
+					},
+				},
+			},
+			// A length of -1, then chunks of a count and that many elements, ending with a count of 0.
+			[]byte{255, 255, 255, 255, 2, 0, 1, 1, 2, 0},
 		}, {
 			"kv",
 			&pipepb.Coder{

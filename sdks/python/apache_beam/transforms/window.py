@@ -17,12 +17,14 @@
 
 """Windowing concepts.
 
-A WindowInto transform logically divides up or groups the elements of a
-PCollection into finite windows according to a windowing function (derived from
-WindowFn).
+A :class:`~apache_beam.transforms.core.WindowInto` transform logically divides
+up or groups the elements of a :class:`~apache_beam.pvalue.PCollection` into
+finite windows according to a windowing function (derived from
+:class:`WindowFn`).
 
 The output of WindowInto contains the same elements as input, but they have been
-logically assigned to windows. The next GroupByKey(s) transforms, including one
+logically assigned to windows. The next
+:class:`~apache_beam.transforms.core.GroupByKey` transforms, including one
 within a composite transform, will group by the combination of keys and windows.
 
 Windowing a PCollection allows chunks of it to be processed individually, before
@@ -30,17 +32,18 @@ the entire PCollection is available.  This is especially important for
 PCollection(s) with unbounded size, since the full PCollection is never
 available at once, since more data is continually arriving. For PCollection(s)
 with a bounded size (aka. conventional batch mode), by default, all data is
-implicitly in a single window (see GlobalWindows), unless WindowInto is
-applied.
+implicitly in a single window (see :class:`GlobalWindows`), unless WindowInto
+is applied.
 
 For example, a simple form of windowing divides up the data into fixed-width
-time intervals, using FixedWindows.
+time intervals, using :class:`FixedWindows`.
 
 Seconds are used as the time unit for the built-in windowing primitives here.
 Integer or floating point seconds can be passed to these primitives.
 
 Internally, seconds, with microsecond granularity, are stored as
-timeutil.Timestamp and timeutil.Duration objects. This is done to avoid
+:class:`~apache_beam.utils.timestamp.Timestamp` and
+:class:`~apache_beam.utils.timestamp.Duration` objects. This is done to avoid
 precision errors that would occur with floating point representations.
 
 Custom windowing function classes can be created, by subclassing from
@@ -121,7 +124,7 @@ class TimestampCombiner(object):
 class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
   """An abstract windowing function defining a basic assign and merge."""
   class AssignContext(object):
-    """Context passed to WindowFn.assign()."""
+    """Context passed to :meth:`WindowFn.assign`."""
     def __init__(
         self,
         timestamp: TimestampTypes,
@@ -139,15 +142,15 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
     """Associates windows to an element.
 
     Arguments:
-      assign_context: Instance of AssignContext.
+      assign_context: Instance of :class:`~WindowFn.AssignContext`.
 
     Returns:
-      An iterable of BoundedWindow.
+      An iterable of :class:`BoundedWindow`.
     """
     raise NotImplementedError
 
   class MergeContext(object):
-    """Context passed to WindowFn.merge() to perform merging, if any."""
+    """Context passed to :meth:`WindowFn.merge` to perform merging, if any."""
     def __init__(self, windows: Iterable['BoundedWindow']) -> None:
       self.windows = list(windows)
 
@@ -174,15 +177,15 @@ class WindowFn(urns.RunnerApiFn, metaclass=abc.ABCMeta):
       self, window: 'BoundedWindow', input_timestamp: Timestamp) -> Timestamp:  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
 
-    If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the
-    Windowing, the output timestamp for the given window will be the earliest
-    of the timestamps returned by get_transformed_output_time() for elements
-    of the window.
+    If :attr:`TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED` is used in the
+    :class:`~apache_beam.transforms.core.Windowing`, the output timestamp for
+    the given window will be the earliest of the timestamps returned by
+    get_transformed_output_time() for elements of the window.
 
     Arguments:
       window: Output window of element.
-      input_timestamp: Input timestamp of element as a timeutil.Timestamp
-        object.
+      input_timestamp: Input timestamp of element as a
+        :class:`~apache_beam.utils.timestamp.Timestamp` object.
 
     Returns:
       Transformed timestamp.
@@ -255,17 +258,35 @@ class IntervalWindow(windowed_value._IntervalWindowBase, BoundedWindow):
     start: Start of window as seconds since Unix epoch.
     end: End of window as seconds since Unix epoch.
   """
+  @classmethod
+  def from_micros(cls, start_micros: int, end_micros: int) -> 'IntervalWindow':
+    w = cls(None, None)
+    try:
+      w._start_micros = start_micros
+      w._end_micros = end_micros
+    except OverflowError:
+      return cls(Timestamp(micros=start_micros), Timestamp(micros=end_micros))
+    return w
+
   def __lt__(self, other):
+    if isinstance(other, IntervalWindow):
+      if self._end_micros != other._end_micros:
+        return self._end_micros < other._end_micros
+      return hash(self) < hash(other)
     if self.end != other.end:
       return self.end < other.end
     return hash(self) < hash(other)
 
   def intersects(self, other: 'IntervalWindow') -> bool:
-    return other.start < self.end or self.start < other.end
+    return (
+        other._start_micros < self._end_micros or
+        self._start_micros < other._end_micros)
 
   def union(self, other: 'IntervalWindow') -> 'IntervalWindow':
-    return IntervalWindow(
-        min(self.start, other.start), max(self.end, other.end))
+    w = IntervalWindow(None, None)
+    w._start_micros = min(self._start_micros, other._start_micros)
+    w._end_micros = max(self._end_micros, other._end_micros)
+    return w
 
 
 V = TypeVar("V")
@@ -300,7 +321,9 @@ class TimestampedValue(Generic[V]):
 
 
 class GlobalWindow(BoundedWindow):
-  """The default window into which all data is placed (via GlobalWindows)."""
+  """The default window into which all data is placed (via
+  :class:`GlobalWindows`).
+  """
   _instance: Optional['GlobalWindow'] = None
 
   def __new__(cls):
@@ -421,11 +444,14 @@ class FixedWindows(NonMergingWindowFn):
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)
     self.offset = Timestamp.of(offset) % self.size
+    self._size_micros = self.size.micros
+    self._offset_micros = self.offset.micros
 
   def assign(self, context: WindowFn.AssignContext) -> list[IntervalWindow]:
-    timestamp = context.timestamp
-    start = timestamp - (timestamp - self.offset) % self.size
-    return [IntervalWindow(start, start + self.size)]
+    ts = context.timestamp
+    ts_m = ts.micros if isinstance(ts, Timestamp) else Timestamp.of(ts).micros
+    start_m = ts_m - (ts_m - self._offset_micros) % self._size_micros
+    return [IntervalWindow.from_micros(start_m, start_m + self._size_micros)]
 
   def get_window_coder(self) -> coders.IntervalWindowCoder:
     return coders.IntervalWindowCoder()
@@ -478,20 +504,23 @@ class SlidingWindows(NonMergingWindowFn):
   ):
     if size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
+    if period <= 0:
+      raise ValueError('The period parameter must be strictly positive.')
     self.size = Duration.of(size)
     self.period = Duration.of(period)
     self.offset = Timestamp.of(offset) % period
+    self._size_micros = self.size.micros
+    self._period_micros = self.period.micros
+    self._offset_micros = self.offset.micros
 
   def assign(self, context: WindowFn.AssignContext) -> list[IntervalWindow]:
-    timestamp = context.timestamp
-    start = timestamp - ((timestamp - self.offset) % self.period)
+    ts = context.timestamp
+    ts_m = ts.micros if isinstance(ts, Timestamp) else Timestamp.of(ts).micros
+    start_m = ts_m - ((ts_m - self._offset_micros) % self._period_micros)
+    size_m = self._size_micros
     return [
-        IntervalWindow(
-            (interval_start := Timestamp(micros=s)),
-            interval_start + self.size,
-        ) for s in range(
-            start.micros, timestamp.micros -
-            self.size.micros, -self.period.micros)
+        IntervalWindow.from_micros(s, s + size_m)
+        for s in range(start_m, ts_m - size_m, -self._period_micros)
     ]
 
   def get_window_coder(self) -> coders.IntervalWindowCoder:
@@ -542,10 +571,12 @@ class Sessions(WindowFn):
     if gap_size <= 0:
       raise ValueError('The size parameter must be strictly positive.')
     self.gap_size = Duration.of(gap_size)
+    self._gap_micros = self.gap_size.micros
 
   def assign(self, context: WindowFn.AssignContext) -> list[IntervalWindow]:
-    timestamp = context.timestamp
-    return [IntervalWindow(timestamp, timestamp + self.gap_size)]
+    ts = context.timestamp
+    ts_m = ts.micros if isinstance(ts, Timestamp) else Timestamp.of(ts).micros
+    return [IntervalWindow.from_micros(ts_m, ts_m + self._gap_micros)]
 
   def get_window_coder(self) -> coders.IntervalWindowCoder:
     return coders.IntervalWindowCoder()

@@ -20,6 +20,8 @@ from libc.stdint cimport int64_t
 
 
 cdef type Timestamp
+cdef int64_t _MIN_TIMESTAMP_MICROS
+cdef int64_t _MAX_TIMESTAMP_MICROS
 
 
 cdef list _BYTE_TO_PANE_INFO
@@ -58,6 +60,6 @@ cpdef WindowedValue create(
 
 cdef class _IntervalWindowBase(object):
   cdef object _start_object
-  cdef readonly int64_t _start_micros
+  cdef public int64_t _start_micros
   cdef object _end_object
-  cdef readonly int64_t _end_micros
+  cdef public int64_t _end_micros

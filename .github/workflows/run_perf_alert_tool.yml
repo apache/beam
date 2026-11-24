@@ -42,13 +42,13 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - name: Install Apache Beam
+      - name: Install Apache Beam and dependencies
         working-directory: ./sdks/python
-        run: pip install -e .[gcp,test]
-      - name: Install signal-processing-algorithms
-        run: pip install signal-processing-algorithms
-      - name: Install pandas, yaml, requests
-        run: pip install pandas db-dtypes PyYAML requests
+        # signal-processing-algorithms pins numpy<2.0.0, while pyarrow>=26 requires NumPy 2
+        # at runtime without declaring a numpy version constraint in its package metadata.
+        # TODO: Remove the "pyarrow<26" pin once a version of signal-processing-algorithms
+        # supports NumPy 2.
+        run: pip install -e .[gcp,test] signal-processing-algorithms pandas db-dtypes "pyarrow<26" PyYAML requests
       - name: Run Change Point Analysis.
         working-directory: ./sdks/python/apache_beam/testing/analyzers
         shell: bash

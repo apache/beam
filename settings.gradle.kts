@@ -23,7 +23,7 @@ pluginManagement {
     val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
     if (useMirror) {
-        logger.debug("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+        logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
     }
 
     repositories {
@@ -350,6 +350,7 @@ include(":sdks:python:test-suites:tox:py314")
 include(":sdks:python:test-suites:xlang")
 include(":sdks:typescript")
 include(":sdks:typescript:container")
+include(":sdks:rust")
 include(":vendor:grpc-1_69_0")
 include(":vendor:calcite-1_40_0")
 include(":vendor:guava-32_1_2-jre")
