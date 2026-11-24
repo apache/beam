@@ -68,6 +68,8 @@ jobs:
 
       - name: Generate vendor Java dependency graph artifact
         uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        env:
+          GRADLE_OPTS: -Xms2g -Xmx5g
         with:
           cache-disabled: true
           validate-wrappers: false
@@ -75,9 +77,7 @@ jobs:
           dependency-graph-include-projects: ':vendor:.*'
           dependency-graph-include-configurations: 'runtimeClasspath'
           artifact-retention-days: 5
-          additional-arguments: >-
-            -Dorg.gradle.jvmargs="-Xms2g -Xmx5g -Xss10240k"
-            -Dorg.gradle.vfs.watch=false
+          additional-arguments: -Dorg.gradle.vfs.watch=false
 
   submit_vendor_dependency_graph:
     name: Submit Vendor Java Dependency Graph
@@ -106,6 +106,8 @@ jobs:
 
       - name: Generate and submit vendor Java dependency graph
         uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        env:
+          GRADLE_OPTS: -Xms2g -Xmx5g
         with:
           cache-disabled: true
           validate-wrappers: false
@@ -113,6 +115,4 @@ jobs:
           dependency-graph-include-projects: ':vendor:.*'
           dependency-graph-include-configurations: 'runtimeClasspath'
           artifact-retention-days: 5
-          additional-arguments: >-
-            -Dorg.gradle.jvmargs="-Xms2g -Xmx5g -Xss10240k"
-            -Dorg.gradle.vfs.watch=false
+          additional-arguments: -Dorg.gradle.vfs.watch=false
