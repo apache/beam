@@ -350,7 +350,7 @@ public class StreamingModeExecutionContext
   }
 
   @VisibleForTesting
-  long getSourceBytesProcessed() {
+  public long getSourceBytesProcessed() {
     return this.sourceBytesProcessed.get();
   }
 
