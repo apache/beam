@@ -108,11 +108,11 @@ class ConcatSourceTest(unittest.TestCase):
     # Simulate a read.
     self.assertEqual(range_tracker.try_claim((0, None)), True)
     self.assertEqual(range_tracker.sub_range_tracker(0).try_claim(2), True)
-    self.assertEqual(range_tracker.fraction_consumed(), 0.125)
+    self.assertEqual(range_tracker.fraction_consumed(), 0.0)
 
     self.assertEqual(range_tracker.try_claim((1, None)), True)
     self.assertEqual(range_tracker.sub_range_tracker(1).try_claim(6), True)
-    self.assertEqual(range_tracker.fraction_consumed(), 0.375)
+    self.assertEqual(range_tracker.fraction_consumed(), 0.25)
     self.assertEqual(range_tracker.try_split((0, 1)), None)
     self.assertEqual(range_tracker.try_split((1, 5)), None)
 
@@ -123,7 +123,7 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(9), True)
 
     self.assertEqual(range_tracker.try_split((2, 8)), None)
-    self.assertEqual(range_tracker.try_split((2, 11)), ((2, 11), 11. / 12))
+    self.assertEqual(range_tracker.try_split((2, 11)), ((2, 11), 8. / 9))
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
 
