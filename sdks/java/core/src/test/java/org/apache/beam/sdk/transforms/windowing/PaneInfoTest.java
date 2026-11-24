@@ -19,9 +19,13 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.junit.Test;
@@ -48,6 +52,10 @@ public class PaneInfoTest {
           coder, PaneInfo.createPane(false, false, timing, 389, onTimeIndex));
       CoderProperties.coderDecodeEncodeEqual(
           coder, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex));
+      if (timing != Timing.EARLY) {
+        CoderProperties.coderDecodeEncodeEqual(
+            coder, PaneInfo.createPane(false, false, timing, 37, 37));
+      }
       CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, false, timing, 0, 0));
       CoderProperties.coderDecodeEncodeEqual(coder, PaneInfo.createPane(true, true, timing, 0, 0));
     }
@@ -61,6 +69,9 @@ public class PaneInfoTest {
         long onTimeIndex = timing == Timing.EARLY ? -1 : 37;
         testByteCount(coder, context, PaneInfo.createPane(false, false, timing, 389, onTimeIndex));
         testByteCount(coder, context, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex));
+        if (timing != Timing.EARLY) {
+          testByteCount(coder, context, PaneInfo.createPane(false, false, timing, 37, 37));
+        }
         testByteCount(coder, context, PaneInfo.createPane(true, false, timing, 0, 0));
         testByteCount(coder, context, PaneInfo.createPane(true, true, timing, 0, 0));
 
@@ -69,6 +80,9 @@ public class PaneInfoTest {
             coder, context, PaneInfo.createPane(false, false, timing, 389, onTimeIndex, true));
         testByteCount(
             coder, context, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex, true));
+        if (timing != Timing.EARLY) {
+          testByteCount(coder, context, PaneInfo.createPane(false, false, timing, 37, 37, true));
+        }
         testByteCount(coder, context, PaneInfo.createPane(true, false, timing, 0, 0, true));
         testByteCount(coder, context, PaneInfo.createPane(true, true, timing, 0, 0, true));
       }
@@ -89,10 +103,30 @@ public class PaneInfoTest {
           coder, PaneInfo.createPane(false, false, timing, 389, onTimeIndex, true));
       CoderProperties.coderDecodeEncodeEqual(
           coder, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex, true));
+      if (timing != Timing.EARLY) {
+        CoderProperties.coderDecodeEncodeEqual(
+            coder, PaneInfo.createPane(false, false, timing, 37, 37, true));
+      }
       CoderProperties.coderDecodeEncodeEqual(
           coder, PaneInfo.createPane(true, false, timing, 0, 0, true));
       CoderProperties.coderDecodeEncodeEqual(
           coder, PaneInfo.createPane(true, true, timing, 0, 0, true));
+    }
+  }
+
+  @Test
+  public void testDecodeInvalidEncodingThrowsCoderException() {
+    Coder<PaneInfo> coder = PaneInfo.PaneInfoCoder.INSTANCE;
+    byte[][] invalidPayloads = {
+      new byte[] {0x30}, new byte[] {0x70}, new byte[] {(byte) 0xB0}, new byte[0],
+    };
+    for (byte[] payload : invalidPayloads) {
+      CoderException exception =
+          assertThrows(CoderException.class, () -> coder.decode(new ByteArrayInputStream(payload)));
+      assertTrue(
+          "Unexpected message: " + exception.getMessage(),
+          exception.getMessage() != null
+              && exception.getMessage().contains("Invalid pane encoding"));
     }
   }
 
