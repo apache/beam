@@ -34,8 +34,8 @@ TPCDS_BUILD_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "build")
 TPCDS_SCHEMAS_DIR = os.path.join(TPCDS_BUILD_DIR, "schemas")
 
-_SCHEMA_CACHE: Dict[str, List[Tuple[str, str]]] = {}
-_ROW_CLASS_CACHE: Dict[str, Type[Tuple[Any, ...]]] = {}
+_SCHEMA_CACHE: dict[str, list[tuple[str, str]]] = {}
+_ROW_CLASS_CACHE: dict[str, type[tuple[Any, ...]]] = {}
 
 
 def _require_schemas_dir() -> str:
@@ -48,7 +48,7 @@ def _require_schemas_dir() -> str:
   return TPCDS_SCHEMAS_DIR
 
 
-def get_raw_table_schema(table_name: str) -> List[Tuple[str, str]]:
+def get_raw_table_schema(table_name: str) -> list[tuple[str, str]]:
   """Returns the list of (column_name, raw_type) for a TPC-DS table from tpcds/build/schemas."""
   if table_name in _SCHEMA_CACHE:
     return list(_SCHEMA_CACHE[table_name])
@@ -67,7 +67,7 @@ def get_raw_table_schema(table_name: str) -> List[Tuple[str, str]]:
   return list(cols)
 
 
-def get_all_table_names() -> List[str]:
+def get_all_table_names() -> list[str]:
   """Returns sorted list of all TPC-DS table names from tpcds/build/schemas."""
   schemas_dir = _require_schemas_dir()
   names = sorted(
@@ -89,7 +89,7 @@ def _python_field_type(raw_type: str) -> Any:
     return Optional[str]
 
 
-def get_table_row_class(table_name: str) -> Type[Tuple[Any, ...]]:
+def get_table_row_class(table_name: str) -> type[tuple[Any, ...]]:
   """Returns a NamedTuple class registered with RowCoder for the given table."""
   if table_name in _ROW_CLASS_CACHE:
     return _ROW_CLASS_CACHE[table_name]
