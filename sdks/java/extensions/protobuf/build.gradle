@@ -40,8 +40,8 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation("com.google.cloud:google-cloud-storage:2.32.1")
   implementation library.java.protobuf_java
-  implementation("com.squareup.wire:wire-schema-jvm:4.9.3")
-  implementation("io.apicurio:apicurio-registry-protobuf-schema-utilities:3.0.0.M2")
+  implementation("com.squareup.wire:wire-schema-jvm:5.3.3")
+  implementation("io.apicurio:apicurio-registry-protobuf-schema-utilities:3.1.7")
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
