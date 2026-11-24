@@ -18,10 +18,17 @@
 package org.apache.beam.runners.flink.streaming;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.core.Is.is;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsTest;
@@ -32,12 +39,19 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
@@ -186,6 +200,150 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     state.add(now);
     stateInternals.clearGlobalState();
     assertThat(state.read(), is((Instant) null));
+  }
+
+  @Test
+  public void testMapStateStructuralKeys() throws Exception {
+    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
+    FlinkStateInternals<String> stateInternals =
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+
+    StateTag<MapState<byte[], Integer>> tag =
+        StateTags.map("byte-map", ByteArrayCoder.of(), VarIntCoder.of());
+    MapState<byte[], Integer> mapState = stateInternals.state(StateNamespaces.global(), tag);
+
+    mapState.put(new byte[] {1, 2}, 10);
+    mapState.put(new byte[] {3}, 30);
+    // Overwrite with a distinct byte[] instance having identical contents.
+    mapState.put(new byte[] {1, 2}, 20);
+    assertThat(mapState.putIfAbsent(new byte[] {1, 2}, 99).read(), is(20));
+    assertThat(mapState.computeIfAbsent(new byte[] {4}, k -> 40).read(), is(nullValue()));
+
+    assertThat(mapState.get(new byte[] {1, 2}).read(), is(20));
+    assertThat(mapState.get(new byte[] {3}).read(), is(30));
+    assertThat(mapState.get(new byte[] {4}).read(), is(40));
+    assertThat(mapState.get(new byte[] {9}).read(), is(nullValue()));
+
+    List<KV<String, Integer>> entries = new ArrayList<>();
+    for (Map.Entry<byte[], Integer> entry : mapState.entries().read()) {
+      entries.add(KV.of(Arrays.toString(entry.getKey()), entry.getValue()));
+    }
+    assertThat(
+        entries, containsInAnyOrder(KV.of("[1, 2]", 20), KV.of("[3]", 30), KV.of("[4]", 40)));
+
+    List<String> keys = new ArrayList<>();
+    for (byte[] key : mapState.keys().read()) {
+      keys.add(Arrays.toString(key));
+    }
+    assertThat(keys, containsInAnyOrder("[1, 2]", "[3]", "[4]"));
+
+    mapState.remove(new byte[] {1, 2});
+    assertThat(mapState.get(new byte[] {1, 2}).read(), is(nullValue()));
+    mapState.remove(new byte[] {3});
+    mapState.remove(new byte[] {4});
+    assertThat(mapState.isEmpty().read(), is(true));
+    assertThat(mapState.entries().read(), emptyIterable());
+  }
+
+  @Test
+  public void testMapStateNullableKeys() throws Exception {
+    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
+    FlinkStateInternals<String> stateInternals =
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+
+    StateTag<MapState<String, Integer>> tag =
+        StateTags.map("nullable-map", NullableCoder.of(StringUtf8Coder.of()), VarIntCoder.of());
+    MapState<String, Integer> mapState = stateInternals.state(StateNamespaces.global(), tag);
+
+    mapState.put(null, 1);
+    mapState.put("a", 2);
+    mapState.put(null, 3);
+
+    assertThat(mapState.get(null).read(), is(3));
+    assertThat(mapState.get("a").read(), is(2));
+    assertThat(mapState.keys().read(), containsInAnyOrder(null, "a"));
+
+    mapState.remove(null);
+    assertThat(mapState.get(null).read(), is(nullValue()));
+    assertThat(mapState.keys().read(), containsInAnyOrder("a"));
+  }
+
+  @Test
+  public void testSetStateStructuralValues() throws Exception {
+    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
+    FlinkStateInternals<String> stateInternals =
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+
+    StateTag<SetState<byte[]>> tag = StateTags.set("byte-set", ByteArrayCoder.of());
+    SetState<byte[]> setState = stateInternals.state(StateNamespaces.global(), tag);
+
+    assertThat(setState.isEmpty().read(), is(true));
+    setState.add(new byte[] {1, 2});
+    setState.add(new byte[] {1, 2});
+    assertThat(setState.addIfAbsent(new byte[] {1, 2}).read(), is(false));
+    assertThat(setState.addIfAbsent(new byte[] {3}).read(), is(true));
+
+    assertThat(setState.contains(new byte[] {1, 2}).read(), is(true));
+    assertThat(setState.contains(new byte[] {3}).read(), is(true));
+    assertThat(setState.contains(new byte[] {9}).read(), is(false));
+
+    List<String> elements = new ArrayList<>();
+    for (byte[] elem : setState.read()) {
+      elements.add(Arrays.toString(elem));
+    }
+    assertThat(elements, containsInAnyOrder("[1, 2]", "[3]"));
+
+    setState.remove(new byte[] {1, 2});
+    assertThat(setState.contains(new byte[] {1, 2}).read(), is(false));
+    setState.remove(new byte[] {3});
+    assertThat(setState.isEmpty().read(), is(true));
+  }
+
+  /** Avro-encoded POJO without custom equals/hashCode, a common @DefaultCoder(AvroCoder) case. */
+  public static class AvroEvent {
+    public String id;
+    public int count;
+
+    public AvroEvent() {}
+
+    public AvroEvent(String id, int count) {
+      this.id = id;
+      this.count = count;
+    }
+  }
+
+  @Test
+  public void testSetStateAvroReflectPojo() throws Exception {
+    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
+    FlinkStateInternals<String> stateInternals =
+        new FlinkStateInternals<>(
+            keyedStateBackend,
+            StringUtf8Coder.of(),
+            IntervalWindow.getCoder(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+
+    AvroCoder<AvroEvent> pojoCoder = AvroCoder.of(AvroEvent.class);
+    StateTag<SetState<AvroEvent>> pojoTag = StateTags.set("avro-pojo-set", pojoCoder);
+    SetState<AvroEvent> pojoSet = stateInternals.state(StateNamespaces.global(), pojoTag);
+
+    pojoSet.add(new AvroEvent("evt-1", 5));
+    assertThat(pojoSet.contains(new AvroEvent("evt-1", 5)).read(), is(true));
+    assertThat(pojoSet.addIfAbsent(new AvroEvent("evt-1", 5)).read(), is(false));
+    assertThat(pojoSet.contains(new AvroEvent("evt-1", 6)).read(), is(false));
+    pojoSet.remove(new AvroEvent("evt-1", 5));
+    assertThat(pojoSet.isEmpty().read(), is(true));
   }
 
   public static KeyedStateBackend<FlinkKey> createStateBackend() throws Exception {

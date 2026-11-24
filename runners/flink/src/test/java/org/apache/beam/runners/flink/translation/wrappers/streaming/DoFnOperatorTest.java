@@ -57,11 +57,14 @@ import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -2768,6 +2771,186 @@ public class DoFnOperatorTest {
     testHarness.open();
     testHarness.close();
     assertThat(typeCache.size(), is(0));
+  }
+
+  @Test
+  public void testMapAndSetStateStructuralKeysAcrossSnapshotRestore() throws Exception {
+    DoFn<KV<String, KV<byte[], Integer>>, String> fn =
+        new DoFn<KV<String, KV<byte[], Integer>>, String>() {
+          @StateId("map")
+          private final StateSpec<MapState<byte[], Integer>> mapSpec =
+              StateSpecs.map(ByteArrayCoder.of(), VarIntCoder.of());
+
+          @StateId("set")
+          private final StateSpec<SetState<byte[]>> setSpec = StateSpecs.set(ByteArrayCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, KV<byte[], Integer>> element,
+              @StateId("map") MapState<byte[], Integer> mapState,
+              @StateId("set") SetState<byte[]> setState,
+              OutputReceiver<String> out) {
+            byte[] itemKey = element.getValue().getKey();
+            int delta = element.getValue().getValue();
+            Integer prev = mapState.get(itemKey).read();
+            int next = (prev == null ? 0 : prev) + delta;
+            mapState.put(itemKey, next);
+            boolean added = Boolean.TRUE.equals(setState.addIfAbsent(itemKey).read());
+            out.output(Arrays.toString(itemKey) + ":" + next + ":" + added);
+          }
+        };
+
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    Coder<WindowedValue<KV<String, KV<byte[], Integer>>>> inputCoder =
+        WindowedValues.getFullCoder(
+            KvCoder.of(StringUtf8Coder.of(), KvCoder.of(ByteArrayCoder.of(), VarIntCoder.of())),
+            GlobalWindow.Coder.INSTANCE);
+    Coder<WindowedValue<String>> outputCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+    KvToFlinkKeyKeySelector<String, KV<byte[], Integer>> keySelector =
+        new KvToFlinkKeyKeySelector<>(StringUtf8Coder.of());
+
+    Supplier<DoFnOperator<KV<String, KV<byte[], Integer>>, KV<String, KV<byte[], Integer>>, String>>
+        operatorFactory =
+            () ->
+                new DoFnOperator<>(
+                    fn,
+                    "stepName",
+                    inputCoder,
+                    Collections.emptyMap(),
+                    outputTag,
+                    Collections.emptyList(),
+                    new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                        outputTag, outputCoder, new SerializablePipelineOptions(options)),
+                    WindowingStrategy.globalDefault(),
+                    new HashMap<>(),
+                    Collections.emptyList(),
+                    options,
+                    StringUtf8Coder.of(),
+                    keySelector,
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap());
+
+    OperatorSubtaskState snapshot;
+    try (KeyedOneInputStreamOperatorTestHarness<
+            FlinkKey, WindowedValue<KV<String, KV<byte[], Integer>>>, WindowedValue<String>>
+        harness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operatorFactory.get(), keySelector, ValueTypeInfo.of(FlinkKey.class))) {
+      harness.open();
+      harness.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("k", KV.of(new byte[] {1, 2}, 10)))));
+      harness.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("k", KV.of(new byte[] {1, 2}, 5)))));
+
+      assertThat(
+          stripStreamRecordFromWindowedValue(harness.getOutput()),
+          contains(
+              WindowedValues.valueInGlobalWindow("[1, 2]:10:true"),
+              WindowedValues.valueInGlobalWindow("[1, 2]:15:false")));
+
+      snapshot = harness.snapshot(1L, 1L);
+    }
+
+    try (KeyedOneInputStreamOperatorTestHarness<
+            FlinkKey, WindowedValue<KV<String, KV<byte[], Integer>>>, WindowedValue<String>>
+        restored =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operatorFactory.get(), keySelector, ValueTypeInfo.of(FlinkKey.class))) {
+      restored.initializeState(snapshot);
+      restored.open();
+      restored.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("k", KV.of(new byte[] {1, 2}, 7)))));
+
+      assertThat(
+          stripStreamRecordFromWindowedValue(restored.getOutput()),
+          contains(WindowedValues.valueInGlobalWindow("[1, 2]:22:false")));
+    }
+  }
+
+  @Test
+  public void testMapAndSetStateStructuralKeysInBatchMode() throws Exception {
+    DoFn<KV<String, KV<byte[], Integer>>, String> fn =
+        new DoFn<KV<String, KV<byte[], Integer>>, String>() {
+          @StateId("map")
+          private final StateSpec<MapState<byte[], Integer>> mapSpec =
+              StateSpecs.map(ByteArrayCoder.of(), VarIntCoder.of());
+
+          @StateId("set")
+          private final StateSpec<SetState<byte[]>> setSpec = StateSpecs.set(ByteArrayCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, KV<byte[], Integer>> element,
+              @StateId("map") MapState<byte[], Integer> mapState,
+              @StateId("set") SetState<byte[]> setState,
+              OutputReceiver<String> out) {
+            byte[] itemKey = element.getValue().getKey();
+            int delta = element.getValue().getValue();
+            Integer prev = mapState.get(itemKey).read();
+            int next = (prev == null ? 0 : prev) + delta;
+            mapState.put(itemKey, next);
+            boolean added = Boolean.TRUE.equals(setState.addIfAbsent(itemKey).read());
+            out.output(Arrays.toString(itemKey) + ":" + next + ":" + added);
+          }
+        };
+
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(false);
+    Coder<WindowedValue<KV<String, KV<byte[], Integer>>>> inputCoder =
+        WindowedValues.getFullCoder(
+            KvCoder.of(StringUtf8Coder.of(), KvCoder.of(ByteArrayCoder.of(), VarIntCoder.of())),
+            GlobalWindow.Coder.INSTANCE);
+    Coder<WindowedValue<String>> outputCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+    KvToFlinkKeyKeySelector<String, KV<byte[], Integer>> keySelector =
+        new KvToFlinkKeyKeySelector<>(StringUtf8Coder.of());
+
+    DoFnOperator<KV<String, KV<byte[], Integer>>, KV<String, KV<byte[], Integer>>, String>
+        operator =
+            new DoFnOperator<>(
+                fn,
+                "stepName",
+                inputCoder,
+                Collections.emptyMap(),
+                outputTag,
+                Collections.emptyList(),
+                new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                    outputTag, outputCoder, new SerializablePipelineOptions(options)),
+                WindowingStrategy.globalDefault(),
+                new HashMap<>(),
+                Collections.emptyList(),
+                options,
+                StringUtf8Coder.of(),
+                keySelector,
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
+
+    try (KeyedOneInputStreamOperatorTestHarness<
+            FlinkKey, WindowedValue<KV<String, KV<byte[], Integer>>>, WindowedValue<String>>
+        harness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operator, keySelector, ValueTypeInfo.of(FlinkKey.class))) {
+      harness.open();
+      harness.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("k", KV.of(new byte[] {1, 2}, 10)))));
+      harness.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("k", KV.of(new byte[] {1, 2}, 5)))));
+
+      assertThat(
+          stripStreamRecordFromWindowedValue(harness.getOutput()),
+          contains(
+              WindowedValues.valueInGlobalWindow("[1, 2]:10:true"),
+              WindowedValues.valueInGlobalWindow("[1, 2]:15:false")));
+    }
   }
 
   private static DoFnOperator<String, String, String> getOperatorForCleanupInspection() {
