@@ -2989,9 +2989,14 @@ class ReifyTest(unittest.TestCase):
     # the output types of the transforms.
     ts_hint = typehints.Tuple[str, TimestampedValue]
     if legacy_hints:
+      # An input that worked on 2.78.0: the key type is kept and the value is
+      # Any, so WindowInValue keeps the key coder it had in 2.78.0.
+      input_hint = typehints.Tuple[str, typehints.Any]
       window_hint = typehints.Any
-      window_in_value_hint = typehints.Tuple[typehints.Any, typehints.Any]
+      window_in_value_hint = typehints.Tuple[str, typehints.Any]
+      window_in_value_coder = 'TupleCoder[StrUtf8Coder, FastPrimitivesCoder]'
     else:
+      input_hint = typehints.Tuple[str, int]
       window_hint = typehints.Tuple[typehints.Tuple[str, int],
                                     Timestamp,
                                     window.BoundedWindow]
@@ -3000,8 +3005,9 @@ class ReifyTest(unittest.TestCase):
                                                  int,
                                                  Timestamp,
                                                  window.BoundedWindow]]
+      window_in_value_coder = None
     with TestPipeline(options=PipelineOptions(**options)) as p:
-      kvs = p | beam.Create([('a', 1), ('b', 2)])
+      kvs = p | beam.Create([('a', 1), ('b', 2)]).with_output_types(input_hint)
       windowed = kvs | 'Window' >> util.Reify.Window()
       self.assertEqual(windowed.element_type, window_hint)
       assert_that(
@@ -3017,6 +3023,10 @@ class ReifyTest(unittest.TestCase):
           label='CheckTimestamp')
       window_in_value = kvs | util.Reify.WindowInValue()
       self.assertEqual(window_in_value.element_type, window_in_value_hint)
+      if window_in_value_coder:
+        self.assertEqual(
+            str(beam.coders.registry.get_coder(window_in_value.element_type)),
+            window_in_value_coder)
       assert_that(
           window_in_value
           | 'GetValue' >> beam.MapTuple(lambda k, v: (k, v[0])),
