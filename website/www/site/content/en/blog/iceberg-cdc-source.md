@@ -38,7 +38,7 @@ delete their data.
 ## What it looks like
 
 Consider an `orders` table that gets three new orders, followed by an update that modifies order 1,
-deletes order 2, and adds order 4. Read as a stream of changes, these commits look like this:
+deletes order 2, and adds order 4. Read as a live stream of changes, these commits look like this:
 
 <img class="center-block" src="/images/blog/iceberg-cdc/changes-live-view.gif"
      alt="A Beam SQL live view of CHANGES(orders). Three inserts stream in from the first commit,
