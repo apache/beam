@@ -505,7 +505,8 @@ class SchemaTranslation(object):
       atomic_value = schema_pb2.AtomicTypeValue(bytes=value)
     else:
       raise ValueError(
-          "Unrecognized atomic_type {atomic_type} when encoding value {value}")
+          f"Unrecognized atomic_type ({atomic_type}) "
+          f"when encoding value {value!r}")
 
     return atomic_value
 

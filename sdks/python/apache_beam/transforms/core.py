@@ -548,8 +548,8 @@ class _ContextParam(_DoFnParam):
           "A context manager constructor (not a fully constructed context "
           "manager) must be passed to avoid issues with one-shot managers. "
           "For example, "
-          "write {class_name}(tempfile.TemporaryDirectory, args=(...)) "
-          "rather than {class_name}(tempfile.TemporaryDirectory(...))")
+          f"write {class_name}(tempfile.TemporaryDirectory, args=(...)) "
+          f"rather than {class_name}(tempfile.TemporaryDirectory(...))")
     super().__init__(f'{class_name}_{name or id(self)}')
     self.context_manager_constructor = context_manager_constructor
     self.args = args
@@ -1715,8 +1715,8 @@ class ParDo(PTransformWithSideInputs):
 
       if input_batch_type is None:
         raise TypeError(
-            "process_batch method on {self.fn!r} does not have "
-            "an input type annoation")
+            f"process_batch method on {self.fn!r} does not have "
+            "an input type annotation")
 
       try:
         # Generate a batch converter to convert between the input type and the
@@ -1739,7 +1739,7 @@ class ParDo(PTransformWithSideInputs):
         # TODO: Mention process method in this error
         raise TypeError(
             f"process_batch method on {self.fn!r} does not have "
-            "a return type annoation")
+            "a return type annotation")
 
       # Generate a batch converter to convert between the output type and the
       # (batch) output type of process_batch

@@ -18,6 +18,7 @@
 """Unit tests for the core python file."""
 # pytype: skip-file
 
+import contextlib
 import logging
 import os
 import tempfile
@@ -795,6 +796,29 @@ class CreateInferOutputSchemaTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError,
                                 "('No types found for field %s', 'a')"):
       beam.Create([beam.Row(a=None), beam.Row(a=None)]).infer_output_type(None)
+
+
+class ContextParamTest(unittest.TestCase):
+  def test_constructed_context_manager_error_names_param_class(self):
+    @contextlib.contextmanager
+    def one_shot():
+      yield
+
+    for param_cls, class_name in [
+        (beam.DoFn.BundleContextParam, 'BundleContextParam'),
+        (beam.DoFn.SetupContextParam, 'SetupContextParam')]:
+      # nullcontext() is not callable; a @contextmanager instance is callable
+      # but its __enter__ takes no arguments. Both are rejected.
+      for make_constructed in [contextlib.nullcontext, one_shot]:
+        with self.subTest(class_name, constructed=make_constructed.__name__):
+          with self.assertRaises(TypeError) as cm:
+            param_cls(make_constructed())
+          message = str(cm.exception)
+          self.assertIn(
+              f'write {class_name}(tempfile.TemporaryDirectory, args=(...)) '
+              f'rather than {class_name}(tempfile.TemporaryDirectory(...))',
+              message)
+          self.assertNotIn('{class_name}', message)
 
 
 if __name__ == '__main__':

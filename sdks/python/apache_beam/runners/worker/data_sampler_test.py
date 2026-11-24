@@ -102,6 +102,9 @@ class DataSamplerTest(unittest.TestCase):
     with self.assertLogs() as cm:
       self.data_sampler.sampler_for_output(MAIN_TRANSFORM_ID, 0)
     self.assertRegex(cm.output[0], 'Out-of-bounds access.*')
+    self.assertIn(
+        f'transform "{MAIN_TRANSFORM_ID}" and output "0" OutputSampler',
+        cm.output[0])
 
   def map_outputs_to_indices(
       self, outputs, descriptor, transform_id=MAIN_TRANSFORM_ID):
