@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -102,6 +104,30 @@ public class BatchElementsTest implements Serializable {
   @Test(expected = IllegalArgumentException.class)
   public void testBatchConfigNegativeFixedCostDurationThrows() {
     BatchElements.BatchConfig.builder().withTargetBatchDurationSecsWithFixedCost(-5.0).build();
+  }
+
+  // Element sizing & max batch weight validation
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMaxBatchWeightZeroThrows() {
+    BatchElements.<String>withDefaults().withElementSizeFn(String::length).withMaxBatchWeight(0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMaxBatchWeightNegativeThrows() {
+    BatchElements.<String>withDefaults().withElementSizeFn(String::length).withMaxBatchWeight(-10);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testNullElementSizeFnThrows() {
+    BatchElements.<String>withDefaults().withElementSizeFn(null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testMaxBatchWeightRequiresElementSizeFn() {
+    pipeline
+        .apply("Create", Create.of("a", "bb"))
+        .apply("Batch", BatchElements.<String>withDefaults().withMaxBatchWeight(10));
   }
 
   //  BatchSizeEstimator unit tests
@@ -542,6 +568,299 @@ public class BatchElementsTest implements Serializable {
                     }));
 
     PAssert.that(sizes).satisfies(s -> assertBatchSizesWithinLimitAndTotal(s, 10, 25));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  // Custom element sizing & weight-bounded batching tests
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSizedBatchesInGlobalWindow() {
+    List<String> input =
+        Arrays.asList("aa", "aaaaaaaaaa", "aaaaa", "aaaaa", "a", "aaaaaaa", "a", "a");
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.of(input))
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(10))
+                    .withElementSizeFn(String::length));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              List<String> seen = new ArrayList<>();
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                int totalLen = batch.stream().mapToInt(String::length).sum();
+                assertTrue("Batch total length " + totalLen + " exceeded 10", totalLen <= 10);
+                seen.addAll(batch);
+              }
+              Collections.sort(seen);
+              List<String> expected = new ArrayList<>(input);
+              Collections.sort(expected);
+              assertEquals(expected, seen);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSizedBatchesOversizedElementInGlobalWindow() {
+    String oversized = "aaaaaaaaaaaaaaaaaaaa"; // length 20 > target 10
+    List<String> input = Arrays.asList(oversized, "a", "a");
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.of(input))
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(10))
+                    .withElementSizeFn(String::length));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              List<String> seen = new ArrayList<>();
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                int totalLen = batch.stream().mapToInt(String::length).sum();
+                if (batch.contains(oversized)) {
+                  assertEquals(
+                      "Oversized element must be emitted in a singleton batch", 1, batch.size());
+                } else {
+                  assertTrue("Batch total length " + totalLen + " exceeded 10", totalLen <= 10);
+                }
+                seen.addAll(batch);
+              }
+              Collections.sort(seen);
+              List<String> expected = new ArrayList<>(input);
+              Collections.sort(expected);
+              assertEquals(expected, seen);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSizedBatchesWindowed() {
+    List<TimestampedValue<String>> input = new ArrayList<>();
+    for (int i = 1; i <= 7; i++) {
+      StringBuilder sb = new StringBuilder();
+      for (int j = 0; j < i; j++) {
+        sb.append('a');
+      }
+      input.add(TimestampedValue.of(sb.toString(), new Instant(i * 1000L)));
+    }
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.timestamped(input))
+            .apply(
+                "Window",
+                Window.<String>into(FixedWindows.of(Duration.standardSeconds(3)))
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes())
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(11))
+                    .withElementSizeFn(String::length));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              int totalElements = 0;
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                int totalLen = batch.stream().mapToInt(String::length).sum();
+                assertTrue("Batch total length " + totalLen + " exceeded 11", totalLen <= 11);
+                totalElements += batch.size();
+              }
+              assertEquals(7, totalElements);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSizedBatchesOversizedElementWindowed() {
+    String oversized = "aaaaaaaaaaaaaaaaaaaa"; // length 20 > target 10
+    List<TimestampedValue<String>> input =
+        Arrays.asList(
+            TimestampedValue.of(oversized, new Instant(1000L)),
+            TimestampedValue.of("a", new Instant(1000L)),
+            TimestampedValue.of("a", new Instant(1000L)));
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.timestamped(input))
+            .apply(
+                "Window",
+                Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes())
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(10))
+                    .withElementSizeFn(String::length));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              int totalElements = 0;
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                if (batch.contains(oversized)) {
+                  assertEquals(
+                      "Oversized element must be emitted in a singleton batch", 1, batch.size());
+                } else {
+                  int totalLen = batch.stream().mapToInt(String::length).sum();
+                  assertTrue("Batch total length " + totalLen + " exceeded 10", totalLen <= 10);
+                }
+                totalElements += batch.size();
+              }
+              assertEquals(3, totalElements);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMaxBatchWeightInGlobalWindow() {
+    String oversized = "aaaaaaaaaaaaaaaaaaaa"; // length 20 > maxBatchWeight 10
+    List<String> input = Arrays.asList("a", "a", "a", "aaaa", "aaaa", "aaaa", "a", oversized, "a");
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.of(input))
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(3))
+                    .withMaxBatchWeight(10)
+                    .withElementSizeFn(String::length));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              List<String> seen = new ArrayList<>();
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                assertTrue(
+                    "Batch count " + batch.size() + " exceeded maxBatchSize 3", batch.size() <= 3);
+                int totalWeight = batch.stream().mapToInt(String::length).sum();
+                if (batch.contains(oversized)) {
+                  assertEquals(
+                      "Oversized element must be emitted in a singleton batch", 1, batch.size());
+                } else {
+                  assertTrue(
+                      "Batch weight " + totalWeight + " exceeded maxBatchWeight 10",
+                      totalWeight <= 10);
+                }
+                seen.addAll(batch);
+              }
+              Collections.sort(seen);
+              List<String> expected = new ArrayList<>(input);
+              Collections.sort(expected);
+              assertEquals(expected, seen);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMaxBatchWeightWindowed() {
+    List<TimestampedValue<String>> input =
+        Arrays.asList(
+            TimestampedValue.of("a", new Instant(11_000L)),
+            TimestampedValue.of("a", new Instant(11_000L)),
+            TimestampedValue.of("a", new Instant(11_000L)),
+            TimestampedValue.of("a", new Instant(11_000L)),
+            TimestampedValue.of("aaaa", new Instant(1_000L)),
+            TimestampedValue.of("aaaa", new Instant(1_000L)),
+            TimestampedValue.of("aaaa", new Instant(1_000L)));
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.timestamped(input))
+            .apply(
+                "Window",
+                Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes())
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(3))
+                    .withElementSizeFn(String::length)
+                    .withMaxBatchWeight(10));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              int totalElements = 0;
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                assertTrue(
+                    "Batch count " + batch.size() + " exceeded maxBatchSize 3", batch.size() <= 3);
+                int totalWeight = batch.stream().mapToInt(String::length).sum();
+                assertTrue(
+                    "Batch weight " + totalWeight + " exceeded maxBatchWeight 10",
+                    totalWeight <= 10);
+                // Elements from different windows have different lengths (1 vs 4)
+                int firstLen = batch.get(0).length();
+                for (String s : batch) {
+                  assertEquals("Cross-window batching detected", firstLen, s.length());
+                }
+                totalElements += batch.size();
+              }
+              assertEquals(7, totalElements);
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMaxBatchWeightExactBoundary() {
+    List<String> input = Arrays.asList("aaaaa", "aaaaa", "aaaaa", "aaaaa"); // each weight 5
+
+    PCollection<List<String>> batches =
+        pipeline
+            .apply("Create", Create.of(input))
+            .apply(
+                "Batch",
+                BatchElements.<String>withConfig(constantConfig(10))
+                    .withElementSizeFn(String::length)
+                    .withMaxBatchWeight(10));
+
+    PAssert.that(batches)
+        .satisfies(
+            allBatches -> {
+              int totalElements = 0;
+              for (List<String> batch : allBatches) {
+                assertTrue("Batch must not be empty", !batch.isEmpty());
+                int totalWeight = batch.stream().mapToInt(String::length).sum();
+                assertTrue(
+                    "Batch weight " + totalWeight + " exceeded maxBatchWeight 10",
+                    totalWeight <= 10);
+                assertTrue("At most 2 elements of weight 5 fit in weight 10", batch.size() <= 2);
+                totalElements += batch.size();
+              }
+              assertEquals(4, totalElements);
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }

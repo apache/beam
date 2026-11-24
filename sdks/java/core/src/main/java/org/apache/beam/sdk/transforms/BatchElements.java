@@ -88,14 +88,45 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  *             }));
  * }</pre>
  *
+ * <h3>Batching Modes</h3>
+ *
+ * <p>Depending on whether {@link #withElementSizeFn(SerializableFunction)} and {@link
+ * #withMaxBatchWeight(long)} are configured, {@link BatchElements} operates in one of three modes:
+ *
+ * <pre>{@code
+ * // Mode 1: Count-based (default)
+ * // Every element has size 1; the adaptive target batch size is measured in element count.
+ * BatchElements.<String>withDefaults();
+ *
+ * // Mode 2: Custom sizing
+ * // Each element contributes elementSizeFn(element); the adaptive target batch size
+ * // (between minBatchSize and maxBatchSize) is measured in custom element size units.
+ * BatchElements.<String>withDefaults()
+ *     .withElementSizeFn(String::length);
+ *
+ * // Mode 3: Count + weight constraints
+ * // Adaptive element COUNT (between minBatchSize and maxBatchSize) + hard maximum TOTAL WEIGHT
+ * // (sum of elementSizeFn(element) <= maxBatchWeight).
+ * BatchElements.<String>withDefaults()
+ *     .withElementSizeFn(String::length)
+ *     .withMaxBatchWeight(1024);
+ * }</pre>
+ *
  * @param <T> the type of input elements
  */
 public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<List<T>>> {
 
   private final BatchConfig config;
+  private final @Nullable SerializableFunction<T, Integer> elementSizeFn;
+  private final @Nullable Long maxBatchWeight;
 
-  private BatchElements(BatchConfig config) {
+  private BatchElements(
+      BatchConfig config,
+      @Nullable SerializableFunction<T, Integer> elementSizeFn,
+      @Nullable Long maxBatchWeight) {
     this.config = config;
+    this.elementSizeFn = elementSizeFn;
+    this.maxBatchWeight = maxBatchWeight;
   }
 
   /** Batch Elements with default configuration. */
@@ -104,7 +135,46 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
   }
 
   public static <T> BatchElements<T> withConfig(BatchConfig config) {
-    return new BatchElements<>(config);
+    return new BatchElements<>(config, null, null);
+  }
+
+  /**
+   * Sets a function for measuring how much each element contributes to a batch.
+   *
+   * <p>Use this when elements have different sizes (e.g., bytes, string length, or token count) and
+   * batching by element count alone is insufficient.
+   *
+   * <p>By default, the measured size determines when a batch reaches its adaptive target. When used
+   * with {@link #withMaxBatchWeight(long)}, the adaptive target is based on element count, and the
+   * measured size is used to enforce the maximum batch weight.
+   *
+   * @param elementSizeFn function for measuring an element's size
+   * @throws IllegalArgumentException if {@code elementSizeFn} is {@code null}
+   * @see #withMaxBatchWeight(long)
+   */
+  public BatchElements<T> withElementSizeFn(SerializableFunction<T, Integer> elementSizeFn) {
+    if (elementSizeFn == null) {
+      throw new IllegalArgumentException("elementSizeFn must not be null");
+    }
+    return new BatchElements<>(config, elementSizeFn, maxBatchWeight);
+  }
+
+  /**
+   * Sets a maximum total element size per batch, regardless of the adaptive batch size.
+   *
+   * <p>Requires {@link #withElementSizeFn(SerializableFunction)}. A batch is emitted when adding
+   * another element would exceed either the adaptive element-count target or this size limit. An
+   * element exceeding the limit is emitted in its own batch.
+   *
+   * @param maxBatchWeight maximum total element size per batch (must be {@code >= 1})
+   * @throws IllegalArgumentException if {@code maxBatchWeight < 1}
+   * @see #withElementSizeFn(SerializableFunction)
+   */
+  public BatchElements<T> withMaxBatchWeight(long maxBatchWeight) {
+    if (maxBatchWeight < 1) {
+      throw new IllegalArgumentException("maxBatchWeight must be >= 1, got " + maxBatchWeight);
+    }
+    return new BatchElements<>(config, elementSizeFn, maxBatchWeight);
   }
 
   /**
@@ -452,12 +522,20 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
   static class GlobalWindowsBatchingDoFn<T> extends DoFn<T, List<T>> {
     private transient BatchSizeEstimator estimator;
     private final BatchConfig config;
+    private final @Nullable SerializableFunction<T, Integer> elementSizeFn;
+    private final @Nullable Long maxBatchWeight;
     private List<T> batch;
     private int runningBatchSize;
+    private long runningBatchWeight;
     private int targetBatchSize;
 
-    public GlobalWindowsBatchingDoFn(BatchConfig config) {
+    public GlobalWindowsBatchingDoFn(
+        BatchConfig config,
+        @Nullable SerializableFunction<T, Integer> elementSizeFn,
+        @Nullable Long maxBatchWeight) {
       this.config = config;
+      this.elementSizeFn = elementSizeFn;
+      this.maxBatchWeight = maxBatchWeight;
     }
 
     @Setup
@@ -469,25 +547,41 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     public void startBundle() {
       batch = new ArrayList<>();
       runningBatchSize = 0;
+      runningBatchWeight = 0L;
       targetBatchSize = estimator.nextBatchSize();
     }
 
     @ProcessElement
     public void processElement(@Element T element, OutputReceiver<List<T>> receiver) {
-      int elementSize = 1;
-      if (runningBatchSize + elementSize > targetBatchSize) {
-        if (runningBatchSize > 0 && !batch.isEmpty()) {
-          try (BatchElements.BatchSizeEstimator.Stopwatch sw =
-              estimator.recordTime(runningBatchSize)) {
-            receiver.output(batch); // emit full batch downstream
-          }
+      int elementSize;
+      long elementWeight;
+      if (maxBatchWeight == null) {
+        elementSize = elementSizeFn != null ? elementSizeFn.apply(element) : 1;
+        elementWeight = 0L;
+      } else {
+        elementSize = 1;
+        elementWeight = elementSizeFn != null ? elementSizeFn.apply(element) : 1L;
+      }
+
+      boolean wouldExceedSize = runningBatchSize + (long) elementSize > targetBatchSize;
+      boolean wouldExceedWeight =
+          maxBatchWeight != null && runningBatchWeight + elementWeight > maxBatchWeight;
+
+      // Never emit an empty batch: an element that exceeds the limits on its own
+      // is emitted in a batch by itself.
+      if (!batch.isEmpty() && (wouldExceedSize || wouldExceedWeight)) {
+        try (BatchElements.BatchSizeEstimator.Stopwatch sw =
+            estimator.recordTime(runningBatchSize)) {
+          receiver.output(batch); // emit full batch downstream
         }
         batch = new ArrayList<>();
         runningBatchSize = 0;
+        runningBatchWeight = 0L;
         targetBatchSize = estimator.nextBatchSize();
       }
       batch.add(element);
       runningBatchSize += elementSize;
+      runningBatchWeight += elementWeight;
     }
 
     @FinishBundle
@@ -515,6 +609,8 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
   static class WindowAwareBatchingDoFn<T> extends DoFn<T, List<T>> {
     private transient BatchSizeEstimator estimator;
     private final BatchConfig config;
+    private final @Nullable SerializableFunction<T, Integer> elementSizeFn;
+    private final @Nullable Long maxBatchWeight;
     private transient Map<BoundedWindow, SizedBatch<T>> batches;
     private int targetBatchSize;
 
@@ -523,10 +619,16 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     private static class SizedBatch<T> implements Serializable {
       List<T> elements = new ArrayList<>();
       int size = 0;
+      long weight = 0L;
     }
 
-    private WindowAwareBatchingDoFn(BatchConfig config) {
+    private WindowAwareBatchingDoFn(
+        BatchConfig config,
+        @Nullable SerializableFunction<T, Integer> elementSizeFn,
+        @Nullable Long maxBatchWeight) {
       this.config = config;
+      this.elementSizeFn = elementSizeFn;
+      this.maxBatchWeight = maxBatchWeight;
     }
 
     @Setup
@@ -547,10 +649,23 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       // get or create batch for this window
       SizedBatch<T> batch = batches.computeIfAbsent(window, w -> new SizedBatch<>());
 
-      int elementSize = 1;
+      int elementSize;
+      long elementWeight;
+      if (maxBatchWeight == null) {
+        elementSize = elementSizeFn != null ? elementSizeFn.apply(element) : 1;
+        elementWeight = 0L;
+      } else {
+        elementSize = 1;
+        elementWeight = elementSizeFn != null ? elementSizeFn.apply(element) : 1L;
+      }
 
-      // emit if this window's batch is full
-      if (batch.size + elementSize > targetBatchSize) {
+      boolean wouldExceedSize = batch.size + (long) elementSize > targetBatchSize;
+      boolean wouldExceedWeight =
+          maxBatchWeight != null && batch.weight + elementWeight > maxBatchWeight;
+
+      // Never emit an empty batch: an element that exceeds the limits on its own
+      // is emitted in a batch by itself.
+      if (!batch.elements.isEmpty() && (wouldExceedSize || wouldExceedWeight)) {
         try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(batch.size)) {
           receiver.output(batch.elements);
         }
@@ -562,6 +677,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
 
       batch.elements.add(element);
       batch.size += elementSize;
+      batch.weight += elementWeight;
 
       // evict largest window if too many live windows
       if (batches.size() > MAX_LIVE_WINDOWS) {
@@ -601,10 +717,15 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
 
   @Override
   public PCollection<List<T>> expand(PCollection<T> input) {
+    if (maxBatchWeight != null && elementSizeFn == null) {
+      throw new IllegalArgumentException("maxBatchWeight requires elementSizeFn to be set.");
+    }
     if (input.getWindowingStrategy().equals(WindowingStrategy.globalDefault())) {
-      return input.apply(ParDo.of(new GlobalWindowsBatchingDoFn<>(config)));
+      return input.apply(
+          ParDo.of(new GlobalWindowsBatchingDoFn<>(config, elementSizeFn, maxBatchWeight)));
     } else {
-      return input.apply(ParDo.of(new WindowAwareBatchingDoFn<>(config)));
+      return input.apply(
+          ParDo.of(new WindowAwareBatchingDoFn<>(config, elementSizeFn, maxBatchWeight)));
     }
   }
 }
