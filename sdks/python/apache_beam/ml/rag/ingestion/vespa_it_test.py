@@ -146,7 +146,7 @@ class TestVespaIngestion(unittest.TestCase):
         **kwargs)
 
   def _write(self, items, **kwargs):
-    with TestPipeline(is_integration_test=True) as p:
+    with TestPipeline() as p:
       _ = (
           p
           | beam.Create(items)
