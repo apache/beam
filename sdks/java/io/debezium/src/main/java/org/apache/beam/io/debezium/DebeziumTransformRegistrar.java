@@ -82,6 +82,7 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable List<String> startOffset;
       private @Nullable String offsetStoragePath;
       private @Nullable Boolean fullMetadata;
+      private @Nullable Boolean schemaChangeEvents;
 
       public void setConnectionProperties(@Nullable List<String> connectionProperties) {
         this.connectionProperties = connectionProperties;
@@ -105,6 +106,10 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setFullMetadata(@Nullable Boolean fullMetadata) {
         this.fullMetadata = fullMetadata;
+      }
+
+      public void setSchemaChangeEvents(@Nullable Boolean schemaChangeEvents) {
+        this.schemaChangeEvents = schemaChangeEvents;
       }
     }
 
@@ -168,6 +173,10 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
       if (Boolean.TRUE.equals(configuration.fullMetadata)) {
         readTransform = readTransform.withFullMetadata(true);
+      }
+
+      if (Boolean.TRUE.equals(configuration.schemaChangeEvents)) {
+        readTransform = readTransform.withSchemaChangeEvents(true);
       }
 
       return readTransform;
