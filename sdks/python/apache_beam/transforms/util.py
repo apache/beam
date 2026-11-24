@@ -126,6 +126,9 @@ T = TypeVar('T')
 U = TypeVar('U')
 
 RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
+REIFY_TYPEHINT_BREAKING_CHANGE_VERSION = "2.79.0"
+_ReifiedWindowInfo = tuple[Any, Timestamp, window.BoundedWindow]
+_ReifiedKeyedWindowInfo = tuple[Any, _ReifiedWindowInfo]
 
 
 class CoGroupByKey(PTransform):
@@ -2459,10 +2462,19 @@ class Reify(object):
     @staticmethod
     def add_window_info(
         element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
-      yield TimestampedValue((element, timestamp, window), timestamp)
+      # A subscripted TimestampedValue makes the runtime type check look at the
+      # wrapped tuple instead of the TimestampedValue object itself.
+      yield TimestampedValue[_ReifiedWindowInfo]((element, timestamp, window),
+                                                 timestamp)
 
     def expand(self, pcoll):
-      return pcoll | ParDo(self.add_window_info)
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          REIFY_TYPEHINT_BREAKING_CHANGE_VERSION):
+        return pcoll | ParDo(self.add_window_info).with_output_types(Any)
+      return (
+          pcoll
+          | ParDo(self.add_window_info).with_input_types(T).with_output_types(
+              tuple[T, Timestamp, window.BoundedWindow]))
 
   @typehints.with_input_types(tuple[K, V])
   @typehints.with_output_types(tuple[K, TimestampedValue])
@@ -2487,10 +2499,18 @@ class Reify(object):
     def add_window_info(
         element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       key, value = element
-      yield TimestampedValue((key, (value, timestamp, window)), timestamp)
+      yield TimestampedValue[_ReifiedKeyedWindowInfo](
+          (key, (value, timestamp, window)), timestamp)
 
     def expand(self, pcoll):
-      return pcoll | ParDo(self.add_window_info)
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          REIFY_TYPEHINT_BREAKING_CHANGE_VERSION):
+        return pcoll | ParDo(self.add_window_info).with_output_types(
+            tuple[K, Any])
+      return (
+          pcoll | ParDo(self.add_window_info).with_input_types(
+              tuple[K, V]).with_output_types(
+                  tuple[K, tuple[V, Timestamp, window.BoundedWindow]]))
 
 
 class Regex(object):

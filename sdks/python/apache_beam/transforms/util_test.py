@@ -2964,29 +2964,62 @@ class ReifyTest(unittest.TestCase):
       assert_that(reified_pc, equal_to(expected), reify_windows=True)
 
   @parameterized.expand([
-      ('default', False),
-      ('runtime_type_check', True),
+      ('default', {}, False),
+      ('runtime_type_check', {
+          'runtime_type_check': True
+      }, False),
+      (
+          'compat_2_78_0',
+          {
+              'update_compatibility_version': '2.78.0'
+          },
+          True,
+      ),
+      (
+          'compat_2_78_0_runtime_type_check',
+          {
+              'update_compatibility_version': '2.78.0',
+              'runtime_type_check': True
+          },
+          True,
+      ),
   ])
-  def test_typed_input(self, _, runtime_type_check):
+  def test_typed_input(self, _, options, legacy_hints):
     # Create infers the element type, and the coders of the outputs come from
     # the output types of the transforms.
-    options = PipelineOptions(runtime_type_check=runtime_type_check)
-    with TestPipeline(options=options) as p:
+    ts_hint = typehints.Tuple[str, TimestampedValue]
+    if legacy_hints:
+      window_hint = typehints.Any
+      window_in_value_hint = typehints.Tuple[typehints.Any, typehints.Any]
+    else:
+      window_hint = typehints.Tuple[typehints.Tuple[str, int],
+                                    Timestamp,
+                                    window.BoundedWindow]
+      window_in_value_hint = typehints.Tuple[str,
+                                             typehints.Tuple[
+                                                 int,
+                                                 Timestamp,
+                                                 window.BoundedWindow]]
+    with TestPipeline(options=PipelineOptions(**options)) as p:
       kvs = p | beam.Create([('a', 1), ('b', 2)])
-      windowed = (
-          kvs | 'Window' >> util.Reify.Window()
-          | 'GetElement' >> beam.Map(lambda x: x[0]))
-      assert_that(windowed, equal_to([('a', 1), ('b', 2)]), label='CheckWindow')
-      timestamped = (
-          kvs | util.Reify.TimestampInValue()
-          | 'GetTsValue' >> beam.MapTuple(lambda k, v: (k, v.value)))
+      windowed = kvs | 'Window' >> util.Reify.Window()
+      self.assertEqual(windowed.element_type, window_hint)
       assert_that(
-          timestamped, equal_to([('a', 1), ('b', 2)]), label='CheckTimestamp')
-      window_in_value = (
-          kvs | util.Reify.WindowInValue()
-          | 'GetValue' >> beam.MapTuple(lambda k, v: (k, v[0])))
+          windowed | 'GetElement' >> beam.Map(lambda x: x[0]),
+          equal_to([('a', 1), ('b', 2)]),
+          label='CheckWindow')
+      timestamped = kvs | util.Reify.TimestampInValue()
+      self.assertEqual(timestamped.element_type, ts_hint)
       assert_that(
-          window_in_value,
+          timestamped
+          | 'GetTsValue' >> beam.MapTuple(lambda k, v: (k, v.value)),
+          equal_to([('a', 1), ('b', 2)]),
+          label='CheckTimestamp')
+      window_in_value = kvs | util.Reify.WindowInValue()
+      self.assertEqual(window_in_value.element_type, window_in_value_hint)
+      assert_that(
+          window_in_value
+          | 'GetValue' >> beam.MapTuple(lambda k, v: (k, v[0])),
           equal_to([('a', 1), ('b', 2)]),
           label='CheckWindowInValue')
 
