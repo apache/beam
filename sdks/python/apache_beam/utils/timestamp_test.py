@@ -478,6 +478,23 @@ class DurationTest(unittest.TestCase):
     expected_dur_proto = duration_pb2.Duration(seconds=1234, nanos=56000)
     self.assertEqual(actual_dur_proto, expected_dur_proto)
 
+  def test_to_proto_negative(self):
+    # A Duration proto with a nonzero nanos must have nanos with the same sign
+    # as seconds, and seconds=0 when the duration is under one second.
+    for dur, seconds, nanos in [
+        (Duration(micros=-1), 0, -1000),
+        (Duration(micros=-1500000), -1, -500000000),
+        (Duration(seconds=-1234, micros=-56), -1234, -56000),
+        (Duration(seconds=-2), -2, 0),
+    ]:
+      with self.subTest(dur=dur):
+        dur_proto = dur.to_proto()
+        self.assertEqual(
+            dur_proto, duration_pb2.Duration(seconds=seconds, nanos=nanos))
+        # ToJsonString validates the proto and raises on a sign mismatch.
+        dur_proto.ToJsonString()
+        self.assertEqual(Duration.from_proto(dur_proto), dur)
+
 
 if __name__ == '__main__':
   unittest.main()
