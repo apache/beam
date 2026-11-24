@@ -46,20 +46,28 @@ dependencies {
     testImplementation library.java.junit
 }
 
+def jammAddOpens = [
+    '--add-opens=java.base/java.lang=ALL-UNNAMED',
+    '--add-opens=java.base/java.util=ALL-UNNAMED',
+]
+
 jmh {
     configurations.jammAgent.resolvedConfiguration.files.each {
         jvmArgs '-javaagent:' + it
     }
+    jvmArgs jammAddOpens
 }
 
 jmhTest {
     configurations.jammAgent.resolvedConfiguration.files.each {
         jvmArgs '-javaagent:' + it
     }
+    jvmArgs jammAddOpens
 }
 
 test {
     configurations.jammAgent.resolvedConfiguration.files.each {
         jvmArgs '-javaagent:' + it
     }
+    jvmArgs jammAddOpens
 }
