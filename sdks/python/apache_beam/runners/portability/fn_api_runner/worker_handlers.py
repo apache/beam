@@ -469,6 +469,9 @@ class GrpcServer(object):
         # match `grpc.keepalive_time_ms` defined in the client
         # (channel_factory.py)
         ("grpc.http2.min_ping_interval_without_data_ms", 20_000),
+        # Prevent distinct ephemeral-port servers from sharing a port on Linux
+        # via SO_REUSEPORT, which can route RPCs to the wrong servicer.
+        ("grpc.so_reuseport", 0),
     ]
 
     self.state = state

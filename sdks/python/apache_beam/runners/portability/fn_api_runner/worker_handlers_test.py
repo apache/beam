@@ -17,9 +17,13 @@
 # pytype: skip-file
 import logging
 import unittest
+from concurrent import futures
+
+import grpc
 
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.runners.portability.fn_api_runner.fn_runner import ExtendedProvisionInfo
+from apache_beam.runners.portability.fn_api_runner.worker_handlers import GrpcServer
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
 from apache_beam.transforms import environments
 
@@ -45,6 +49,30 @@ class WorkerHandlerManagerTest(unittest.TestCase):
     second_workers = manager.get_worker_handlers('inprocess', 1)
     assert len(first_workers) == len(second_workers) == 1
     assert first_workers != second_workers
+
+  def test_grpc_server_disables_so_reuseport(self):
+    server = GrpcServer(state=None, provision_info=None, worker_manager=None)
+    try:
+      for port in (
+          server.control_port,
+          server.data_port,
+          server.state_port,
+          server.logging_port,
+      ):
+        other = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
+        try:
+          try:
+            bound = other.add_insecure_port('[::]:%d' % port)
+          except RuntimeError:
+            bound = 0
+          self.assertEqual(
+              bound,
+              0,
+              'Expected port %d to disallow SO_REUSEPORT sharing' % port)
+        finally:
+          other.stop(0)
+    finally:
+      server.close()
 
 
 if __name__ == '__main__':

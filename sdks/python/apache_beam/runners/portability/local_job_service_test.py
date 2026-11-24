@@ -18,7 +18,9 @@
 
 import logging
 import unittest
+from concurrent import futures
 
+import grpc
 import mock
 
 from apache_beam.options import pipeline_options
@@ -129,6 +131,25 @@ class LocalJobServerTest(unittest.TestCase):
     self.assertEqual(
         options_proto['beam:option:artifact_endpoint:v1'],
         test_artifact_endpoint)
+
+  def test_grpc_server_disables_so_reuseport(self):
+    job_service = local_job_service.LocalJobServicer()
+    port = job_service.start_grpc_server()
+    try:
+      other = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
+      try:
+        try:
+          bound = other.add_insecure_port('localhost:%d' % port)
+        except RuntimeError:
+          bound = 0
+        self.assertEqual(
+            bound,
+            0,
+            'Expected port %d to disallow SO_REUSEPORT sharing' % port)
+      finally:
+        other.stop(0)
+    finally:
+      job_service.stop()
 
 
 if __name__ == '__main__':
