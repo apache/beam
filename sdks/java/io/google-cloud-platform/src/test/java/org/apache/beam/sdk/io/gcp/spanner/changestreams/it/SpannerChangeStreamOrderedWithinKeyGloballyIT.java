@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
@@ -269,8 +270,10 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
   // to output the buffered data change records.
   // We utilize a looping timer to determine when to flush the buffer:
   //
-  // 1. When we see a data change record for a key for the first time, we will set the timer to
-  //    fire at the data change record's commit timestamp.
+  // 1. When we see a data change record for a key, we will set the timer to fire at the data
+  //    change record's commit timestamp plus incrementIntervalInSeconds, unless a timer is already
+  //    set to fire earlier. Records can arrive out of commit timestamp order, and the watermark
+  //    cannot pass a record that has not arrived yet, so an earlier record moves the timer back.
   // 2. Then, when the timer fires, if the current timer's expiration time is before the pipeline
   //    end time, if set, we still have data left to process. We will set the next timer to the
   //    current timer's expiration time plus incrementIntervalInSeconds.
@@ -305,6 +308,11 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
     @StateId("seenKey")
     private final StateSpec<ValueState<String>> seenKey = StateSpecs.value(StringUtf8Coder.of());
 
+    @SuppressWarnings("unused")
+    @StateId("timerTimestamp")
+    private final StateSpec<ValueState<Instant>> timerTimestampSpec =
+        StateSpecs.value(InstantCoder.of());
+
     @ProcessElement
     public void process(
         @Element
@@ -314,19 +322,19 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             BagState<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
                 buffer,
         @TimerId("timer") Timer timer,
-        @StateId("seenKey") ValueState<String> seenKey) {
+        @StateId("seenKey") ValueState<String> seenKey,
+        @StateId("timerTimestamp") ValueState<Instant> timerTimestamp) {
       buffer.add(element.getValue());
 
-      // Only set the timer if this is the first time we are receiving a data change record
-      // with this key.
-      String hasKeyBeenSeen = seenKey.read();
-      if (hasKeyBeenSeen == null) {
-        Instant commitTimestamp =
-            new Instant(element.getValue().getValue().getCommitTimestamp().toSqlTimestamp());
-        Instant outputTimestamp =
-            commitTimestamp.plus(Duration.standardSeconds(incrementIntervalInSeconds));
+      Instant commitTimestamp =
+          new Instant(element.getValue().getValue().getCommitTimestamp().toSqlTimestamp());
+      Instant outputTimestamp =
+          commitTimestamp.plus(Duration.standardSeconds(incrementIntervalInSeconds));
+      Instant currentTimerTimestamp = timerTimestamp.read();
+      if (currentTimerTimestamp == null || outputTimestamp.isBefore(currentTimerTimestamp)) {
         LOG.info("Setting timer at {} for key {}", outputTimestamp.toString(), element.getKey());
         timer.set(outputTimestamp);
+        timerTimestamp.write(outputTimestamp);
         seenKey.write(element.getKey());
       }
     }
@@ -338,7 +346,8 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
             BagState<KV<SpannerChangeStreamOrderedWithinKeyGloballyIT.SortKey, DataChangeRecord>>
                 buffer,
         @TimerId("timer") Timer timer,
-        @StateId("seenKey") ValueState<String> seenKey) {
+        @StateId("seenKey") ValueState<String> seenKey,
+        @StateId("timerTimestamp") ValueState<Instant> timerTimestamp) {
       String keyForTimer = seenKey.read();
       Instant timerContextTimestamp = context.timestamp();
       LOG.info(
@@ -403,9 +412,11 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
       if (buffer.isEmpty() != null && !buffer.isEmpty().read()) {
         LOG.info("Setting next timer to {} for key {}", nextTimer.toString(), keyForTimer);
         timer.set(nextTimer);
+        timerTimestamp.write(nextTimer);
       } else {
         LOG.info("Timer not being set since the buffer is empty for key {} ", keyForTimer);
         seenKey.clear();
+        timerTimestamp.clear();
       }
     }
   }
