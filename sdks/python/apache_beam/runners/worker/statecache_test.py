@@ -18,6 +18,7 @@
 """Tests for state caching."""
 # pytype: skip-file
 
+import collections
 import logging
 import re
 import sys
@@ -435,11 +436,27 @@ class StateCacheTest(unittest.TestCase):
     self.assertEqual(cache.peek('key'), initial + new_elements)
     self.assertEqual(cache._current_weight, get_deep_size(cache.peek('key')))
 
-  def test_extend_non_extensible_raises_type_error(self):
+  def test_extend_non_list_raises_type_error(self):
     cache = StateCache(5 << 20)
-    cache.put('key', (1, 2, 3))
-    with self.assertRaises(TypeError):
-      cache.extend('key', [4, 5])
+    for non_list in ((1, 2, 3), collections.deque([1, 2, 3])):
+      cache.put('key', non_list)
+      with self.assertRaises(TypeError):
+        cache.extend('key', [4, 5])
+
+  def test_extend_missing_or_loading_entry_is_noop(self):
+    cache = StateCache(5 << 20)
+    cache.extend('evicted_key', [1, 2])
+    self.assertIsNone(cache.peek('evicted_key'))
+    self.assertEqual(cache._current_weight, 0)
+
+    loading = _LoadingValue()
+    with cache._lock:
+      cache._cache['loading_key'] = loading
+      cache._current_weight += loading.weight()
+    weight_before = cache._current_weight
+    cache.extend('loading_key', [1, 2])
+    self.assertEqual(cache._current_weight, weight_before)
+    self.assertIs(cache._cache['loading_key'], loading)
 
 
 if __name__ == '__main__':
