@@ -137,13 +137,6 @@ public class SourceRecordJson {
   private static final String SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME =
       "io.debezium.connector.common.TransactionMetadataKey";
 
-  /** Key schema names of the schema change events emitted by the supported connectors. */
-  private static final Set<String> SCHEMA_CHANGE_EVENT_KEY_NAMES =
-      ImmutableSet.of(
-          "io.debezium.connector.mysql.SchemaChangeKey",
-          "io.debezium.connector.oracle.SchemaChangeKey",
-          "io.debezium.connector.sqlserver.SchemaChangeKey");
-
   private static final Gson GSON = new GsonBuilder().serializeNulls().create();
 
   private final @Nullable Struct value;
