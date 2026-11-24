@@ -123,7 +123,7 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
     batch_size: Number of documents buffered before a flush. Each flush
       (including the one at the end of every bundle) opens a new connection
       pool, so very small bundles pay connection setup more often.
-    max_queue_size, max_workers, max_connections, compress, num_retries_429:
+    max_queue_size, max_workers, max_connections, num_retries_429:
       Passed to ``Vespa.feed_iterable``.
   """
   connection_params: VespaConnectionParameters
@@ -139,7 +139,6 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
   max_queue_size: int = 1000
   max_workers: int = 8
   max_connections: int = 16
-  compress: Any = "auto"
   num_retries_429: int = 10
 
   def __post_init__(self):
@@ -316,7 +315,6 @@ class _VespaWriteFn(beam.DoFn):
         max_queue_size=self.config.max_queue_size,
         max_workers=self.config.max_workers,
         max_connections=self.config.max_connections,
-        compress=self.config.compress,
         num_retries_429=self.config.num_retries_429,
         **extra,
     )
