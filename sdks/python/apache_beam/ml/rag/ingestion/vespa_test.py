@@ -113,6 +113,29 @@ class TestVespaWriteConfig(unittest.TestCase):
       VespaWriteConfig(
           connection_params=_params(), schema="doc", content_field="")
 
+  def test_metadata_fields_duplicate_targets_raise(self):
+    with self.assertRaises(ValueError):
+      VespaWriteConfig(
+          connection_params=_params(),
+          schema="doc",
+          metadata_fields={
+              "a": "target", "b": "target"
+          })
+
+  def test_metadata_fields_target_collides_with_reserved_raise(self):
+    with self.assertRaises(ValueError):
+      VespaWriteConfig(
+          connection_params=_params(),
+          schema="doc",
+          metadata_fields={"source": "embedding"})
+
+  def test_metadata_fields_collision_allowed_with_fields_fn(self):
+    VespaWriteConfig(
+        connection_params=_params(),
+        schema="doc",
+        fields_fn=lambda item: {},
+        metadata_fields={"source": "embedding"})
+
   def test_duplicate_reserved_fields_raise(self):
     with self.assertRaises(ValueError):
       VespaWriteConfig(

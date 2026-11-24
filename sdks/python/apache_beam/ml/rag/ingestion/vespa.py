@@ -169,6 +169,18 @@ class VespaWriteConfig(VectorDatabaseWriteConfig):
     if len(reserved) != len(set(reserved)):
       raise ValueError(
           f"content and embedding fields must be distinct, got {reserved}")
+    if self.metadata_fields and self.fields_fn is None:
+      targets = list(self.metadata_fields.values())
+      duplicates = sorted({t for t in targets if targets.count(t) > 1})
+      if duplicates:
+        raise ValueError(
+            f"metadata_fields maps several keys to the same Vespa field: "
+            f"{duplicates}")
+      overlap = sorted(set(targets) & set(reserved))
+      if overlap:
+        raise ValueError(
+            f"metadata_fields targets collide with content or embedding "
+            f"fields: {overlap}")
 
   def create_write_transform(self) -> beam.PTransform[EmbeddableItem, Any]:
     return _VespaWriteTransform(self)
