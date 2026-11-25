@@ -2260,6 +2260,9 @@ class RunInferenceBaseTest(unittest.TestCase):
     mh = mm._mh_map[key]
     results = []
     thread = threading.Thread(target=lambda: results.append(mm.load(key)))
+    # Unblock the load even if the test fails, so the thread doesn't wait for
+    # the full timeout.
+    self.addCleanup(mh.finish_load.set)
     thread.start()
     self.assertTrue(mh.load_started.wait(timeout=60))
     return thread, results

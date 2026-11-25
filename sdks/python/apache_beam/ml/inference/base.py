@@ -676,9 +676,10 @@ class _ModelHandlerManager:
     self._max_models = None
     # Process ids that have already contributed to _max_models
     self._incremented_process_ids: set[int] = set()
-    # Guards _max_models and _incremented_process_ids, since the shared
-    # manager serves calls from several processes on separate threads.
-    self._max_models_lock = threading.Lock()
+    # Guards the maps and counters below, since the shared manager serves calls
+    # from several processes on separate threads. Models are never loaded or
+    # released while holding it, so a slow load doesn't block other keys.
+    self._lock = threading.Lock()
     # Map keys to model handlers
     self._mh_map: dict[str, ModelHandler] = mh_map
     # Map keys to the last updated model path for that key
@@ -704,21 +705,25 @@ class _ModelHandlerManager:
     # is released. This needs to be unique between releasing/reacquiring th
     # model because otherwise the ProxyManager will try to reuse the model that
     # has been released and deleted.
-    if key in self._tag_map:
-      self._tag_map.move_to_end(key)
-      return _ModelLoadStats(self._tag_map[key], None, None)
+    with self._lock:
+      if key in self._tag_map:
+        self._tag_map.move_to_end(key)
+        return _ModelLoadStats(self._tag_map[key], None, None)
 
-    mh = self._mh_map[key]
-    tag = uuid.uuid4().hex
-    # Reserve the tag before loading the model, so that a concurrent load(key)
-    # returns this tag and shares this model instead of loading another copy.
-    self._tag_map[key] = tag
+      mh = self._mh_map[key]
+      tag = uuid.uuid4().hex
+      # Reserve the tag before loading the model, so that a concurrent
+      # load(key) returns this tag and shares this model instead of loading
+      # another copy.
+      self._tag_map[key] = tag
 
-    if (self._max_models is not None and
-        len(self._tag_map) > max(self._max_models, 1)):
-      # If we're about to exceed our LRU size, release the least recently used
-      # model. The new key is the most recently used one, so it is kept.
-      self._release_tag(self._tag_map.popitem(last=False)[1])
+      evicted = None
+      if (self._max_models is not None and
+          len(self._tag_map) > max(self._max_models, 1)):
+        # If we're about to exceed our LRU size, release the least recently
+        # used model. The new key is the most recently used one, so it is kept.
+        evicted = self._pop_proxy(self._tag_map.popitem(last=False)[1])
+    self._release_proxy(evicted)
 
     # Load the new model
     memory_before = _get_current_process_memory_in_bytes()
@@ -730,12 +735,15 @@ class _ModelHandlerManager:
     except BaseException:
       # Forget the tag so that the next call loads the model again instead of
       # returning a tag that has no model behind it.
-      if self._tag_map.get(key) == tag:
-        del self._tag_map[key]
+      with self._lock:
+        if self._tag_map.get(key) == tag:
+          del self._tag_map[key]
       raise
-    if self._tag_map.get(key) == tag:
-      self._proxy_map[tag] = (shared_handle, model_reference)
-    else:
+    with self._lock:
+      keep_model = self._tag_map.get(key) == tag
+      if keep_model:
+        self._proxy_map[tag] = (shared_handle, model_reference)
+    if not keep_model:
       # The model was evicted or updated while it was loading, so don't keep
       # a reference to it.
       shared_handle.release(model_reference)
@@ -757,7 +765,7 @@ class _ModelHandlerManager:
         only the first increment from each process is applied, since many
         copies of the model handler can share this manager within a process.
     """
-    with self._max_models_lock:
+    with self._lock:
       if process_id is not None:
         if process_id in self._incremented_process_ids:
           return
@@ -779,20 +787,30 @@ class _ModelHandlerManager:
         we will want to keep both the old and new models to serve different
         cohorts. In that case, the keys should be different.
     """
-    if self._key_to_last_update[key] == model_path:
-      return
-    self._key_to_last_update[key] = model_path
-    if key not in self._mh_map:
-      self._mh_map[key] = deepcopy(self._mh_map[previous_key])
-    self._mh_map[key].update_model_path(model_path)
-    if key in self._tag_map:
-      self._release_tag(self._tag_map.pop(key))
+    with self._lock:
+      if self._key_to_last_update[key] == model_path:
+        return
+      self._key_to_last_update[key] = model_path
+      if key not in self._mh_map:
+        self._mh_map[key] = deepcopy(self._mh_map[previous_key])
+      self._mh_map[key].update_model_path(model_path)
+      old_model = None
+      if key in self._tag_map:
+        old_model = self._pop_proxy(self._tag_map.pop(key))
+    self._release_proxy(old_model)
 
-  def _release_tag(self, tag: str):
-    """Releases the model loaded for a tag that was removed from _tag_map."""
+  def _pop_proxy(self, tag: str):
+    """Removes the model for a tag that was removed from _tag_map.
+
+    Must be called while holding self._lock. Returns the model to pass to
+    _release_proxy() once the lock is released, or None if there is none.
+    """
     # A model that is still loading has no _proxy_map entry yet. load() releases
     # it when it finishes, because its tag is no longer in _tag_map.
-    proxy = self._proxy_map.pop(tag, None)
+    return self._proxy_map.pop(tag, None)
+
+  @staticmethod
+  def _release_proxy(proxy):
     if proxy is not None:
       shared_handle, model = proxy
       shared_handle.release(model)
