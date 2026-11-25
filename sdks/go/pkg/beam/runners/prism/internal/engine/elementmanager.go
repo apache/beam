@@ -58,6 +58,12 @@ type element struct {
 
 	elmBytes []byte // When nil, indicates this is a timer.
 	keyBytes []byte
+
+	// residual is set on the unfinished rest of an SDF element, returned by a
+	// split or a checkpoint. outputEstimate is the earliest timestamp the SDK
+	// expects it to output.
+	residual       bool
+	outputEstimate mtime.Time
 }
 
 func (e *element) IsTimer() bool {
@@ -795,13 +801,29 @@ type Residual struct {
 	Element []byte
 	Delay   time.Duration // The relative time delay.
 	Bounded bool          // Whether this element is finite or not.
+	// OutputWatermarks maps each output to the SDK's lower bound on the
+	// timestamps this residual will output there. With no entries, the bound
+	// is MinTimestamp, as the BundleApplication contract says.
+	OutputWatermarks map[string]mtime.Time
+}
+
+// outputEstimate returns the earliest timestamp the residual will emit to any
+// output.
+func (r Residual) outputEstimate() mtime.Time {
+	if len(r.OutputWatermarks) == 0 {
+		return mtime.MinTimestamp
+	}
+	estimate := mtime.MaxTimestamp
+	for _, t := range r.OutputWatermarks {
+		estimate = mtime.Min(estimate, t)
+	}
+	return estimate
 }
 
 // Residuals is used to specify process continuations within a bundle.
 type Residuals struct {
 	Data                 []Residual
-	TransformID, InputID string                // Prism only allows one SDF at the root of a bundledescriptor so there should only be one each.
-	MinOutputWatermarks  map[string]mtime.Time // Output watermarks (technically per Residual, but aggregated here until it makes a difference.)
+	TransformID, InputID string // Prism only allows one SDF at the root of a bundledescriptor so there should only be one each.
 }
 
 // reElementResiduals extracts the windowed value header from residual bytes, and explodes them
@@ -852,12 +874,14 @@ func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) 
 		for _, w := range ws {
 			unprocessedElements = append(unprocessedElements,
 				element{
-					window:    w,
-					timestamp: et,
-					pane:      pn,
-					elmBytes:  elmBytes,
-					keyBytes:  keyBytes,
-					sequence:  len(unprocessedElements),
+					window:         w,
+					timestamp:      et,
+					pane:           pn,
+					elmBytes:       elmBytes,
+					keyBytes:       keyBytes,
+					sequence:       len(unprocessedElements),
+					residual:       true,
+					outputEstimate: residual.outputEstimate(),
 				})
 		}
 	}
@@ -1044,14 +1068,10 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 			}
 		}
 
-		// If there are estimated output watermarks, set the estimated
-		// output watermark for the stage.
-		if len(residuals.MinOutputWatermarks) > 0 {
-			estimate := mtime.MaxTimestamp
-			for _, t := range residuals.MinOutputWatermarks {
-				estimate = mtime.Min(estimate, t)
-			}
-			stage.estimatedOutput = estimate
+		// From now on, residual estimates can move this stage's output
+		// watermark. See updateWatermarks.
+		if len(residuals.Data) > 0 {
+			stage.hasResiduals = true
 		}
 
 		// Handle persisting.
@@ -1278,7 +1298,7 @@ type stageState struct {
 	upstreamWatermarks sync.Map   // watermark set from inputPCollection's parent.
 	input              mtime.Time // input watermark for the parallel input.
 	output             mtime.Time // Output watermark for the whole stage
-	estimatedOutput    mtime.Time // Estimated watermark output from DoFns
+	hasResiduals       bool       // A bundle returned SDF residuals, so their estimates count toward the output watermark.
 	previousInput      mtime.Time // input watermark before the latest watermark refresh
 
 	// Consumers handed data by a bundle, pending delivery to the scheduler.
@@ -1402,9 +1422,8 @@ func makeStageState(ID string, inputIDs, outputIDs []string, sides []LinkID) *st
 		watermarkHolds: newHoldTracker(),
 		kind:           &ordinaryStageKind{},
 
-		input:           mtime.MinTimestamp,
-		output:          mtime.MinTimestamp,
-		estimatedOutput: mtime.MinTimestamp,
+		input:  mtime.MinTimestamp,
+		output: mtime.MinTimestamp,
 
 		processingTimeTimers: newTimerHandler(),
 	}
@@ -2447,6 +2466,35 @@ func (ss *stageState) minPendingTimestampLocked() mtime.Time {
 	return minPending
 }
 
+// minOutputBoundLocked returns the earliest timestamp the stage can still
+// output. That's the minimum of the upstream watermark and a bound for every
+// element not done yet, whether pending, in progress or parked. An element's
+// bound is its event time. A residual's bound is its output estimate, if that
+// is later. Must be called under the ss.mu Lock.
+func (ss *stageState) minOutputBoundLocked(upstream mtime.Time) mtime.Time {
+	bound := upstream
+	visit := func(es []element) {
+		for _, e := range es {
+			t := e.timestamp
+			if e.residual {
+				t = mtime.Max(t, e.outputEstimate)
+			}
+			bound = mtime.Min(bound, t)
+		}
+	}
+	visit(ss.pending)
+	for _, dnt := range ss.pendingByKeys {
+		visit(dnt.elements)
+	}
+	for _, es := range ss.inprogress {
+		visit(es.es)
+	}
+	for _, elems := range ss.delayedResiduals {
+		visit(elems)
+	}
+	return bound
+}
+
 func (ss *stageState) String() string {
 	pcol, up := ss.UpstreamWatermark()
 	return fmt.Sprintf("[%v] IN: %v OUT: %v UP: %q %v, kind: %v", ss.ID, ss.input, ss.output, pcol, up, ss.kind)
@@ -2465,10 +2513,11 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	minWatermarkHold := ss.watermarkHolds.Min()
 
 	// PCollection watermarks are based on their parents's output watermark.
-	_, newIn := ss.UpstreamWatermark()
+	_, upstream := ss.UpstreamWatermark()
 
 	// Set the input watermark based on the minimum pending elements,
 	// and the current input pcollection watermark.
+	newIn := upstream
 	if minPending < newIn {
 		newIn = minPending
 	}
@@ -2482,9 +2531,15 @@ func (ss *stageState) updateWatermarks(em *ElementManager) set[string] {
 	// The output starts with the new input as the basis.
 	newOut := ss.input
 
-	// If we're given an estimate, and it's further ahead, we use that instead.
-	if ss.estimatedOutput > ss.output {
-		newOut = ss.estimatedOutput
+	// Residuals hold the input watermark at their element's event time, which
+	// can be far behind what they will output. So once the stage has residuals,
+	// use their own estimates instead. The bound still counts every element in
+	// flight, so the original half of a split holds the watermark until it
+	// finishes.
+	if ss.hasResiduals {
+		if bound := ss.minOutputBoundLocked(upstream); bound > newOut {
+			newOut = bound
+		}
 	}
 
 	// We adjust based on the minimum state hold.
