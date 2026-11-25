@@ -141,20 +141,20 @@ class HuggingFaceGpuTest(unittest.TestCase):
   @unittest.skipIf(not torch.cuda.is_available(), "No GPU detected")
   def test_parallel_inference_branches(self):
     """
-    Tests a branching pipeline where one input source feeds two 
+    Tests a branching pipeline where one input source feeds two
     RunInference transforms running in parallel.
-    
+
     Topology:
             [ Input Data ]
                     |
         +--------+--------+
         |                 |
-    [ Translation ]   [ Sentiment ]
+      [ NER ]       [ Sentiment ]
     """
 
-    translator_handler = HuggingFacePipelineModelHandler(
-        task="translation_en_to_es",
-        model="Helsinki-NLP/opus-mt-en-es",
+    ner_handler = HuggingFacePipelineModelHandler(
+        task="token-classification",
+        model="dslim/bert-base-NER",
         device=0,
         inference_args={"batch_size": 8})
     sentiment_handler = HuggingFacePipelineModelHandler(
@@ -176,10 +176,9 @@ class HuggingFaceGpuTest(unittest.TestCase):
       inputs = pipeline | 'CreateInputs' >> beam.Create(examples)
       _ = (
           inputs
-          | 'RunTranslation' >> RunInference(
-              translator_handler, use_model_manager=True)
-          | 'ExtractSpanish' >>
-          beam.Map(lambda x: x.inference['translation_text']))
+          | 'RunNER' >> RunInference(ner_handler, use_model_manager=True)
+          | 'ExtractEntities' >>
+          beam.Map(lambda x: [entity['word'] for entity in x.inference]))
       _ = (
           inputs
           | 'RunSentiment' >> RunInference(
