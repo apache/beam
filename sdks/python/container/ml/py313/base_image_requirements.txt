@@ -25,6 +25,7 @@ absl-py==2.5.1
 aiohappyeyeballs==2.7.1
 aiohttp==3.14.5
 aiosignal==1.4.0
+annotated-doc==0.0.7
 annotated-types==0.8.0
 anyio==4.16.0
 arro3-core==0.9.1
@@ -44,7 +45,7 @@ cloud-sql-python-connector==1.24.1
 cloudpickle==3.1.3
 crcmod==1.7
 cryptography==50.0.2
-Cython==3.3.1
+Cython==3.3.2
 defusedxml==0.7.1
 deltalake==1.7.0
 Deprecated==3.0.1
@@ -105,9 +106,11 @@ h5py==3.14.0
 hf-xet==1.8.0
 hpack==4.2.0
 httpcore==1.0.9
+httpcore2==2.16.2
 httplib2==0.32.1
 httpx==0.28.1
-huggingface_hub==0.36.2
+httpx2==2.16.2
+huggingface_hub==2.4.0
 hyperframe==6.1.0
 hypothesis==6.148.3
 idna==3.20
@@ -149,7 +152,7 @@ opentelemetry-sdk==1.45.2
 opentelemetry-semantic-conventions==0.66b2
 opt_einsum==3.4.0
 optree==0.20.0
-oracledb==26.1.0
+oracledb==26.2.0
 orjson==3.13.0
 packaging==26.4
 pandas==2.3.3
@@ -189,7 +192,7 @@ PyYAML==6.0.4
 qdrant-client==1.20.0
 quickjs-ng==0.18.0.2
 referencing==0.37.0
-regex==2026.11.23
+regex==2026.11.24
 requests==2.34.2
 requests-mock==1.12.1
 rich==15.0.0
@@ -201,6 +204,7 @@ scipy==1.18.1
 scramp==1.5.0
 SecretStorage==3.5.0
 setuptools==84.2.1
+shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1
 sortedcontainers==2.4.0
@@ -216,10 +220,12 @@ termcolor==3.3.0
 testcontainers==4.15.0
 textual==8.2.8
 threadpoolctl==3.8.0
-tokenizers==0.21.4
+tokenizers==0.23.3
 torch==2.13.0+cpu
 tqdm==4.70.1
-transformers==4.55.4
+transformers==5.20.2
+truststore==0.10.5
+typer==0.29.2
 typing-inspection==0.4.5
 typing_extensions==4.16.0
 tzdata==2026.6
