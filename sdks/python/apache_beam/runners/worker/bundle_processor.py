@@ -185,9 +185,8 @@ class DataOutputOperation(RunnerIOOperation):
     self.output_stream = output_stream
 
   def process(self, windowed_value: windowed_value.WindowedValue) -> None:
-    self.windowed_coder_impl.encode_to_stream(
-        windowed_value, self.output_stream, True)
-    self.output_stream.maybe_flush()
+    self.output_stream.write_encoded(
+        self.windowed_coder_impl, windowed_value, True)
 
   def finish(self) -> None:
     super().finish()
@@ -947,8 +946,7 @@ class OutputTimer(userstate.BaseTimer):
         hold_timestamp=ts if TimeDomain.is_event_time(self._time_domain) else
         self._input_timestamp,
         paneinfo=self._paneinfo)
-    self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
-    self._output_stream.maybe_flush()
+    self._output_stream.write_encoded(self._timer_coder_impl, timer, True)
 
   def clear(self, dynamic_timer_tag='') -> None:
     timer = userstate.Timer(
@@ -959,8 +957,7 @@ class OutputTimer(userstate.BaseTimer):
         fire_timestamp=None,
         hold_timestamp=None,
         paneinfo=None)
-    self._timer_coder_impl.encode_to_stream(timer, self._output_stream, True)
-    self._output_stream.maybe_flush()
+    self._output_stream.write_encoded(self._timer_coder_impl, timer, True)
 
 
 class TimerInfo(object):

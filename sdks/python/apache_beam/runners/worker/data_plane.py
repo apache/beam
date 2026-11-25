@@ -113,6 +113,16 @@ class ClosableOutputStream(OutputStream):
     # type: () -> None
     pass
 
+  def write_encoded(
+      self,
+      value_coder_impl,  # type: coder_impl.CoderImpl
+      value,  # type: Any
+      nested=True  # type: bool
+  ):
+    # type: (...) -> None
+    value_coder_impl.encode_to_stream(value, self, nested)
+    self.maybe_flush()
+
   @staticmethod
   def create(
       close_callback,  # type: Optional[Callable[[bytes], None]]
@@ -150,6 +160,17 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
   # This must be called explicitly to avoid flushing partial elements.
   def maybe_flush(self):
     # type: () -> None
+    if self.size() > self._size_flush_threshold:
+      self.flush()
+
+  def write_encoded(
+      self,
+      value_coder_impl,  # type: coder_impl.CoderImpl
+      value,  # type: Any
+      nested=True  # type: bool
+  ):
+    # type: (...) -> None
+    value_coder_impl.encode_to_stream(value, self, nested)
     if self.size() > self._size_flush_threshold:
       self.flush()
 
@@ -203,10 +224,33 @@ class TimeBasedBufferingClosableOutputStream(
     super().__init__(close_callback, flush_callback, size_flush_threshold)
     assert time_flush_threshold_ms > 0
     self._time_flush_threshold_ms = time_flush_threshold_ms
-    self._flush_lock = threading.Lock()
-    self._schedule_lock = threading.Lock()
+    # Reentrant lock serializing all buffer mutations (write, write_encoded,
+    # maybe_flush, flush, close) with the periodic flusher thread so partial
+    # elements are never flushed and concurrent writes are never wiped by
+    # _clear().
+    self._flush_lock = threading.RLock()
     self._closed = False
     self._schedule_periodic_flush()
+
+  def write(self, b, nested=False):
+    # type: (bytes, bool) -> None
+    with self._flush_lock:
+      super().write(b, nested)
+
+  def write_encoded(
+      self,
+      value_coder_impl,  # type: coder_impl.CoderImpl
+      value,  # type: Any
+      nested=True  # type: bool
+  ):
+    # type: (...) -> None
+    with self._flush_lock:
+      super().write_encoded(value_coder_impl, value, nested)
+
+  def maybe_flush(self):
+    # type: () -> None
+    with self._flush_lock:
+      super().maybe_flush()
 
   def flush(self):
     # type: () -> None
@@ -215,18 +259,18 @@ class TimeBasedBufferingClosableOutputStream(
 
   def close(self):
     # type: () -> None
-    with self._schedule_lock:
+    with self._flush_lock:
       self._closed = True
       if self._periodic_flusher:
         self._periodic_flusher.cancel()
         self._periodic_flusher = None
-    super().close()
+      super().close()
 
   def _schedule_periodic_flush(self):
     # type: () -> None
     def _flush():
       # type: () -> None
-      with self._schedule_lock:
+      with self._flush_lock:
         if not self._closed:
           self.flush()
 

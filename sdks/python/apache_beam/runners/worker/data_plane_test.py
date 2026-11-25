@@ -28,6 +28,7 @@ from unittest import mock
 
 import grpc
 
+from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
@@ -225,6 +226,98 @@ class DataChannelTest(unittest.TestCase):
             beam_fn_api_pb2.Elements.Data(
                 instruction_id='2', transform_id=transform_2, data=b'ghi')
         ])
+
+
+class TimeBasedBufferingClosableOutputStreamTest(unittest.TestCase):
+  def test_write_encoded_atomic_with_periodic_flush(self):
+    class MultiWriteIntPairCoderImpl(coder_impl.CoderImpl):
+      def encode_to_stream(self, value, out, nested):
+        out.write_var_int64(value)
+        # Yield to let the periodic flusher thread attempt a flush mid-element.
+        time.sleep(0.0002)
+        out.write_var_int64(value * 2)
+
+      def decode_from_stream(self, in_stream, nested):
+        first = in_stream.read_var_int64()
+        second = in_stream.read_var_int64()
+        return (first, second)
+
+    flushed_chunks = []
+    closed_chunks = []
+
+    def flush_callback(data):
+      if data:
+        flushed_chunks.append(data)
+      # Yield before flush() clears the buffer so unsynchronized writers would
+      # lose data between get() and _clear().
+      time.sleep(0.0002)
+
+    def close_callback(data):
+      if data:
+        closed_chunks.append(data)
+
+    coder = MultiWriteIntPairCoderImpl()
+    stream = data_plane.TimeBasedBufferingClosableOutputStream(
+        close_callback=close_callback,
+        flush_callback=flush_callback,
+        time_flush_threshold_ms=1)
+    num_elements = 100
+    try:
+      for i in range(num_elements):
+        stream.write_encoded(coder, i, True)
+        # Brief pause between elements so the periodic flusher acquires the
+        # lock and flushes multiple chunks during the loop.
+        time.sleep(0.0002)
+    finally:
+      stream.close()
+
+    self.assertGreater(len(flushed_chunks), 0)
+
+    # Every individual chunk must contain complete, uncorrupted elements.
+    decoded = []
+    for chunk in flushed_chunks + closed_chunks:
+      in_stream = coder_impl.create_InputStream(chunk)
+      while in_stream.size() > 0:
+        decoded.append(coder.decode_from_stream(in_stream, True))
+
+    self.assertEqual(decoded, [(i, i * 2) for i in range(num_elements)])
+
+  def test_write_and_close_synchronized_with_periodic_flush(self):
+    for iteration in range(10):
+      flushed_chunks = []
+      closed = False
+      flushed_after_close = False
+
+      def flush_callback(data):
+        nonlocal flushed_after_close
+        if closed:
+          flushed_after_close = True
+        if data:
+          flushed_chunks.append(data)
+        time.sleep(0.0002)
+
+      def close_callback(data):
+        if data:
+          flushed_chunks.append(data)
+
+      stream = data_plane.TimeBasedBufferingClosableOutputStream(
+          close_callback=close_callback,
+          flush_callback=flush_callback,
+          time_flush_threshold_ms=1)
+      expected = []
+      try:
+        for i in range(25):
+          chunk = f'{iteration}:{i}|'.encode('ascii')
+          expected.append(chunk)
+          stream.write(chunk)
+          time.sleep(0.0002)
+      finally:
+        stream.close()
+        closed = True
+
+      time.sleep(0.01)
+      self.assertFalse(flushed_after_close)
+      self.assertEqual(b''.join(flushed_chunks), b''.join(expected))
 
 
 if __name__ == '__main__':
