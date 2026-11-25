@@ -180,6 +180,8 @@
 * (Python) Fixed the DataFrame API losing the names of the group keys in the index of `groupby(...).describe()`, so that the result can be converted with `to_pcollection(..., include_indexes=True)` ([#20967](https://github.com/apache/beam/issues/20967)).
 * (Python) Fixed `to_pcollection` failing with a `TypeError` on the result of a DataFrame `groupby(...).skew()` over integer or boolean columns, whose schema was inferred as integer although the result is a float ([#41305](https://github.com/apache/beam/issues/41305)).
 * (Java) Makes some fixes to IcebergIO's hash distribution mode, which sometimes wrote incorrect partition values. ([#41012](https://github.com/apache/beam/issues/41012)).
+* (Python) Fixed the DataFrame API `skew()` and `kurtosis()` failing with `UnboundLocalError` when all of the data is in one partition ([#41283](https://github.com/apache/beam/issues/41283)).
+* (Python) Fixed anomaly detection `MajorityVote` ignoring a custom `normal_label` when votes tie: `tie_breaker` now defaults to `normal_label` instead of the constant 0 ([#41232](https://github.com/apache/beam/issues/41232)).
 * (Java) Fixed IcebergIO's CDC sink and AddFiles ignoring a requested `format-version` when creating tables, and AddFiles failing the run when a file adds a v3-only column to a v2 table ([#41582](https://github.com/apache/beam/pull/41582)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Python) Fixed MLTransform embeddings created with `columns=`, the RAG embedding transforms and `VertexAIMultiModalEmbeddings` modifying their input elements, so that other transforms reading the same PCollection could see the embeddings ([#41233](https://github.com/apache/beam/issues/41233)).
