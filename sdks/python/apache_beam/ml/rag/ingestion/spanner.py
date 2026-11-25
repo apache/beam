@@ -158,7 +158,7 @@ class SpannerColumnSpecsBuilder:
   def with_id_spec(
       self,
       column_name: str = "id",
-      python_type: type = str,
+      python_type: Any = str,
       convert_fn: Optional[Callable[[str], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add ID column specification.
@@ -236,7 +236,7 @@ class SpannerColumnSpecsBuilder:
   def with_content_spec(
       self,
       column_name: str = "content",
-      python_type: type = str,
+      python_type: Any = str,
       convert_fn: Optional[Callable[[str], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add content column.
@@ -368,7 +368,7 @@ class SpannerColumnSpecsBuilder:
   def add_column(
       self,
       column_name: str,
-      python_type: type,
+      python_type: Any,
       value_fn: Callable[[EmbeddableItem], Any]) -> 'SpannerColumnSpecsBuilder':
     """Add a custom column with full control.
     
