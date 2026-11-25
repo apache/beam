@@ -503,7 +503,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  public void testDirectWriteEnabledExpansion() throws IOException {
+  public void testDirectWriteEnabledExpansion() {
     p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink()).withWindowedWrites().withDirectWriteByteThreshold(1L);
@@ -514,7 +514,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  public void testDirectWriteDisabledForBoundedWithFixedSharding() throws IOException {
+  public void testDirectWriteDisabledForBoundedWithFixedSharding() {
     p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink()).withNumShards(3).withDirectWriteByteThreshold(1L);
@@ -523,7 +523,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  public void testDirectWriteDisabledForBoundedWithoutFixedSharding() throws IOException {
+  public void testDirectWriteDisabledForBoundedWithoutFixedSharding() {
     p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink()).withDirectWriteByteThreshold(1L);
@@ -601,13 +601,10 @@ public class WriteFilesTest {
   }
 
   @Test
-  public void testDirectWriteDisabledWithAccumulatingPanes() throws IOException {
+  public void testDirectWriteDisabledWithAccumulatingPanes() {
     p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
-        WriteFiles.to(makeSimpleSink())
-            .withWindowedWrites()
-            .withNumShards(3)
-            .withDirectWriteByteThreshold(1L);
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withDirectWriteByteThreshold(1L);
     p.apply(TestStream.create(StringUtf8Coder.of()).advanceWatermarkToInfinity())
         .apply(
             Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
@@ -699,7 +696,7 @@ public class WriteFilesTest {
   }
 
   @Test
-  public void testDirectWriteDisabledWithMergingWindows() throws IOException {
+  public void testDirectWriteDisabledWithMergingWindows() {
     p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink())
