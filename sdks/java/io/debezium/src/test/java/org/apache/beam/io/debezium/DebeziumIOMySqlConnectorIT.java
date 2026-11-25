@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -36,9 +37,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -56,6 +62,10 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonElement;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonParser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -373,19 +383,25 @@ public class DebeziumIOMySqlConnectorIT {
   }
 
   /**
-   * Debezium - MySQL connector Test with {@code include.schema.changes} enabled.
+   * Debezium - MySQL connector Test with {@link DebeziumIO.Read#withSchemaChangeEvents(boolean)}.
    *
-   * <p>Tests that the snapshot's CREATE schema change event for {@code inventory.customers} carries
-   * the table's columns, each with every field of Debezium's column schema.
+   * <p>Tests the schema change events of a schema-only snapshot and of a live {@code ALTER TABLE}
+   * read from the binlog. The snapshot's {@code CREATE} event for {@code inventory.customers}
+   * carries the table's columns, each with every field of Debezium's column schema. The {@code
+   * ALTER} runs on a table of its own, so {@code inventory.customers} is left untouched.
    */
   @Test
-  public void testDebeziumIOMySqlSchemaChangeEventColumns() {
+  public void testDebeziumIOMySqlSchemaChangeEvents() throws Exception {
 
     String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
     String schemaHistoryTopic = "mysql-schema-history-schema-change-" + System.nanoTime();
 
     String host = MY_SQL_CONTAINER.getHost();
     String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
+
+    String alteredTable = "schema_change_events";
+    String alterDdl = "ALTER TABLE " + alteredTable + " ADD COLUMN note VARCHAR(255)";
+    executeSql("CREATE TABLE " + alteredTable + " (id INT PRIMARY KEY)");
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline p = Pipeline.create(options);
@@ -401,7 +417,11 @@ public class DebeziumIOMySqlConnectorIT {
                         .withPort(port)
                         .withConnectionProperty("database.server.id", "184056")
                         .withConnectionProperty("database.include.list", "inventory")
-                        .withConnectionProperty("table.include.list", "inventory.customers")
+                        .withConnectionProperty(
+                            "table.include.list", "inventory.customers,inventory." + alteredTable)
+                        // Snapshot the schema only: a consistent snapshot read of a table that is
+                        // altered meanwhile would fail.
+                        .withConnectionProperty("snapshot.mode", "no_data")
                         .withConnectionProperty("include.schema.changes", "true")
                         .withConnectionProperty(
                             "schema.history.internal.kafka.bootstrap.servers",
@@ -413,8 +433,12 @@ public class DebeziumIOMySqlConnectorIT {
                             "io.debezium.storage.kafka.history.KafkaSchemaHistory")
                         .withConnectionProperty(
                             "schema.history.internal.store.only.captured.tables.ddl", "true"))
-                // The snapshot emits its schema change events before the customers rows.
-                .withMaxNumberOfRecords(10)
+                .withFullMetadata(true)
+                .withSchemaChangeEvents(true)
+                // The snapshot emits 8 schema change events for the 2 captured tables: SET
+                // character_set_server, DROP TABLE IF EXISTS for each table, DROP DATABASE,
+                // CREATE DATABASE, USE and CREATE TABLE for each table. The ALTER is the 9th.
+                .withMaxNumberOfRecords(9)
                 .withMaxTimeToRun(Duration.ofMinutes(2).toMillis()));
 
     // Every field of Debezium's column schema, in schema order, nulls included.
@@ -424,38 +448,121 @@ public class DebeziumIOMySqlConnectorIT {
             + "\"scale\":null,\"position\":2,\"optional\":false,\"autoIncremented\":false,"
             + "\"generated\":false,\"comment\":null,\"defaultValueExpression\":null,"
             + "\"enumValues\":null}";
+    String customersId = "\"inventory\".\"customers\"";
+    String alteredId = "\"inventory\".\"" + alteredTable + "\"";
 
     PAssert.that(results)
         .satisfies(
             (Iterable<String> res) -> {
-              // Find the snapshot's CREATE event for the customers table.
-              String customersId = "\"inventory\".\"customers\"";
-              JsonObject table = null;
+              JsonObject customersEvent = null;
+              JsonObject customersTable = null;
+              JsonObject alterEvent = null;
               for (String record : res) {
                 JsonObject event = JsonParser.parseString(record).getAsJsonObject();
-                if (!event.has("tableChanges")) {
-                  continue; // A data change event.
+                if (!event.has("tableChanges") || event.get("tableChanges").isJsonNull()) {
+                  continue; // Not a schema change event.
                 }
                 for (JsonElement change : event.getAsJsonArray("tableChanges")) {
                   JsonObject tableChange = change.getAsJsonObject();
-                  if (tableChange.get("type").getAsString().equals("CREATE")
-                      && tableChange.get("id").getAsString().equals(customersId)) {
-                    table = tableChange.getAsJsonObject("table");
+                  String type = tableChange.get("type").getAsString();
+                  String id = tableChange.get("id").getAsString();
+                  if (type.equals("CREATE") && id.equals(customersId)) {
+                    customersEvent = event;
+                    customersTable = tableChange.getAsJsonObject("table");
+                  } else if (type.equals("ALTER") && id.equals(alteredId)) {
+                    alterEvent = event;
                   }
                 }
               }
-              assertThat(table.get("primaryKeyColumnNames").toString(), equalTo("[\"id\"]"));
 
+              // The snapshot's CREATE event for the customers table.
+              assertNotNull("No snapshot CREATE event for " + customersId, customersEvent);
+              assertNotNull("No table in the CREATE event for " + customersId, customersTable);
+              assertThat(
+                  customersEvent.getAsJsonObject("metadata").get("snapshot").getAsString(),
+                  equalTo("true"));
+              assertThat(
+                  customersTable.get("primaryKeyColumnNames").toString(), equalTo("[\"id\"]"));
               // Each column's JSON, keyed by column name, in column order.
               Map<String, String> columns = new LinkedHashMap<>();
-              for (JsonElement column : table.getAsJsonArray("columns")) {
+              for (JsonElement column : customersTable.getAsJsonArray("columns")) {
                 columns.put(column.getAsJsonObject().get("name").getAsString(), column.toString());
               }
               assertThat(columns.keySet(), contains("id", "first_name", "last_name", "email"));
               assertThat(columns.get("first_name"), equalTo(expectedFirstNameColumn));
+
+              // The live ALTER, read from the binlog. It keeps metadata, before and after, so the
+              // full metadata's snapshot field tells it apart from the snapshot's events.
+              assertNotNull("No ALTER event for " + alteredId, alterEvent);
+              assertThat(alterEvent.get("ddl").getAsString(), equalTo(alterDdl));
+              assertThat(alterEvent.get("databaseName").getAsString(), equalTo("inventory"));
+              JsonObject alterMetadata = alterEvent.getAsJsonObject("metadata");
+              assertThat(alterMetadata.get("connector").getAsString(), equalTo("mysql"));
+              assertThat(alterMetadata.get("table").getAsString(), equalTo(alteredTable));
+              assertThat(alterMetadata.get("snapshot").getAsString(), equalTo("false"));
+              assertTrue(alterEvent.get("before").isJsonNull());
+              assertTrue(alterEvent.get("after").isJsonNull());
+              List<String> alteredColumns = Lists.newArrayList();
+              for (JsonElement column :
+                  alterEvent
+                      .getAsJsonArray("tableChanges")
+                      .get(0)
+                      .getAsJsonObject()
+                      .getAsJsonObject("table")
+                      .getAsJsonArray("columns")) {
+                alteredColumns.add(column.getAsJsonObject().get("name").getAsString());
+              }
+              assertThat(alteredColumns, contains("id", "note"));
               return null;
             });
 
+    // Alter the table once Debezium has snapshotted the schema, so the ALTER is read from the
+    // binlog rather than folded into the snapshot's CREATE.
+    CompletableFuture<Void> alter =
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                awaitSchemaHistory(kafkaBootstrapServers, schemaHistoryTopic);
+                executeSql(alterDdl);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            });
+
     p.run().waitUntilFinish();
+    alter.get(1, TimeUnit.MINUTES);
+  }
+
+  /** Runs a SQL statement against the {@code inventory} database. */
+  private static void executeSql(String sql) throws SQLException {
+    try (HikariDataSource dataSource = (HikariDataSource) getMysqlDatasource(null);
+        Connection connection = dataSource.getConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute(sql);
+    }
+  }
+
+  /**
+   * Waits until Debezium has written the snapshot's schema to the schema history topic. The
+   * snapshot reads its binlog position before that, so any later DDL is read from the binlog.
+   */
+  private static void awaitSchemaHistory(String bootstrapServers, String topic)
+      throws InterruptedException {
+    Map<String, Object> config = new HashMap<>();
+    config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    // Leave creating the topic to Debezium, which configures it for schema history.
+    config.put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false);
+    TopicPartition partition = new TopicPartition(topic, 0);
+    Instant deadline = Instant.now().plus(Duration.ofMinutes(1));
+    try (KafkaConsumer<byte[], byte[]> consumer =
+        new KafkaConsumer<>(config, new ByteArrayDeserializer(), new ByteArrayDeserializer())) {
+      while (!consumer.listTopics().containsKey(topic)
+          || consumer.endOffsets(Collections.singleton(partition)).get(partition) == 0L) {
+        if (Instant.now().isAfter(deadline)) {
+          throw new IllegalStateException("No schema history written to " + topic);
+        }
+        Thread.sleep(500);
+      }
+    }
   }
 }
