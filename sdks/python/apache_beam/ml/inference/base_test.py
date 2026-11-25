@@ -389,6 +389,12 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
 
 
 class RunInferenceBaseTest(unittest.TestCase):
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      if p.is_alive():
+        p.terminate()
+        p.join(timeout=2)
+
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -405,6 +411,21 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_multi_process_shared_spawns_dedicated_processes(self):
+    worker_pid = os.getpid()
+    dofn = base._RunInferenceDoFn(
+        _PidModelHandler(model_copies=2),
+        FakeClock(),
+        metrics_namespace=None,
+        model_tag='pid_test_' + uuid.uuid4().hex)
+    dofn.setup()
+    results = [dofn.process([i], None, None)[0] for i in range(4)]
+    model_pids = {load_pid for load_pid, _ in results}
+    self.assertEqual(len(model_pids), 2)
+    self.assertNotIn(worker_pid, model_pids)
+    for load_pid, infer_pid in results:
+      self.assertEqual(load_pid, infer_pid)
 
   def test_run_inference_unpicklable_data_multi_process_shared(self):
     with self.assertRaisesRegex(Exception, 'Pickling error encountered'):
@@ -1187,6 +1208,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
+  @pytest.mark.no_xdist
   @unittest.skipIf(
       sys.platform == "win32" or sys.version_info < (3, 11),
       "This test relies on the __del__ lifecycle method, but __del__ does " +
@@ -1201,13 +1223,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 15
-        expected_good = [1] * 15
+        examples = [20] + [1] * 20
+        expected_good = [1] * 20
         expected_bad = [20]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
-              0, True, tmp_path)).with_exception_handling(timeout=5)
+              0, True, tmp_path)).with_exception_handling(timeout=9)
 
         assert_that(main, equal_to(expected_good), label='assert:inferences')
 
@@ -3379,6 +3401,31 @@ class ModelManagerTest(unittest.TestCase):
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
       dofn._model.force_reset()
+
+
+class _PidModel:
+  def __init__(self):
+    self.load_pid = os.getpid()
+
+  def predict(self, example: int) -> tuple[int, int]:
+    return (self.load_pid, os.getpid())
+
+
+class _PidModelHandler(base.ModelHandler[int, tuple[int, int], _PidModel]):
+  def __init__(self, model_copies: int = 1):
+    self._model_copies = model_copies
+
+  def load_model(self) -> _PidModel:
+    return _PidModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(el) for el in batch]
+
+  def share_model_across_processes(self) -> bool:
+    return True
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
 
 if __name__ == '__main__':

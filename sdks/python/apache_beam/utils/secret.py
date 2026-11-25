@@ -425,6 +425,7 @@ class AwsSecret(Secret):
   def get_secret_bytes(self) -> bytes:
     try:
       import base64
+
       import boto3
 
       client = boto3.client('secretsmanager', **self._get_client_kwargs())

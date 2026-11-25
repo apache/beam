@@ -131,11 +131,16 @@ public class SchemaPlanTest {
     Schema seed =
         new Schema(
             required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
+    // timestamp_ns needs format-version 3, so the scratch create needs the creation properties
     Schema other =
         new Schema(
-            required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
+            required(1, "id", Types.LongType.get()),
+            optional(2, "extra", Types.TimestampNanoType.withoutZone()));
     CommitSchemaUnion.NewTableSettings creation =
-        new CommitSchemaUnion.NewTableSettings(Arrays.asList("region"), Arrays.asList("id"), null);
+        new CommitSchemaUnion.NewTableSettings(
+            Arrays.asList("region"),
+            Arrays.asList("id"),
+            Collections.singletonMap(TableProperties.FORMAT_VERSION, "3"));
     SchemaPlan.Creation plan =
         (SchemaPlan.Creation)
             SchemaPlan.compute(
@@ -151,6 +156,9 @@ public class SchemaPlanTest {
     assertEquals(1, checkStateNotNull(plan.toMerge(json(other))).files);
     assertEquals("region", checkStateNotNull(plan.spec).fields().get(0).name());
     assertEquals(1, checkStateNotNull(plan.sortOrder).fields().size());
+    assertEquals(
+        Types.TimestampNanoType.withoutZone(),
+        checkStateNotNull(plan.newSchema).findField("extra").type());
     assertFalse(catalog.tableExists(missing));
   }
 

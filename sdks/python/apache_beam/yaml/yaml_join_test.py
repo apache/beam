@@ -24,8 +24,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.yaml import yaml_join
-from apache_beam.yaml.yaml_join import _SqlJoinTransform
 from apache_beam.yaml.yaml_join import _parse_fields
+from apache_beam.yaml.yaml_join import _SqlJoinTransform
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -258,8 +258,8 @@ class YamlJoinTest(unittest.TestCase):
 
 class SqlJoinQueryTest(unittest.TestCase):
   def _make_mock_pcoll(self, field_names):
-    from unittest.mock import MagicMock
     from collections import namedtuple
+    from unittest.mock import MagicMock
     MockRow = namedtuple('MockRow', field_names)
     pcoll = MagicMock()
     pcoll.element_type = MockRow
