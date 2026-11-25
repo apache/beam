@@ -2,7 +2,8 @@
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
     "go": "jrmccluskey",
-    "java": "Abacn"
+    "java": "Abacn",
+    "python": "tkaymak"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
