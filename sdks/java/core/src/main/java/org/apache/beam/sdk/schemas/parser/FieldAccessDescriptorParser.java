@@ -56,10 +56,18 @@ public class FieldAccessDescriptorParser {
    * [a-zA-Z0-9_$]+}) with no dot-separators, qualifiers, wildcards, or whitespace.
    */
   public static boolean isSimpleIdentifier(@Nullable String expr) {
-    if (expr == null || expr.isEmpty()) {
+    return expr != null && !expr.isEmpty() && isSimpleIdentifier(expr, 0, expr.length());
+  }
+
+  /**
+   * Returns true if the non-empty slice {@code expr[start..end)} consists solely of {@code
+   * IDENTIFIER} characters ({@code [a-zA-Z0-9_$]+}).
+   */
+  public static boolean isSimpleIdentifier(String expr, int start, int end) {
+    if (start >= end) {
       return false;
     }
-    for (int i = 0; i < expr.length(); i++) {
+    for (int i = start; i < end; i++) {
       char c = expr.charAt(i);
       if (!((c >= 'a' && c <= 'z')
           || (c >= 'A' && c <= 'Z')
@@ -72,12 +80,60 @@ public class FieldAccessDescriptorParser {
     return true;
   }
 
+  private static @Nullable FieldAccessDescriptor tryParseSimpleDottedPath(String expr) {
+    int len = expr.length();
+    // Validate that every dot-delimited segment is a simple IDENTIFIER, allowing a single
+    // terminal wildcard ("*"). Any other token falls back to ANTLR4 for identical behavior.
+    int segStart = 0;
+    for (int i = 0; i <= len; i++) {
+      if (i == len || expr.charAt(i) == '.') {
+        int segLen = i - segStart;
+        if (segLen == 0) {
+          return null;
+        }
+        boolean isLast = (i == len);
+        if (segLen == 1 && expr.charAt(segStart) == '*') {
+          if (!isLast) {
+            return null;
+          }
+        } else if (!isSimpleIdentifier(expr, segStart, i)) {
+          return null;
+        }
+        segStart = i + 1;
+      }
+    }
+    // Build nested FieldAccessDescriptor right-to-left matching BuildFieldAccessDescriptor.
+    int dot = expr.lastIndexOf('.');
+    String lastSeg = expr.substring(dot + 1);
+    FieldAccessDescriptor descriptor =
+        "*".equals(lastSeg)
+            ? FieldAccessDescriptor.withAllFields()
+            : FieldAccessDescriptor.withFields(
+                FieldDescriptor.builder().setFieldName(lastSeg).build());
+    int end = dot;
+    while (end > 0) {
+      int prevDot = expr.lastIndexOf('.', end - 1);
+      String seg = expr.substring(prevDot + 1, end);
+      descriptor =
+          FieldAccessDescriptor.withFields()
+              .withNestedField(FieldDescriptor.builder().setFieldName(seg).build(), descriptor);
+      end = prevDot;
+    }
+    return descriptor;
+  }
+
   public static FieldAccessDescriptor parse(String expr) {
     if (isSimpleIdentifier(expr)) {
       return FieldAccessDescriptor.withFields(FieldDescriptor.builder().setFieldName(expr).build());
     }
     if ("*".equals(expr)) {
       return FieldAccessDescriptor.withAllFields();
+    }
+    if (expr != null && expr.indexOf('.') > 0) {
+      FieldAccessDescriptor fast = tryParseSimpleDottedPath(expr);
+      if (fast != null) {
+        return fast;
+      }
     }
     CharStream charStream = CharStreams.fromString(expr);
     FieldSpecifierNotationLexer lexer = new FieldSpecifierNotationLexer(charStream);

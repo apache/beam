@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -939,5 +940,157 @@ public class RowTest {
     assertEquals(Long.valueOf(99L), nestedUpdated.getInt64("optLong"));
     assertEquals("hello", nestedUpdated.getRow("nested").getString("innerStr"));
     assertEquals(Integer.valueOf(42), nestedUpdated.getRow("nested").getInt32("innerInt"));
+
+    // Direct override replacing an earlier nested override wins and clears the nested node.
+    Row replaced =
+        Row.fromRow(flatUpdated)
+            .withFieldValue("nested.innerInt", 77)
+            .withFieldValue(
+                "nested", Row.withSchema(innerSchema).addValues("replaced", 999).build())
+            .build();
+    assertEquals("replaced", replaced.getRow("nested").getString("innerStr"));
+    assertEquals(Integer.valueOf(999), replaced.getRow("nested").getInt32("innerInt"));
+
+    // Explicit null override on nullable field via fromRow.
+    Row nulled = Row.fromRow(flatUpdated).withFieldValue("optLong", null).build();
+    assertNull(nulled.getInt64("optLong"));
+
+    // Deeply nested (3-level) dotted override.
+    Schema outerSchema = Schema.builder().addRowField("mid", schema).build();
+    Row outer = Row.withSchema(outerSchema).addValue(base).build();
+    Row deepUpdated = Row.fromRow(outer).withFieldValue("mid.nested.innerStr", "deep").build();
+    assertEquals("deep", deepUpdated.getRow("mid").getRow("nested").getString("innerStr"));
+    assertEquals(
+        Integer.valueOf(10), deepUpdated.getRow("mid").getRow("nested").getInt32("innerInt"));
+
+    // Unknown/invalid field paths fall back to FieldAccessDescriptor validation error.
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Row.fromRow(base).withFieldValue("nested.no_such_field", 1).build());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Row.fromRow(base).withFieldValue("name.child", 1).build());
+  }
+
+  @Test
+  public void testLogicalTypeBytesEqualsAndHashCode() {
+    Schema.LogicalType<ByteBuffer, byte[]> wrappedBytesType =
+        new Schema.LogicalType<ByteBuffer, byte[]>() {
+          @Override
+          public String getIdentifier() {
+            return "wrapped_bytes";
+          }
+
+          @Override
+          public FieldType getArgumentType() {
+            return FieldType.STRING;
+          }
+
+          @Override
+          public String getArgument() {
+            return "";
+          }
+
+          @Override
+          public FieldType getBaseType() {
+            return FieldType.BYTES;
+          }
+
+          @Override
+          public byte[] toBaseType(ByteBuffer input) {
+            byte[] bytes = new byte[input.remaining()];
+            input.duplicate().get(bytes);
+            return bytes;
+          }
+
+          @Override
+          public ByteBuffer toInputType(byte[] base) {
+            return ByteBuffer.wrap(base);
+          }
+        };
+
+    Schema schema = Schema.builder().addLogicalTypeField("f_bytes", wrappedBytesType).build();
+    Row row1 = Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+    Row row2 = Row.withSchema(schema).addValue(ByteBuffer.wrap(new byte[] {1, 2, 3, 4})).build();
+
+    assertEquals(row1, row2);
+    assertEquals(row1.hashCode(), row2.hashCode());
+  }
+
+  @Test
+  public void testRejectsMismatchedNestedRowSchema() {
+    Schema expectedNestedSchema = Schema.builder().addStringField("f_str").build();
+    Schema wrongNestedSchema = Schema.builder().addInt32Field("f_int").build();
+    Schema parentSchema = Schema.builder().addRowField("nested", expectedNestedSchema).build();
+
+    Row wrongNestedRow = Row.withSchema(wrongNestedSchema).addValue(42).build();
+    thrown.expect(IllegalArgumentException.class);
+    Row.withSchema(parentSchema).addValue(wrongNestedRow).build();
+  }
+
+  @Test
+  public void testRejectsMismatchedRowInArraySchema() {
+    Schema expectedNestedSchema = Schema.builder().addStringField("f_str").build();
+    Schema wrongNestedSchema = Schema.builder().addInt32Field("f_int").build();
+    Schema parentSchema =
+        Schema.builder().addArrayField("items", FieldType.row(expectedNestedSchema)).build();
+
+    Row wrongNestedRow = Row.withSchema(wrongNestedSchema).addValue(42).build();
+    thrown.expect(IllegalArgumentException.class);
+    Row.withSchema(parentSchema).addArray(ImmutableList.of(wrongNestedRow)).build();
+  }
+
+  @Test
+  public void testSlicedDirectAndReadOnlyByteBufferEquality() {
+    byte[] expected = new byte[] {2, 3, 4};
+    ByteBuffer sliced = ByteBuffer.wrap(new byte[] {99, 2, 3, 4, 99}, 1, 3).slice();
+    ByteBuffer readOnly = ByteBuffer.wrap(expected).asReadOnlyBuffer();
+    ByteBuffer direct = ByteBuffer.allocateDirect(expected.length);
+    direct.put(expected);
+    direct.flip();
+
+    Schema schema = Schema.of(Schema.Field.of("bytes", Schema.FieldType.BYTES));
+
+    Row rowFromBytes = Row.withSchema(schema).addValue(expected).build();
+    Row rowFromSlice = Row.withSchema(schema).addValue(sliced).build();
+    Row rowFromReadOnly = Row.withSchema(schema).withFieldValue("bytes", readOnly).build();
+    Row rowFromDirect = Row.withSchema(schema).withFieldValue("bytes", direct).build();
+
+    assertEquals(rowFromBytes, rowFromSlice);
+    assertEquals(rowFromBytes, rowFromReadOnly);
+    assertEquals(rowFromBytes, rowFromDirect);
+    assertTrue(Arrays.equals(expected, rowFromSlice.getBytes(0)));
+    assertTrue(Arrays.equals(expected, rowFromReadOnly.getBytes(0)));
+    assertTrue(Arrays.equals(expected, rowFromDirect.getBytes(0)));
+    // Source ByteBuffer positions must not be mutated during Row capture.
+    assertEquals(3, sliced.remaining());
+    assertEquals(3, readOnly.remaining());
+    assertEquals(3, direct.remaining());
+  }
+
+  @Test
+  public void testIterableCapturedInSinglePass() {
+    Schema schema = Schema.builder().addIterableField("it", FieldType.STRING).build();
+    int[] iterations = new int[1];
+    Iterable<String> oneShot =
+        () -> {
+          iterations[0]++;
+          if (iterations[0] > 1) {
+            throw new IllegalStateException("Iterable traversed more than once");
+          }
+          return ImmutableList.of("a", "b", "c").iterator();
+        };
+    Row row = Row.withSchema(schema).addIterable(oneShot).build();
+    assertEquals(1, iterations[0]);
+    assertEquals(ImmutableList.of("a", "b", "c"), Lists.newArrayList(row.getIterable("it")));
+  }
+
+  @Test
+  public void testSchemaVerificationVerifyFieldValue() {
+    assertEquals("ok", SchemaVerification.verifyFieldValue("ok", FieldType.STRING, "f"));
+    assertNull(SchemaVerification.verifyFieldValue(null, FieldType.STRING.withNullable(true), "f"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SchemaVerification.verifyFieldValue(null, FieldType.STRING, "f"));
   }
 }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
@@ -51,5 +52,45 @@ public class FieldAccessDescriptorParserTest {
         FieldAccessDescriptor.withFieldNames("simple_field"),
         FieldAccessDescriptorParser.parse("simple_field"));
     assertEquals(FieldAccessDescriptor.withAllFields(), FieldAccessDescriptorParser.parse("*"));
+  }
+
+  @Test
+  public void testDottedPathAndTerminalWildcardParse() {
+    FieldAccessDescriptor expectedTwo =
+        FieldAccessDescriptor.withFields()
+            .withNestedField(
+                FieldAccessDescriptor.FieldDescriptor.builder().setFieldName("a").build(),
+                FieldAccessDescriptor.withFields(
+                    FieldAccessDescriptor.FieldDescriptor.builder().setFieldName("b").build()));
+    assertEquals(expectedTwo, FieldAccessDescriptorParser.parse("a.b"));
+
+    FieldAccessDescriptor expectedThree =
+        FieldAccessDescriptor.withFields()
+            .withNestedField(
+                FieldAccessDescriptor.FieldDescriptor.builder().setFieldName("a").build(),
+                FieldAccessDescriptor.withFields()
+                    .withNestedField(
+                        FieldAccessDescriptor.FieldDescriptor.builder().setFieldName("b").build(),
+                        FieldAccessDescriptor.withFields(
+                            FieldAccessDescriptor.FieldDescriptor.builder()
+                                .setFieldName("c")
+                                .build())));
+    assertEquals(expectedThree, FieldAccessDescriptorParser.parse("a.b.c"));
+
+    FieldAccessDescriptor expectedWildcard =
+        FieldAccessDescriptor.withFields()
+            .withNestedField(
+                FieldAccessDescriptor.FieldDescriptor.builder().setFieldName("a").build(),
+                FieldAccessDescriptor.withFields()
+                    .withNestedField(
+                        FieldAccessDescriptor.FieldDescriptor.builder().setFieldName("b").build(),
+                        FieldAccessDescriptor.withAllFields()));
+    assertEquals(expectedWildcard, FieldAccessDescriptorParser.parse("a.b.*"));
+
+    // Whitespace falls back to ANTLR and must produce identical descriptor.
+    assertEquals(expectedTwo, FieldAccessDescriptorParser.parse(" a . b "));
+
+    // Non-terminal wildcard must still throw via ANTLR fallback.
+    assertThrows(IllegalArgumentException.class, () -> FieldAccessDescriptorParser.parse("a.*.b"));
   }
 }
