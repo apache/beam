@@ -597,9 +597,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
               windowedInputCoder,
               windowingStrategy.getWindowFn().windowCoder(),
               getOperatorStateBackend(),
-              getBufferingKeyedStateBackend(),
               numConcurrentCheckpoints,
               serializedOptions,
+              getBufferingKeyedStateBackend(),
               keyCoder != null ? () -> keyedStateInternals.getKey() : null);
     }
     return wrappedRunner;

@@ -97,9 +97,9 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       org.apache.beam.sdk.coders.Coder windowedInputCoder,
       org.apache.beam.sdk.coders.Coder windowCoder,
       OperatorStateBackend operatorStateBackend,
-      @Nullable KeyedStateBackend<Object> keyedStateBackend,
       int maxConcurrentCheckpoints,
       SerializablePipelineOptions pipelineOptions,
+      @Nullable KeyedStateBackend<Object> keyedStateBackend,
       @Nullable Supplier<?> timerKeySupplier)
       throws Exception {
 

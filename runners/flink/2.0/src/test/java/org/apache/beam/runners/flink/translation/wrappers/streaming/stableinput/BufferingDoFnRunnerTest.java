@@ -203,9 +203,9 @@ public class BufferingDoFnRunnerTest {
             StringUtf8Coder.of(),
             WindowedValues.getFullCoder(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
             operatorStateBackend,
-            keyedStateBackend,
             1,
             new SerializablePipelineOptions(FlinkPipelineOptions.defaults()),
+            keyedStateBackend,
             () -> "restored-" + currentKey.get());
 
     bufferingDoFnRunner.checkpointCompleted(1);
