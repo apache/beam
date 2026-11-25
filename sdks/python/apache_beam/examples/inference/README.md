@@ -782,7 +782,7 @@ The pipeline reads sentences, performs basic preprocessing to convert the last w
 
 To use this transform, you need a dataset and model for language modeling.
 
-1. Choose a checkpoint to load from Hugging Face Hub, eg:[MaskedLanguageModel](https://huggingface.co/stevhliu/my_awesome_eli5_mlm_model).
+1. Choose a checkpoint to load from Hugging Face Hub, eg:[MaskedLanguageModel](https://huggingface.co/FacebookAI/roberta-base).
 2. (Optional) Create a file named `SENTENCES.txt` that contains sentences to feed into the model. The content of the file should be similar to the following example:
 ```
 The capital of France is Paris .
@@ -807,13 +807,13 @@ For example, if you've followed the naming conventions recommended above:
 python -m apache_beam.examples.inference.huggingface_language_modeling \
   --input SENTENCES.txt \
   --output predictions.csv \
-  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+  --model_name "FacebookAI/roberta-base"
 ```
 Or, using the default example sentences:
 ```sh
 python -m apache_beam.examples.inference.huggingface_language_modeling \
   --output predictions.csv \
-  --model_name "stevhliu/my_awesome_eli5_mlm_model"
+  --model_name "FacebookAI/roberta-base"
 ```
 
 This writes the output to the `predictions.csv` with contents like:
