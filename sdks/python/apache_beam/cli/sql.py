@@ -235,7 +235,14 @@ def run(
   cmd = [java_bin, '-cp', jar_path, _MAIN_CLASS, *sqlline_args]
   if debug:
     print('+ ' + ' '.join(_sanitize_log_token(c) for c in cmd), file=sys.stderr)
-  with subprocess.Popen(cmd) as proc:
+  # `sqlline` 1.4.0 runs `-e` statements during `initArgs` and then enters its
+  # interactive prompt unless `System.in` reaches EOF; close `stdin` when
+  # batch/help flags are passed so one-shot commands exit in a live terminal.
+  popen_kwargs = {}
+  if any(a in ('-e', '-f', '-h', '--help') or str(a).startswith('--run=')
+         for a in sqlline_args):
+    popen_kwargs['stdin'] = subprocess.DEVNULL
+  with subprocess.Popen(cmd, **popen_kwargs) as proc:
     while True:
       try:
         rc = proc.wait()
@@ -298,6 +305,7 @@ def _normalize_ios(ios):
 
 
 _JAVA_VERSION_RE = re.compile(r'version "(\d+)(?:\.(\d+))?')
+_JAVA_HOME_PROP_RE = re.compile(r'^\s*java\.home\s*=\s*(.+?)\s*$', re.MULTILINE)
 _MIN_JAVA_MAJOR = 11
 _WARN_UNSUPPORTED_JAVA_MAJOR = 26
 
@@ -326,7 +334,7 @@ def _find_java():
           _EXIT_MISSING_DEPENDENCY)
 
   try:
-    proc = subprocess.run([java_bin, '-version'],
+    proc = subprocess.run([java_bin, '-XshowSettings:properties', '-version'],
                           capture_output=True,
                           text=True,
                           check=False)
@@ -337,7 +345,8 @@ def _find_java():
         'JAVA_HOME',
         _EXIT_MISSING_DEPENDENCY) from None
 
-  match = _JAVA_VERSION_RE.search(f'{proc.stderr}\n{proc.stdout}')
+  combined_output = f'{proc.stderr}\n{proc.stdout}'
+  match = _JAVA_VERSION_RE.search(combined_output)
   if proc.returncode != 0 or not match:
     raise SqlError(
         'no working Java runtime found; Beam SQL requires Java 11 or newer. '
@@ -359,13 +368,23 @@ def _find_java():
         'Java 11, 17, or 21',
         file=sys.stderr)
 
-  java_home = env_home or os.path.dirname(
-      os.path.dirname(os.path.realpath(java_bin)))
+  if env_home:
+    java_home = env_home
+  else:
+    # Read `java.home` from the JVM itself rather than `realpath(java_bin)`: on
+    # macOS `/usr/bin/java` is an Apple launcher binary (not a symlink) whose
+    # `realpath` resolves `java_home` to `/usr`, and on Windows `javapath`
+    # shims likewise do not live under the JDK root.
+    home_match = _JAVA_HOME_PROP_RE.search(combined_output)
+    if home_match:
+      java_home = home_match.group(1).strip()
+    else:
+      java_home = os.path.dirname(os.path.dirname(os.path.realpath(java_bin)))
   return java_bin, java_home
 
 
-# Same Maven Wrapper, Iceberg, GCS connector, and repository constants as
-# `scripts/beam-sql.sh` on upstream master (#40958, #41090).
+# Keep these versions, cache filenames, and POM dependency/shading rules in
+# sync with `scripts/beam-sql.sh` (#40958, #41090, #41486).
 _MAVEN_WRAPPER_VERSION = '3.2.0'
 _MAVEN_VERSION = '3.9.6'
 _MAVEN_SHADE_PLUGIN_VERSION = '3.5.1'

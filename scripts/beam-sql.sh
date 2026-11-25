@@ -22,6 +22,8 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- Configuration ---
+# Keep versions, cache filenames, and POM dependency/shading rules in sync with
+# `sdks/python/apache_beam/cli/sql.py` (`beam sql`).
 DEFAULT_BEAM_VERSION="2.79.0"
 MAIN_CLASS="org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
 # Directory to store cached executable JAR files

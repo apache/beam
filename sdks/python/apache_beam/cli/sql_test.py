@@ -459,6 +459,149 @@ class SqlShellTest(unittest.TestCase):
         pass
     self.assertEqual(fake_msvcrt.locking.call_count, 2)
 
+  def test_find_java_reads_java_home_property_for_launcher_shims(self):
+    # macOS `/usr/bin/java` and Windows `javapath\java.exe` are launcher shims
+    # whose `realpath` does not point into the JDK; `java.home` from
+    # `-XshowSettings:properties -version` must win, falling back to `realpath`
+    # only if the property is absent.
+    macos_props = (
+        'Property settings:\n'
+        '    java.home = /Library/Java/JavaVirtualMachines/'
+        'temurin-21.jdk/Contents/Home\n'
+        'openjdk version "21.0.5" 2024-10-15\n')
+    seen_cmds = []
+
+    def fake_java_props(cmd, **_kw):
+      seen_cmds.append(cmd)
+      return _proc(0, stderr=macos_props)
+
+    with (
+        mock.patch.dict(os.environ, {}, clear=True),
+        mock.patch('shutil.which', return_value='/usr/bin/java'),
+        mock.patch('os.path.realpath', return_value='/usr/bin/java'),
+        mock.patch('subprocess.run', side_effect=fake_java_props),
+    ):
+      found_bin, found_home = sql._find_java()
+    self.assertEqual(
+        seen_cmds[0],
+        ['/usr/bin/java', '-XshowSettings:properties', '-version'])
+    self.assertEqual(found_bin, '/usr/bin/java')
+    self.assertEqual(
+        found_home,
+        '/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home')
+
+    win_shim = r'C:\Program Files\Common Files\Oracle\Java\javapath\java.exe'
+    win_jdk = r'C:\Program Files\Eclipse Adoptium\jdk-21.0.5.11-hotspot'
+    win_props = (
+        f'Property settings:\r\n    java.home = {win_jdk}\r\n'
+        'openjdk version "21.0.5"\r\n')
+    with (
+        mock.patch.dict(os.environ, {}, clear=True),
+        mock.patch('shutil.which', return_value=win_shim),
+        mock.patch('subprocess.run', return_value=_proc(0, stderr=win_props)),
+    ):
+      _, win_home = sql._find_java()
+    self.assertEqual(win_home, win_jdk)
+
+    # Fallback when `java.home = ...` is absent from `-version` output.
+    with (
+        mock.patch.dict(os.environ, {}, clear=True),
+        mock.patch('shutil.which', return_value='/opt/jdk-17/bin/java'),
+        mock.patch('os.path.realpath', return_value='/opt/jdk-17/bin/java'),
+        mock.patch('subprocess.run',
+                   return_value=_proc(0, stderr='openjdk version "17.0.9"')),
+    ):
+      _, fallback_home = sql._find_java()
+    self.assertEqual(fallback_home, '/opt/jdk-17')
+
+  def test_e2e_csv_filter_aggregate_to_parquet(self):
+    in_ci = bool(
+        os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS') or
+        os.environ.get('JENKINS_HOME'))
+    try:
+      _, detected_home = sql._find_java()
+    except SqlError as exc:
+      if in_ci:
+        raise
+      self.skipTest(str(exc))
+
+    self.assertNotEqual(detected_home, '/usr')
+
+    work_dir = os.path.join(self.tmp, 'e2e_sql')
+    os.makedirs(work_dir)
+    with open(os.path.join(work_dir, 'orders.csv'), 'w', encoding='utf-8') as f:
+      f.write('alice,120\nbob,40\nalice,80\ncarol,200\n')
+    os.makedirs(os.path.join(work_dir, 'totals'))
+    os.makedirs(os.path.join(work_dir, 'totals_from_file'))
+
+    sql_script = os.path.join(work_dir, 'query.sql')
+    with open(sql_script, 'w', encoding='utf-8') as f:
+      f.write(
+          'CREATE EXTERNAL TABLE orders (customer VARCHAR, amount INTEGER) '
+          "TYPE text LOCATION 'orders.csv';\n"
+          'CREATE EXTERNAL TABLE totals (customer VARCHAR, total_amount BIGINT) '
+          "TYPE parquet LOCATION 'totals_from_file/';\n"
+          'INSERT INTO totals SELECT customer, SUM(amount) FROM orders '
+          'WHERE amount >= 50 GROUP BY customer;\n')
+
+    from apache_beam.cli import main as cli
+
+    old_cwd = os.getcwd()
+    try:
+      os.chdir(work_dir)
+      with mock.patch.dict(os.environ, {'BEAM_HOME': self.beam_home}):
+        rc_e = cli.main([
+            'sql',
+            '--io',
+            'parquet',
+            '-e',
+            'CREATE EXTERNAL TABLE orders (customer VARCHAR, amount INTEGER) '
+            "TYPE text LOCATION 'orders.csv';",
+            '-e',
+            'CREATE EXTERNAL TABLE totals '
+            '(customer VARCHAR, total_amount BIGINT) '
+            "TYPE parquet LOCATION 'totals/';",
+            '-e',
+            'INSERT INTO totals SELECT customer, SUM(amount) FROM orders '
+            'WHERE amount >= 50 GROUP BY customer;',
+        ])
+        self.assertEqual(rc_e, 0)
+
+        cached_err = io.StringIO()
+        with contextlib.redirect_stderr(cached_err):
+          rc_f = cli.main(['sql', '--io', 'parquet', '-f', 'query.sql'])
+        self.assertEqual(rc_f, 0)
+        self.assertIn('Using cached Beam SQL JAR:', cached_err.getvalue())
+    finally:
+      os.chdir(old_cwd)
+
+    expected_rows = [
+        {
+            'customer': 'alice', 'total_amount': 200
+        },
+        {
+            'customer': 'carol', 'total_amount': 200
+        },
+    ]
+    for out_subdir in ('totals', 'totals_from_file'):
+      out_path = os.path.join(work_dir, out_subdir)
+      shards = [
+          os.path.join(out_path, name) for name in os.listdir(out_path)
+          if not name.startswith('.') and
+          os.path.isfile(os.path.join(out_path, name))
+      ]
+      self.assertTrue(shards, f'expected Parquet shard files in {out_path}')
+      with open(shards[0], 'rb') as pf:
+        self.assertEqual(pf.read(4), b'PAR1')
+      try:
+        import pyarrow.parquet as pq
+      except ImportError:
+        pq = None
+      if pq is not None:
+        rows = sorted(
+            pq.read_table(out_path).to_pylist(), key=lambda r: r['customer'])
+        self.assertEqual(rows, expected_rows)
+
 
 if __name__ == '__main__':
   unittest.main()

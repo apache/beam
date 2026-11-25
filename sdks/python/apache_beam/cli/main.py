@@ -94,11 +94,27 @@ Every other --flag is passed to the pipeline as a Beam pipeline option.
 
 _SQL_EPILOG = """\
 examples:
+  # Open an interactive Beam SQL shell (0: BeamSQL>)
   beam sql
-  beam sql --io csv --io parquet
-  beam sql -e "SELECT 1 + 1 AS two;"
-  beam sql --runner dataflow --io google-cloud-platform
+  beam sql --io kafka --io iceberg
+  beam sql --runner dataflow --io iceberg
 
+  # Execute a one-shot query and exit
+  beam sql -e "SELECT 1 + 1 AS two;"
+
+  # Read CSV (built-in TYPE text), filter & aggregate, and write Parquet
+  beam sql --io parquet \\
+      -e "CREATE EXTERNAL TABLE orders (customer VARCHAR, amount INTEGER) TYPE text LOCATION 'orders.csv';" \\
+      -e "CREATE EXTERNAL TABLE totals (customer VARCHAR, total_amount BIGINT) TYPE parquet LOCATION 'totals/';" \\
+      -e "INSERT INTO totals SELECT customer, SUM(amount) FROM orders WHERE amount >= 50 GROUP BY customer;"
+
+  # Or execute the same statements from a SQL script file
+  beam sql --io parquet -f query.sql
+
+Without -e or -f, `beam sql` opens an interactive BeamSqlLine prompt.
+Built-in table types (`text` for CSV, `avro`, `datagen`, `bigquery`, `pubsub`,
+`bigtable`) work out of the box; pass `--io` to bundle optional connectors
+such as `parquet`, `kafka`, `iceberg`, or `delta` (`beam sql --list-ios`).
 Builds a shaded Beam SQL JAR once with Maven Wrapper and caches it in
 ~/.beam/cache/ (sharing the cache with scripts/beam-sql.sh). Requires Java 11+.
 Every other argument is passed through to BeamSqlLine.
@@ -197,10 +213,11 @@ def _build_parser():
 
   sql_parser = commands.add_parser(
       'sql',
-      help='launch the interactive Beam SQL shell',
+      help='run Beam SQL queries or open the interactive SQL shell',
       description=(
-          'Launch the Apache Beam SQL shell (BeamSqlLine), caching shaded '
-          'JARs in ~/.beam/cache/ compatibly with scripts/beam-sql.sh.'),
+          'Launch the Apache Beam SQL shell (BeamSqlLine) interactively, or '
+          'execute SQL statements with -e / -f, caching shaded JARs in '
+          '~/.beam/cache/ compatibly with scripts/beam-sql.sh.'),
       epilog=_SQL_EPILOG,
       formatter_class=argparse.RawDescriptionHelpFormatter,
       allow_abbrev=False)
