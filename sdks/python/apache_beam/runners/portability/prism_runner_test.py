@@ -302,6 +302,29 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                   ('B-3', {10, 15, 16}),
               ])))
 
+  def test_early_processing_time_timer_after_window_closed(self):
+    # The early AfterProcessingTime(1) firing arms a processing-time timer.
+    # In batch, the watermark reaches the end of the global window first,
+    # fires the final pane, and garbage collects the window's trigger state.
+    # The slow downstream step keeps the job running until the stale timer
+    # fires, which must be dropped instead of crashing the runner.
+    def slow(x):
+      time.sleep(3)
+      return x
+
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create([1, 2, 3])
+          | beam.WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.AfterWatermark(
+                  early=trigger.AfterProcessingTime(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.CombineGlobally(sum).without_defaults()
+          | beam.Map(slow))
+      assert_that(result, equal_to([6]))
+
   def test_failing_dofn(self):
     # Prism interprets all bundle failures as RuntimeError
     with self.assertRaisesRegex(

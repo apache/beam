@@ -1128,3 +1128,64 @@ func TestElementManager_ClearProcessingTimeTimer(t *testing.T) {
 		}
 	})
 }
+
+// An early AfterProcessingTime timer can still be queued when the watermark
+// reaches the end of the window, fires the final pane, and garbage collects
+// the window's trigger state. Firing that stale timer must not panic or emit
+// another pane.
+func TestAggregateStageKind_buildProcessingTimeBundle_AfterWindowStateCollected(t *testing.T) {
+	em := NewElementManager(Config{})
+	var instID uint64
+	em.nextBundID = func() string {
+		return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+	}
+	em.AddStage("agg", []string{"input"}, nil, nil)
+	// Equivalent to AfterWatermark(early=AfterProcessingTime(1s)), discarding.
+	// buildTrigger turns the unset late firings into TriggerDefault.
+	em.StageAggregates("agg", WinStrat{
+		Trigger: &TriggerAfterEndOfWindow{
+			Early: &TriggerAfterProcessingTime{
+				Transforms: []TimestampTransform{{Delay: time.Second}},
+			},
+			Late: &TriggerDefault{},
+		},
+	})
+	stage := em.stages["agg"]
+	win := window.GlobalWindow{}
+
+	// The first element arms the early processing-time timer.
+	em.addPending(stage.AddPending(em, []element{
+		{window: win, timestamp: 5000, elmBytes: []byte{1}, keyBytes: []byte("k")},
+	}))
+	firing := stage.processingTimeTimers.Peek()
+	if firing == mtime.MaxTimestamp {
+		t.Fatal("no processing-time timer was scheduled for the early trigger")
+	}
+
+	// The upstream watermark passes the end of the window before the timer
+	// fires. This emits the on-time (final) pane.
+	stage.upstreamWatermarks.Store("input", mtime.MaxTimestamp)
+	bundID, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, em.nextBundID)
+	if !ok {
+		t.Fatal("startEventTimeBundle started no bundle")
+	}
+	em.PersistBundle(RunBundle{StageID: stage.ID, BundleID: bundID, Watermark: mtime.MaxTimestamp}, nil, TentativeData{}, PColInfo{}, Residuals{})
+
+	// Advancing the output watermark garbage collects the window's state.
+	stage.updateWatermarks(em)
+	if _, ok := stage.state[LinkID{}][win]; ok {
+		t.Fatalf("state for %v not garbage collected after output watermark %v", win, stage.output)
+	}
+	if got := stage.processingTimeTimers.Peek(); got != firing {
+		t.Fatalf("processingTimeTimers.Peek() = %v, want stale timer at %v", got, firing)
+	}
+
+	// The stale timer fires. It must be dropped rather than panic.
+	bundID, ok, _, _ = stage.startProcessingTimeBundle(em, firing, em.nextBundID)
+	if ok {
+		t.Errorf("startProcessingTimeBundle started bundle %q for a garbage collected window, want none", bundID)
+	}
+	if got := stage.processingTimeTimers.Peek(); got != mtime.MaxTimestamp {
+		t.Errorf("processingTimeTimers.Peek() = %v, want %v", got, mtime.MaxTimestamp)
+	}
+}
