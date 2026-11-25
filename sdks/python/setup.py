@@ -190,7 +190,7 @@ ml_base_core = [
     'onnxruntime',
     'onnx>=1.14.1,<2',
     'onnxscript>=0.5.0,<1',
-    'langchain',
+    'langchain-text-splitters',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pyod>=0.7.6',  # 0.7.5 crashes setuptools
