@@ -34,6 +34,10 @@ runs:
   steps:
     - name: Run Gradle Command
       shell: bash
+      env:
+        GRADLE_COMMAND: ${{ inputs.gradle-command }}
+        MAX_WORKERS: ${{ inputs.max-workers }}
+        GRADLE_ARGUMENTS: ${{ inputs.arguments }}
       run: |
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -49,6 +53,155 @@ runs:
             ./gradlew --version --no-daemon && break || sleep 5
           done
         fi
-        ./gradlew ${{ inputs.gradle-command }} --max-workers=${{ inputs.max-workers }} --continue --no-daemon \
-         -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.vfs.watch=false \
-        ${{ inputs.arguments }}
+
+        # Tokenize Gradle task/option strings with POSIX quote, line-continuation, and $VAR
+        # env lookup semantics without eval, command substitution, or globbing.
+        GRADLE_CMD_ARGS=()
+        parse_gradle_args() {
+          local input="$1"
+          local len=${#input}
+          local i=0 token="" has_token=0 quote=""
+          local ch next j var_name var_val
+
+          while [ "$i" -lt "$len" ]; do
+            ch="${input:$i:1}"
+            if [ "$quote" = "'" ]; then
+              if [ "$ch" = "'" ]; then
+                quote=""
+              else
+                token="${token}${ch}"
+              fi
+              i=$((i + 1))
+              continue
+            fi
+
+            if [ "$ch" = '$' ] && [ $((i + 1)) -lt "$len" ]; then
+              next="${input:$((i + 1)):1}"
+              var_name=""
+              if [ "$next" = '{' ]; then
+                j=$((i + 2))
+                if [ "$j" -lt "$len" ]; then
+                  case "${input:$j:1}" in
+                    [A-Za-z_])
+                      while [ "$j" -lt "$len" ]; do
+                        case "${input:$j:1}" in
+                          [A-Za-z0-9_]) var_name="${var_name}${input:$j:1}"; j=$((j + 1)) ;;
+                          *) break ;;
+                        esac
+                      done
+                      if [ "$j" -lt "$len" ] && [ "${input:$j:1}" = '}' ]; then
+                        var_val="${!var_name}"
+                        if [ -n "$quote" ] || [ -n "$var_val" ] || [ "$has_token" -eq 1 ]; then
+                          token="${token}${var_val}"
+                          has_token=1
+                        fi
+                        i=$((j + 1))
+                        continue
+                      fi
+                      ;;
+                  esac
+                fi
+              else
+                case "$next" in
+                  [A-Za-z_])
+                    j=$((i + 1))
+                    while [ "$j" -lt "$len" ]; do
+                      case "${input:$j:1}" in
+                        [A-Za-z0-9_]) var_name="${var_name}${input:$j:1}"; j=$((j + 1)) ;;
+                        *) break ;;
+                      esac
+                    done
+                    var_val="${!var_name}"
+                    if [ -n "$quote" ] || [ -n "$var_val" ] || [ "$has_token" -eq 1 ]; then
+                      token="${token}${var_val}"
+                      has_token=1
+                    fi
+                    i=$j
+                    continue
+                    ;;
+                esac
+              fi
+            fi
+
+            if [ "$quote" = '"' ]; then
+              if [ "$ch" = '"' ]; then
+                quote=""
+                i=$((i + 1))
+              elif [ "$ch" = '\' ] && [ $((i + 1)) -lt "$len" ]; then
+                next="${input:$((i + 1)):1}"
+                if [ "$next" = $'\n' ]; then
+                  i=$((i + 2))
+                elif [ "$next" = $'\r' ] && [ $((i + 2)) -lt "$len" ] && [ "${input:$((i + 2)):1}" = $'\n' ]; then
+                  i=$((i + 3))
+                elif [ "$next" = '"' ] || [ "$next" = '\' ] || [ "$next" = '$' ] || [ "$next" = '`' ]; then
+                  token="${token}${next}"
+                  i=$((i + 2))
+                else
+                  token="${token}${ch}"
+                  i=$((i + 1))
+                fi
+              else
+                token="${token}${ch}"
+                i=$((i + 1))
+              fi
+            else
+              case "$ch" in
+                $' ' | $'\t' | $'\n' | $'\r')
+                  if [ "$has_token" -eq 1 ]; then
+                    GRADLE_CMD_ARGS+=("$token")
+                    token=""
+                    has_token=0
+                  fi
+                  i=$((i + 1))
+                  ;;
+                "'" | '"')
+                  quote="$ch"
+                  has_token=1
+                  i=$((i + 1))
+                  ;;
+                '\')
+                  if [ $((i + 1)) -lt "$len" ]; then
+                    next="${input:$((i + 1)):1}"
+                    if [ "$next" = $'\n' ]; then
+                      i=$((i + 2))
+                    elif [ "$next" = $'\r' ] && [ $((i + 2)) -lt "$len" ] && [ "${input:$((i + 2)):1}" = $'\n' ]; then
+                      i=$((i + 3))
+                    else
+                      token="${token}${next}"
+                      has_token=1
+                      i=$((i + 2))
+                    fi
+                  else
+                    has_token=1
+                    i=$((i + 1))
+                  fi
+                  ;;
+                *)
+                  token="${token}${ch}"
+                  has_token=1
+                  i=$((i + 1))
+                  ;;
+              esac
+            fi
+          done
+
+          if [ -n "$quote" ]; then
+            echo "Error: unterminated quote (${quote}) in Gradle arguments" >&2
+            return 2
+          fi
+          if [ "$has_token" -eq 1 ]; then
+            GRADLE_CMD_ARGS+=("$token")
+          fi
+        }
+
+        parse_gradle_args "${GRADLE_COMMAND}"
+        GRADLE_CMD_ARGS+=(
+          "--max-workers=${MAX_WORKERS}"
+          "--continue"
+          "--no-daemon"
+          "-Dorg.gradle.jvmargs=-Xms2g"
+          "-Dorg.gradle.jvmargs=-Xmx6g"
+          "-Dorg.gradle.vfs.watch=false"
+        )
+        parse_gradle_args "${GRADLE_ARGUMENTS}"
+        ./gradlew "${GRADLE_CMD_ARGS[@]}"
