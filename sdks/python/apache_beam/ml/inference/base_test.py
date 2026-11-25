@@ -389,6 +389,12 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
 
 
 class RunInferenceBaseTest(unittest.TestCase):
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      if p.is_alive():
+        p.terminate()
+        p.join(timeout=2)
+
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -405,6 +411,21 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_multi_process_shared_spawns_dedicated_processes(self):
+    worker_pid = os.getpid()
+    dofn = base._RunInferenceDoFn(
+        _PidModelHandler(model_copies=2),
+        FakeClock(),
+        metrics_namespace=None,
+        model_tag='pid_test_' + uuid.uuid4().hex)
+    dofn.setup()
+    results = [dofn.process([i], None, None)[0] for i in range(4)]
+    model_pids = {load_pid for load_pid, _ in results}
+    self.assertEqual(len(model_pids), 2)
+    self.assertNotIn(worker_pid, model_pids)
+    for load_pid, infer_pid in results:
+      self.assertEqual(load_pid, infer_pid)
 
   def test_run_inference_unpicklable_data_multi_process_shared(self):
     with self.assertRaisesRegex(Exception, 'Pickling error encountered'):
@@ -744,6 +765,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         super().__init__(multi_process_shared=True)
         self.metrics_namespace = None
         self.model_paths = None
+        self.env_vars_set = False
 
       def override_metrics(self, metrics_namespace=''):
         self.metrics_namespace = metrics_namespace
@@ -755,6 +777,10 @@ class RunInferenceBaseTest(unittest.TestCase):
       def update_model_paths(self, model, model_paths=None):
         self.model_paths = model_paths
 
+      def set_environment_vars(self):
+        super().set_environment_vars()
+        self.env_vars_set = True
+
     wrappers = {
         'maybe_keyed': base.MaybeKeyedModelHandler,
         'preprocess': lambda mh: mh.with_preprocess_fn(lambda x: x),
@@ -765,11 +791,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       with self.subTest(wrapper=name):
         inner = HookRecordingModelHandler()
         wrapped = wrap(inner)
+        self.assertIsInstance(wrapped, base._DelegatingModelHandler)
         self.assertTrue(wrapped.override_metrics('test_namespace'))
         self.assertEqual(inner.metrics_namespace, 'test_namespace')
         self.assertFalse(wrapped.should_garbage_collect_on_timeout())
         wrapped.update_model_paths(None, 'new/path')
         self.assertEqual(inner.model_paths, 'new/path')
+        wrapped.set_environment_vars()
+        self.assertTrue(inner.env_vars_set)
 
   def test_wrapper_model_handlers_override_all_model_handler_methods(self):
     # Wrappers must forward every ModelHandler hook to the handler they wrap,
@@ -778,14 +807,14 @@ class RunInferenceBaseTest(unittest.TestCase):
         'with_preprocess_fn',
         'with_postprocess_fn',
         'with_no_batching',
-        'set_environment_vars',  # Wrappers copy _env_vars instead.
     }
     methods = [
         name for name, _ in inspect.getmembers(
             base.ModelHandler, inspect.isfunction)
         if not name.startswith('_') and name not in not_forwarded
     ]
-    for cls in (base.MaybeKeyedModelHandler,
+    for cls in (base._DelegatingModelHandler,
+                base.MaybeKeyedModelHandler,
                 base._PrebatchedModelHandler,
                 base._PreProcessingModelHandler,
                 base._PostProcessingModelHandler):
@@ -1179,6 +1208,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
+  @pytest.mark.no_xdist
   @unittest.skipIf(
       sys.platform == "win32" or sys.version_info < (3, 11),
       "This test relies on the __del__ lifecycle method, but __del__ does " +
@@ -1193,13 +1223,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 15
-        expected_good = [1] * 15
+        examples = [20] + [1] * 20
+        expected_good = [1] * 20
         expected_bad = [20]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
-              0, True, tmp_path)).with_exception_handling(timeout=5)
+              0, True, tmp_path)).with_exception_handling(timeout=9)
 
         assert_that(main, equal_to(expected_good), label='assert:inferences')
 
@@ -2218,7 +2248,7 @@ class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_watch_file_pattern_side_input_label(self):
     pipeline = TestPipeline()
     # label of the WatchPattern transform.
-    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    side_input_str = 'WatchFilePattern/SelectLatestModel/EmitLatestModel'
     from apache_beam.ml.inference.utils import WatchFilePattern
     file_pattern_side_input = (
         pipeline
@@ -2230,7 +2260,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_watch_file_pattern_keyword_arg_side_input_label(self):
     # label of the WatchPattern transform.
-    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    side_input_str = 'WatchFilePattern/SelectLatestModel/EmitLatestModel'
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result_pcoll = pcoll | base.RunInference(
@@ -3371,6 +3401,31 @@ class ModelManagerTest(unittest.TestCase):
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
       dofn._model.force_reset()
+
+
+class _PidModel:
+  def __init__(self):
+    self.load_pid = os.getpid()
+
+  def predict(self, example: int) -> tuple[int, int]:
+    return (self.load_pid, os.getpid())
+
+
+class _PidModelHandler(base.ModelHandler[int, tuple[int, int], _PidModel]):
+  def __init__(self, model_copies: int = 1):
+    self._model_copies = model_copies
+
+  def load_model(self) -> _PidModel:
+    return _PidModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(el) for el in batch]
+
+  def share_model_across_processes(self) -> bool:
+    return True
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
 
 if __name__ == '__main__':

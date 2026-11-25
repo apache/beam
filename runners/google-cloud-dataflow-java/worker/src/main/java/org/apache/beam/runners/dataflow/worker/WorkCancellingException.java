@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -35,14 +36,7 @@ public class WorkCancellingException extends RuntimeException {
   }
 
   /** Returns whether an exception was caused by a {@link WorkCancellingException}. */
-  public static boolean isWorkCancellingException(Throwable t) {
-    @Nullable Throwable throwable = t;
-    while (throwable != null) {
-      if (throwable instanceof WorkCancellingException) {
-        return true;
-      }
-      throwable = throwable.getCause();
-    }
-    return false;
+  public static boolean isWorkCancellingException(@Nullable Throwable t) {
+    return ExceptionUtils.hasCause(t, WorkCancellingException.class);
   }
 }

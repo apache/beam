@@ -89,8 +89,23 @@ def fake_inference_fn(
 class TFRunInferenceTest(unittest.TestCase):
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
+    # Other ML test modules (e.g. tensorflow_transform) may set
+    # TF_USE_LEGACY_KERAS=1 during pytest collection after tf.keras was already
+    # initialized in the worker process, which would cause spawned child
+    # processes to load a different Keras backend than the one used to save
+    # test models in this process.
+    self._prev_use_legacy_keras = os.environ.get('TF_USE_LEGACY_KERAS')
+    keras_module = getattr(tf.keras.Model, '__module__', '')
+    if keras_module.startswith('tf_keras'):
+      os.environ['TF_USE_LEGACY_KERAS'] = '1'
+    elif keras_module.startswith('keras'):
+      os.environ['TF_USE_LEGACY_KERAS'] = '0'
 
   def tearDown(self):
+    if self._prev_use_legacy_keras is None:
+      os.environ.pop('TF_USE_LEGACY_KERAS', None)
+    else:
+      os.environ['TF_USE_LEGACY_KERAS'] = self._prev_use_legacy_keras
     shutil.rmtree(self.tmpdir)
 
   def test_predict_numpy(self):
@@ -382,6 +397,9 @@ class TFRunInferenceTestWithMocks(unittest.TestCase):
   def setUp(self):
     self._load_model = tensorflow_inference._load_model
     tensorflow_inference._load_model = unittest.mock.MagicMock()
+    # The mocked model returns one prediction per input.
+    tensorflow_inference._load_model.return_value.predict.side_effect = (
+        lambda batch, **kwargs: batch)
 
   def tearDown(self):
     tensorflow_inference._load_model = self._load_model
@@ -433,7 +451,6 @@ class TFRunInferenceTestWithMocks(unittest.TestCase):
     os.environ.pop('FOO', None)
     self.assertFalse('FOO' in os.environ)
     batched_examples = [numpy.array([1]), numpy.array([10]), numpy.array([100])]
-    tensorflow_inference._load_model = unittest.mock.MagicMock()
     with TestPipeline() as pipeline:
       _ = (
           pipeline

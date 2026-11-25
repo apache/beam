@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import copy
+import threading
 import traceback
 
 from apache_beam import pipeline as beam_pipeline
@@ -43,15 +44,27 @@ class ExpansionServiceServicer(
         flags=[],
         environment_type=python_urns.EMBEDDED_PYTHON,
         sdk_location='container')
-    default_environment = (environments.Environment.from_options(self._options))
-    if loopback_address:
+    self._loopback_address = loopback_address
+    self._default_environment = None
+    self._default_environment_lock = threading.Lock()
+
+  def _create_default_environment(self):
+    default_environment = environments.Environment.from_options(self._options)
+    if self._loopback_address:
       loopback_environment = environments.Environment.from_options(
           beam_pipeline.PipelineOptions(
               environment_type=common_urns.environments.EXTERNAL.urn,
-              environment_config=loopback_address))
+              environment_config=self._loopback_address))
       default_environment = environments.AnyOfEnvironment(
           [default_environment, loopback_environment])
-    self._default_environment = default_environment
+    return default_environment
+
+  def _get_default_environment(self):
+    if self._default_environment is None:
+      with self._default_environment_lock:
+        if self._default_environment is None:
+          self._default_environment = self._create_default_environment()
+    return self._default_environment
 
   def Expand(self, request, context=None):
     try:
@@ -70,7 +83,7 @@ class ExpansionServiceServicer(
 
       context = pipeline_context.PipelineContext(
           request.components,
-          default_environment=self._default_environment,
+          default_environment=self._get_default_environment(),
           namespace=request.namespace,
           requirements=request.requirements)
       producers = {

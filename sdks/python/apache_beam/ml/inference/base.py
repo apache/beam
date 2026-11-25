@@ -1230,18 +1230,103 @@ class KeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
       return self._unkeyed.should_skip_batching()
     return False
 
+  def set_environment_vars(self):
+    super().set_environment_vars()
+    if self._single_model:
+      return self._unkeyed.set_environment_vars()
+
   def should_garbage_collect_on_timeout(self) -> bool:
     if self._single_model:
       return self._unkeyed.should_garbage_collect_on_timeout()
     return False
 
 
+class _DelegatingModelHandler(Generic[ExampleT, PredictionT, ModelT],
+                              ModelHandler[ExampleT, PredictionT, ModelT]):
+  """A ModelHandler wrapper that forwards all hooks to an underlying handler.
+
+  Subclasses wrap a single underlying ``ModelHandler`` (stored as
+  ``self._base``) and override only the methods whose behavior they change, so
+  new hooks added to ``ModelHandler`` only need to be forwarded in one place.
+  """
+  def __init__(self, base: ModelHandler[Any, Any, ModelT]):
+    self._base = base
+    self._env_vars = getattr(base, '_env_vars', {})
+    self._model_identifier: Optional[str] = getattr(
+        base, '_model_identifier', None)
+
+  def load_model(self) -> ModelT:
+    return self._base.load_model()
+
+  def run_inference(
+      self,
+      batch: Sequence[Any],
+      model: ModelT,
+      inference_args: Optional[dict[str, Any]] = None) -> Iterable[Any]:
+    return self._base.run_inference(batch, model, inference_args)
+
+  def get_num_bytes(self, batch: Sequence[Any]) -> int:
+    return self._base.get_num_bytes(batch)
+
+  def get_metrics_namespace(self) -> str:
+    return self._base.get_metrics_namespace()
+
+  def get_resource_hints(self):
+    return self._base.get_resource_hints()
+
+  def batch_elements_kwargs(self):
+    return self._base.batch_elements_kwargs()
+
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    return self._base.validate_inference_args(inference_args)
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    return self._base.update_model_path(model_path=model_path)
+
+  def update_model_paths(
+      self,
+      model: ModelT,
+      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
+    return self._base.update_model_paths(model, model_paths)
+
+  def set_model_identifier(self, model_identifier: str):
+    super().set_model_identifier(model_identifier)
+    return self._base.set_model_identifier(model_identifier)
+
+  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_preprocess_fns()
+
+  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
+    return self._base.get_postprocess_fns()
+
+  def should_skip_batching(self) -> bool:
+    return self._base.should_skip_batching()
+
+  def set_environment_vars(self):
+    super().set_environment_vars()
+    return self._base.set_environment_vars()
+
+  def share_model_across_processes(self) -> bool:
+    return self._base.share_model_across_processes()
+
+  def model_copies(self) -> int:
+    return self._base.model_copies()
+
+  def override_metrics(self, metrics_namespace: str = '') -> bool:
+    return self._base.override_metrics(metrics_namespace)
+
+  def should_garbage_collect_on_timeout(self) -> bool:
+    return self._base.should_garbage_collect_on_timeout()
+
+
 class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
-                             ModelHandler[Union[ExampleT, tuple[KeyT,
-                                                                ExampleT]],
-                                          Union[PredictionT,
-                                                tuple[KeyT, PredictionT]],
-                                          ModelT]):
+                             _DelegatingModelHandler[Union[ExampleT,
+                                                           tuple[KeyT,
+                                                                 ExampleT]],
+                                                     Union[PredictionT,
+                                                           tuple[KeyT,
+                                                                 PredictionT]],
+                                                     ModelT]):
   def __init__(self, unkeyed: ModelHandler[ExampleT, PredictionT, ModelT]):
     """A ModelHandler that takes examples that might have keys and returns
     predictions that might have keys.
@@ -1265,11 +1350,8 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
           'postprocessing functions defined into a keyed model handler. All '
           'pre/postprocessing functions must be defined on the outer model'
           'handler.')
+    super().__init__(unkeyed)
     self._unkeyed = unkeyed
-    self._env_vars = getattr(unkeyed, '_env_vars', {})
-
-  def load_model(self) -> ModelT:
-    return self._unkeyed.load_model()
 
   def run_inference(
       self,
@@ -1303,135 +1385,34 @@ class MaybeKeyedModelHandler(Generic[KeyT, ExampleT, PredictionT, ModelT],
     else:
       return self._unkeyed.get_num_bytes(batch)  # type: ignore[arg-type]
 
-  def get_metrics_namespace(self) -> str:
-    return self._unkeyed.get_metrics_namespace()
-
-  def get_resource_hints(self):
-    return self._unkeyed.get_resource_hints()
-
   def batch_elements_kwargs(self):
     return _keyed_batch_elements_kwargs(
         self._unkeyed.batch_elements_kwargs(), maybe_keyed=True)
 
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    return self._unkeyed.validate_inference_args(inference_args)
-
-  def update_model_path(self, model_path: Optional[str] = None):
-    return self._unkeyed.update_model_path(model_path=model_path)
-
-  def set_model_identifier(self, model_identifier: str):
-    super().set_model_identifier(model_identifier)
-    return self._unkeyed.set_model_identifier(model_identifier)
-
-  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._unkeyed.get_preprocess_fns()
-
-  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._unkeyed.get_postprocess_fns()
-
-  def should_skip_batching(self) -> bool:
-    return self._unkeyed.should_skip_batching()
-
-  def share_model_across_processes(self) -> bool:
-    return self._unkeyed.share_model_across_processes()
-
-  def model_copies(self) -> int:
-    return self._unkeyed.model_copies()
-
-  def update_model_paths(
-      self,
-      model: ModelT,
-      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
-    return self._unkeyed.update_model_paths(model, model_paths)
-
-  def override_metrics(self, metrics_namespace: str = '') -> bool:
-    return self._unkeyed.override_metrics(metrics_namespace)
-
-  def should_garbage_collect_on_timeout(self) -> bool:
-    return self._unkeyed.should_garbage_collect_on_timeout()
-
 
 class _PrebatchedModelHandler(Generic[ExampleT, PredictionT, ModelT],
-                              ModelHandler[Sequence[ExampleT],
-                                           PredictionT,
-                                           ModelT]):
+                              _DelegatingModelHandler[Sequence[ExampleT],
+                                                      PredictionT,
+                                                      ModelT]):
   def __init__(self, base: ModelHandler[ExampleT, PredictionT, ModelT]):
     """A ModelHandler that skips batching in RunInference.
 
     Args:
       base: An implementation of the underlying model handler.
     """
-    self._base = base
-    self._env_vars = getattr(base, '_env_vars', {})
-
-  def load_model(self) -> ModelT:
-    return self._base.load_model()
-
-  def run_inference(
-      self,
-      batch: Sequence[Union[ExampleT, tuple[KeyT, ExampleT]]],
-      model: ModelT,
-      inference_args: Optional[dict[str, Any]] = None
-  ) -> Union[Iterable[PredictionT], Iterable[tuple[KeyT, PredictionT]]]:
-    return self._base.run_inference(batch, model, inference_args)
-
-  def get_num_bytes(
-      self, batch: Sequence[Union[ExampleT, tuple[KeyT, ExampleT]]]) -> int:
-    return self._base.get_num_bytes(batch)
-
-  def get_metrics_namespace(self) -> str:
-    return self._base.get_metrics_namespace()
-
-  def get_resource_hints(self):
-    return self._base.get_resource_hints()
-
-  def batch_elements_kwargs(self):
-    return self._base.batch_elements_kwargs()
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    return self._base.validate_inference_args(inference_args)
-
-  def update_model_path(self, model_path: Optional[str] = None):
-    return self._base.update_model_path(model_path=model_path)
-
-  def set_model_identifier(self, model_identifier: str):
-    super().set_model_identifier(model_identifier)
-    return self._base.set_model_identifier(model_identifier)
-
-  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._base.get_preprocess_fns()
+    super().__init__(base)
 
   def should_skip_batching(self) -> bool:
     return True
-
-  def share_model_across_processes(self) -> bool:
-    return self._base.share_model_across_processes()
-
-  def model_copies(self) -> int:
-    return self._base.model_copies()
-
-  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._base.get_postprocess_fns()
-
-  def update_model_paths(
-      self,
-      model: ModelT,
-      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
-    return self._base.update_model_paths(model, model_paths)
-
-  def override_metrics(self, metrics_namespace: str = '') -> bool:
-    return self._base.override_metrics(metrics_namespace)
-
-  def should_garbage_collect_on_timeout(self) -> bool:
-    return self._base.should_garbage_collect_on_timeout()
 
 
 class _PreProcessingModelHandler(Generic[ExampleT,
                                          PredictionT,
                                          ModelT,
                                          PreProcessT],
-                                 ModelHandler[PreProcessT, PredictionT,
-                                              ModelT]):
+                                 _DelegatingModelHandler[PreProcessT,
+                                                         PredictionT,
+                                                         ModelT]):
   def __init__(
       self,
       base: ModelHandler[ExampleT, PredictionT, ModelT],
@@ -1442,77 +1423,20 @@ class _PreProcessingModelHandler(Generic[ExampleT,
       base: An implementation of the underlying model handler.
       preprocess_fn: the preprocessing function to use.
     """
-    self._base = base
-    self._env_vars = getattr(base, '_env_vars', {})
+    super().__init__(base)
     self._preprocess_fn = preprocess_fn
-
-  def load_model(self) -> ModelT:
-    return self._base.load_model()
-
-  def run_inference(
-      self,
-      batch: Sequence[Union[ExampleT, tuple[KeyT, ExampleT]]],
-      model: ModelT,
-      inference_args: Optional[dict[str, Any]] = None
-  ) -> Union[Iterable[PredictionT], Iterable[tuple[KeyT, PredictionT]]]:
-    return self._base.run_inference(batch, model, inference_args)
-
-  def get_num_bytes(
-      self, batch: Sequence[Union[ExampleT, tuple[KeyT, ExampleT]]]) -> int:
-    return self._base.get_num_bytes(batch)
-
-  def get_metrics_namespace(self) -> str:
-    return self._base.get_metrics_namespace()
-
-  def get_resource_hints(self):
-    return self._base.get_resource_hints()
-
-  def batch_elements_kwargs(self):
-    return self._base.batch_elements_kwargs()
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    return self._base.validate_inference_args(inference_args)
-
-  def update_model_path(self, model_path: Optional[str] = None):
-    return self._base.update_model_path(model_path=model_path)
-
-  def set_model_identifier(self, model_identifier: str):
-    super().set_model_identifier(model_identifier)
-    return self._base.set_model_identifier(model_identifier)
 
   def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return [self._preprocess_fn] + self._base.get_preprocess_fns()
-
-  def should_skip_batching(self) -> bool:
-    return self._base.should_skip_batching()
-
-  def share_model_across_processes(self) -> bool:
-    return self._base.share_model_across_processes()
-
-  def model_copies(self) -> int:
-    return self._base.model_copies()
-
-  def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._base.get_postprocess_fns()
-
-  def update_model_paths(
-      self,
-      model: ModelT,
-      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
-    return self._base.update_model_paths(model, model_paths)
-
-  def override_metrics(self, metrics_namespace: str = '') -> bool:
-    return self._base.override_metrics(metrics_namespace)
-
-  def should_garbage_collect_on_timeout(self) -> bool:
-    return self._base.should_garbage_collect_on_timeout()
 
 
 class _PostProcessingModelHandler(Generic[ExampleT,
                                           PredictionT,
                                           ModelT,
                                           PostProcessT],
-                                  ModelHandler[ExampleT, PostProcessT, ModelT]):
+                                  _DelegatingModelHandler[ExampleT,
+                                                          PostProcessT,
+                                                          ModelT]):
   def __init__(
       self,
       base: ModelHandler[ExampleT, PredictionT, ModelT],
@@ -1523,70 +1447,11 @@ class _PostProcessingModelHandler(Generic[ExampleT,
       base: An implementation of the underlying model handler.
       postprocess_fn: the preprocessing function to use.
     """
-    self._base = base
-    self._env_vars = getattr(base, '_env_vars', {})
+    super().__init__(base)
     self._postprocess_fn = postprocess_fn
-
-  def load_model(self) -> ModelT:
-    return self._base.load_model()
-
-  def run_inference(
-      self,
-      batch: Sequence[Union[ExampleT, tuple[KeyT, ExampleT]]],
-      model: ModelT,
-      inference_args: Optional[dict[str, Any]] = None
-  ) -> Union[Iterable[PredictionT], Iterable[tuple[KeyT, PredictionT]]]:
-    return self._base.run_inference(batch, model, inference_args)
-
-  def get_num_bytes(
-      self, batch: Sequence[Union[ExampleT, tuple[KeyT, ExampleT]]]) -> int:
-    return self._base.get_num_bytes(batch)
-
-  def get_metrics_namespace(self) -> str:
-    return self._base.get_metrics_namespace()
-
-  def get_resource_hints(self):
-    return self._base.get_resource_hints()
-
-  def batch_elements_kwargs(self):
-    return self._base.batch_elements_kwargs()
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    return self._base.validate_inference_args(inference_args)
-
-  def update_model_path(self, model_path: Optional[str] = None):
-    return self._base.update_model_path(model_path=model_path)
-
-  def set_model_identifier(self, model_identifier: str):
-    super().set_model_identifier(model_identifier)
-    return self._base.set_model_identifier(model_identifier)
-
-  def get_preprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
-    return self._base.get_preprocess_fns()
-
-  def should_skip_batching(self) -> bool:
-    return self._base.should_skip_batching()
-
-  def share_model_across_processes(self) -> bool:
-    return self._base.share_model_across_processes()
-
-  def model_copies(self) -> int:
-    return self._base.model_copies()
 
   def get_postprocess_fns(self) -> Iterable[Callable[[Any], Any]]:
     return self._base.get_postprocess_fns() + [self._postprocess_fn]
-
-  def update_model_paths(
-      self,
-      model: ModelT,
-      model_paths: Optional[Union[str, list[KeyModelPathMapping]]] = None):
-    return self._base.update_model_paths(model, model_paths)
-
-  def override_metrics(self, metrics_namespace: str = '') -> bool:
-    return self._base.override_metrics(metrics_namespace)
-
-  def should_garbage_collect_on_timeout(self) -> bool:
-    return self._base.should_garbage_collect_on_timeout()
 
 
 class OOMProtectedFn:
@@ -1615,11 +1480,8 @@ class OOMProtectedFn:
 
 def _is_multi_model_keyed_handler(model_handler: ModelHandler) -> bool:
   """Returns whether model_handler is a KeyedModelHandler with many models,
-  looking through any batching or pre/postprocessing wrappers."""
-  while isinstance(model_handler,
-                   (_PrebatchedModelHandler,
-                    _PreProcessingModelHandler,
-                    _PostProcessingModelHandler)):
+  looking through any delegating wrappers."""
+  while isinstance(model_handler, _DelegatingModelHandler):
     model_handler = model_handler._base
   return (
       isinstance(model_handler, KeyedModelHandler) and
@@ -2160,7 +2022,10 @@ def load_model_status(
   tag = f'{model_tag}_model_status'
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
-        lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
+        lambda: _ModelStatus(True),
+        tag=tag,
+        always_proxy=True,
+        spawn_process=True).acquire()
   return _model_statuses.setdefault(tag, _ModelStatus(False))
 
 
@@ -2224,7 +2089,8 @@ class _SharedModelWrapper():
       self.model_router = multi_process_shared.MultiProcessShared(
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
-          always_proxy=True).acquire()
+          always_proxy=True,
+          spawn_process=True).acquire()
 
   def next_model(self):
     if self.use_model_manager:
@@ -2344,12 +2210,17 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           self._model_handler.load_model,
           metric_tag=self._model_tag)
     elif self._model_handler.share_model_across_processes():
+      if isinstance(side_input_model_path, str):
+        self._model_handler.update_model_path(side_input_model_path)
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
                                            self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
-                load, tag=copy_tag, always_proxy=True).acquire())
+                self._model_handler.load_model,
+                tag=copy_tag,
+                always_proxy=True,
+                spawn_process=True).acquire())
       model_wrapper = _SharedModelWrapper(models, self._cur_tag)
     else:
       model = self._shared_model_handle.acquire(load, tag=self._cur_tag)
@@ -2419,7 +2290,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         # ModelManager with MultiProcessShared returns the model tag
         unique_tag = model
         model = multi_process_shared.MultiProcessShared(
-            lambda: None, tag=model, always_proxy=True).acquire()
+            lambda: None, tag=model, always_proxy=True,
+            spawn_process=True).acquire()
       try:
         result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
             batch, model, inference_args)
@@ -2498,8 +2370,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       for unprefixed_tag in tags_to_gc:
         for tag in _get_tags_for_copies(unprefixed_tag,
                                         self._model_handler.model_copies()):
-          multi_process_shared.MultiProcessShared(lambda: None,
-                                                  tag).unsafe_hard_delete()
+          multi_process_shared.MultiProcessShared(
+              lambda: None, tag, spawn_process=True).unsafe_hard_delete()
       self._model_metadata.mark_tags_deleted(tags_to_gc)
 
 

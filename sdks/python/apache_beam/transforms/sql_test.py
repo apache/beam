@@ -28,6 +28,7 @@ import pytest
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -238,6 +239,75 @@ class SqlTransformTest(unittest.TestCase):
               "SELECT t.id, t.coords.f0 AS `name`, t.coords.f1 AS `val`, t.coords "
               "FROM PCOLLECTION t WHERE t.coords.f1 > 150"))
       assert_that(out, equal_to([(2, "bar", 200, ("bar", 200))]))
+
+
+class SqlTransformSchemaTransformConfigTest(unittest.TestCase):
+  """Regression guard for the SQL SchemaTransform configuration schema.
+
+  This is NOT an end-to-end test: it does not start an expansion service or
+  talk to Java. It hand-builds the schema proto that
+  SqlTransformSchemaTransformProvider.configurationSchema() emits in Java for
+  ``schematransform:org.apache.beam:sql_transform:v1`` and checks that Python
+  can decode it. The Java side is pinned separately by
+  SqlTransformSchemaTransformProviderTest, so if the Java schema changes, this
+  hand-built copy must be updated by hand.
+
+  Previously ``dialect`` and ``tableproviders`` used the Java-only
+  ``javasdk_enum`` logical type and ``parameters`` used ``javasdk_oneof``,
+  which made schema discovery fail with "No logical type registered for URN".
+  """
+  @staticmethod
+  def _field(name, atomic_type, nullable=True):
+    return schema_pb2.Field(
+        name=name,
+        type=schema_pb2.FieldType(atomic_type=atomic_type, nullable=nullable))
+
+  def _config_schema(self):
+    string_array = schema_pb2.FieldType(
+        nullable=True,
+        array_type=schema_pb2.ArrayType(
+            element_type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)))
+    return schema_pb2.Schema(
+        fields=[
+            self._field('query', schema_pb2.STRING, nullable=False),
+            self._field('ddl', schema_pb2.STRING),
+            self._field('dialect', schema_pb2.STRING),
+            self._field('autoload', schema_pb2.BOOLEAN),
+            schema_pb2.Field(name='tableproviders', type=string_array),
+        ])
+
+  def test_config_schema_decodes(self):
+    from apache_beam.typehints.schemas import named_tuple_from_schema
+    config = named_tuple_from_schema(self._config_schema())
+    self.assertEqual(
+        list(config._fields),
+        ['query', 'ddl', 'dialect', 'autoload', 'tableproviders'])
+    hints = config.__annotations__
+    self.assertEqual(hints['query'], str)
+    self.assertEqual(hints['dialect'], typing.Optional[str])
+    self.assertEqual(hints['autoload'], typing.Optional[bool])
+    # Compare structurally; the repr of typing.Sequence varies by Python version.
+    non_none = [
+        arg for arg in typing.get_args(hints['tableproviders'])
+        if arg is not type(None)
+    ]
+    self.assertEqual(len(non_none), 1)
+    self.assertEqual(typing.get_args(non_none[0]), (str, ))
+    self.assertIn(type(None), typing.get_args(hints['tableproviders']))
+
+  def test_java_enum_logical_type_is_not_decodable(self):
+    # Documents why the Java schema must not use EnumerationType.
+    from apache_beam.typehints.schemas import named_tuple_from_schema
+    enum_field = schema_pb2.Field(
+        name='dialect',
+        type=schema_pb2.FieldType(
+            nullable=True,
+            logical_type=schema_pb2.LogicalType(
+                urn='beam:logical_type:javasdk_enum:v1',
+                representation=schema_pb2.FieldType(
+                    atomic_type=schema_pb2.INT32))))
+    with self.assertRaisesRegex(ValueError, 'javasdk_enum'):
+      named_tuple_from_schema(schema_pb2.Schema(fields=[enum_field]))
 
 
 if __name__ == "__main__":

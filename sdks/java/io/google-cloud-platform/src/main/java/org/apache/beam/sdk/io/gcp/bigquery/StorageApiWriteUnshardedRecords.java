@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
@@ -1323,13 +1324,24 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           dynamicDestinations,
           destination);
       @Nullable Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
+      // Eagerly resolve schema and table constraints while ProcessContext/OnTimerContext is active,
+      // as dynamicDestinations may access side inputs which are not guaranteed to be available when
+      // tryCreateTable is invoked during @FinishBundle.
+      final com.google.api.services.bigquery.model.@Nullable TableSchema tableSchema =
+          createDisposition == BigQueryIO.Write.CreateDisposition.CREATE_NEVER
+              ? null
+              : dynamicDestinations.getSchema(destination);
+      final @Nullable TableConstraints tableConstraints =
+          createDisposition == BigQueryIO.Write.CreateDisposition.CREATE_NEVER
+              ? null
+              : dynamicDestinations.getTableConstraints(destination);
       Callable<Boolean> tryCreateTable =
           () -> {
             CreateTableHelpers.possiblyCreateTable(
                 options.as(BigQueryOptions.class),
                 tableDestination1,
-                () -> dynamicDestinations.getSchema(destination),
-                () -> dynamicDestinations.getTableConstraints(destination),
+                () -> tableSchema,
+                () -> tableConstraints,
                 createDisposition,
                 destinationCoder,
                 kmsKey,

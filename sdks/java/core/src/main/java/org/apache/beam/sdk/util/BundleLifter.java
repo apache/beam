@@ -1,0 +1,527 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.util;
+
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A PTransform that routes elements to one of two TupleTags depending on how many bytes of them
+ * arrive together within a bundle.
+ *
+ * <p>Elements are buffered per key. Once the buffered elements of a key reach the threshold, they
+ * are emitted to the large tag, and all later elements of that key in the same bundle are emitted
+ * to the large tag directly without buffering. Elements of keys that never reach the threshold are
+ * emitted to the small tag at the end of the bundle.
+ *
+ * <p>Without a key function, elements are grouped by window and pane. With {@link #withKeyFn}, the
+ * key is the element's window, pane and the value returned by the key function; elements for which
+ * it returns {@code null} share their own key within that window and pane.
+ *
+ * <p>To bound memory, at most {@link #withMaxBufferedBytes maxBufferedBytes} (twice the threshold
+ * by default) is buffered in total. When that is exceeded, the keys with the fewest buffered bytes
+ * are emitted to the small tag until at most half of it remains buffered, and for the rest of the
+ * bundle elements of keys that are neither buffered nor lifted are emitted to the small tag
+ * immediately.
+ *
+ * <p>With {@link #withMaxLiftedKeys}, at most that many keys are lifted per bundle. Once the limit
+ * is reached, the remaining buffered elements are emitted to the small tag, and for the rest of the
+ * bundle elements of keys that are not lifted are emitted to the small tag immediately.
+ *
+ * <p>Every element keeps its own timestamp and window.
+ *
+ * <p>For internal use only; no backwards-compatibility guarantees.
+ *
+ * @param <T> The type of elements in the input PCollection.
+ */
+@Internal
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
+public class BundleLifter<T> extends PTransform<PCollection<T>, PCollectionTuple> {
+
+  final TupleTag<T> smallBatchTag;
+  final TupleTag<T> largeBatchTag;
+  // Once a key reaches this threshold all elements for the key are output to largeBatchTag.
+  final long threshold;
+  final long maxBufferedBytes;
+  final int maxLiftedKeys;
+  final SerializableFunction<T, Integer> elementSizer;
+  final @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn;
+
+  static long defaultMaxBufferedBytes(long threshold) {
+    return threshold > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : 2 * threshold;
+  }
+
+  /**
+   * A DoFn that buffers elements per key within a bundle and outputs them to the large tag once a
+   * key reaches the threshold, or to the small tag otherwise.
+   *
+   * @param <T> The type of elements being processed.
+   */
+  static class BundleLiftDoFn<T> extends DoFn<T, Void> {
+    private static final Logger LOG = LoggerFactory.getLogger(BundleLiftDoFn.class);
+
+    /** The key shared by all elements without a key, or whose key function returns null. */
+    private static final Object UNKEYED = new Object();
+
+    final TupleTag<T> smallBatchTag;
+    final TupleTag<T> largeBatchTag;
+    // Once a key reaches this threshold all elements for the key are output to largeBatchTag.
+    final long threshold;
+    final long maxBufferedBytes;
+    final int maxLiftedKeys;
+    final SerializableFunction<T, Integer> elementSizer;
+    final @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn;
+
+    // Per-bundle state, allocated once in setup and cleared at the start of each bundle.
+    private transient @MonotonicNonNull Map<WindowedKey, KeyBuffer<T>> buffers;
+    // Keys which have been emitted to the largeBatchTag and for which future elements should also
+    // be routed to the largeBatchTag.
+    private transient @MonotonicNonNull Set<WindowedKey> liftedKeys;
+    // Reset in startBundle.
+    private long bufferedBytes;
+    // Set once the memory cap is exceeded or the lifted key limit is reached in this bundle: keys
+    // that are neither buffered nor lifted are no longer tracked and go to the small output
+    // immediately.
+    private boolean keysFinalized;
+
+    BundleLiftDoFn(
+        TupleTag<T> smallBatchTag,
+        TupleTag<T> largeBatchTag,
+        long threshold,
+        long maxBufferedBytes,
+        int maxLiftedKeys,
+        SerializableFunction<T, Integer> elementSizer,
+        @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
+      this.smallBatchTag = smallBatchTag;
+      this.largeBatchTag = largeBatchTag;
+      this.threshold = threshold;
+      this.maxBufferedBytes = maxBufferedBytes;
+      this.maxLiftedKeys = maxLiftedKeys;
+      this.elementSizer = elementSizer;
+      this.keyFn = keyFn;
+    }
+
+    @Setup
+    public void setup() {
+      buffers = new HashMap<>();
+      liftedKeys = new HashSet<>();
+    }
+
+    @StartBundle
+    public void startBundle() {
+      checkStateNotNull(buffers, "Buffers should be set by setup.").clear();
+      checkStateNotNull(liftedKeys, "Lifted keys should be set by setup.").clear();
+      bufferedBytes = 0L;
+      keysFinalized = false;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element T element,
+        @Timestamp Instant timestamp,
+        BoundedWindow window,
+        PaneInfo pane,
+        MultiOutputReceiver receiver) {
+      Map<WindowedKey, KeyBuffer<T>> buffers =
+          checkStateNotNull(this.buffers, "Buffers should be set by setup.");
+      Set<WindowedKey> liftedKeys =
+          checkStateNotNull(this.liftedKeys, "Lifted keys should be set by setup.");
+
+      @Nullable Object userKey = keyFn == null ? null : keyFn.apply(element);
+      WindowedKey key = new WindowedKey(window, pane, userKey == null ? UNKEYED : userKey);
+
+      if (liftedKeys.contains(key)) {
+        // This key already reached the threshold in this bundle; stream it through.
+        receiver
+            .get(largeBatchTag)
+            .outputWindowedValue(element, timestamp, Collections.singletonList(window), pane);
+        return;
+      }
+
+      KeyBuffer<T> buffer = buffers.get(key);
+      if (buffer == null) {
+        if (keysFinalized) {
+          // The memory cap was exceeded earlier in this bundle; don't track new keys.
+          receiver
+              .get(smallBatchTag)
+              .outputWindowedValue(element, timestamp, Collections.singletonList(window), pane);
+          return;
+        }
+        buffer = new KeyBuffer<>();
+        buffers.put(key, buffer);
+      }
+      long elementBytes = elementSizer.apply(element);
+      buffer.add(new BufferedElement<>(element, timestamp, window, pane), elementBytes);
+      bufferedBytes += elementBytes;
+
+      if (buffer.sizeBytes >= threshold) {
+        buffers.remove(key);
+        bufferedBytes -= buffer.sizeBytes;
+        liftedKeys.add(key);
+        LOG.debug(
+            "Key reached {} estimated bytes; emitting {} buffered elements to tag: '{}'",
+            buffer.sizeBytes,
+            buffer.elements.size(),
+            largeBatchTag.getId());
+        emit(buffer, receiver.get(largeBatchTag));
+        buffer.elements.clear();
+        if (liftedKeys.size() >= maxLiftedKeys) {
+          // No other key can be lifted in this bundle; release the remaining buffers.
+          keysFinalized = true;
+          OutputReceiver<T> small = receiver.get(smallBatchTag);
+          Iterator<KeyBuffer<T>> it = buffers.values().iterator();
+          while (it.hasNext()) {
+            KeyBuffer<T> other = it.next();
+            it.remove();
+            emit(other, small);
+            other.elements.clear();
+          }
+          bufferedBytes = 0L;
+        }
+        return;
+      }
+
+      // Anything that isn't in lifted keys or buffers is sent to small keys immediately.
+      if (bufferedBytes > maxBufferedBytes) {
+        keysFinalized = true;
+        evictSmallestKeys(buffers, receiver.get(smallBatchTag));
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext context) {
+      Map<WindowedKey, KeyBuffer<T>> buffers =
+          checkStateNotNull(this.buffers, "Buffers should be set by setup.");
+      Iterator<KeyBuffer<T>> it = buffers.values().iterator();
+      while (it.hasNext()) {
+        KeyBuffer<T> buffer = it.next();
+        it.remove();
+        LOG.debug(
+            "Emitting {} elements of {} estimated bytes to tag: '{}'",
+            buffer.elements.size(),
+            buffer.sizeBytes,
+            smallBatchTag.getId());
+        // FinishBundleContext.output has no PaneInfo/WindowedValue overload yet.
+        for (BufferedElement<T> e : buffer.elements) {
+          context.output(smallBatchTag, e.value, e.timestamp, e.window);
+        }
+        buffer.elements.clear();
+      }
+      checkStateNotNull(this.liftedKeys).clear();
+      bufferedBytes = 0L;
+      keysFinalized = false;
+    }
+
+    /**
+     * Buffered elements are re-emitted from {@link ProcessElement} with their own timestamps, which
+     * may be earlier than the current element's. This is safe because they belong to the same
+     * bundle, so the input watermark is still held at or before them.
+     */
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(Long.MAX_VALUE);
+    }
+
+    /**
+     * Emits the smallest keys to the small output until at most half of {@code maxBufferedBytes}
+     * remains buffered (keeping at least one key so it can still reach {@code threshold}), so each
+     * call frees a large chunk and the sort's cost stays amortized.
+     */
+    private void evictSmallestKeys(
+        Map<WindowedKey, KeyBuffer<T>> buffers, OutputReceiver<T> small) {
+      long target = maxBufferedBytes / 2;
+      List<Map.Entry<WindowedKey, KeyBuffer<T>>> bySize = new ArrayList<>(buffers.entrySet());
+      bySize.sort(Comparator.comparingLong(entry -> entry.getValue().sizeBytes));
+      for (Map.Entry<WindowedKey, KeyBuffer<T>> entry : bySize) {
+        if (bufferedBytes <= target || buffers.size() <= 1) {
+          break;
+        }
+        KeyBuffer<T> buffer = entry.getValue();
+        buffers.remove(entry.getKey());
+        bufferedBytes -= buffer.sizeBytes;
+        emit(buffer, small);
+        buffer.elements.clear();
+      }
+    }
+
+    private static <T> void emit(KeyBuffer<T> buffer, OutputReceiver<T> receiver) {
+      for (BufferedElement<T> e : buffer.elements) {
+        receiver.outputWindowedValue(
+            e.value, e.timestamp, Collections.singletonList(e.window), e.pane);
+      }
+    }
+  }
+
+  /** The buffered elements of one key, in arrival order. */
+  private static class KeyBuffer<T> {
+    private final List<BufferedElement<T>> elements = new ArrayList<>();
+    private long sizeBytes;
+
+    void add(BufferedElement<T> element, long elementBytes) {
+      elements.add(element);
+      sizeBytes += elementBytes;
+    }
+  }
+
+  /** A buffered element with the metadata needed to re-emit it. */
+  private static class BufferedElement<T> {
+    private final T value;
+    private final Instant timestamp;
+    private final BoundedWindow window;
+    private final PaneInfo pane;
+
+    BufferedElement(T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
+      this.value = value;
+      this.timestamp = timestamp;
+      this.window = window;
+      this.pane = pane;
+    }
+  }
+
+  /** A user key scoped to a window and pane. */
+  private static class WindowedKey {
+    private final BoundedWindow window;
+    private final PaneInfo pane;
+    private final Object key;
+    private final int hashCode;
+
+    WindowedKey(BoundedWindow window, PaneInfo pane, Object key) {
+      this.window = window;
+      this.pane = pane;
+      this.key = key;
+      this.hashCode = Objects.hash(window, pane, key);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof WindowedKey)) {
+        return false;
+      }
+      WindowedKey other = (WindowedKey) o;
+      return hashCode == other.hashCode
+          && window.equals(other.window)
+          && pane.equals(other.pane)
+          && key.equals(other.key);
+    }
+
+    @Override
+    public int hashCode() {
+      return hashCode;
+    }
+  }
+
+  /** Sizes elements by their encoded size under the given coder. */
+  private static class CoderSizer<T> implements SerializableFunction<T, Integer> {
+    private final Coder<T> coder;
+
+    CoderSizer(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public Integer apply(T element) {
+      try {
+        // Even when not cheap, this counts the encoded bytes without allocating a byte array.
+        SizeObserver observer = new SizeObserver();
+        coder.registerByteSizeObserver(element, observer);
+        observer.advance();
+        return (int) Math.min(observer.bytes, Integer.MAX_VALUE);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to estimate the encoded size of an element", e);
+      }
+    }
+  }
+
+  private static class SizeObserver extends ElementByteSizeObserver {
+    private long bytes;
+
+    @Override
+    protected void reportElementSize(long elementByteSize) {
+      bytes = elementByteSize;
+    }
+  }
+
+  private BundleLifter(
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      long threshold,
+      long maxBufferedBytes,
+      int maxLiftedKeys,
+      SerializableFunction<T, Integer> elementSizer,
+      @Nullable SerializableFunction<T, ? extends @Nullable Object> keyFn) {
+    if (smallBatchTag == null || largeBatchTag == null) {
+      throw new IllegalArgumentException("smallBatchTag and largeBatchTag must not be null");
+    }
+    if (smallBatchTag.getId().equals(largeBatchTag.getId())) {
+      throw new IllegalArgumentException("smallBatchTag and largeBatchTag must be different");
+    }
+    if (threshold <= 0) {
+      throw new IllegalArgumentException("Threshold must be a positive integer");
+    }
+    if (maxBufferedBytes < threshold) {
+      throw new IllegalArgumentException(
+          "maxBufferedBytes must be at least the threshold, so a key can reach the threshold");
+    }
+    if (maxLiftedKeys <= 0) {
+      throw new IllegalArgumentException("maxLiftedKeys must be positive");
+    }
+
+    this.smallBatchTag = smallBatchTag;
+    this.largeBatchTag = largeBatchTag;
+    this.threshold = threshold;
+    this.maxBufferedBytes = maxBufferedBytes;
+    this.maxLiftedKeys = maxLiftedKeys;
+    this.elementSizer = elementSizer;
+    this.keyFn = keyFn;
+  }
+
+  /** Routes by element count: each element counts as one toward the threshold. */
+  public static <T> BundleLifter<T> of(
+      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, long elementCountThreshold) {
+    return of(smallBatchTag, largeBatchTag, elementCountThreshold, x -> 1);
+  }
+
+  /** Routes by the sizes returned by {@code elementSizer}. */
+  public static <T> BundleLifter<T> of(
+      TupleTag<T> smallBatchTag,
+      TupleTag<T> largeBatchTag,
+      long sizeThreshold,
+      SerializableFunction<T, Integer> elementSizer) {
+    return new BundleLifter<>(
+        smallBatchTag,
+        largeBatchTag,
+        sizeThreshold,
+        defaultMaxBufferedBytes(sizeThreshold),
+        Integer.MAX_VALUE,
+        elementSizer,
+        null);
+  }
+
+  /** Routes by each element's encoded size under {@code coder}. */
+  public static <T> BundleLifter<T> of(
+      TupleTag<T> smallBatchTag, TupleTag<T> largeBatchTag, long sizeThreshold, Coder<T> coder) {
+    return of(smallBatchTag, largeBatchTag, sizeThreshold, new CoderSizer<>(coder));
+  }
+
+  /**
+   * Returns a copy that further groups elements within each window and pane by the key returned by
+   * {@code keyFn}. Elements for which {@code keyFn} returns {@code null} share their own key within
+   * that window and pane.
+   */
+  public BundleLifter<T> withKeyFn(SerializableFunction<T, ? extends @Nullable Object> keyFn) {
+    return new BundleLifter<>(
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        maxLiftedKeys,
+        elementSizer,
+        keyFn);
+  }
+
+  /**
+   * Returns a copy that buffers at most {@code maxBufferedBytes} per bundle across all keys (twice
+   * the threshold by default). Must be at least the threshold.
+   */
+  public BundleLifter<T> withMaxBufferedBytes(long maxBufferedBytes) {
+    return new BundleLifter<>(
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        maxLiftedKeys,
+        elementSizer,
+        keyFn);
+  }
+
+  /**
+   * Returns a copy that lifts at most {@code maxLiftedKeys} keys per bundle (unlimited by default).
+   * Must be positive.
+   */
+  public BundleLifter<T> withMaxLiftedKeys(int maxLiftedKeys) {
+    return new BundleLifter<>(
+        smallBatchTag,
+        largeBatchTag,
+        threshold,
+        maxBufferedBytes,
+        maxLiftedKeys,
+        elementSizer,
+        keyFn);
+  }
+
+  @Override
+  public PCollectionTuple expand(PCollection<T> input) {
+    final TupleTag<Void> mainOutputTag = new TupleTag<Void>() {};
+
+    PCollectionTuple outputs =
+        input.apply(
+            "BundleLiftDoFn",
+            ParDo.of(
+                    new BundleLiftDoFn<>(
+                        smallBatchTag,
+                        largeBatchTag,
+                        threshold,
+                        maxBufferedBytes,
+                        maxLiftedKeys,
+                        elementSizer,
+                        keyFn))
+                .withOutputTags(mainOutputTag, TupleTagList.of(smallBatchTag).and(largeBatchTag)));
+    // Both outputs contain input elements unchanged.
+    outputs.get(smallBatchTag).setCoder(input.getCoder());
+    outputs.get(largeBatchTag).setCoder(input.getCoder());
+    return outputs;
+  }
+}

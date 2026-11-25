@@ -74,7 +74,6 @@ jobs:
         with:
           java-version: default
           python-version: default
-          go-version: default
       - name: run pythonLintPreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

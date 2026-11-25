@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import concurrent.futures
+import concurrent.futures.process
 import copy
 import inspect
 import logging
@@ -341,7 +342,7 @@ class RestrictionProvider(object):
   def truncate(self, element, restriction):
     """Truncates the provided restriction into a restriction representing a
     finite amount of work when the pipeline is
-    `draining <https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#> for additional details about drain.>_`.  # pylint: disable=line-too-long
+    `draining <https://beam.apache.org/documentation/programming-guide/#truncating-during-drain>`_.  # pylint: disable=line-too-long
     By default, if the restriction is bounded then the restriction will be
     returned otherwise None will be returned.
 
@@ -2696,8 +2697,15 @@ class _SubprocessDoFn(DoFn):
 
   def _call_remote(self, method, *args, **kwargs):
     if self._pool is None:
-      self._pool = concurrent.futures.ProcessPoolExecutor(1)
-      self._pool.submit(self._remote_init, self._serialized_fn).result()
+      for attempt in range(3):
+        self._pool = concurrent.futures.ProcessPoolExecutor(1)
+        try:
+          self._pool.submit(self._remote_init, self._serialized_fn).result()
+          break
+        except concurrent.futures.process.BrokenProcessPool:
+          self._terminate_pool()
+          if attempt == 2:
+            raise
     try:
       return self._pool.submit(method, *args, **kwargs).result(
           self._timeout if method == self._remote_process else None)

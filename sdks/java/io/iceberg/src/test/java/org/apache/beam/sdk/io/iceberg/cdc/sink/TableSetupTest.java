@@ -131,6 +131,20 @@ public class TableSetupTest {
     return tableSetup(config, new TestDestinations(DATA_SCHEMA, null, null));
   }
 
+  /** As {@link #tableSetup(CdcWriteConfig)}, on a catalog with a format-version default. */
+  private TableSetup tableSetupOnCatalogDefaulting(String formatVersion, CdcWriteConfig config) {
+    IcebergCatalogConfig withDefault =
+        catalogConfig.toBuilder()
+            .setCatalogProperties(
+                ImmutableMap.<String, String>builder()
+                    .putAll(catalogConfig.getCatalogProperties())
+                    .put("table-default.format-version", formatVersion)
+                    .build())
+            .build();
+    return new TableSetup(
+        withDefault, config, new TestDestinations(DATA_SCHEMA, null, null), "test-runId");
+  }
+
   private static Schema dataSchemaFor(org.apache.iceberg.Schema icebergSchema) {
     return IcebergUtils.icebergSchemaToBeamSchema(icebergSchema);
   }
@@ -318,7 +332,8 @@ public class TableSetupTest {
   /**
    * Create-config table properties reach the created table, and the sink's {@code format-version=2}
    * default applies only when the user did not ask for one (a plain {@code put} would silently
-   * downgrade a requested V3 table).
+   * downgrade a requested V3 table) and the catalog's {@code table-default.format-version} is below
+   * 2.
    */
   @Test
   public void autoCreateHonorsTablePropertiesAndDefaultsToFormatVersion2() {
@@ -342,6 +357,21 @@ public class TableSetupTest {
     tableSetup(config, new TestDestinations(DATA_SCHEMA, null, null))
         .get(defaultId.toString(), DATA_SCHEMA);
     assertThat(TableUtil.formatVersion(catalog.loadTable(defaultId)), equalTo(2));
+
+    // facet: a catalog default of 2 or higher wins, so a V3 default is not forced down to 2...
+    TableIdentifier catalogV3Id = uniqueId("autocreate_catalog_v3");
+    tableSetupOnCatalogDefaulting("3", config).get(catalogV3Id.toString(), DATA_SCHEMA);
+    assertThat(TableUtil.formatVersion(catalog.loadTable(catalogV3Id)), equalTo(3));
+
+    // facet: ...but a V1 default is still lifted to 2...
+    TableIdentifier catalogV1Id = uniqueId("autocreate_catalog_v1");
+    tableSetupOnCatalogDefaulting("1", config).get(catalogV1Id.toString(), DATA_SCHEMA);
+    assertThat(TableUtil.formatVersion(catalog.loadTable(catalogV1Id)), equalTo(2));
+
+    // facet: ...and a default that doesn't parse gets 2 as before, instead of failing the sink.
+    TableIdentifier catalogBadId = uniqueId("autocreate_catalog_bad");
+    tableSetupOnCatalogDefaulting("abc", config).get(catalogBadId.toString(), DATA_SCHEMA);
+    assertThat(TableUtil.formatVersion(catalog.loadTable(catalogBadId)), equalTo(2));
   }
 
   @Test
