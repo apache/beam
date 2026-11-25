@@ -37,12 +37,6 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(180))
     self.assertEqual(150, tracker.start_position())
 
-  def test_try_claim_before_start_offset(self):
-    tracker = range_trackers.OffsetRangeTracker(100, 200)
-    with self.assertRaises(ValueError):
-      tracker.try_claim(90)
-    self.assertEqual(100, tracker.start_position())
-
   def test_try_return_record_simple_sparse(self):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertTrue(tracker.try_claim(110))

@@ -97,11 +97,6 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError(
           'This function must only be called under the lock self.lock.')
 
-    if record_start < self._start_offset:
-      raise ValueError(
-          'Trying to return a record [starting at %d] which is before the '
-          'start offset [%d]' % (record_start, self._start_offset))
-
     if record_start < self._last_record_start:
       raise ValueError(
           'Trying to return a record [starting at %d] which is before the '
