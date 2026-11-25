@@ -127,33 +127,13 @@ jobs:
             echo "Broker ${INDEX}: ${kafka_service_brokers[$INDEX]}:${kafka_service_brokers_ports[$INDEX]}"
           done
 
-      - name: Create Kafka topic
-        id: create_topic
+      - name: Wait for Kafka topic setup
+        id: wait_for_topics
         run: |
-          echo "Creating Kafka topic 'beam'..."
-
-          # Get the first available Kafka pod
-          KAFKA_POD=$(kubectl get pods -l app=kafka -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-
-          if [ -z "$KAFKA_POD" ]; then
-            echo "No Kafka pods found, skipping topic creation"
-            exit 0
-          fi
-
-          echo "Using Kafka pod: $KAFKA_POD"
-
-          # Wait a bit more for the pod to be fully operational
-          echo "Waiting for pod to be fully operational..."
-          sleep 60
-
-          # Create the topic with replication-factor 3 to match kafka-config and satisfy
-          # min.insync.replicas=2 in .test-infra/kubernetes/kafka-cluster/05-kafka/10broker-config.yml.
-          echo "Creating topic 'beam'..."
-          kubectl exec $KAFKA_POD -c broker -- /opt/kafka/bin/kafka-topics.sh --create --topic beam --zookeeper zookeeper:2181 --partitions 1 --replication-factor 3 || echo "Topic may already exist"
-
-          # Verify topic was created
-          echo "Verifying topic creation..."
-          kubectl exec $KAFKA_POD -c broker -- /opt/kafka/bin/kafka-topics.sh --list --zookeeper zookeeper:2181 || echo "Could not list topics"
+          # Wait for the kafka-config Job (.test-infra/kubernetes/kafka-cluster/05-kafka/job-config.yaml)
+          # to finish initializing Kafka topics and confirm the cluster is accepting admin commands.
+          echo "Waiting for kafka-config job to complete..."
+          kubectl wait --for=condition=complete job/kafka-config-eff079ec --timeout=300s
       - name: run Kafka StressTest Large
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
