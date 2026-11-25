@@ -115,6 +115,23 @@ class FakePandasModelWithScale:
     return df.loc[:, 'number_2'].to_numpy() * scale
 
 
+class FakeNumpyModelWithStd:
+  """Like GaussianProcessRegressor, returns (means, stds) for return_std."""
+  def predict(self, input_vector: numpy.ndarray, return_std=False):
+    means = numpy.sum(input_vector, axis=1)
+    if return_std:
+      return means, numpy.full(len(means), 0.5)
+    return means
+
+
+class FakePandasModelWithStd:
+  def predict(self, df: pandas.DataFrame, return_std=False):
+    means = df.loc[:, 'number_2'].to_numpy()
+    if return_std:
+      return means, numpy.full(len(means), 0.5)
+    return means
+
+
 def build_model():
   x = [[0, 0], [1, 1]]
   y = [0, 1]
@@ -601,6 +618,35 @@ class SkLearnRunInferenceTest(unittest.TestCase):
       ]
       assert_that(
           actual, equal_to(expected, equals_fn=_compare_dataframe_predictions))
+
+  def test_predict_numpy_with_several_outputs_raises(self):
+    inference_runner = SklearnModelHandlerNumpy(model_uri='unused')
+    batch = [numpy.array([1, 2]), numpy.array([3, 4])]
+    with self.assertRaisesRegex(ValueError, 'tuple of 2 outputs'):
+      inference_runner.run_inference(
+          batch, FakeNumpyModelWithStd(), inference_args={'return_std': True})
+
+  def test_predict_pandas_with_several_outputs_raises(self):
+    inference_runner = SklearnModelHandlerPandas(model_uri='unused')
+    dataframe = pandas_dataframe()
+    splits = [dataframe.loc[[i]] for i in dataframe.index]
+    with self.assertRaisesRegex(ValueError, 'tuple of 2 outputs'):
+      inference_runner.run_inference(
+          splits, FakePandasModelWithStd(), inference_args={'return_std': True})
+
+  def test_custom_inference_fn_with_several_outputs(self):
+    def predict_with_std(model, batch, inference_args):
+      means, stds = model.predict(numpy.stack(batch), **inference_args)
+      return list(zip(means, stds))
+
+    inference_runner = SklearnModelHandlerNumpy(
+        model_uri='unused', inference_fn=predict_with_std)
+    batch = [numpy.array([1, 2]), numpy.array([3, 4])]
+    inferences = list(
+        inference_runner.run_inference(
+            batch, FakeNumpyModelWithStd(),
+            inference_args={'return_std': True}))
+    self.assertEqual([(3, 0.5), (7, 0.5)], [p.inference for p in inferences])
 
   @unittest.skipIf(platform.system() == 'Windows', 'BEAM-14359')
   def test_pipeline_pandas_joblib(self):

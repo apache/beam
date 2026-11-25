@@ -69,6 +69,19 @@ def _load_model(model_uri, file_type):
   raise AssertionError('Unsupported serialization type.')
 
 
+def _check_single_output(predictions: Any):
+  """Raises an error if model.predict() returned several outputs."""
+  # predict() returns a tuple of arrays, e.g. (means, stds), for inference_args
+  # such as return_std=True. Splitting that into one result per example would
+  # mix up the outputs, so ask for an inference_fn that handles them instead.
+  if isinstance(predictions, tuple):
+    raise ValueError(
+        f'model.predict() returned a tuple of {len(predictions)} outputs '
+        'instead of one prediction per example. This happens with '
+        'inference_args such as return_std=True. To use these outputs, pass '
+        'an inference_fn that returns one prediction per example.')
+
+
 def _default_numpy_inference_fn(
     model: BaseEstimator,
     batch: Sequence[numpy.ndarray],
@@ -76,7 +89,9 @@ def _default_numpy_inference_fn(
   inference_args = {} if not inference_args else inference_args
   # vectorize data for better performance
   vectorized_batch = numpy.stack(batch, axis=0)
-  return model.predict(vectorized_batch, **inference_args)
+  predictions = model.predict(vectorized_batch, **inference_args)
+  _check_single_output(predictions)
+  return predictions
 
 
 class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
@@ -213,6 +228,7 @@ def _default_pandas_inference_fn(
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch, **inference_args)
+  _check_single_output(predictions)
   splits = [
       vectorized_batch.iloc[[i]] for i in range(vectorized_batch.shape[0])
   ]
