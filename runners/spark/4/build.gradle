@@ -43,14 +43,6 @@ tasks.withType(Test).configureEach {
           "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
 }
 
-tasks.validatesStructuredStreamingRunnerBatch {
-  filter {
-    // TODO(https://github.com/apache/beam/issues/36841): currently failing with INTERNAL_ERROR]
-    //  Couldn't find method fromByteArray with arguments
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombining'
-  }
-}
-
 tasks.register("validatesStructuredStreamingRunnerStreaming", Test) {
   applyStructuredStreamingValidatesRunnerSetup(it, ["--streaming": "true", "--streamingStopAfterIdleBatches": "5"], [
     // Side inputs

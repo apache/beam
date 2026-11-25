@@ -39,6 +39,7 @@ import org.apache.beam.sdk.io.iceberg.TableCache;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortOrder;
@@ -290,7 +291,8 @@ final class TableSetup implements Serializable {
    * Loads the table, auto-creating it (namespace first) if it does not exist. Auto-creation
    * requires configured equality columns (a brand-new table has no identifier fields to infer
    * from); the created schema is the data schema with the equality columns as identifier fields,
-   * honoring the destination's {@link IcebergTableCreateConfig} plus a format-version 2 default.
+   * honoring the destination's {@link IcebergTableCreateConfig}. Format version 2 is the default,
+   * unless the catalog's own default is already 2 or higher.
    */
   private Table loadOrCreateTable(
       TableIdentifier identifier, String destString, Schema createSchema) {
@@ -355,7 +357,9 @@ final class TableSetup implements Serializable {
         properties.putAll(createProperties);
       }
     }
-    properties.putIfAbsent(TableProperties.FORMAT_VERSION, "2");
+    if (!catalogDefaultsToV2OrHigher()) {
+      properties.putIfAbsent(TableProperties.FORMAT_VERSION, "2");
+    }
 
     Namespace namespace = identifier.namespace();
     if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
@@ -390,6 +394,28 @@ final class TableSetup implements Serializable {
     } catch (AlreadyExistsException ignored) {
       // Race: another worker created the table first.
       return catalog.loadTable(identifier);
+    }
+  }
+
+  /**
+   * Whether the catalog's {@code table-default.format-version} already gives a new table version 2
+   * or higher. The sink then leaves the version to the catalog, so a V3 default is not forced down
+   * to 2. A default that doesn't parse keeps the sink's 2, which overrides it as before. It reads
+   * the catalog properties Beam was configured with, so defaults that a REST server sends are not
+   * seen here.
+   */
+  private boolean catalogDefaultsToV2OrHigher() {
+    @Nullable Map<String, String> catalogProperties = catalogConfig.getCatalogProperties();
+    if (catalogProperties == null) {
+      return false;
+    }
+    @Nullable String catalogDefault =
+        catalogProperties.get(
+            CatalogProperties.TABLE_DEFAULT_PREFIX + TableProperties.FORMAT_VERSION);
+    try {
+      return catalogDefault != null && Integer.parseInt(catalogDefault) >= 2;
+    } catch (NumberFormatException e) {
+      return false;
     }
   }
 

@@ -485,8 +485,8 @@ class AccountKeysPolicyComplianceCheck:
                 masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
                 self.logger.info(f"Managed secret '{masked_secret}' is not declared in the service account keys file, adding it")
                 file_service_accounts.append({
-                    "account_id": secret.strip("-key"),
-                    "display_name": self._normalize_account_email(secret.strip("-key")),
+                    "account_id": secret.removesuffix("-key"),
+                    "display_name": self._normalize_account_email(secret.removesuffix("-key")),
                     "authorized_users": []
                 })
 

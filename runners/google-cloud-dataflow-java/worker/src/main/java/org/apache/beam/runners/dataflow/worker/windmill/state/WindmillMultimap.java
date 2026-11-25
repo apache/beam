@@ -51,6 +51,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 })
 public class WindmillMultimap<K, V> extends SimpleWindmillState implements MultimapState<K, V> {
 
+  // Rough estimate of the heap used by a KeyState and its keyStateMap entry, excluding the key and
+  // values themselves.
+  private static final long KEY_STATE_OVERHEAD_BYTES = 128;
+
   private final StateNamespace namespace;
   private final InternedByteString stateKey;
   private final String stateFamily;
@@ -62,6 +66,9 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
   // We use the structural value of the keys as the key in keyStateMap, so that different java
   // Objects with the same content will be treated as the same Multimap key.
   private Map<Object, KeyState> keyStateMap = Maps.newHashMap();
+  // Sum of the weights of all KeyStates in keyStateMap, used to weigh this multimap in the state
+  // cache. Must be updated whenever a KeyState is removed from keyStateMap.
+  private long cachedWeight = 0;
   // If true, all keys are cached in keyStateMap with existence == KNOWN_EXIST.
   private boolean allKeysKnown;
   // True if all contents of this multimap are cached in this object.
@@ -139,16 +146,20 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
             || keyState.valuesCached);
   }
 
-  // Initiates a backend state read to fetch a single entry if necessary.
-  private Future<Iterable<V>> necessaryKeyEntriesFromStorageFuture(K key) {
+  private ByteString encodeKey(K key) {
     try {
       ByteStringOutputStream keyStream = new ByteStringOutputStream();
       keyCoder.encode(key, keyStream, Coder.Context.OUTER);
-      return reader.multimapFetchSingleEntryFuture(
-          keyStream.toByteString(), stateKey.byteString(), stateFamily, valueCoder);
+      return keyStream.toByteString();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  // Initiates a backend state read to fetch a single entry if necessary.
+  private Future<Iterable<V>> necessaryKeyEntriesFromStorageFuture(ByteString encodedKey) {
+    return reader.multimapFetchSingleEntryFuture(
+        encodedKey, stateKey.byteString(), stateFamily, valueCoder);
   }
 
   @Override
@@ -160,7 +171,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
   protected Windmill.WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
       throws IOException {
     if (!cleared && !hasLocalAdditions && !hasLocalRemovals) {
-      cache.put(namespace, stateKey, this, 1);
+      cache.put(namespace, stateKey, this, cacheWeight());
       return Windmill.WorkItemCommitRequest.newBuilder().buildPartial();
     }
     Windmill.WorkItemCommitRequest.Builder commitBuilder =
@@ -178,20 +189,26 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       while (iterator.hasNext()) {
         KeyState keyState = iterator.next().getValue();
         if (!keyState.removedLocally && keyState.localAdditions.isEmpty()) {
-          if (keyState.existence == KeyExistence.KNOWN_NONEXISTENT) iterator.remove();
+          if (keyState.existence == KeyExistence.KNOWN_NONEXISTENT) {
+            cachedWeight -= keyState.weight();
+            iterator.remove();
+          }
           continue;
         }
         keyCoder.encode(keyState.originalKey, keyStream, Coder.Context.OUTER);
         ByteString encodedKey = keyStream.toByteStringAndReset();
+        keyState.setKeyWeight(encodedKey.size());
         Windmill.TagMultimapEntry.Builder entryBuilder = builder.addUpdatesBuilder();
         entryBuilder.setEntryName(encodedKey);
         if (keyState.removedLocally) entryBuilder.setDeleteAll(true);
         keyState.removedLocally = false;
         if (!keyState.localAdditions.isEmpty()) {
+          long localAdditionsWeight = 0;
           for (V value : keyState.localAdditions) {
             valueCoder.encode(value, valueStream, Coder.Context.OUTER);
             ByteString encodedValue = valueStream.toByteStringAndReset();
             entryBuilder.addValues(encodedValue);
+            localAdditionsWeight += encodedValue.size();
           }
           // Move newly added values from localAdditions to keyState.values as those new values
           // now
@@ -201,11 +218,13 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
           if (keyState.valuesCached) {
             keyState.values.extendWith(keyState.localAdditions);
             keyState.valuesSize += keyState.localAdditions.size();
+            keyState.setValuesWeight(keyState.valuesWeight + localAdditionsWeight);
           }
           // Create a new localAdditions so that the cached values are unaffected.
           keyState.localAdditions = Lists.newArrayList();
         }
         if (!keyState.valuesCached && keyState.existence != KeyExistence.KNOWN_EXIST) {
+          cachedWeight -= keyState.weight();
           iterator.remove();
         }
       }
@@ -215,8 +234,14 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     hasLocalRemovals = false;
     cleared = false;
 
-    cache.put(namespace, stateKey, this, 1);
+    cache.put(namespace, stateKey, this, cacheWeight());
     return commitBuilder.buildPartial();
+  }
+
+  private long cacheWeight() {
+    return stateKey.byteString().size()
+        + cachedWeight
+        + keyStateMap.size() * KEY_STATE_OVERHEAD_BYTES;
   }
 
   @Override
@@ -230,6 +255,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     }
     if (keyState.valuesCached && keyState.valuesSize == 0 && !keyState.removedLocally) {
       // no data in windmill and no need to keep state, deleting from local cache is sufficient.
+      cachedWeight -= keyState.weight();
       keyStateMap.remove(structuralKey);
     } else {
       // there may be data in windmill that need to be removed.
@@ -237,6 +263,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       keyState.removedLocally = true;
       keyState.values = new ConcatIterables<>();
       keyState.valuesSize = 0;
+      keyState.setValuesWeight(0);
       keyState.existence = KeyExistence.KNOWN_NONEXISTENT;
     }
     if (!keyState.localAdditions.isEmpty()) {
@@ -248,6 +275,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
   @Override
   public void clear() {
     keyStateMap = Maps.newHashMap();
+    cachedWeight = 0;
     cleared = true;
     complete = true;
     allKeysKnown = true;
@@ -300,6 +328,10 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     // after they are persisted into windmill and removed from localAdditions
     ConcatIterables<V> values;
     int valuesSize;
+    // Encoded size of originalKey, once it is known, and of the values in values. Only change
+    // these through setKeyWeight and setValuesWeight so that cachedWeight stays in sync.
+    long keyWeight;
+    long valuesWeight;
 
     // When new values are added during user processing, they are added to localAdditions, so that
     // we can later try to persist them in windmill. When a key is removed during user processing,
@@ -318,6 +350,20 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       localAdditions = Lists.newArrayList();
       removedLocally = false;
     }
+
+    long weight() {
+      return keyWeight + valuesWeight;
+    }
+
+    void setKeyWeight(long keyWeight) {
+      cachedWeight += keyWeight - this.keyWeight;
+      this.keyWeight = keyWeight;
+    }
+
+    void setValuesWeight(long valuesWeight) {
+      cachedWeight += valuesWeight - this.valuesWeight;
+      this.valuesWeight = valuesWeight;
+    }
   }
 
   private class ReadResultReadableState implements ReadableState<Iterable<V>> {
@@ -335,7 +381,10 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       if (allKeysKnown) {
         keyState = keyStateMap.get(structuralKey);
         if (keyState == null || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE) {
-          if (keyState != null) keyStateMap.remove(structuralKey);
+          if (keyState != null) {
+            cachedWeight -= keyState.weight();
+            keyStateMap.remove(structuralKey);
+          }
           return Collections.emptyList();
         }
       } else {
@@ -356,9 +405,11 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
             Iterables.concat(
                 Iterables.limit(keyState.values, keyState.valuesSize), localNewValues));
       }
-      Future<Iterable<V>> persistedData = necessaryKeyEntriesFromStorageFuture(key);
+      ByteString encodedKey = encodeKey(key);
+      Future<Iterable<V>> persistedData = necessaryKeyEntriesFromStorageFuture(encodedKey);
       try (Closeable scope = scopedReadState()) {
         final Iterable<V> persistedValues = persistedData.get();
+        keyState.setKeyWeight(encodedKey.size());
         // Iterables.isEmpty() is O(1).
         if (Iterables.isEmpty(persistedValues)) {
           if (keyState.localAdditions.isEmpty()) {
@@ -375,6 +426,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
           it.extendWith(persistedValues);
           keyState.values = it;
           keyState.valuesSize = Iterables.size(persistedValues);
+          keyState.setValuesWeight(((Weighted) persistedValues).getWeight());
         }
         return Iterables.unmodifiableIterable(Iterables.concat(persistedValues, localNewValues));
       } catch (InterruptedException | ExecutionException | IOException e) {
@@ -389,7 +441,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
     @SuppressWarnings("FutureReturnValueIgnored")
     public ReadableState<Iterable<V>> readLater() {
       if (!isKeyValuesCached(structuralKey)) {
-        WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(key);
+        WindmillMultimap.this.necessaryKeyEntriesFromStorageFuture(encodeKey(key));
       }
       return this;
     }
@@ -424,6 +476,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
                   if (keyState.existence == KeyExistence.UNKNOWN_EXISTENCE) {
                     keyState.existence = KeyExistence.KNOWN_EXIST;
                   }
+                  keyState.setKeyWeight(entry.getKey().size());
                 } catch (IOException e) {
                   throw new RuntimeException(e);
                 }
@@ -432,8 +485,13 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
           keyStateMap
               .values()
               .removeIf(
-                  keyState ->
-                      keyState.existence != KeyExistence.KNOWN_EXIST && !keyState.removedLocally);
+                  keyState -> {
+                    if (keyState.existence == KeyExistence.KNOWN_EXIST || keyState.removedLocally) {
+                      return false;
+                    }
+                    cachedWeight -= keyState.weight();
+                    return true;
+                  });
           return Iterables.unmodifiableIterable(cachedExistKeys().values());
         } else {
           Map<Object, K> cachedExistKeys = Maps.newHashMap();
@@ -527,6 +585,11 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
                 keyState.values.extendWith(entry.getValue());
                 keyState.valuesSize += Iterables.size(entry.getValue());
                 keyState.valuesCached = true;
+                keyState.setKeyWeight(entry.getKey().size());
+                if (entry.getValue() instanceof Weighted) {
+                  keyState.setValuesWeight(
+                      keyState.valuesWeight + ((Weighted) entry.getValue()).getWeight());
+                }
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -588,9 +651,14 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
                 if (knownNonexistentKeys != null
                     && keyState.existence == KeyExistence.KNOWN_NONEXISTENT)
                   knownNonexistentKeys.add(structuralKey);
-                return (keyState.existence == KeyExistence.KNOWN_NONEXISTENT
-                        && !keyState.removedLocally)
-                    || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE;
+                boolean unload =
+                    (keyState.existence == KeyExistence.KNOWN_NONEXISTENT
+                            && !keyState.removedLocally)
+                        || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE;
+                if (unload) {
+                  cachedWeight -= keyState.weight();
+                }
+                return unload;
               });
       return cachedEntries;
     }

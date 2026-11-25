@@ -2022,7 +2022,10 @@ def load_model_status(
   tag = f'{model_tag}_model_status'
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
-        lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
+        lambda: _ModelStatus(True),
+        tag=tag,
+        always_proxy=True,
+        spawn_process=True).acquire()
   return _model_statuses.setdefault(tag, _ModelStatus(False))
 
 
@@ -2086,7 +2089,8 @@ class _SharedModelWrapper():
       self.model_router = multi_process_shared.MultiProcessShared(
           lambda: _ModelRoutingStrategy(),
           tag=f'{model_tag}_counter',
-          always_proxy=True).acquire()
+          always_proxy=True,
+          spawn_process=True).acquire()
 
   def next_model(self):
     if self.use_model_manager:
@@ -2206,12 +2210,17 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
           self._model_handler.load_model,
           metric_tag=self._model_tag)
     elif self._model_handler.share_model_across_processes():
+      if isinstance(side_input_model_path, str):
+        self._model_handler.update_model_path(side_input_model_path)
       models = []
       for copy_tag in _get_tags_for_copies(self._cur_tag,
                                            self._model_handler.model_copies()):
         models.append(
             multi_process_shared.MultiProcessShared(
-                load, tag=copy_tag, always_proxy=True).acquire())
+                self._model_handler.load_model,
+                tag=copy_tag,
+                always_proxy=True,
+                spawn_process=True).acquire())
       model_wrapper = _SharedModelWrapper(models, self._cur_tag)
     else:
       model = self._shared_model_handle.acquire(load, tag=self._cur_tag)
@@ -2281,7 +2290,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
         # ModelManager with MultiProcessShared returns the model tag
         unique_tag = model
         model = multi_process_shared.MultiProcessShared(
-            lambda: None, tag=model, always_proxy=True).acquire()
+            lambda: None, tag=model, always_proxy=True,
+            spawn_process=True).acquire()
       try:
         result_generator = (OOMProtectedFn(self._model_handler.run_inference))(
             batch, model, inference_args)
@@ -2360,8 +2370,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       for unprefixed_tag in tags_to_gc:
         for tag in _get_tags_for_copies(unprefixed_tag,
                                         self._model_handler.model_copies()):
-          multi_process_shared.MultiProcessShared(lambda: None,
-                                                  tag).unsafe_hard_delete()
+          multi_process_shared.MultiProcessShared(
+              lambda: None, tag, spawn_process=True).unsafe_hard_delete()
       self._model_metadata.mark_tags_deleted(tags_to_gc)
 
 

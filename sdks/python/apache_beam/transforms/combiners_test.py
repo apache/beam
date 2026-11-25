@@ -59,8 +59,8 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.typehints import typehints
 from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import typehints
 from apache_beam.utils.timestamp import Timestamp
 
 

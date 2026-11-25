@@ -55,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementByteSizeCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
@@ -214,12 +215,28 @@ final class ComputationWorkExecutorFactory {
             CloudObject.fromSpec(readOutputNode.getInstructionOutput().getCodec()));
     Coder<?> keyCoder = extractKeyCoder(readCoder);
 
-    // If using a custom source, count bytes read for autoscaling.
-    if (isCustomSource(readNode)
-        && readOperation.receivers != null
-        && readOperation.receivers.length > 0
-        && readOperation.receivers[0] != null) {
-      trackAutoscalingBytesRead(readCoder, readOperation.receivers[0], context);
+    // If using a custom source or an SDF, count bytes read for autoscaling.
+    if (isCustomSource(readNode)) {
+      if (readOperation.receivers != null) {
+        for (OutputReceiver receiver : readOperation.receivers) {
+          if (receiver != null) {
+            trackAutoscalingBytesRead(readCoder, receiver, context);
+          }
+        }
+      }
+    } else {
+      for (ParDoOperation parDoOp : mapTaskExecutor.getParDoOperations()) {
+        if (parDoOp.shouldReportBytesRead() && parDoOp.receivers != null) {
+          for (OutputReceiver receiver : parDoOp.receivers) {
+            if (receiver != null) {
+              Coder<?> bytesReadCoder = parDoOp.getBytesReadCoder(receiver);
+              if (bytesReadCoder != null) {
+                trackAutoscalingBytesRead(bytesReadCoder, receiver, context);
+              }
+            }
+          }
+        }
+      }
     }
 
     ComputationWorkExecutor.Builder executionStateBuilder =

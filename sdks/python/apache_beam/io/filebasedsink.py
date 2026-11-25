@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import glob
 import logging
 import os
 import re
@@ -43,6 +44,27 @@ DEFAULT_TRIGGERING_FREQUENCY = 0
 __all__ = ['FileBasedSink']
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _escape_glob(path):
+  """Returns a pattern that matches only `path`, even if it contains
+  the glob characters `*`, `?` or `[`."""
+  return glob.escape(path)
+
+
+def _delete_literal(paths):
+  """Deletes the exact `paths`.
+
+  The local and GCS file systems treat the paths they delete as patterns, so
+  glob characters in a path are escaped for them. The others delete paths
+  as they are.
+  """
+  def literal(path):
+    if FileSystems.get_scheme(path) in (None, 'gs'):
+      return _escape_glob(path)
+    return path
+
+  FileSystems.delete([literal(path) for path in paths])
 
 
 class FileBasedSink(iobase.Sink):
@@ -245,21 +267,28 @@ class FileBasedSink(iobase.Sink):
     ])
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
-  def _get_final_name_glob(self, num_shards, w=None):
+  def _get_final_name_glob(self, num_shards, w=None, escape=True):
     if w is None or isinstance(w, window.GlobalWindow):
       window_utc = None
     else:
       window_utc = (
           '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
           w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
+    prefix = self.file_path_prefix.get()
+    suffix = self.file_name_suffix.get()
+    if escape:
+      # Only the shard name part is a glob. The prefix and suffix must match
+      # literally, or pre_finalize could delete unrelated files.
+      prefix = _escape_glob(prefix)
+      suffix = _escape_glob(suffix)
     return ''.join([
-        self.file_path_prefix.get(),
+        prefix,
         self.shard_name_glob_format % dict(
             num_shards=num_shards,
             uuid=(uuid.uuid4()),
             window=w,
             window_utc=window_utc),
-        self.file_name_suffix.get()
+        suffix
     ])
 
   def pre_finalize(self, init_result, writer_results):
@@ -275,7 +304,7 @@ class FileBasedSink(iobase.Sink):
           'Deleting %d existing files in target path matching: %s',
           len(dst_glob_files),
           self.shard_name_glob_format)
-      FileSystems.delete(dst_glob_files)
+      _delete_literal(dst_glob_files)
 
   def pre_finalize_windowed(self, init_result, writer_results, window=None):
     num_shards = len(list(writer_results))
@@ -290,7 +319,7 @@ class FileBasedSink(iobase.Sink):
           'Deleting %d existing files in target path matching: %s',
           len(dst_glob_files),
           self.shard_name_glob_format)
-      FileSystems.delete(dst_glob_files)
+      _delete_literal(dst_glob_files)
 
   def _check_state_for_finalize_write(
       self, writer_results, num_shards, window=None):
@@ -307,7 +336,8 @@ class FileBasedSink(iobase.Sink):
     if not writer_results:
       return [], [], [], 0
 
-    src_glob = FileSystems.join(FileSystems.split(writer_results[0])[0], '*')
+    src_glob = FileSystems.join(
+        _escape_glob(FileSystems.split(writer_results[0])[0]), '*')
     dst_glob = self._get_final_name_glob(num_shards, window)
     src_glob_files = set(
         file_metadata.path for mr in FileSystems.match([src_glob])
@@ -341,7 +371,9 @@ class FileBasedSink(iobase.Sink):
       src_files.append(src)
       dst_files.append(dst)
 
-    self._report_sink_lineage(dst_glob, dst_files)
+    # Lineage records the output path as written, without the escapes.
+    self._report_sink_lineage(
+        self._get_final_name_glob(num_shards, window, escape=False), dst_files)
     return src_files, dst_files, delete_files, num_skipped
 
   def _report_sink_lineage(self, dst_glob, dst_files):
@@ -374,7 +406,7 @@ class FileBasedSink(iobase.Sink):
     src_files, dst_files, delete_files, num_skipped = (
         self._check_state_for_finalize_write(writer_results, num_shards, w))
     num_skipped += len(delete_files)
-    FileSystems.delete(delete_files)
+    _delete_literal(delete_files)
     num_shards_to_finalize = len(src_files)
     min_threads = min(num_shards_to_finalize, FileBasedSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
@@ -457,7 +489,7 @@ class FileBasedSink(iobase.Sink):
           num_skipped)
 
     try:
-      FileSystems.delete([init_result])
+      _delete_literal([init_result])
     except IOError:
       # This error is not serious, we simply log it.
       _LOGGER.info('Unable to delete file: %s', init_result)

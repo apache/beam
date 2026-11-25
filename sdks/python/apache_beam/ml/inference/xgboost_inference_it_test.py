@@ -77,7 +77,7 @@ def process_outputs(filepath):
 @unittest.skipIf(
     os.getenv('FORCE_XGBOOST_IT') is None and xgboost is None,
     'Missing dependencies. '
-    'Test depends on xgboost and datatable')
+    'Test depends on xgboost')
 @pytest.mark.uses_xgboost
 @pytest.mark.it_postcommit
 class XGBoostInference(unittest.TestCase):
@@ -214,39 +214,6 @@ class XGBoostInference(unittest.TestCase):
       true_label, expected_prediction = expected_output.split(',')
       self.assertEqual(predictions_dict[true_label], expected_prediction)
 
-  def test_iris_classification_datatable_single_batch(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    input_type = 'datatable'
-    output_file_dir = '/tmp'
-    output_file = '/'.join(
-        [output_file_dir, str(uuid.uuid4()), 'datatable_single_batch.txt'])
-    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
-    extra_opts = {
-        'input_type': input_type,
-        'output': output_file,
-        'model_state': model_state_path,
-        'no_split': True
-    }
-
-    xgboost_iris_classification.run(
-        test_pipeline.get_full_options_as_args(**extra_opts),
-        save_main_session=False)
-    self.assertEqual(FileSystems().exists(output_file), True)
-
-    expected_outputs = EXPECTED_OUTPUT_SINGLE_BATCHES
-
-    predicted_outputs = process_outputs(output_file)
-    self.assertEqual(len(expected_outputs), len(predicted_outputs))
-
-    predictions_dict = {}
-    for predicted_output in predicted_outputs:
-      true_label, prediction = predicted_output.split(',')
-      predictions_dict[true_label] = prediction
-
-    for expected_output in expected_outputs:
-      true_label, expected_prediction = expected_output.split(',')
-      self.assertEqual(predictions_dict[true_label], expected_prediction)
-
   def test_iris_classification_numpy_multi_batch(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     input_type = 'numpy'
@@ -319,39 +286,6 @@ class XGBoostInference(unittest.TestCase):
     output_file_dir = '/tmp'
     output_file = '/'.join(
         [output_file_dir, str(uuid.uuid4()), 'scipy_multi_batch.txt'])
-    model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
-    extra_opts = {
-        'input_type': input_type,
-        'output': output_file,
-        'model_state': model_state_path,
-        'split': True
-    }
-
-    xgboost_iris_classification.run(
-        test_pipeline.get_full_options_as_args(**extra_opts),
-        save_main_session=False)
-    self.assertEqual(FileSystems().exists(output_file), True)
-
-    expected_outputs = EXPECTED_OUTPUT_MULTIPLE_BATCHES
-
-    predicted_outputs = process_outputs(output_file)
-    self.assertEqual(len(expected_outputs), len(predicted_outputs))
-
-    predictions_dict = {}
-    for predicted_output in predicted_outputs:
-      true_label, prediction = predicted_output.split(',')
-      predictions_dict[true_label] = prediction
-
-    for expected_output in expected_outputs:
-      true_label, expected_prediction = expected_output.split(',')
-      self.assertEqual(predictions_dict[true_label], expected_prediction)
-
-  def test_iris_classification_datatable_multi_batch(self):
-    test_pipeline = TestPipeline(is_integration_test=True)
-    input_type = 'datatable'
-    output_file_dir = '/tmp'
-    output_file = '/'.join(
-        [output_file_dir, str(uuid.uuid4()), 'datatable_multi_batch.txt'])
     model_state_path = 'gs://apache-beam-ml/models/xgboost.iris_classifier.json'
     extra_opts = {
         'input_type': input_type,
