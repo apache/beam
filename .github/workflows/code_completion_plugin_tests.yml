@@ -38,6 +38,10 @@ on:
 env:
   INTELLIJ_IDEA_SOURCES: /home/runner/work/beam/beam/intellij
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
+
+permissions:
+  contents: read
+
 jobs:
   # Run Gradle Wrapper Validation Action to verify the wrapper's checksum
   # Run verifyPlugin, IntelliJ Plugin Verifier, and test Gradle tasks

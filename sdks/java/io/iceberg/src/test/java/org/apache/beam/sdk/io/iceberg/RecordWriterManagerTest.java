@@ -349,10 +349,10 @@ public class RecordWriterManagerTest {
     assertEquals(1, writerManager.openWriters);
 
     partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
-    Map<PartitionKey, Integer> writerCounts =
+    Map<String, Integer> writerCounts =
         writerManager.destinations.get(windowedDestination).writerCounts;
     // this is our first writer
-    assertEquals(1, writerCounts.get(partitionKey).intValue());
+    assertEquals(1, writerCounts.get(partitionKey.toPath()).intValue());
 
     // row partition:: [aaa, true].
     // existing partition. use existing writer
@@ -364,7 +364,7 @@ public class RecordWriterManagerTest {
     assertTrue(writeSuccess);
     assertEquals(1, writerManager.openWriters);
     // check that we still use our first writer
-    assertEquals(1, writerCounts.get(partitionKey).intValue());
+    assertEquals(1, writerCounts.get(partitionKey.toPath()).intValue());
 
     // row partition:: [aaa, true].
     // writer has reached max file size. create a new writer
@@ -372,7 +372,7 @@ public class RecordWriterManagerTest {
     writeSuccess = writerManager.write(windowedDestination, row);
     assertTrue(writeSuccess);
     // check that we have opened and are using a second writer
-    assertEquals(2, writerCounts.get(partitionKey).intValue());
+    assertEquals(2, writerCounts.get(partitionKey.toPath()).intValue());
     // check that only one writer is open (we have closed the first writer)
     assertEquals(1, writerManager.openWriters);
 

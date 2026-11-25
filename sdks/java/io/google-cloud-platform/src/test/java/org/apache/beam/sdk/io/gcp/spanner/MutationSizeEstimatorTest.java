@@ -33,6 +33,7 @@ import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.UUID;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -71,6 +72,13 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .to(Value.pgJsonb("{\"key123\":\"value123\", \"key321\":\"value321\"}"))
             .build();
+    Mutation uuid =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(UUID.fromString("f529d18f-33c7-420f-a959-28b51b32a936"))
+            .build();
+    Mutation deleteUuid =
+        Mutation.delete("test", Key.of(UUID.fromString("f529d18f-33c7-420f-a959-28b51b32a936")));
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float32), is(4L));
@@ -82,6 +90,8 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(json), is(34L));
     assertThat(MutationSizeEstimator.sizeOf(deleteDouble), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(jsonb), is(42L));
+    assertThat(MutationSizeEstimator.sizeOf(uuid), is(16L));
+    assertThat(MutationSizeEstimator.sizeOf(deleteUuid), is(16L));
   }
 
   @Test
@@ -166,6 +176,14 @@ public class MutationSizeEstimatorTest {
                     ByteArray.copyFrom("some_bytes".getBytes(UTF_8))),
                 "customer.app.TestMessage")
             .build();
+    Mutation uuids =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toUuidArray(
+                ImmutableList.of(
+                    UUID.fromString("f529d18f-33c7-420f-a959-28b51b32a936"),
+                    UUID.fromString("00000000-0000-0000-0000-000000000000")))
+            .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(float32), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
@@ -177,6 +195,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(jsonb), is(77L));
     assertThat(MutationSizeEstimator.sizeOf(protoEnum), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(protos), is(20L));
+    assertThat(MutationSizeEstimator.sizeOf(uuids), is(32L));
   }
 
   @Test
@@ -210,6 +229,11 @@ public class MutationSizeEstimatorTest {
     Mutation json = Mutation.newInsertOrUpdateBuilder("test").set("one").toJsonArray(null).build();
     Mutation jsonb =
         Mutation.newInsertOrUpdateBuilder("test").set("one").toPgJsonbArray(null).build();
+    Mutation uuids =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toUuidArray((Iterable<UUID>) null)
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float32), is(0L));
@@ -220,6 +244,7 @@ public class MutationSizeEstimatorTest {
     assertThat(MutationSizeEstimator.sizeOf(json), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(jsonb), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(protoEnum), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(uuids), is(0L));
   }
 
   @Test

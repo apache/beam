@@ -160,6 +160,8 @@ def _is_connected(edge_list, expected_node_count):
         if u != v:
           graph[u].add(v)
 
+  if not graph:
+    return False
   visited = set()
   stack = [next(iter(graph))]
   while stack:

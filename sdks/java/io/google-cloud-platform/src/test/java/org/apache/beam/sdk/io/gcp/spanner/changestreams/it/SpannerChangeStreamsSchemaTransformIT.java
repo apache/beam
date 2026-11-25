@@ -33,6 +33,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import java.util.Collections;
+import java.util.UUID;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.SpannerChangestreamsReadSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.lang3.tuple.Pair;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -175,9 +177,115 @@ public class SpannerChangeStreamsSchemaTransformIT {
     assertMetadataTableHasBeenDropped();
   }
 
+  @Test
+  public void testReadSpannerChangeStreamWithUuidColumns() throws Exception {
+    assumeFalse(
+        "SchemaTransform tests do not support dynamic SpannerConfig overrides for Omni", isOmni());
+    final String uuidTableName = ENV.createUuidSingersTable();
+    final String uuidChangeStreamName = ENV.createChangeStreamFor(uuidTableName);
+
+    final UUID singerId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+    final UUID insertedExternalId = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    final UUID updatedExternalId = UUID.fromString("99999999-8888-7777-6666-555555555555");
+
+    // Inserts, updates and deletes a row, using the first and the last commit timestamps as the
+    // startAt and the endAt for reading the change stream
+    final Timestamp startAt =
+        databaseClient.write(
+            Collections.singletonList(
+                Mutation.newInsertBuilder(uuidTableName)
+                    .set("SingerId")
+                    .to(singerId)
+                    .set("ExternalId")
+                    .to(insertedExternalId)
+                    .set("FirstName")
+                    .to("First Name")
+                    .build()));
+    databaseClient.write(
+        Collections.singletonList(
+            Mutation.newUpdateBuilder(uuidTableName)
+                .set("SingerId")
+                .to(singerId)
+                .set("ExternalId")
+                .to(updatedExternalId)
+                .build()));
+    final Timestamp endAt =
+        databaseClient.write(
+            Collections.singletonList(Mutation.delete(uuidTableName, Key.of(singerId))));
+
+    final PCollection<Row> changes =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(
+                new SpannerChangestreamsReadSchemaTransformProvider()
+                    .from(
+                        SpannerChangestreamsReadSchemaTransformProvider
+                            .SpannerChangestreamsReadConfiguration.builder()
+                            .setDatabaseId(databaseId)
+                            .setInstanceId(instanceId)
+                            .setProjectId(projectId)
+                            .setTable(uuidTableName)
+                            .setChangeStreamName(uuidChangeStreamName)
+                            .setStartAtTimestamp(startAt.toString())
+                            .setEndAtTimestamp(endAt.toString())
+                            .build()))
+            .get("output")
+            .apply(
+                Window.<Row>into(new GlobalWindows())
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .discardingFiredPanes());
+
+    // UUID columns are exposed as strings
+    assertEquals(
+        Schema.builder()
+            .addStringField("operation")
+            .addStringField("commitTimestamp")
+            .addInt64Field("recordSequence")
+            .addRowField(
+                "rowValues",
+                Schema.builder()
+                    .addNullableField("singerid", Schema.FieldType.STRING)
+                    .addNullableField("externalid", Schema.FieldType.STRING)
+                    .addNullableField("firstname", Schema.FieldType.STRING)
+                    .setOptions(
+                        Schema.Options.builder()
+                            .addOptions(
+                                Schema.Options.builder()
+                                    .setOption(
+                                        "primaryKeyColumns",
+                                        Schema.FieldType.array(Schema.FieldType.STRING),
+                                        Collections.singletonList("singerid"))
+                                    .build())
+                            .build())
+                    .build())
+            .build(),
+        changes.getSchema());
+
+    PAssert.that(
+            changes.apply(
+                Select.fieldNames("operation", "rowValues.singerid", "rowValues.externalid")))
+        .containsInAnyOrder(
+            uuidChangeRow("INSERT", singerId, insertedExternalId),
+            uuidChangeRow("UPDATE", singerId, updatedExternalId),
+            // A delete carries the primary key only
+            uuidChangeRow("DELETE", singerId, null));
+    pipeline.run().waitUntilFinish();
+  }
+
   private Row operationRow(String operation) {
     return Row.withSchema(Schema.builder().addField("operation", Schema.FieldType.STRING).build())
         .addValue(operation)
+        .build();
+  }
+
+  private static Row uuidChangeRow(String operation, UUID singerId, @Nullable UUID externalId) {
+    return Row.withSchema(
+            Schema.builder()
+                .addStringField("operation")
+                .addNullableField("singerid", Schema.FieldType.STRING)
+                .addNullableField("externalid", Schema.FieldType.STRING)
+                .build())
+        .addValues(
+            operation, singerId.toString(), externalId == null ? null : externalId.toString())
         .build();
   }
 

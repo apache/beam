@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.security.SecureRandom;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -41,7 +42,7 @@ public class DicomIOReadIT {
   private String healthcareDataset;
   private String project;
   private HealthcareApiClient client;
-  private String storeName = "foo";
+  private String storeName;
 
   @Before
   public void setup() throws IOException, URISyntaxException {
@@ -51,6 +52,12 @@ public class DicomIOReadIT {
             .getStoreProjectId();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     client = new HttpHealthcareApiClient();
+    storeName =
+        "DICOM_store_"
+            + System.currentTimeMillis()
+            + "_"
+            + new SecureRandom().nextInt(32)
+            + "_read_it";
 
     client.createDicomStore(healthcareDataset, storeName);
     client.uploadToDicomStore(healthcareDataset + "/dicomStores/" + storeName, TEST_FILE_PATH);
