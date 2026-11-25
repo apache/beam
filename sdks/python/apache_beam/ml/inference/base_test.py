@@ -160,6 +160,27 @@ class LoadCountingModelHandler(base.ModelHandler[int, int, FakeModel]):
     return [model.predict(x) for x in batch]
 
 
+class BlockingLoadModelHandler(base.ModelHandler[int, int, FakeModel]):
+  """load_model() waits until finish_load is set, to test in-flight loads."""
+  def __init__(self):
+    self.load_count = 0
+    self.load_started = threading.Event()
+    self.finish_load = threading.Event()
+
+  def load_model(self):
+    self.load_count += 1
+    self.load_started.set()
+    if not self.finish_load.wait(timeout=60):
+      raise TimeoutError('finish_load was never set')
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    pass
+
+
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self,
@@ -2188,6 +2209,125 @@ class RunInferenceBaseTest(unittest.TestCase):
     mm.increment_max_models(1, process_id=2)
     mm.load('key1')
     self.assertEqual(['key3', 'key1'], list(mm._tag_map.keys()))
+
+  def test_model_handler_manager_retries_failed_load(self):
+    # state=100 makes FakeStatefulModel raise when the model is loaded.
+    mh1 = FakeModelHandler(state=100)
+    mh2 = FakeModelHandler(state=2)
+    mm = base._ModelHandlerManager(mh_map={'key1': mh1, 'key2': mh2})
+    mm.increment_max_models(1)
+    with self.assertRaisesRegex(Exception, 'Oh no'):
+      mm.load('key1')
+    self.assertEqual([], list(mm._tag_map.keys()))
+
+    # The next load of key1 loads the model again and keeps it.
+    mh1._state = 1
+    stats = mm.load('key1')
+    self.assertIsNotNone(stats.load_latency)
+    # Use bad_mh's load function to make sure the model is already stored.
+    bad_mh = FakeModelHandler(state=100)
+    model1 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=stats.model_tag).acquire()
+    self.assertEqual(1, model1.predict(10))
+    self.assertIsNone(mm.load('key1').load_latency)
+
+    # Evicting key1 to load key2 works.
+    mm.load('key2')
+    self.assertEqual(['key2'], list(mm._tag_map.keys()))
+
+  def test_model_handler_manager_unknown_key_leaves_no_tag(self):
+    mm = base._ModelHandlerManager(mh_map={'key1': FakeModelHandler(state=1)})
+    with self.assertRaises(KeyError):
+      mm.load('missing')
+    self.assertEqual([], list(mm._tag_map.keys()))
+
+  def test_model_handler_manager_with_max_models_zero_keeps_new_model(self):
+    mm = base._ModelHandlerManager(
+        mh_map={
+            'key1': FakeModelHandler(state=1),
+            'key2': FakeModelHandler(state=2)
+        })
+    mm.increment_max_models(0)
+    tag1 = mm.load('key1').model_tag
+    self.assertEqual({'key1': tag1}, dict(mm._tag_map))
+    self.assertEqual([tag1], list(mm._proxy_map.keys()))
+    tag2 = mm.load('key2').model_tag
+    self.assertEqual({'key2': tag2}, dict(mm._tag_map))
+    self.assertEqual([tag2], list(mm._proxy_map.keys()))
+
+  def _start_blocking_load(self, mm, key):
+    """Starts mm.load(key) on a thread and waits until load_model runs."""
+    mh = mm._mh_map[key]
+    results = []
+    thread = threading.Thread(target=lambda: results.append(mm.load(key)))
+    # Unblock the load even if the test fails, so the thread doesn't wait for
+    # the full timeout.
+    self.addCleanup(mh.finish_load.set)
+    thread.start()
+    self.assertTrue(mh.load_started.wait(timeout=60))
+    return thread, results
+
+  def test_model_handler_manager_concurrent_loads_share_model(self):
+    mh = BlockingLoadModelHandler()
+    mm = base._ModelHandlerManager(mh_map={'key1': mh})
+    thread, results = self._start_blocking_load(mm, 'key1')
+
+    # A second load of the same key while the first one is still loading
+    # returns the same tag instead of loading another copy of the model.
+    tag = mm.load('key1').model_tag
+
+    mh.finish_load.set()
+    thread.join(timeout=60)
+    self.assertEqual(tag, results[0].model_tag)
+    self.assertEqual(1, mh.load_count)
+    self.assertEqual([tag], list(mm._proxy_map.keys()))
+
+  def test_model_handler_manager_evicts_model_that_is_loading(self):
+    mh1 = BlockingLoadModelHandler()
+    mm = base._ModelHandlerManager(
+        mh_map={
+            'key1': mh1, 'key2': FakeModelHandler(state=2)
+        })
+    mm.increment_max_models(1)
+    thread1, results1 = self._start_blocking_load(mm, 'key1')
+
+    # Loading key2 evicts key1 while key1's model is still loading. key2's own
+    # load then waits for key1's load, since models are created one at a time.
+    results2 = []
+    thread2 = threading.Thread(target=lambda: results2.append(mm.load('key2')))
+    thread2.start()
+    deadline = time.time() + 60
+    while 'key1' in mm._tag_map and time.time() < deadline:
+      time.sleep(0.01)
+    self.assertNotIn('key1', mm._tag_map)
+
+    mh1.finish_load.set()
+    thread1.join(timeout=60)
+    thread2.join(timeout=60)
+    self.assertEqual(1, len(results1))
+    self.assertEqual(1, len(results2))
+    tag2 = results2[0].model_tag
+    # key1's model is released when its load finishes, instead of being kept
+    # without an entry in _tag_map.
+    self.assertEqual({'key2': tag2}, dict(mm._tag_map))
+    self.assertEqual([tag2], list(mm._proxy_map.keys()))
+
+  def test_model_handler_manager_updates_model_that_is_loading(self):
+    mh1 = BlockingLoadModelHandler()
+    mm = base._ModelHandlerManager(mh_map={'key1': mh1})
+    thread, _ = self._start_blocking_load(mm, 'key1')
+
+    mm.update_model_handler('key1', 'new/path', 'key1')
+    self.assertEqual({}, dict(mm._tag_map))
+
+    mh1.finish_load.set()
+    thread.join(timeout=60)
+    self.assertEqual({}, dict(mm._tag_map))
+    self.assertEqual({}, mm._proxy_map)
+
+    # The next load uses the updated model handler.
+    mm.load('key1')
+    self.assertEqual(2, mh1.load_count)
 
   def test_keyed_model_handler_max_models_hint_with_handler_copies(self):
     mhs = [
