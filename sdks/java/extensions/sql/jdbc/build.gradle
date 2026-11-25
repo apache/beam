@@ -35,7 +35,11 @@ configurations {
 
 dependencies {
   implementation project(":sdks:java:extensions:sql")
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation library.java.joda_time
   implementation "jline:jline:2.14.6"
+  // Draws the full-screen view of live query results. sqlline keeps using jline 2.
+  implementation "org.jline:jline:3.30.17"
   implementation "sqlline:sqlline:1.4.0"
   implementation library.java.vendored_calcite_1_40_0
   permitUnusedDeclared library.java.vendored_calcite_1_40_0
@@ -72,7 +76,11 @@ processResources {
 
 shadowJar {
   manifest {
-    attributes "Main-Class": "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine"
+    attributes(
+      "Main-Class": "org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLine",
+      // Lets JLine use its native terminal access without warnings on Java 24+.
+      "Enable-Native-Access": "ALL-UNNAMED"
+    )
   }
 }
 

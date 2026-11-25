@@ -35,7 +35,6 @@ import org.apache.spark.sql.catalyst.expressions.objects.Invoke;
 import org.apache.spark.sql.catalyst.expressions.objects.NewInstance;
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke;
 import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import scala.Option;
@@ -71,16 +70,18 @@ public class EncoderFactory {
   @SuppressWarnings({"nullness", "unchecked"})
   static <T> ExpressionEncoder<T> create(
       Expression serializer, Expression deserializer, Class<? super T> clazz) {
-    AgnosticEncoder<T> agnosticEncoder = new BeamAgnosticEncoder<>(serializer, deserializer, clazz);
+    AgnosticEncoder<T> agnosticEncoder =
+        serializer.dataType() instanceof StructType
+            ? new StructBeamAgnosticEncoder<>(serializer, deserializer, clazz)
+            : new BeamAgnosticEncoder<>(serializer, deserializer, clazz);
     return ExpressionEncoder.apply(agnosticEncoder, serializer, deserializer);
   }
 
   /**
-   * An {@link AgnosticEncoder} that implements both {@link AgnosticExpressionPathEncoder} (so that
+   * An {@link AgnosticEncoder} that implements {@link AgnosticExpressionPathEncoder} (so that
    * {@code SerializerBuildHelper} / {@code DeserializerBuildHelper} delegate to our pre-built
-   * expressions) and {@link AgnosticEncoders.StructEncoder} (so that {@code
-   * Dataset.select(TypedColumn)} creates an N-attribute plan instead of a 1-attribute wrapped plan,
-   * preventing {@code FIELD_NUMBER_MISMATCH} errors).
+   * expressions). {@code isStruct} must match the serializer because {@code
+   * TypedAggUtils.aggKeyColumn} and {@code Dataset.select(TypedColumn)} branch on it.
    *
    * <p>The {@code toCatalyst} / {@code fromCatalyst} methods substitute the {@code input}
    * expression into the pre-built serializer / deserializer via {@code transformUp}, so that when
@@ -89,47 +90,16 @@ public class EncoderFactory {
    * GetColumnByOrdinal}.
    */
   @SuppressWarnings({"nullness", "unchecked", "deprecation"})
-  private static final class BeamAgnosticEncoder<T>
-      implements AgnosticExpressionPathEncoder<T>, AgnosticEncoders.StructEncoder<T> {
+  private static class BeamAgnosticEncoder<T> implements AgnosticExpressionPathEncoder<T> {
 
     private final Expression serializer;
     private final Expression deserializer;
     private final Class<? super T> clazz;
-    private final Seq<AgnosticEncoders.EncoderField> encoderFields;
 
     BeamAgnosticEncoder(Expression serializer, Expression deserializer, Class<? super T> clazz) {
       this.serializer = serializer;
       this.deserializer = deserializer;
       this.clazz = clazz;
-      this.encoderFields = buildFields(serializer.dataType());
-    }
-
-    private static Seq<AgnosticEncoders.EncoderField> buildFields(DataType dt) {
-      if (dt instanceof StructType) {
-        StructField[] structFields = ((StructType) dt).fields();
-        List<AgnosticEncoders.EncoderField> fields = new ArrayList<>(structFields.length);
-        for (StructField sf : structFields) {
-          fields.add(
-              new AgnosticEncoders.EncoderField(
-                  sf.name(),
-                  new FieldEncoder<>(sf.dataType(), sf.nullable()),
-                  sf.nullable(),
-                  sf.metadata(),
-                  Option.empty(),
-                  Option.empty()));
-        }
-        return seqOf(fields.toArray(new AgnosticEncoders.EncoderField[0]));
-      } else {
-        // Non-struct: wrap in a single "value" field so StructEncoder sees one field.
-        return seqOf(
-            new AgnosticEncoders.EncoderField(
-                "value",
-                new FieldEncoder<>(dt, true),
-                true,
-                Metadata.empty(),
-                Option.empty(),
-                Option.empty()));
-      }
     }
 
     // --- AgnosticExpressionPathEncoder ---
@@ -144,6 +114,50 @@ public class EncoderFactory {
       return deserializer.transformUp(replace(GetColumnByOrdinal.class, input));
     }
 
+    @Override
+    public boolean isPrimitive() {
+      return false;
+    }
+
+    @Override
+    public DataType dataType() {
+      return serializer.dataType();
+    }
+
+    @Override
+    public ClassTag<T> clsTag() {
+      return (ClassTag<T>) ClassTag.apply(clazz);
+    }
+  }
+
+  /**
+   * {@link BeamAgnosticEncoder} that implements {@link AgnosticEncoders.StructEncoder} for {@link
+   * StructType} serializers (so that {@code Dataset.select(TypedColumn)} creates an N-attribute
+   * plan instead of a 1-attribute wrapped plan, preventing {@code FIELD_NUMBER_MISMATCH} errors).
+   */
+  private static final class StructBeamAgnosticEncoder<T> extends BeamAgnosticEncoder<T>
+      implements AgnosticEncoders.StructEncoder<T> {
+
+    private final Seq<AgnosticEncoders.EncoderField> encoderFields;
+
+    StructBeamAgnosticEncoder(
+        Expression serializer, Expression deserializer, Class<? super T> clazz) {
+      super(serializer, deserializer, clazz);
+      StructField[] structFields = ((StructType) serializer.dataType()).fields();
+      List<AgnosticEncoders.EncoderField> fields = new ArrayList<>(structFields.length);
+      for (StructField sf : structFields) {
+        fields.add(
+            new AgnosticEncoders.EncoderField(
+                sf.name(),
+                new FieldEncoder<>(sf.dataType(), sf.nullable()),
+                sf.nullable(),
+                sf.metadata(),
+                Option.empty(),
+                Option.empty()));
+      }
+      this.encoderFields = seqOf(fields.toArray(new AgnosticEncoders.EncoderField[0]));
+    }
+
     // --- AgnosticEncoders.StructEncoder ---
 
     @Override
@@ -156,29 +170,13 @@ public class EncoderFactory {
       return true;
     }
 
-    /**
-     * Setter required by the Scala compiler when implementing the {@link
-     * AgnosticEncoders.StructEncoder} trait from Java. Scala traits with concrete {@code val}
-     * fields generate a synthetic mangled setter ({@code <trait>$_setter_<field>_$eq}) that the
-     * trait's initializer invokes on subclasses. Java cannot declare {@code val} fields, so we
-     * implement {@link #isStruct()} directly above and accept-but-ignore the trait setter here. The
-     * mangled name is brittle and tied to Spark's Scala source layout — if Spark removes the {@code
-     * isStruct} field from {@code StructEncoder}, this method becomes dead code; if Spark renames
-     * it, compilation will fail and the new mangled name must be substituted.
-     */
+    /** Scala trait {@code val} setter, required to implement {@code StructEncoder} from Java. */
     @Override
     public void
         org$apache$spark$sql$catalyst$encoders$AgnosticEncoders$StructEncoder$_setter_$isStruct_$eq(
-            boolean v) {
-      // no-op: isStruct() is implemented directly above
-    }
+            boolean v) {}
 
     // --- AgnosticEncoder / Encoder (explicit to resolve default-method ambiguity) ---
-
-    @Override
-    public boolean isPrimitive() {
-      return false;
-    }
 
     @Override
     public StructType schema() {
@@ -194,11 +192,6 @@ public class EncoderFactory {
     @Override
     public DataType dataType() {
       return schema();
-    }
-
-    @Override
-    public ClassTag<T> clsTag() {
-      return (ClassTag<T>) ClassTag.apply(clazz);
     }
   }
 

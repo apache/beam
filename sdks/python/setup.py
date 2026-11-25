@@ -71,7 +71,16 @@ class pyrefly(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    args = ['pyrefly', 'check', self.get_project_path()]
+    # --use-ignore-files=false is required because the Gradle toxTask runs
+    # this from a copy of the SDK placed under a build/ directory, which is
+    # matched by the repository's root .gitignore (**/build/**/*). Without it
+    # pyrefly finds no files to check in CI.
+    args = [
+        'pyrefly',
+        'check',
+        self.get_project_path(),
+        '--use-ignore-files=false',
+    ]
     result = subprocess.call(args)
     if result != 0:
       raise DistutilsError("pyrefly exited with status %d" % result)
@@ -171,10 +180,6 @@ qdrant_dependency = ['qdrant-client>=1.15.0']
 # in tox.ini.
 xgboost_dependency = [
     'xgboost>=2.0.0,<4',
-    # apache_beam.ml.inference.xgboost_inference imports datatable directly.
-    # 1.1.0 is the first release with Python 3.10+ wheels; no release has
-    # wheels for Python 3.13+.
-    'datatable>=1.1.0,<2',
 ]
 
 # tensorflow-transform 1.21 (via tfx-bsl 1.21) requires
@@ -485,8 +490,8 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dev': [
-            'pyrefly==1.1.1',
-            'ruff==0.15.22',
+            'pyrefly==1.5.0',
+            'ruff==0.17.6',
             'yapf==0.43.0',
           ],
           'dill': [
@@ -617,7 +622,6 @@ if __name__ == '__main__':
           # extras. Keeping the bounds open as much as possible so that we
           # can find out early when Beam doesn't work with new versions.
           'ml_test': [
-              'datatable',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',  # match tft extra.
@@ -630,8 +634,6 @@ if __name__ == '__main__':
               # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          # xgboost_dependency includes datatable, which only has wheels for
-          # Python <=3.12, so it is limited to the 3.11 and 3.12 test extras.
           'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
           'p312_ml_test': [
               'typesafe-sdk>=0.7.1,<0.8',
@@ -689,7 +691,7 @@ if __name__ == '__main__':
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
-              'torch==2.8.0+cpu',
+              'torch==2.13.0+cpu',
               'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
@@ -726,7 +728,7 @@ if __name__ == '__main__':
           ],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
-          'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
+          'vllm': ['openai>=2.25.0,<3.0.0', 'vllm==0.32.0']
       },
       zip_safe=False,
       # PyPI package information.

@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import collections
+import datetime
 import operator
 import os
 import pickle
@@ -943,6 +944,15 @@ class PTransformTest(unittest.TestCase):
           [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
       result = pcoll.apply(beam.Distinct())
       assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
+
+  def test_distinct_on_dates(self):
+    day = datetime.date(2020, 12, 2)
+    moment = datetime.datetime(2020, 12, 2, 1, 2, 3)
+    with TestPipeline() as pipeline:
+      result = (
+          pipeline | beam.Create([day, day, moment, moment])
+          | beam.Distinct())
+      assert_that(result, equal_to([day, moment]))
 
   def test_chained_ptransforms(self):
     with TestPipeline() as pipeline:

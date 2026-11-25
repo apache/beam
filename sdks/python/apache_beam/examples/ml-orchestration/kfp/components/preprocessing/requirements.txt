@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apache_beam[gcp]==2.40.0
+apache_beam[gcp]==2.78.0
 requests==2.33.0
-torch==2.8.0
-torchvision==0.13.0
-numpy==1.22.4
-Pillow==12.3.0
+torch==2.13.0
+torchvision==0.28.0
+numpy==1.26.4
+Pillow==13.0.0

@@ -37,6 +37,7 @@ from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_fixed
+from urllib.parse import urlparse
 from urllib.request import urlopen, Request, URLError, HTTPError
 
 SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla public license']
@@ -64,8 +65,10 @@ def pull_from_url(file_name, url, dep, no_list, use_cache=False):
         logging.info('Replaced local file URL with {url} for {dep}'.format(url=url, dep=dep))
 
     # Take into account opensource.org changes that cause 404 on licenses
-    if 'opensource.org' in url and url.endswith('-license.php'):
-        url = url.replace('-license.php', '')
+    parsed_host = (urlparse(url).hostname or '').lower()
+    if (parsed_host == 'opensource.org' or parsed_host.endswith(
+        '.opensource.org')) and url.endswith('-license.php'):
+        url = url[:-len('-license.php')]
 
     if use_cache:
         md5sum = hashlib.md5(url.encode()).hexdigest()

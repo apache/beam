@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # [START component_dockerfile]
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # (Optional) install extra dependencies
 
