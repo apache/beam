@@ -190,7 +190,7 @@ ml_base_core = [
     'onnxruntime',
     'onnx>=1.14.1,<2',
     'onnxscript>=0.5.0,<1',
-    'langchain',
+    'langchain-text-splitters',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
     'pyod>=0.7.6',  # 0.7.5 crashes setuptools
@@ -692,7 +692,7 @@ if __name__ == '__main__':
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.13.0+cpu',
-              'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
+              'transformers>=4.41.0,!=4.56.*,<5.21.0',
               'absl-py>=0.12.0'
           ],
           'redis': ['redis>=5.0.0,<6'],

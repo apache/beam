@@ -114,6 +114,7 @@
 * (Python) vLLM model handlers accept a `prefix_batching_config` to batch requests that share a prompt prefix, and publish a capacity-based autoscaling signal (`num_loaded_models_<model_identifier>`, estimated from vLLM's completion rate and in-flight requests) so Dataflow's GPU autoscaling scales vLLM workers with load (tunable via `autoscaling_config`). Other model-server handlers can publish the same signal with `apache_beam.ml.inference.autoscaling_metrics.PrometheusNumLoadedModelsPublisher` ([#40907](https://github.com/apache/beam/pull/40907)) ([#40908](https://github.com/apache/beam/pull/40908)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
 * (Java) Added `LogElements.stdout()`, which prints elements with `System.out.println` instead of logging them through SLF4J, so they still show up when no SLF4J provider is on the classpath ([#41573](https://github.com/apache/beam/pull/41573)).
+* (Python) `OnnxModelHandlerNumpy` and the XGBoost model handlers now support model updates through `model_metadata_pcoll`, for example with `WatchFilePattern`. ONNX predictions now also set `model_id` ([#41384](https://github.com/apache/beam/issues/41384)).
 
 ### Performance
 
@@ -154,9 +155,11 @@
 
 ## Bugfixes
 
+* (Python) Fixed `WriteToBigQuery` rejecting string schemas that include spaces around field names or types, for example `name: STRING` ([#25704](https://github.com/apache/beam/issues/25704)).
 * (Java) Fixed `Combine.perKey` failing on the Spark 4 runner in batch with `Couldn't find method fromByteArray` for keys without a native Spark encoder, for example a `KV` or `Void` key ([#41466](https://github.com/apache/beam/issues/41466)).
 * (Python) Fixed `WatchFilePattern` comparing model files only against their own path, so an older model could be chosen and a poll that saw several models could crash `RunInference` (`AsSingleton` requires one value). Workers compare file times with the pipeline construction time sent with the job, so a model uploaded after submission is not treated as a file that already existed ([#40638](https://github.com/apache/beam/issues/40638)).
 * (Python) Fixed local filesystem copies deleting source data when copying onto the same file or directory, and deleting an existing destination when the source is missing ([#41561](https://github.com/apache/beam/issues/41561)).
+* (Python) Fixed reading concatenated bzip2, zstd and lzma files when a compressed member ends exactly at an internal read boundary ([#41669](https://github.com/apache/beam/issues/41669)).
 * (Java) Fixed Dataflow's streaming `WriteFiles` sharding override dropping options configured on the transform (such as `maxNumWritersPerBundle`, `evictWritersWhenFull`, `skipIfEmpty`, `shardingFunction`, and `badRecordErrorHandler`) when a fixed shard count is not set ([#40533](https://github.com/apache/beam/issues/40533)).
 * (Java) Fixed Dataflow Streaming Engine `MapState` and `MultimapState` being weighed as 1 byte in the worker state cache, which let the cache grow far past `--workerCacheMb` and run workers out of memory ([#41597](https://github.com/apache/beam/issues/41597)).
 * (Python) Fixed Python and Beam YAML pipelines submitted to Spark with `--spark_submit_uber_jar` failing on the driver unless `--storage_level` was set. The Spark runner now defaults to `MEMORY_ONLY` when no Java runner is available to choose the storage level from ([#41080](https://github.com/apache/beam/issues/41080)).
@@ -168,6 +171,7 @@
 * (Python) RunInference now measures model memory (the `model_byte_size` metric) when `torch` is not installed. It was always 0, because a failed `ModelManager` import also disabled the `resource` module ([#40854](https://github.com/apache/beam/issues/40854)).
 * (Python/YAML) Fixed `WindowInto` `'d'` (day) duration unit parsing (`24h` instead of `12h`) and fixed `ExtractWindowingInfo` duplicate field name validation ([#40902](https://github.com/apache/beam/issues/40902)).
 * (Python) Fixed `GeminiModelHandler` returning only one result per batch: each prompt is now sent as its own request (up to 32 at a time), so every input gets its own result. A custom `request_fn` must now return one response per input ([#40913](https://github.com/apache/beam/issues/40913)).
+* (Python/Dataflow) Fixed metric queries raising `KeyError` when a metric has only tentative or committed data ([#41076](https://github.com/apache/beam/issues/41076)).
 * (Java) IcebergIO now writes `uuid` values as given instead of hashing them, and no longer wraps `Timestamp.MICROS` values outside about 1677 to 2262. This is a breaking change: rows written earlier with this sink will keep the old values, so new CDC writes keyed on a `uuid` column won't match them ([#41250](https://github.com/apache/beam/pull/41250)).
 * (Java) BigQuery Storage Write API successful-row output now propagates fused downstream exceptions instead of allowing the bundle to succeed with missing downstream results ([#40004](https://github.com/apache/beam/pull/40004)).
 * (Python) Fixed `HuggingFaceModelHandlerTensor` passing `inference_args` instead of the device to a custom `inference_fn` ([#41085](https://github.com/apache/beam/issues/41085)).
@@ -192,6 +196,7 @@
 * (Python) Fixed file-based sinks such as `WriteToText` treating glob characters in the output path as a pattern: a path such as `out[12]` deleted other files that the pattern matched and then failed to finalize ([#41567](https://github.com/apache/beam/issues/41567)).
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
 * (Python) Fixed the DataFrame API `idxmin()` and `idxmax()` failing with `ValueError` when a partition is empty, for example after a filter, or when a datetime column has only `NaT` in a partition ([#41662](https://github.com/apache/beam/issues/41662)).
+* (Python) Fixed local file patterns that use `/`, such as `data/*.txt`, matching no files on Windows: `ReadFromText` raised "No files found", and `ReadAllFromText` and `fileio.MatchFiles` returned nothing ([#41618](https://github.com/apache/beam/issues/41618)).
 
 ## Security Fixes
 

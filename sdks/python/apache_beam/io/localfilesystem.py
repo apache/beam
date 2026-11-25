@@ -21,6 +21,7 @@
 
 import io
 import os
+import re
 import shutil
 from typing import BinaryIO  # pylint: disable=unused-import
 
@@ -94,6 +95,23 @@ class LocalFileSystem(FileSystem):
       url_or_path: A string in the form of /some/path.
     """
     return os.path.dirname(url_or_path)
+
+  def match_files(self, file_metas, pattern):
+    """Filter :class:`FileMetadata` objects by *pattern*.
+
+    On Windows, ``/`` and ``\\`` both separate path components. Listed paths
+    are joined with ``\\``, so both the pattern and the paths are compared
+    with ``\\`` only, and a pattern such as ``data/*.txt`` matches
+    ``data\\a.txt``.
+    """
+    altsep = os.path.altsep
+    if not altsep:
+      return super().match_files(file_metas, pattern)
+    match = re.compile(
+        self.translate_pattern(pattern.replace(altsep, os.sep))).match
+    return (
+        file_metadata for file_metadata in file_metas
+        if match(file_metadata.path.replace(altsep, os.sep)))
 
   def _list(self, dir_or_prefix):
     """List files in a location.
