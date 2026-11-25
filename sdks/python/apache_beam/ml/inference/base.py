@@ -707,18 +707,18 @@ class _ModelHandlerManager:
     if key in self._tag_map:
       self._tag_map.move_to_end(key)
       return _ModelLoadStats(self._tag_map[key], None, None)
-    else:
-      self._tag_map[key] = uuid.uuid4().hex
 
-    tag = self._tag_map[key]
     mh = self._mh_map[key]
+    tag = uuid.uuid4().hex
+    # Reserve the tag before loading the model, so that a concurrent load(key)
+    # returns this tag and shares this model instead of loading another copy.
+    self._tag_map[key] = tag
 
-    if self._max_models is not None and self._max_models < len(self._tag_map):
-      # If we're about to exceed our LRU size, release the last used model.
-      tag_to_remove = self._tag_map.popitem(last=False)[1]
-      shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
-      shared_handle.release(model_to_remove)
-      del self._proxy_map[tag_to_remove]
+    if (self._max_models is not None and
+        len(self._tag_map) > max(self._max_models, 1)):
+      # If we're about to exceed our LRU size, release the least recently used
+      # model. The new key is the most recently used one, so it is kept.
+      self._release_tag(self._tag_map.popitem(last=False)[1])
 
     # Load the new model
     memory_before = _get_current_process_memory_in_bytes()
@@ -727,12 +727,18 @@ class _ModelHandlerManager:
         mh.load_model, tag=tag)
     try:
       model_reference = shared_handle.acquire()
-    except Exception:
+    except BaseException:
       # Forget the tag so that the next call loads the model again instead of
       # returning a tag that has no model behind it.
-      del self._tag_map[key]
+      if self._tag_map.get(key) == tag:
+        del self._tag_map[key]
       raise
-    self._proxy_map[tag] = (shared_handle, model_reference)
+    if self._tag_map.get(key) == tag:
+      self._proxy_map[tag] = (shared_handle, model_reference)
+    else:
+      # The model was evicted or updated while it was loading, so don't keep
+      # a reference to it.
+      shared_handle.release(model_reference)
     memory_after = _get_current_process_memory_in_bytes()
     end_time = _to_milliseconds(time.time_ns())
 
@@ -780,11 +786,16 @@ class _ModelHandlerManager:
       self._mh_map[key] = deepcopy(self._mh_map[previous_key])
     self._mh_map[key].update_model_path(model_path)
     if key in self._tag_map:
-      tag_to_remove = self._tag_map[key]
-      shared_handle, model_to_remove = self._proxy_map[tag_to_remove]
-      shared_handle.release(model_to_remove)
-      del self._tag_map[key]
-      del self._proxy_map[tag_to_remove]
+      self._release_tag(self._tag_map.pop(key))
+
+  def _release_tag(self, tag: str):
+    """Releases the model loaded for a tag that was removed from _tag_map."""
+    # A model that is still loading has no _proxy_map entry yet. load() releases
+    # it when it finishes, because its tag is no longer in _tag_map.
+    proxy = self._proxy_map.pop(tag, None)
+    if proxy is not None:
+      shared_handle, model = proxy
+      shared_handle.release(model)
 
 
 # Use a dataclass instead of named tuple because NamedTuples and generics don't
