@@ -196,6 +196,7 @@
 * (Python) Fixed `GroupByKey`, `CombinePerKey`, `Distinct` and stateful DoFns failing with "Unable to deterministically encode" on `datetime.date`, `datetime.timedelta` and naive or UTC `datetime.datetime` keys ([#21034](https://github.com/apache/beam/issues/21034)).
 * (Python) Fixed file-based sinks such as `WriteToText` treating glob characters in the output path as a pattern: a path such as `out[12]` deleted other files that the pattern matched and then failed to finalize ([#41567](https://github.com/apache/beam/issues/41567)).
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
+* (Python) Fixed the DataFrame API `idxmin()` and `idxmax()` failing with `ValueError` when a partition is empty, for example after a filter, or when a datetime column has only `NaT` in a partition ([#41662](https://github.com/apache/beam/issues/41662)).
 * (Python) Fixed local file patterns that use `/`, such as `data/*.txt`, matching no files on Windows: `ReadFromText` raised "No files found", and `ReadAllFromText` and `fileio.MatchFiles` returned nothing ([#41618](https://github.com/apache/beam/issues/41618)).
 
 ## Security Fixes
