@@ -62,7 +62,7 @@ type readyExpansionService struct {
 	jobpb.UnimplementedExpansionServiceServer
 }
 
-func (readyExpansionService) DiscoverSchemaTransform(context.Context, *jobpb.DiscoverSchemaTransformRequest) (*jobpb.DiscoverSchemaTransformResponse, error) {
+func (*readyExpansionService) DiscoverSchemaTransform(context.Context, *jobpb.DiscoverSchemaTransformRequest) (*jobpb.DiscoverSchemaTransformResponse, error) {
 	return &jobpb.DiscoverSchemaTransformResponse{}, nil
 }
 
@@ -87,7 +87,7 @@ type exitingExpandService struct {
 	exit chan<- error
 }
 
-func (s exitingExpandService) Expand(ctx context.Context, _ *jobpb.ExpansionRequest) (*jobpb.ExpansionResponse, error) {
+func (s *exitingExpandService) Expand(ctx context.Context, _ *jobpb.ExpansionRequest) (*jobpb.ExpansionResponse, error) {
 	s.exit <- errors.New("jar exited during Expand")
 	<-ctx.Done()
 	return nil, ctx.Err()
@@ -149,7 +149,7 @@ func TestExpansionServices_GetAddr_RetriesWrongService(t *testing.T) {
 			ports = append(ports, args[0])
 			var service jobpb.ExpansionServiceServer
 			if len(procs) > 0 {
-				service = readyExpansionService{}
+				service = &readyExpansionService{}
 			}
 			startExpansionListener(t, args[0], service)
 			proc := &testProcess{done: make(chan error, 1)}
@@ -207,7 +207,7 @@ func TestExpansionServices_GetAddr_RetriesExitedJar(t *testing.T) {
 				proc.done <- fmt.Errorf("address already in use")
 				close(proc.done)
 			} else {
-				startExpansionListener(t, args[0], readyExpansionService{})
+				startExpansionListener(t, args[0], &readyExpansionService{})
 			}
 			procs = append(procs, proc)
 			return proc, nil
@@ -247,7 +247,7 @@ func TestExpansionServices_GetAddr_StopsRetryingExitedJar(t *testing.T) {
 
 func TestWaitForExpansionService_RejectsExitedJar(t *testing.T) {
 	// A compatible listener still cannot prove that our child is running.
-	addr := startExpansionListener(t, "0", readyExpansionService{})
+	addr := startExpansionListener(t, "0", &readyExpansionService{})
 	proc := &testProcess{done: make(chan error, 1)}
 	proc.done <- errors.New("jar failed to start")
 	if err := waitForExpansionService(addr, proc); !errors.Is(err, errJarExited) || !strings.Contains(err.Error(), "jar failed to start") {
@@ -257,7 +257,7 @@ func TestWaitForExpansionService_RejectsExitedJar(t *testing.T) {
 
 func TestWaitForExpansionService_CancelsExpandOnJarExit(t *testing.T) {
 	proc := &testProcess{done: make(chan error, 1)}
-	addr := startExpansionListener(t, "0", exitingExpandService{exit: proc.done})
+	addr := startExpansionListener(t, "0", &exitingExpandService{exit: proc.done})
 	start := time.Now()
 	err := waitForExpansionService(addr, proc)
 	if !errors.Is(err, errJarExited) || !strings.Contains(err.Error(), "jar exited during Expand") {

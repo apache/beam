@@ -538,6 +538,15 @@ public class IcebergUtilsTest {
           Types.DateType.get(),
           Schema.FieldType.logicalType(SqlTypes.DATE),
           DateTimeUtil.dateFromDays(12345));
+
+      // Rows skip Row.Builder's checks, so a value that isn't a date must still fail here.
+      assertThrows(
+          ClassCastException.class,
+          () ->
+              checkRecordValueToRowValue(
+                  Types.ListType.ofRequired(1, Types.DateType.get()),
+                  Schema.FieldType.array(Schema.FieldType.logicalType(SqlTypes.DATE)),
+                  Arrays.asList(true)));
     }
 
     @Test
@@ -551,10 +560,17 @@ public class IcebergUtilsTest {
     @Test
     public void testTimestamp() {
       // SqlTypes.DATETIME
+      LocalDateTime localDateTime = DateTimeUtil.timestampFromMicros(123456789L);
       checkRecordValueToRowValue(
           Types.TimestampType.withoutZone(),
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
-          DateTimeUtil.timestampFromMicros(123456789L));
+          localDateTime);
+
+      // SqlTypes.DATETIME inside a list
+      checkRecordValueToRowValue(
+          Types.ListType.ofRequired(1, Types.TimestampType.withoutZone()),
+          Schema.FieldType.array(Schema.FieldType.logicalType(SqlTypes.DATETIME)),
+          Arrays.asList(localDateTime));
 
       // Schema.FieldType.DATETIME
       DateTime dateTime =
@@ -772,6 +788,15 @@ public class IcebergUtilsTest {
           nullValue,
           Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES.withNullable(true)),
           nullValue);
+      Map<String, Integer> nullInt = Collections.singletonMap("a", null);
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              checkRecordValueToRowValue(
+                  Types.MapType.ofOptional(1, 2, Types.StringType.get(), Types.IntegerType.get()),
+                  nullInt,
+                  Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32),
+                  nullInt));
     }
 
     @Test
@@ -782,6 +807,15 @@ public class IcebergUtilsTest {
           Types.ListType.ofRequired(1, Types.StringType.get()),
           Schema.FieldType.iterable(Schema.FieldType.STRING),
           list);
+
+      // A logical type no Iceberg column maps to still rejects a value it can't hold.
+      assertThrows(
+          ClassCastException.class,
+          () ->
+              checkRecordValueToRowValue(
+                  Types.ListType.ofRequired(1, Types.StringType.get()),
+                  Schema.FieldType.array(Schema.FieldType.logicalType(SqlTypes.UUID)),
+                  list));
 
       // a null element is only fine when the Beam type allows it
       Type nullableList = Types.ListType.ofOptional(1, Types.BinaryType.get());
@@ -796,6 +830,15 @@ public class IcebergUtilsTest {
           IllegalArgumentException.class,
           () ->
               checkRecordValueToRowValue(nullableList, nullElement, requiredElements, nullElement));
+      List<String> nullString = Collections.singletonList(null);
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              checkRecordValueToRowValue(
+                  Types.ListType.ofOptional(1, Types.StringType.get()),
+                  nullString,
+                  Schema.FieldType.array(Schema.FieldType.STRING),
+                  nullString));
     }
 
     @Test

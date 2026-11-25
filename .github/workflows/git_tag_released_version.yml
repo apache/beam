@@ -30,8 +30,12 @@ on:
         description: Beam RC Tag
         required: true
 
+permissions: {}
+
 jobs:
   generate_tags:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     env:
       VERSION_PATH: ${{ github.event.inputs.VERSION_TAG }}

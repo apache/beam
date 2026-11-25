@@ -51,8 +51,7 @@
     "queue-typescript": "^1.0.1",
     "serialize-closures": "^0.2.7",
     "ts-closure-transform": "^0.1.7",
-    "ttypescript": "^1.5.15",
-    "uuid": "^8.3.2"
+    "ttypescript": "^1.5.15"
   },
   "main": "./dist/src/apache_beam/index.js",
   "exports": {
@@ -66,6 +65,13 @@
     "js-yaml": "^4.3.2",
     "serialize-javascript": "^7.1.4",
     "@tootallnate/once": "^3.0.1",
-    "diff": "^8.0.3"
+    "diff": "^8.0.3",
+    "uuid": "^11.1.1",
+    "mocha": {
+      "minimatch": "^11.0.1",
+      "glob": {
+        "minimatch": "^11.0.1"
+      }
+    }
   }
 }

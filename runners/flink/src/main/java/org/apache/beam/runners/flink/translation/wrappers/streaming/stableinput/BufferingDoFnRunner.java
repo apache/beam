@@ -304,8 +304,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       BufferingElementsHandler bufferingElementsHandler =
           bufferingElementsHandlerFactory.get(toBeAckedId);
       try (Locker lock = locker != null ? locker.get() : null) {
-        final Iterator<BufferedElement> iterator =
-            bufferingElementsHandler.getElements().iterator();
+        final Iterator<BufferedElement> iterator = bufferingElementsHandler.getElements();
         boolean hasElements = iterator.hasNext();
         if (hasElements) {
           underlying.startBundle();

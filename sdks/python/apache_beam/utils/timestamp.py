@@ -538,9 +538,11 @@ class Duration(object):
 
   def to_proto(self) -> duration_pb2.Duration:
     """Returns the `google.protobuf.duration_pb2` representation."""
-    secs = self.micros // 1000000
-    nanos = (self.micros % 1000000) * 1000
-    return duration_pb2.Duration(seconds=secs, nanos=nanos)
+    # Unlike a Timestamp, a negative Duration proto has both fields negative:
+    # -1.5 seconds is seconds=-1, nanos=-500000000.
+    duration_proto = duration_pb2.Duration()
+    duration_proto.FromMicroseconds(self.micros)
+    return duration_proto
 
   @staticmethod
   def from_proto(duration_proto: duration_pb2.Duration) -> 'Duration':

@@ -268,6 +268,62 @@ class TestDataflowMetrics(unittest.TestCase):
     mock_job_result.is_in_terminal_state.return_value = False
     return mock_client, mock_job_result
 
+  def test_populate_metrics_with_missing_tentative_or_committed(self):
+    response = types.SimpleNamespace(
+        metrics=[
+            types.SimpleNamespace(
+                name=types.SimpleNamespace(
+                    origin='user',
+                    name='tentative_only',
+                    context={
+                        'namespace': 'my_ns', 'tentative': 'true'
+                    },
+                ),
+                scalar=42,
+                distribution=None,
+            ),
+            types.SimpleNamespace(
+                name=types.SimpleNamespace(
+                    origin='user',
+                    name='committed_only',
+                    context={'namespace': 'my_ns'},
+                ),
+                scalar=7,
+                distribution=None,
+            ),
+        ])
+    result = []
+
+    dataflow_metrics.DataflowMetrics()._populate_metrics(
+        response, result, user_metrics=True)
+
+    self.assertEqual(
+        result,
+        [
+            MetricResult(
+                MetricKey('', MetricName('my_ns', 'tentative_only')),
+                attempted=42,
+                committed=None),
+            MetricResult(
+                MetricKey('', MetricName('my_ns', 'committed_only')),
+                attempted=None,
+                committed=7),
+        ])
+
+  def test_metric_type_uses_committed_when_attempted_is_missing(self):
+    key = MetricKey('', MetricName('my_ns', 'committed_only'))
+    counter = MetricResult(key, attempted=None, committed=7)
+    distribution = MetricResult(
+        key,
+        attempted=None,
+        committed=DistributionResult(DistributionData(10, 2, 3, 7)))
+
+    self.assertTrue(dataflow_metrics.DataflowMetrics._is_counter(counter))
+    self.assertFalse(dataflow_metrics.DataflowMetrics._is_distribution(counter))
+    self.assertTrue(
+        dataflow_metrics.DataflowMetrics._is_distribution(distribution))
+    self.assertFalse(dataflow_metrics.DataflowMetrics._is_counter(distribution))
+
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   def test_cache_functions(self):
     mock_client, mock_job_result = self.setup_mock_client_result(

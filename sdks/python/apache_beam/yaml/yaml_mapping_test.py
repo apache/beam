@@ -217,6 +217,47 @@ class YamlMappingTest(unittest.TestCase):
             ''')
         self.assertEqual(result.element_type._fields[0][1], str)
 
+  def test_validate_nullable_output_types(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(a=1, b='abc'),
+          beam.Row(a=0, b='xy'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: MapToFields
+          input: input
+          config:
+            language: python
+            fields:
+              opt_union:
+                expression: "b if a > 0 else None"
+                output_type:
+                  type: [string, 'null']
+              opt_flag:
+                expression: "a if a > 0 else None"
+                output_type:
+                  type: integer
+                  nullable: true
+              nested:
+                callable: "lambda row: beam.Row(x=row.b if row.a > 0 else None)"
+                output_type:
+                  type: object
+                  properties:
+                    x:
+                      type: string
+          ''')
+      self.assertEqual(
+          dict(result.element_type._fields)['opt_union'],
+          beam.typehints.Optional[str])
+      self.assertEqual(
+          dict(result.element_type._fields)['opt_flag'],
+          beam.typehints.Optional[np.int64])
+      assert_that(
+          result | beam.Map(lambda r: (r.opt_union, r.opt_flag, r.nested.x)),
+          equal_to([('abc', 1, 'abc'), (None, None, None)]))
+
   def test_partition(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

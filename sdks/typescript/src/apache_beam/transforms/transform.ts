@@ -56,7 +56,7 @@ export function extractName<T>(withName: T): string {
   } else {
     const stringified = ("" + withName)
       // Remove injected code coverage boilerplate.
-      .replace(/__cov_.*?[+][+]/g, " ")
+      .replace(/__cov_[^+\r\n]{0,80}\+\+/g, " ")
       // Normalize whitespace.
       .replace(/\s+/gm, " ")
       .trim();

@@ -143,6 +143,9 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
         provider_options=self._provider_options)
     return ort_session
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._model_uri = model_path if model_path else self._model_uri
+
   def run_inference(
       self,
       batch: Sequence[numpy.ndarray],
@@ -164,7 +167,8 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     predictions = self._model_inference_fn(
         inference_session, batch, inference_args)
 
-    return utils._convert_to_result(batch, predictions)
+    return utils._convert_to_result(
+        batch, predictions, model_id=self._model_uri)
 
   def get_num_bytes(self, batch: Sequence[numpy.ndarray]) -> int:
     """

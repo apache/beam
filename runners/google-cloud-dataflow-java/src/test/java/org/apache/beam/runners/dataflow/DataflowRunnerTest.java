@@ -2160,15 +2160,38 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testStreamingWriteWithShardingReturnsSameTransform() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
+  public void testStreamingWriteWithShardingReturnsSameTransform() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStreaming(true);
+    Pipeline p = buildDataflowPipeline(options);
 
+    WriteFiles<Object, Void, Object> original =
+        WriteFiles.to(new TestSink(tmpFolder.toString())).withWindowedWrites().withAutoSharding();
+    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
+    objs.apply(original);
+
+    DataflowRunner.fromOptions(options).replaceV1Transforms(p);
+
+    CompositeTransformRecorder recorder = new CompositeTransformRecorder();
+    p.traverseTopologically(recorder);
+    assertThat(recorder.getCompositeTransforms(), hasItem(original));
+  }
+
+  @Test
+  public void testStreamingWriteKeepsOriginalOptions() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
     TestPipeline p = TestPipeline.fromOptions(options);
 
     StreamingShardedWriteFactory<Object, Void, Object> factory =
         new StreamingShardedWriteFactory<>(p.getOptions());
     WriteFiles<Object, Void, Object> original =
-        WriteFiles.to(new TestSink(tmpFolder.toString())).withAutoSharding();
+        WriteFiles.to(new TestSink(tmpFolder.toString()))
+            .withWindowedWrites()
+            .withMaxNumWritersPerBundle(5)
+            .withEvictWritersWhenFull()
+            .withSkipIfEmpty(true)
+            .withBatchSize(123)
+            .withBatchSizeBytes(456);
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
@@ -2184,12 +2207,8 @@ public class DataflowRunnerTest implements Serializable {
         (WriteFiles<Object, Void, Object>)
             factory.getReplacementTransform(originalApplication).getTransform();
 
-    WriteFilesResult<Void> originalResult = objs.apply(original);
-    WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-
-    assertNull(replacement.getNumShardsProvider());
-    assertNull(replacement.getComputeNumShards());
-    assertTrue(replacement.getWithAutoSharding());
+    assertEquals(
+        original.withNumShards(StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS), replacement);
   }
 
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {

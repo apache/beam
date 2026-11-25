@@ -41,15 +41,16 @@ jobs:
         env:
           GH_EVENT: ${{ github.event_name }}
         run: |
-          # Take the current date, subtract from a release cut date in the past (June 24, 2026),
+          # Take the current date, subtract from a release cut date in the past (Oct 28, 2026),
           # then get the num days % 42 (our release cadence is 42 days).
-          # This will ensure it only runs the week after a release branch has been cut.
-          days_diff=$(( ($(date +%s) - $(date --date="260624" +%s) )/(60*60*24)%42 ))
-          if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
-            echo "Exiting early. We only update dependencies the week after we cut the release"
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-          else
+          # This will ensure it only runs in week 1 and week 3 after a release branch has been cut,
+          # preserving a ~3-week soak window before the next release cut.
+          days_diff=$(( ($(date +%s) - $(date --date="261028" +%s) )/(60*60*24)%42 ))
+          if [[ $GH_EVENT == 'workflow_dispatch' || $days_diff -le 6 || ( $days_diff -ge 14 && $days_diff -le 20 ) ]]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Exiting early. We only update dependencies in week 1 and week 3 after we cut the release"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Checkout code
         if: steps.check_cadence.outputs.should_run == 'true'
