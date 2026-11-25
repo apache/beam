@@ -114,6 +114,7 @@
 * (Python) vLLM model handlers accept a `prefix_batching_config` to batch requests that share a prompt prefix, and publish a capacity-based autoscaling signal (`num_loaded_models_<model_identifier>`, estimated from vLLM's completion rate and in-flight requests) so Dataflow's GPU autoscaling scales vLLM workers with load (tunable via `autoscaling_config`). Other model-server handlers can publish the same signal with `apache_beam.ml.inference.autoscaling_metrics.PrometheusNumLoadedModelsPublisher` ([#40907](https://github.com/apache/beam/pull/40907)) ([#40908](https://github.com/apache/beam/pull/40908)).
 * (Go) Added pass-through registration for fixed and variable length string and bytes logical types ([#39684](https://github.com/apache/beam/issues/39684)).
 * (Java) Added `LogElements.stdout()`, which prints elements with `System.out.println` instead of logging them through SLF4J, so they still show up when no SLF4J provider is on the classpath ([#41573](https://github.com/apache/beam/pull/41573)).
+* (Python) `OnnxModelHandlerNumpy` and the XGBoost model handlers now support model updates through `model_metadata_pcoll`, for example with `WatchFilePattern`. ONNX predictions now also set `model_id` ([#41384](https://github.com/apache/beam/issues/41384)).
 
 ### Performance
 
