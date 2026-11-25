@@ -150,9 +150,10 @@ jobs:
           echo "Waiting for pod to be fully operational..."
           sleep 60
 
-          # Create the topic using the correct container and path
+          # Create the topic with replication-factor 3 to match kafka-config and satisfy
+          # min.insync.replicas=2 in .test-infra/kubernetes/kafka-cluster/05-kafka/10broker-config.yml.
           echo "Creating topic 'beam'..."
-          kubectl exec $KAFKA_POD -c broker -- /opt/kafka/bin/kafka-topics.sh --create --topic beam --zookeeper zookeeper:2181 --partitions 1 --replication-factor 1 || echo "Topic may already exist"
+          kubectl exec $KAFKA_POD -c broker -- /opt/kafka/bin/kafka-topics.sh --create --topic beam --zookeeper zookeeper:2181 --partitions 1 --replication-factor 3 || echo "Topic may already exist"
 
           # Verify topic was created
           echo "Verifying topic creation..."
