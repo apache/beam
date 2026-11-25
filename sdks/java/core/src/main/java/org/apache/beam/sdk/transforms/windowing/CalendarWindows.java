@@ -354,8 +354,7 @@ public class CalendarWindows {
 
       int years = Years.yearsBetween(offsetStart, datetime).getYears();
       // yearsBetween rounds toward zero. Round down instead, so that a timestamp before the start
-      // is
-      // assigned to the window that contains it.
+      // is assigned to the window that contains it.
       if (offsetStart.plusYears(years).isAfter(datetime)) {
         years--;
       }
