@@ -32,7 +32,8 @@ import org.slf4j.event.Level;
 /**
  * {@link PTransform} for logging elements of a {@link PCollection}.
  *
- * <p>Each element is logged and then emitted unchanged.
+ * <p>Each element is logged and then emitted unchanged. Use {@link #stdout()} to print elements to
+ * standard output instead of logging them through SLF4J.
  *
  * <pre>{@code
  * PCollection<String> words = ...;
@@ -44,7 +45,9 @@ import org.slf4j.event.Level;
 public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(LogElements.class);
 
-  private final Level level;
+  /** The level to log at, or {@code null} to print to {@link System#out}. */
+  private final @Nullable Level level;
+
   private final String prefix;
   private final boolean withTimestamp;
   private final boolean withWindow;
@@ -77,12 +80,24 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /** Returns a {@link LogElements} transform that logs elements at the given level. */
   public static <T> LogElements<T> of(Level level) {
-    return new LogElements<>(level, "", false, false, false);
+    return new LogElements<>(Objects.requireNonNull(level, "level"), "", false, false, false);
+  }
+
+  /**
+   * Returns a {@link LogElements} transform that prints elements to {@link System#out} instead of
+   * logging them through SLF4J, so they show up even when no SLF4J provider is on the classpath.
+   */
+  public static <T> LogElements<T> stdout() {
+    return new LogElements<>(null, "", false, false, false);
   }
 
   private LogElements(
-      Level level, String prefix, boolean withTimestamp, boolean withWindow, boolean withPaneInfo) {
-    this.level = Objects.requireNonNull(level, "level");
+      @Nullable Level level,
+      String prefix,
+      boolean withTimestamp,
+      boolean withWindow,
+      boolean withPaneInfo) {
+    this.level = level;
     this.prefix = Objects.requireNonNull(prefix, "prefix");
     this.withTimestamp = withTimestamp;
     this.withWindow = withWindow;
@@ -118,7 +133,10 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     builder
-        .add(DisplayData.item("level", level.name()).withLabel("Log Level"))
+        .add(
+            level == null
+                ? DisplayData.item("output", "stdout").withLabel("Output")
+                : DisplayData.item("level", level.name()).withLabel("Log Level"))
         .addIfNotDefault(DisplayData.item("prefix", prefix).withLabel("Prefix"), "")
         .addIfNotDefault(
             DisplayData.item("withTimestamp", withTimestamp).withLabel("Log Timestamp"), false)
@@ -149,8 +167,13 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
     return builder.toString();
   }
 
+  /** Prints {@code message} to {@link System#out} if {@code level} is null, else logs it. */
   @VisibleForTesting
-  static void log(Level level, String message) {
+  static void log(@Nullable Level level, String message) {
+    if (level == null) {
+      System.out.println(message);
+      return;
+    }
     switch (level) {
       case TRACE:
         LOG.trace("{}", message);
@@ -194,7 +217,7 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   private static class LoggingFn<T> extends DoFn<T, T> {
-    private final Level level;
+    private final @Nullable Level level;
     private final String prefix;
     private final boolean withTimestamp;
     private final boolean withWindow;
@@ -215,7 +238,7 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
         BoundedWindow window,
         PaneInfo paneInfo,
         OutputReceiver<T> receiver) {
-      if (isLoggingEnabled(level)) {
+      if (level == null || isLoggingEnabled(level)) {
         log(
             level,
             formatForLogging(

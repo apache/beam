@@ -23,7 +23,7 @@ const path = require("path");
 const { BigQuery } = require("@google-cloud/bigquery");
 const { PubSub } = require("@google-cloud/pubsub");
 
-import * as uuid from "uuid";
+import { randomUUID } from "crypto";
 import * as assert from "assert";
 
 import * as beam from "../src/apache_beam";
@@ -174,7 +174,7 @@ describe("IO Tests", function () {
     function path_join(...args) {
       return path.join(...args).replace("gs:/", "gs://");
     }
-    const tempDir = path_join(options.tempLocation, uuid.v4());
+    const tempDir = path_join(options.tempLocation, randomUUID());
     console.log(options.tempLocation);
     console.log(tempDir);
     // TODO: Allow schema to be inferred.
@@ -236,12 +236,12 @@ describe("IO Tests", function () {
     };
 
     const bigqueryClient = new BigQuery({ projectId: options.project });
-    const datasetName = "beam_temp_dataset_" + uuid.v4().replaceAll("-", "");
+    const datasetName = "beam_temp_dataset_" + randomUUID().replaceAll("-", "");
     const [dataset] = await bigqueryClient.createDataset(datasetName);
 
     try {
       const table =
-        datasetName + ".beam_temp_table" + uuid.v4().replaceAll("-", "");
+        datasetName + ".beam_temp_table" + randomUUID().replaceAll("-", "");
       await createRunner(options).run(async (root) => {
         await root //
           .apply(beam.create(elements))
@@ -280,13 +280,13 @@ describe("IO Tests", function () {
     };
 
     const pubsubClient = new PubSub({ projectId: options.project });
-    const [readTopic] = await pubsubClient.createTopic("testing-" + uuid.v4());
+    const [readTopic] = await pubsubClient.createTopic("testing-" + randomUUID());
     const [readSubscription] = await readTopic.createSubscription(
-      "sub-" + uuid.v4()
+      "sub-" + randomUUID()
     );
-    const [writeTopic] = await pubsubClient.createTopic("testing-" + uuid.v4());
+    const [writeTopic] = await pubsubClient.createTopic("testing-" + randomUUID());
     const [writeSubscription] = await writeTopic.createSubscription(
-      "sub-" + uuid.v4()
+      "sub-" + randomUUID()
     );
 
     let pipelineHandle;

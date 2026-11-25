@@ -71,7 +71,16 @@ class pyrefly(Command):
     return os.path.join(project_path, to_filename(ei_cmd.egg_name))
 
   def run(self):
-    args = ['pyrefly', 'check', self.get_project_path()]
+    # --use-ignore-files=false is required because the Gradle toxTask runs
+    # this from a copy of the SDK placed under a build/ directory, which is
+    # matched by the repository's root .gitignore (**/build/**/*). Without it
+    # pyrefly finds no files to check in CI.
+    args = [
+        'pyrefly',
+        'check',
+        self.get_project_path(),
+        '--use-ignore-files=false',
+    ]
     result = subprocess.call(args)
     if result != 0:
       raise DistutilsError("pyrefly exited with status %d" % result)
@@ -481,8 +490,8 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dev': [
-            'pyrefly==1.1.1',
-            'ruff==0.15.22',
+            'pyrefly==1.5.0',
+            'ruff==0.17.6',
             'yapf==0.43.0',
           ],
           'dill': [
@@ -682,7 +691,7 @@ if __name__ == '__main__':
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
-              'torch==2.8.0+cpu',
+              'torch==2.13.0+cpu',
               'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
