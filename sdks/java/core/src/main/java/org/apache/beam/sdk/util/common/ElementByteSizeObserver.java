@@ -53,6 +53,21 @@ public abstract class ElementByteSizeObserver implements Observer {
     return isLazy;
   }
 
+  /**
+   * Updates the observer with the byte size of an element piece without boxing.
+   *
+   * <p>Subclasses that override {@link #update(Object)} or {@link #update(Observable, Object)} must
+   * also override this method if they intercept all updates, as this method updates internal state
+   * directly rather than delegating to those overloads.
+   */
+  public void update(long bytes) {
+    if (scalingFactor == 1.0) {
+      totalSize += bytes;
+    } else {
+      totalSize += (long) (scalingFactor * bytes);
+    }
+  }
+
   /** Updates the observer with a context specified, but without an instance of the Observable. */
   public void update(Object obj) {
     update(null, obj);
@@ -66,12 +81,23 @@ public abstract class ElementByteSizeObserver implements Observer {
   @Override
   public void update(Observable obs, Object obj) {
     if (obj instanceof Long) {
-      totalSize += (long) (scalingFactor * (Long) obj);
+      update(((Long) obj).longValue());
     } else if (obj instanceof Integer) {
-      totalSize += (long) (scalingFactor * (Integer) obj);
+      update(((Integer) obj).longValue());
     } else {
       throw new AssertionError("unexpected parameter object");
     }
+  }
+
+  /**
+   * Resets any accumulated byte size, lazy state, and scaling factor to {@code 1.0} without
+   * reporting. Unlike {@link #advance()}, this clears the scaling factor so a reused observer does
+   * not inherit a prior element's scaling factor.
+   */
+  public void reset() {
+    totalSize = 0;
+    isLazy = false;
+    scalingFactor = 1.0;
   }
 
   /**

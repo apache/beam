@@ -24,6 +24,9 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -32,6 +35,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -39,6 +45,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,6 +54,7 @@ import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
+import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry.SampleByteSizeDistribution;
 import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.logging.LoggingClient;
@@ -64,17 +72,22 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -817,4 +830,317 @@ public class PCollectionConsumerRegistryTest {
   }
 
   private abstract static class SplittingReceiver<T> implements FnDataReceiver<T>, HandlesSplits {}
+
+  private static class RecordingDistribution implements Distribution {
+    final List<Long> updates = new ArrayList<>();
+
+    @Override
+    public void update(long value) {
+      updates.add(value);
+    }
+
+    @Override
+    public void update(long sum, long count, long min, long max) {
+      updates.add(sum);
+    }
+
+    @Override
+    public MetricName getName() {
+      return MetricName.named("test", "sampled_byte_size");
+    }
+  }
+
+  @Test
+  public void testSampleByteSizeDistributionReusesObserverAndRecoversFromFailure()
+      throws Exception {
+    RecordingDistribution dist = new RecordingDistribution();
+    SampleByteSizeDistribution<String> samplerDist = new SampleByteSizeDistribution<>(dist);
+    List<ElementByteSizeObserver> observedObservers = new ArrayList<>();
+    Coder<String> capturingCoder =
+        new AtomicCoder<String>() {
+          @Override
+          public void encode(String value, OutputStream outStream) throws IOException {
+            throw new AssertionError("encode must not be called");
+          }
+
+          @Override
+          public String decode(InputStream inStream) throws IOException {
+            throw new AssertionError("decode must not be called");
+          }
+
+          @Override
+          public void registerByteSizeObserver(String value, ElementByteSizeObserver observer) {
+            observedObservers.add(observer);
+            if ("boomEager".equals(value)) {
+              observer.update(99L);
+              throw new IllegalStateException("eager observer failure");
+            }
+            if ("boomLazy".equals(value)) {
+              observer.update(99L);
+              observer.setLazy();
+              throw new IllegalStateException("lazy observer failure");
+            }
+            observer.update((long) value.length());
+          }
+        };
+
+    samplerDist.tryUpdate("abcd", capturingCoder);
+    assertThrows(
+        IllegalStateException.class, () -> samplerDist.tryUpdate("boomEager", capturingCoder));
+    samplerDist.tryUpdate("123456", capturingCoder);
+    assertThrows(
+        IllegalStateException.class, () -> samplerDist.tryUpdate("boomLazy", capturingCoder));
+    samplerDist.tryUpdate("xy", capturingCoder);
+
+    assertEquals(5, observedObservers.size());
+    // Eager failure reuses the same observer instance after reset().
+    assertSame(observedObservers.get(0), observedObservers.get(1));
+    assertSame(observedObservers.get(0), observedObservers.get(2));
+    assertSame(observedObservers.get(0), observedObservers.get(3));
+    // Partial lazy registration detaches the failed observer so subsequent elements get a fresh
+    // instance.
+    assertNotSame(observedObservers.get(3), observedObservers.get(4));
+    assertEquals(Arrays.asList(4L, 6L, 2L), dist.updates);
+  }
+
+  @Test
+  public void testSampleByteSizeDistributionDiscardPendingLazyUpdate() throws Exception {
+    RecordingDistribution dist = new RecordingDistribution();
+    SampleByteSizeDistribution<String> samplerDist = new SampleByteSizeDistribution<>(dist);
+    Coder<String> lazyCoder =
+        new AtomicCoder<String>() {
+          @Override
+          public void encode(String value, OutputStream outStream) throws IOException {
+            throw new AssertionError("encode must not be called");
+          }
+
+          @Override
+          public String decode(InputStream inStream) throws IOException {
+            throw new AssertionError("decode must not be called");
+          }
+
+          @Override
+          public void registerByteSizeObserver(String value, ElementByteSizeObserver observer) {
+            observer.update(42L);
+            observer.setLazy();
+          }
+        };
+
+    samplerDist.tryUpdate("lazy", lazyCoder);
+    samplerDist.discardPendingLazyUpdate();
+    samplerDist.finishLazyUpdate();
+
+    assertTrue(dist.updates.isEmpty());
+  }
+
+  @Test
+  public void testLazyObserverDetachedOnConsumerExceptionAndDeferredIteration() throws Exception {
+    RecordingDistribution dist = new RecordingDistribution();
+    SampleByteSizeDistribution<Object> sampleDist = new SampleByteSizeDistribution<>(dist);
+    String elementValue = "elem";
+    long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
+    @SuppressWarnings("unchecked")
+    Coder<Object> iterableCoder = (Coder) IterableCoder.of(StringUtf8Coder.of());
+    Coder<Object> nonLazyCoder =
+        new AtomicCoder<Object>() {
+          @Override
+          public void encode(Object value, OutputStream outStream) {}
+
+          @Override
+          public Object decode(InputStream inStream) {
+            return "unused";
+          }
+
+          @Override
+          public void registerByteSizeObserver(Object value, ElementByteSizeObserver observer) {
+            observer.update(17L);
+          }
+        };
+
+    // Simulate a consumer throwing before finishLazyUpdate().
+    TestElementByteSizeObservableIterable<String> abortedLazy =
+        new TestElementByteSizeObservableIterable<>(
+            Arrays.asList(elementValue, elementValue), elementByteSize);
+    sampleDist.tryUpdate(abortedLazy, iterableCoder);
+    Iterator<String> abortedIt = abortedLazy.iterator();
+    abortedIt.next(); // partially iterated, never finished
+
+    // Next element must clear pendingLazyObserver and detach from abortedIt.
+    sampleDist.tryUpdate("ok", nonLazyCoder);
+    sampleDist.finishLazyUpdate();
+    assertEquals(Arrays.asList(17L), dist.updates);
+
+    // Simulate a consumer stashing a lazy iterable and iterating it later while a subsequent
+    // element is being observed.
+    TestElementByteSizeObservableIterable<String> stashedLazy =
+        new TestElementByteSizeObservableIterable<>(
+            Arrays.asList(elementValue, elementValue), elementByteSize);
+    sampleDist.tryUpdate(stashedLazy, iterableCoder);
+    Iterator<String> stashedIt = stashedLazy.iterator();
+    sampleDist.finishLazyUpdate();
+    assertEquals(Arrays.asList(17L, 5L), dist.updates);
+
+    Coder<Object> drainingDuringObserveCoder =
+        new AtomicCoder<Object>() {
+          @Override
+          public void encode(Object value, OutputStream outStream) {}
+
+          @Override
+          public Object decode(InputStream inStream) {
+            return "unused";
+          }
+
+          @Override
+          public void registerByteSizeObserver(Object value, ElementByteSizeObserver observer) {
+            while (stashedIt.hasNext()) {
+              stashedIt.next();
+            }
+            observer.update(19L);
+          }
+        };
+
+    sampleDist.tryUpdate("ok2", drainingDuringObserveCoder);
+    sampleDist.finishLazyUpdate();
+    assertEquals(Arrays.asList(17L, 5L, 19L), dist.updates);
+  }
+
+  @Test
+  public void testMultiplexingLazyByteSizeEstimationAcrossMultipleConsumers() throws Exception {
+    ShortIdMap shortIds = new ShortIdMap();
+    BundleProgressReporter.InMemory reporterAndRegistrar = new BundleProgressReporter.InMemory();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            sampler.create(), shortIds, reporterAndRegistrar, TEST_DESCRIPTOR);
+    FnDataReceiver<WindowedValue<Iterable<String>>> consumer1 = mock(FnDataReceiver.class);
+    FnDataReceiver<WindowedValue<Iterable<String>>> consumer2 = mock(FnDataReceiver.class);
+
+    consumers.register(P_COLLECTION_B, "pTransformIdA", "pTransformIdAName", consumer1);
+    consumers.register(P_COLLECTION_B, "pTransformIdB", "pTransformIdBName", consumer2);
+
+    FnDataReceiver<WindowedValue<Iterable<String>>> wrapperConsumer =
+        (FnDataReceiver<WindowedValue<Iterable<String>>>)
+            (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_B);
+    String elementValue = "elem";
+    long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
+    WindowedValue<Iterable<String>> element =
+        valueInGlobalWindow(
+            new TestElementByteSizeObservableIterable<>(
+                Arrays.asList(elementValue, elementValue), elementByteSize));
+
+    // Only the second consumer iterates the lazy iterable.
+    doAnswer(
+            (Answer<Void>)
+                invocation -> {
+                  WindowedValue<Iterable<String>> arg =
+                      (WindowedValue<Iterable<String>>) invocation.getArgument(0);
+                  Iterator<String> it = arg.getValue().iterator();
+                  while (it.hasNext()) {
+                    it.next();
+                  }
+                  return null;
+                })
+        .when(consumer2)
+        .accept(element);
+
+    int numElements = 5;
+    for (int i = 0; i < numElements; i++) {
+      wrapperConsumer.accept(element);
+    }
+
+    verify(consumer1, times(numElements)).accept(element);
+    verify(consumer2, times(numElements)).accept(element);
+
+    List<MonitoringInfo> expected = new ArrayList<>();
+    SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_B);
+    builder.setInt64SumValue(numElements);
+    expected.add(builder.build());
+
+    long expectedBytes = (elementByteSize + 1) * 2 + 5;
+    builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, P_COLLECTION_B);
+    builder.setInt64DistributionValue(
+        DistributionData.create(
+            numElements * expectedBytes, numElements, expectedBytes, expectedBytes));
+    expected.add(builder.build());
+
+    Map<String, ByteString> actualData = new HashMap<>();
+    reporterAndRegistrar.updateFinalMonitoringData(actualData);
+    Iterable<MonitoringInfo> result =
+        Iterables.filter(
+            shortIds.toMonitoringInfo(actualData),
+            monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
+    assertThat(result, containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testReservoirGapSamplingSublinearDecayAndUpperBoundCap() throws Exception {
+    RecordingDistribution dist = new RecordingDistribution();
+    SampleByteSizeDistribution<String> sampleDist =
+        new SampleByteSizeDistribution<>(dist, new Random(12345L));
+    Coder<String> coder = StringUtf8Coder.of();
+
+    for (int i = 0; i < 10; i++) {
+      sampleDist.tryUpdate("elem", coder);
+    }
+    assertEquals(10, dist.updates.size());
+
+    for (int i = 10; i < 50_000; i++) {
+      sampleDist.tryUpdate("elem", coder);
+    }
+    int totalSamples = dist.updates.size();
+    assertTrue(
+        "Expected sublinear reservoir sample count in [70, 160], got " + totalSamples,
+        totalSamples >= 70 && totalSamples <= 160);
+
+    // Gap skips are capped at SAMPLING_TOKEN_UPPER_BOUND (1,000,000), yielding identical gaps for
+    // tokens at or above the cap with the same RNG sequence.
+    SampleByteSizeDistribution<String> cappedSampler =
+        new SampleByteSizeDistribution<>(new RecordingDistribution(), new Random(42L));
+    SampleByteSizeDistribution<String> aboveCapSampler =
+        new SampleByteSizeDistribution<>(new RecordingDistribution(), new Random(42L));
+    long nextAtCap =
+        cappedSampler.getNextSamplingToken(SampleByteSizeDistribution.SAMPLING_TOKEN_UPPER_BOUND);
+    long nextAboveCap = aboveCapSampler.getNextSamplingToken(10_000_000L);
+    assertEquals(
+        nextAtCap - SampleByteSizeDistribution.SAMPLING_TOKEN_UPPER_BOUND,
+        nextAboveCap - 10_000_000L);
+
+    // Crossing SAMPLING_TOKEN_UPPER_BOUND sustains ~10 / 1,000,000 (0.001%) sampling rather than
+    // decaying indefinitely toward zero.
+    int beforeSteady = dist.updates.size();
+    sampleDist.setSamplingStateForTest(999_999L, 1_000_000L);
+    for (int i = 0; i < 2_000_000; i++) {
+      sampleDist.tryUpdate("elem", coder);
+    }
+    int steadySamples = dist.updates.size() - beforeSteady;
+    assertTrue(
+        "Expected steady-state sample count in [8, 40], got " + steadySamples,
+        steadySamples >= 8 && steadySamples <= 40);
+    assertTrue(
+        sampleDist.getSamplingTokenForTest()
+            >= SampleByteSizeDistribution.SAMPLING_TOKEN_UPPER_BOUND);
+    assertTrue(sampleDist.getSamplingTokenForTest() < 2_000_000L);
+
+    assertEquals(Long.MAX_VALUE, sampleDist.getNextSamplingToken(Long.MAX_VALUE - 1L));
+    assertEquals(Long.MAX_VALUE, sampleDist.getNextSamplingToken(Long.MAX_VALUE));
+    assertThrows(IllegalArgumentException.class, () -> sampleDist.setSamplingStateForTest(-1L, 1L));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> sampleDist.setSamplingStateForTest(Long.MAX_VALUE, Long.MAX_VALUE));
+    assertThrows(IllegalArgumentException.class, () -> sampleDist.setSamplingStateForTest(0L, 0L));
+
+    int beforeClamp = dist.updates.size();
+    sampleDist.setSamplingStateForTest(Long.MAX_VALUE - 2L, Long.MAX_VALUE);
+    // Token Long.MAX_VALUE - 1 skips on the fast path, then Long.MAX_VALUE clamps cleanly back to
+    // SAMPLING_TOKEN_UPPER_BOUND without sampling.
+    sampleDist.tryUpdate("elem", coder);
+    sampleDist.tryUpdate("elem", coder);
+    assertEquals(beforeClamp, dist.updates.size());
+    assertEquals(
+        SampleByteSizeDistribution.SAMPLING_TOKEN_UPPER_BOUND,
+        sampleDist.getSamplingTokenForTest());
+  }
 }

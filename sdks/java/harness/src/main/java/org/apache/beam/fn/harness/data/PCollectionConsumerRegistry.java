@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
@@ -55,6 +56,8 @@ import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -377,6 +380,7 @@ public class PCollectionConsumerRegistry {
       try (ExecutionState.ActiveState a = executionState.scopedActivate()) {
         this.delegate.accept(input);
       } catch (Exception e) {
+        this.sampledByteSizeDistribution.discardPendingLazyUpdate();
         logAndRethrow(
             e, executionState, executionStateTracker, ptransformId, outputSampler, elementSample);
       }
@@ -464,6 +468,7 @@ public class PCollectionConsumerRegistry {
         try (ExecutionState.ActiveState a = state.scopedActivate()) {
           consumerAndMetadata.getConsumer().accept(input);
         } catch (Exception e) {
+          this.sampledByteSizeDistribution.discardPendingLazyUpdate();
           logAndRethrow(
               e,
               state,
@@ -472,8 +477,8 @@ public class PCollectionConsumerRegistry {
               outputSampler,
               elementSample);
         }
-        this.sampledByteSizeDistribution.finishLazyUpdate();
       }
+      this.sampledByteSizeDistribution.finishLazyUpdate();
     }
   }
 
@@ -508,7 +513,8 @@ public class PCollectionConsumerRegistry {
     }
   }
 
-  private static class SampleByteSizeDistribution<T> {
+  @VisibleForTesting
+  static class SampleByteSizeDistribution<T> {
     /** Basic implementation of {@link ElementByteSizeObserver} for use in size estimation. */
     private static class ByteSizeObserver extends ElementByteSizeObserver {
       private long observedSize = 0;
@@ -517,80 +523,165 @@ public class PCollectionConsumerRegistry {
       protected void reportElementSize(long elementSize) {
         observedSize += elementSize;
       }
+
+      @Override
+      public void reset() {
+        super.reset();
+        observedSize = 0;
+      }
     }
 
-    final Distribution distribution;
-    ByteSizeObserver byteCountObserver;
+    private final Distribution distribution;
+    private final @Nullable Random randomOverride;
+    private ByteSizeObserver reusableObserver = new ByteSizeObserver();
+    private @Nullable ByteSizeObserver pendingLazyObserver = null;
 
     public SampleByteSizeDistribution(Distribution distribution) {
+      this(distribution, null);
+    }
+
+    @VisibleForTesting
+    SampleByteSizeDistribution(Distribution distribution, @Nullable Random randomGenerator) {
       this.distribution = distribution;
-      this.byteCountObserver = null;
+      this.randomOverride = randomGenerator;
+    }
+
+    private Random random() {
+      return randomOverride != null ? randomOverride : ThreadLocalRandom.current();
     }
 
     public void tryUpdate(T value, Coder<T> coder) throws Exception {
+      // Clear any pending lazy observer from a prior element that exited abnormally.
+      if (pendingLazyObserver != null) {
+        pendingLazyObserver = null;
+      }
       if (shouldSampleElement()) {
-        // First try using byte size observer
-        byteCountObserver = new ByteSizeObserver();
-        coder.registerByteSizeObserver(value, byteCountObserver);
+        recordSample(value, coder);
+      }
+    }
 
-        if (!byteCountObserver.getIsLazy()) {
-          byteCountObserver.advance();
-          this.distribution.update(byteCountObserver.observedSize);
+    private void recordSample(T value, Coder<T> coder) throws Exception {
+      ByteSizeObserver observer = reusableObserver;
+      observer.reset();
+      try {
+        coder.registerByteSizeObserver(value, observer);
+      } catch (Exception | Error e) {
+        if (observer.getIsLazy()) {
+          // A partially registered lazy observer may still retain references to an iterable/stream;
+          // detach it so late iterator notifications cannot mutate subsequent elements.
+          reusableObserver = new ByteSizeObserver();
         }
+        throw e;
+      }
+
+      if (!observer.getIsLazy()) {
+        observer.advance();
+        this.distribution.update(observer.observedSize);
       } else {
-        byteCountObserver = null;
+        // Detach observer for lazy iteration so late or escaped iterator notifications
+        // never corrupt subsequent elements on reusableObserver.
+        pendingLazyObserver = observer;
+        reusableObserver = new ByteSizeObserver();
       }
     }
 
     public void finishLazyUpdate() {
       // Advance lazy ElementByteSizeObservers, if any.
-      if (byteCountObserver != null && byteCountObserver.getIsLazy()) {
-        byteCountObserver.advance();
-        this.distribution.update(byteCountObserver.observedSize);
+      ByteSizeObserver observer = pendingLazyObserver;
+      if (observer != null) {
+        pendingLazyObserver = null;
+        observer.advance();
+        this.distribution.update(observer.observedSize);
       }
+    }
+
+    public void discardPendingLazyUpdate() {
+      pendingLazyObserver = null;
     }
 
     private static final int RESERVOIR_SIZE = 10;
     private static final int SAMPLING_THRESHOLD = 30;
+    @VisibleForTesting static final int SAMPLING_TOKEN_UPPER_BOUND = 1_000_000;
+
+    private static final double MIN_LOG_COMPLEMENT =
+        Math.log1p(-RESERVOIR_SIZE / (double) SAMPLING_TOKEN_UPPER_BOUND);
+
     private long samplingToken = 0;
-    private long nextSamplingToken = 0;
-    private Random randomGenerator = new Random();
+    private long nextSamplingToken = 1;
 
     private boolean shouldSampleElement() {
+      long token = ++samplingToken;
+      if (token < nextSamplingToken) {
+        return false;
+      }
+      return shouldSampleElementSlowPath(token);
+    }
+
+    private boolean shouldSampleElementSlowPath(long token) {
       // Sampling probability decreases as the element count is increasing.
-      // We unconditionally sample the first samplingCutoff elements. Calculating
+      // We unconditionally sample the first RESERVOIR_SIZE elements. Calculating
       // nextInt(samplingToken) for each element is expensive, so after a threshold, calculate the
       // gap to next sample.
       // https://erikerlandson.github.io/blog/2015/11/20/very-fast-reservoir-sampling/
-
-      // Reset samplingToken if it's going to exceed the max value.
-      if (samplingToken + 1 == Long.MAX_VALUE) {
-        samplingToken = 0;
-        nextSamplingToken = getNextSamplingToken(samplingToken);
+      if (token >= SAMPLING_TOKEN_UPPER_BOUND) {
+        // Cap effective sampling probability at RESERVOIR_SIZE / SAMPLING_TOKEN_UPPER_BOUND
+        // (0.001%)
+        // so byte-size tracking remains responsive on long-lived streaming bundles.
+        samplingToken = SAMPLING_TOKEN_UPPER_BOUND;
+        nextSamplingToken = getNextSamplingToken(SAMPLING_TOKEN_UPPER_BOUND);
+        return token < Long.MAX_VALUE;
       }
-
-      samplingToken++;
-      // Use traditional sampling until the threshold of 30
-      if (nextSamplingToken == 0) {
-        if (samplingToken <= RESERVOIR_SIZE
-            || randomGenerator.nextInt((int) samplingToken) < RESERVOIR_SIZE) {
-          if (samplingToken > SAMPLING_THRESHOLD) {
-            nextSamplingToken = getNextSamplingToken(samplingToken);
-          }
-          return true;
-        }
-      } else if (samplingToken >= nextSamplingToken) {
-        nextSamplingToken = getNextSamplingToken(samplingToken);
+      if (token <= RESERVOIR_SIZE) {
+        nextSamplingToken = token + 1;
         return true;
       }
-      return false;
+      if (token < SAMPLING_THRESHOLD) {
+        nextSamplingToken = token + 1;
+        return random().nextInt((int) token) < RESERVOIR_SIZE;
+      }
+      if (token == SAMPLING_THRESHOLD) {
+        boolean sample = random().nextInt((int) token) < RESERVOIR_SIZE;
+        nextSamplingToken = getNextSamplingToken(token);
+        return sample;
+      }
+      nextSamplingToken = getNextSamplingToken(token);
+      return true;
     }
 
-    private long getNextSamplingToken(long samplingToken) {
-      double gap =
-          Math.log(1.0 - randomGenerator.nextDouble())
-              / Math.log(1.0 - RESERVOIR_SIZE / (double) samplingToken);
-      return samplingToken + (int) gap;
+    @VisibleForTesting
+    long getNextSamplingToken(long samplingToken) {
+      Preconditions.checkArgument(
+          samplingToken > RESERVOIR_SIZE,
+          "samplingToken (%s) must exceed RESERVOIR_SIZE (%s)",
+          samplingToken,
+          RESERVOIR_SIZE);
+      long cappedToken = Math.min(samplingToken, SAMPLING_TOKEN_UPPER_BOUND);
+      double logComplement =
+          cappedToken == SAMPLING_TOKEN_UPPER_BOUND
+              ? MIN_LOG_COMPLEMENT
+              : Math.log1p(-RESERVOIR_SIZE / (double) cappedToken);
+      double gap = Math.log(1.0 - random().nextDouble()) / logComplement;
+      if (!(gap < (double) (Long.MAX_VALUE - 1L - samplingToken))) {
+        return Long.MAX_VALUE;
+      }
+      return samplingToken + 1L + (long) Math.max(0.0, gap);
+    }
+
+    @VisibleForTesting
+    void setSamplingStateForTest(long samplingToken, long nextSamplingToken) {
+      Preconditions.checkArgument(
+          samplingToken >= 0 && samplingToken < Long.MAX_VALUE,
+          "samplingToken (%s) must be in [0, Long.MAX_VALUE)",
+          samplingToken);
+      Preconditions.checkArgument(
+          nextSamplingToken >= 1, "nextSamplingToken (%s) must be >= 1", nextSamplingToken);
+      this.samplingToken = samplingToken;
+      this.nextSamplingToken = nextSamplingToken;
+    }
+
+    @VisibleForTesting
+    long getSamplingTokenForTest() {
+      return this.samplingToken;
     }
   }
 }
