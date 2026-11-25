@@ -22,6 +22,8 @@ import static java.util.stream.Collectors.toList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -143,6 +145,29 @@ public class LiveResultViewTest {
     int resized = output.lastIndexOf("\033[2J");
     assertEquals(0, wraps(output.substring(output.indexOf("\033[2J"), resized), 80));
     assertEquals(0, wraps(output.substring(resized, output.indexOf("\033[?1049l")), 100));
+  }
+
+  @Test
+  public void loadsTheLineDrawingCharactersBeforeDrawingLines() throws Exception {
+    // Like tmux, screen draws lines from a second character set, which has to be loaded first.
+    PipedOutputStream screenKeys = new PipedOutputStream();
+    ByteArrayOutputStream screenOutput = new ByteArrayOutputStream();
+    Terminal screenTerminal =
+        new ExternalTerminal(
+            "test", "screen-256color", new PipedInputStream(screenKeys), screenOutput, UTF_8);
+    screenTerminal.setSize(new Size(80, 12));
+    LiveResult.setViewer(new LiveResultView(() -> screenTerminal, frames::add));
+    Future<ResultSet> query = executor.submit(() -> statement.executeQuery("SELECT * FROM seq"));
+    awaitFrame(lines -> !rows(lines).isEmpty());
+    screenKeys.write('q');
+    screenKeys.flush();
+    query.get(30, TimeUnit.SECONDS).close();
+
+    // ESC ) 0 loads the line-drawing set, and SO switches to it to draw a line.
+    String output = screenOutput.toString(UTF_8.name());
+    int loaded = output.indexOf("\033)0");
+    assertThat(loaded, greaterThanOrEqualTo(0));
+    assertThat(loaded, lessThan(output.indexOf('\016')));
   }
 
   private void press(String key) throws IOException {
