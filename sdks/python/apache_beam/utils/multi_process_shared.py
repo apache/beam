@@ -193,6 +193,30 @@ _process_level_singleton_manager = _SingletonManager()
 
 _process_local_lock = threading.Lock()
 
+# Maps a remote server (host, port) to the (tag, st_ino, st_mtime_ns,
+# st_ctime_ns) of the address_file it was last connected for, so recycled
+# ephemeral ports invalidate stale BaseProxy per-thread connections.
+_address_to_server_key: dict[Any, Any] = {}
+
+
+def _reset_proxy_connection_cache(address):
+  """Evict cached per-thread BaseProxy connections for a recycled address.
+
+  Python's multiprocessing.managers.BaseProxy caches per-thread TCP connections
+  in a process-global dict keyed solely by server (host, port) and only closes
+  the connection on the thread that finalizes the last proxy. When a server
+  process exits and the OS later assigns the same ephemeral port to a new
+  server, another worker thread can reuse the stale dead connection and fail
+  with EOFError on conn.recv().
+  """
+  mutex = getattr(multiprocessing.managers.BaseProxy, '_mutex', None)
+  address_to_local = getattr(
+      multiprocessing.managers.BaseProxy, '_address_to_local', None)
+  if mutex is None or address_to_local is None:
+    return
+  with mutex:
+    address_to_local.pop(address, None)
+
 
 class _SingletonRegistrar(multiprocessing.managers.BaseManager):
   pass
@@ -380,12 +404,14 @@ class MultiProcessShared(Generic[T]):
       while self._manager is None:
         with _process_local_lock:
           with self._cross_process_lock:
+            created_server = False
             if not os.path.exists(address_file):
               if not create_if_missing:
                 if _process_level_singleton_manager.has_singleton(self._tag):
                   self._manager = _process_level_singleton_manager
                 return self._manager
               self._create_server(address_file)
+              created_server = True
 
             if _process_level_singleton_manager.has_singleton(
                 self._tag) and not self._always_proxy:
@@ -393,12 +419,15 @@ class MultiProcessShared(Generic[T]):
             else:
               with open(address_file) as fin:
                 address = fin.read()
+                st = os.fstat(fin.fileno())
+              server_key = (
+                  self._tag, st.st_ino, st.st_mtime_ns, st.st_ctime_ns)
               logging.info('Connecting to remote proxy at %s', address)
               host, port = address.split(':')
+              addr = (host, int(port))
               # We need to be able to authenticate with both the manager and
               # the process.
-              manager = _SingletonRegistrar(
-                  address=(host, int(port)), authkey=AUTH_KEY)
+              manager = _SingletonRegistrar(address=addr, authkey=AUTH_KEY)
               multiprocessing.current_process().authkey = AUTH_KEY
 
               retryable_exceptions = (ConnectionError, EOFError)
@@ -413,9 +442,15 @@ class MultiProcessShared(Generic[T]):
 
               try:
                 connect_manager()
+                if (created_server or
+                    _address_to_server_key.get(addr) != server_key):
+                  _reset_proxy_connection_cache(addr)
+                  _address_to_server_key[addr] = server_key
                 self._manager = manager
               except retryable_exceptions:
                 # The server is no longer good, assume it died.
+                _address_to_server_key.pop(addr, None)
+                _reset_proxy_connection_cache(addr)
                 try:
                   os.unlink(address_file)
                 except FileNotFoundError:
@@ -449,6 +484,7 @@ class MultiProcessShared(Generic[T]):
       to this object exist, or (b) you are ok with all existing references to
       this object throwing strange errors when derefrenced.
     """
+    manager = None
     try:
       manager = self._get_manager(create_if_missing=False)
       if manager is not None:
@@ -459,6 +495,10 @@ class MultiProcessShared(Generic[T]):
       # caller is still connecting to it.
       pass
     finally:
+      if isinstance(manager, _SingletonRegistrar):
+        with _process_local_lock:
+          _address_to_server_key.pop(manager.address, None)
+          _reset_proxy_connection_cache(manager.address)
       self._manager = None
 
   def _create_server(self, address_file):
