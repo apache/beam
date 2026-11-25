@@ -19,16 +19,22 @@ updates:
     directory: "/sdks" # Location of package manifests
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
   - package-ecosystem: "pip"
     directory: "/sdks/python" # Location of package manifests
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
     exclude-paths:
     - "container/**"
   - package-ecosystem: "gradle"
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
     ignore:
     # Ignore gcp dependencies
     - dependency-name: "com.google.api:gax*"
@@ -48,3 +54,5 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    cooldown:
+      default-days: 7
