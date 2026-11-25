@@ -111,5 +111,9 @@ gradlePlugin {
       id = "org.apache.beam.vendor-java"
       implementationClass = "org.apache.beam.gradle.VendorJavaPlugin"
     }
+    create("beamRust") {
+      id = "org.apache.beam.rust"
+      implementationClass = "org.apache.beam.gradle.rust.BeamRustPlugin"
+    }
   }
 }

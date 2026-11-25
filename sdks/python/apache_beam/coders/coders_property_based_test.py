@@ -24,17 +24,14 @@ These tests are similar to fuzzing, except they test invariant properties
 of code.
 """
 
-import keyword
 import math
 import typing
 import unittest
+import unicodedata
 # TODO(pabloem): Include other categories of characters
 from datetime import datetime
-from string import ascii_letters
-from string import digits
 
 import numpy as np
-from hypothesis import assume
 from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
@@ -46,6 +43,7 @@ from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders.typecoders import registry as coders_registry
 from apache_beam.typehints.schemas import PRIMITIVE_TO_ATOMIC_TYPE
 from apache_beam.typehints.schemas import typing_to_runner_api
+from apache_beam.typehints.testing import strategies as typehints_strategies
 from apache_beam.utils.timestamp import Timestamp
 
 try:
@@ -88,9 +86,10 @@ SCHEMA_TYPES = list(SCHEMA_TYPES_TO_STRATEGY.keys())
 # non-map fields).
 SCHEMA_GENERATOR_STRATEGY = st.lists(
     st.tuples(
-        st.text(ascii_letters + digits + '_', min_size=1),
+        typehints_strategies.field_names(),
         st.sampled_from(SCHEMA_TYPES),
-        st.booleans()))
+        st.booleans()),
+    unique_by=lambda named_field: unicodedata.normalize('NFKC', named_field[0]))
 
 TYPES_UNSUPPORTED_BY_ROW_CODER = {np.int8, np.int16}
 
@@ -128,16 +127,6 @@ class ProperyTestingCoders(unittest.TestCase):
     The schemas are generated based on the SCHEMA_GENERATOR_STRATEGY.
     """
     schema = data.draw(SCHEMA_GENERATOR_STRATEGY)
-    # Assume that the cardinality of the set of names is the same
-    # as the length of the schema. This means there's no duplicate
-    # names for fields.
-    # If this condition does not hold, then we must not continue the
-    # test.
-    assume(len({name for name, _, _ in schema}) == len(schema))
-    assume(all(not keyword.iskeyword(name) for name, _, _ in schema))
-    assume(
-        len({n[0]
-             for n, _, _ in schema}.intersection(set(digits + '_'))) == 0)
     RowType = typing.NamedTuple(  # type: ignore
         'RandomRowType',
         [(name, type_ if not nullable else typing.Optional[type_]) for name,
@@ -147,10 +136,10 @@ class ProperyTestingCoders(unittest.TestCase):
 
     # TODO(https://github.com/apache/beam/issues/23002): Apply nulls for these
     row = RowType(
-        **{
-            name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
+        *[
+            data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
             for name, type_, nullable in schema
-        })
+        ])
 
     coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)
     self.assertEqual(coder.decode(coder.encode(row)), row)

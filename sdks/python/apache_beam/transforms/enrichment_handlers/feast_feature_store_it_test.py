@@ -29,16 +29,33 @@ import pytest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.feast_feature_store import FeastFeatureStoreEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store_it_test import \
-      ValidateResponse  # pylint: disable=line-too-long
 except ImportError:
   raise unittest.SkipTest(
       'Feast feature store test dependencies are not installed.')
+
+
+class ValidateResponse(beam.DoFn):
+  """ValidateResponse validates if a PCollection of `beam.Row`
+  has the required fields."""
+  def __init__(self, expected_fields):
+    self.expected_fields = expected_fields
+
+  def process(self, element: beam.Row, *args, **kwargs):
+    element_dict = element.as_dict()
+    if len(self.expected_fields) != len(element_dict.keys()):
+      raise BeamAssertException(
+          "Expected %d fields in enriched PCollection:" %
+          len(self.expected_fields))
+    for field in self.expected_fields:
+      if field not in element_dict:
+        raise BeamAssertException(
+            f"Expected to fetch field: {field} from feature store")
 
 
 def _entity_row_fn(request: beam.Row) -> Mapping[str, Any]:

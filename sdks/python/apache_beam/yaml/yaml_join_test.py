@@ -23,8 +23,9 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.yaml.yaml_join import _SqlJoinTransform
+from apache_beam.yaml import yaml_join
 from apache_beam.yaml.yaml_join import _parse_fields
+from apache_beam.yaml.yaml_join import _SqlJoinTransform
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -257,8 +258,8 @@ class YamlJoinTest(unittest.TestCase):
 
 class SqlJoinQueryTest(unittest.TestCase):
   def _make_mock_pcoll(self, field_names):
-    from unittest.mock import MagicMock
     from collections import namedtuple
+    from unittest.mock import MagicMock
     MockRow = namedtuple('MockRow', field_names)
     pcoll = MagicMock()
     pcoll.element_type = MockRow
@@ -363,6 +364,19 @@ class SqlJoinQueryTest(unittest.TestCase):
     parsed = _parse_fields(tables, fields)
     self.assertEqual(
         parsed, ['products.*', 'orders.customer AS customer', 'line_items.*'])
+
+  def test_parse_fields_invalid_value(self):
+    with self.assertRaisesRegex(
+        ValueError, r'the value must either be a list, dict, or "\*"'):
+      _parse_fields(['f', 'q'], dict(f=123))
+
+  def test_validate_equalities_empty_list(self):
+    self.assertFalse(yaml_join._is_connected([], 2))
+    f_pcoll = self._make_mock_pcoll(['id', 'name'])
+    q_pcoll = self._make_mock_pcoll(['name', 'quantity'])
+    with self.assertRaisesRegex(
+        ValueError, 'The provided equalities do not connect all of'):
+      yaml_join._validate_equalities([], dict(f=f_pcoll, q=q_pcoll))
 
 
 if __name__ == '__main__':

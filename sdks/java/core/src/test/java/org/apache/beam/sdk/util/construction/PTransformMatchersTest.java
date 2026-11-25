@@ -586,6 +586,12 @@ public class PTransformMatchersTest implements Serializable {
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withCustomSharding)),
         is(false));
+
+    WriteFiles<Integer, Void, Integer> withAutoSharding = write.withAutoSharding();
+    assertThat(
+        PTransformMatchers.writeWithRunnerDeterminedSharding()
+            .matches(appliedWrite(withAutoSharding)),
+        is(false));
   }
 
   private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer, Void, Integer> write) {

@@ -22,6 +22,16 @@ name: Infrastructure Policy Enforcer
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform (print, check, or announce)'
+        required: false
+        type: choice
+        options:
+          - print
+          - check
+          - announce
+        default: print
   schedule:
     # Once a week at 9:00 AM on Monday
     - cron: '0 9 * * 1'
@@ -34,14 +44,16 @@ concurrency:
 # Setting explicit permissions for the action
 permissions:
   contents: read
-  issues: write
-  id-token: write
 
 jobs:
   beam_Infrastructure_PolicyEnforcer:
     name: Check and Report Infrastructure Policies Violations
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write # Required to create or update compliance audit GitHub issues on announce runs
+      id-token: write # Required by google-github-actions/setup-gcloud for OIDC authentication
     steps:
       - uses: actions/checkout@v7
         with:
@@ -64,6 +76,7 @@ jobs:
       - name: Run IAM Policy Enforcement
         working-directory: ./infra/enforcement
         env:
+          ENFORCER_ACTION: ${{ github.event_name == 'workflow_dispatch' && (inputs.action || 'print') || 'announce' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           SMTP_SERVER: smtp.gmail.com
@@ -71,11 +84,17 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: "dev@beam.apache.org"
-        run: python iam.py --action announce
+        run: |
+          case "${ENFORCER_ACTION}" in
+            print|check|announce) ;;
+            *) echo "::error::Invalid action: ${ENFORCER_ACTION}"; exit 1 ;;
+          esac
+          python iam.py --action "${ENFORCER_ACTION}"
 
       - name: Run Account Keys Policy Enforcement
         working-directory: ./infra/enforcement
         env:
+          ENFORCER_ACTION: ${{ github.event_name == 'workflow_dispatch' && (inputs.action || 'print') || 'announce' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           SMTP_SERVER: smtp.gmail.com
@@ -83,4 +102,9 @@ jobs:
           EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
           EMAIL_RECIPIENT: "dev@beam.apache.org"
-        run: python account_keys.py --action announce
+        run: |
+          case "${ENFORCER_ACTION}" in
+            print|check|announce) ;;
+            *) echo "::error::Invalid action: ${ENFORCER_ACTION}"; exit 1 ;;
+          esac
+          python account_keys.py --action "${ENFORCER_ACTION}"

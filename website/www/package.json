@@ -15,5 +15,8 @@
     "autoprefixer": "^9.7.4",
     "cross-env": "^7.0.2",
     "postcss-cli": "^7.1.0"
+  },
+  "resolutions": {
+    "ansi-regex": "^5.0.1"
   }
 }

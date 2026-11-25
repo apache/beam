@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
@@ -178,8 +179,10 @@ public abstract class LoadTestBase {
         metricRows.add(row);
       }
       rowContent.put("metrics", metricRows);
+      // Each row needs its own insertId. BigQuery drops rows that reuse an insertId within
+      // about a minute, which silently discarded metrics exported close together.
       bigQueryResourceManager.write(
-          TestProperties.exportTable(), RowToInsert.of("rowId", rowContent));
+          TestProperties.exportTable(), RowToInsert.of(UUID.randomUUID().toString(), rowContent));
     } catch (IllegalStateException | IllegalArgumentException e) {
       LOG.error(
           "Unable to export results to datastore."

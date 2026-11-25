@@ -36,6 +36,16 @@ except ImportError:
       "Check if transformers, torch, and tensorflow "
       "is installed.")
 
+_EXPECTED_MASKED_LM_OUTPUTS = {
+    'The capital of France is Paris .': 'paris',
+    'It is raining cats and dogs .': 'dogs',
+    'Today is Monday and tomorrow is Tuesday .': 'tuesday',
+    'There are 5 coconuts on this palm tree .': 'tree',
+    'The strongest person in the world is not famous .': 'me',
+    'The secret ingredient to his wonderful life was gratitude .': 'love',
+    'The biggest animal in the world is the whale .': 'elephant',
+}
+
 
 @pytest.mark.uses_transformers
 @pytest.mark.it_postcommit
@@ -48,7 +58,7 @@ class HuggingFaceInference(unittest.TestCase):
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_name = 'stevhliu/my_awesome_eli5_mlm_model'
+    model_name = 'FacebookAI/roberta-base'
 
     extra_opts = {
         'input': file_of_sentences,
@@ -62,18 +72,13 @@ class HuggingFaceInference(unittest.TestCase):
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = pytorch_inference_it_test.process_outputs(
         filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_hf_run_inference_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
-    actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
     for prediction in predictions:
       text, predicted_text = prediction.split(';')
       predictions_dict[text] = predicted_text.strip().lower()
 
-    for actual in actuals:
-      text, actual_predicted_text = actual.split(';')
-      predicted_predicted_text = predictions_dict[text]
-      self.assertEqual(actual_predicted_text, predicted_predicted_text)
+    self.assertEqual(_EXPECTED_MASKED_LM_OUTPUTS, predictions_dict)
 
   def test_hf_language_modeling_large_model(self):
     test_pipeline = TestPipeline(is_integration_test=True)
@@ -82,7 +87,7 @@ class HuggingFaceInference(unittest.TestCase):
     output_file_dir = 'gs://apache-beam-ml/testing/predictions'
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
-    model_name = 'stevhliu/my_awesome_eli5_mlm_model'
+    model_name = 'FacebookAI/roberta-base'
 
     extra_opts = {
         'input': file_of_sentences,
@@ -97,18 +102,13 @@ class HuggingFaceInference(unittest.TestCase):
     self.assertEqual(FileSystems().exists(output_file), True)
     predictions = pytorch_inference_it_test.process_outputs(
         filepath=output_file)
-    actuals_file = 'gs://apache-beam-ml/testing/expected_outputs/test_hf_run_inference_for_masked_lm_actuals.txt'  # pylint: disable=line-too-long
-    actuals = pytorch_inference_it_test.process_outputs(filepath=actuals_file)
 
     predictions_dict = {}
     for prediction in predictions:
       text, predicted_text = prediction.split(';')
       predictions_dict[text] = predicted_text.strip().lower()
 
-    for actual in actuals:
-      text, actual_predicted_text = actual.split(';')
-      predicted_predicted_text = predictions_dict[text]
-      self.assertEqual(actual_predicted_text, predicted_predicted_text)
+    self.assertEqual(_EXPECTED_MASKED_LM_OUTPUTS, predictions_dict)
 
   def test_hf_pipeline(self):
     test_pipeline = TestPipeline(is_integration_test=True)
