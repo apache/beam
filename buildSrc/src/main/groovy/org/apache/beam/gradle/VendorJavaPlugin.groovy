@@ -140,6 +140,9 @@ artifactId=${project.name}
         exclude "META-INF/*.SF"
         exclude "META-INF/*.DSA"
         exclude "META-INF/*.RSA"
+        // Exclude third-party Maven descriptors (pom.xml / pom.properties) from shaded
+        // dependencies so they do not leak into or overwrite downstream shadow JAR metadata.
+        exclude "META-INF/maven/**"
       }
 
       project.task('validateVendoring', dependsOn: 'shadowJar') {
@@ -155,6 +158,23 @@ artifactId=${project.name}
             }
             if (unexpectedlyExposedClasses.files) {
               throw new GradleException("$it exposed classes outside of org.apache.beam namespace: ${unexpectedlyExposedClasses.files}")
+            }
+            FileTree leakedMavenMetadata = project.zipTree(it).matching {
+              include "META-INF/maven/**"
+              exclude "META-INF/maven/${project.group}/${project.name}/**"
+            }
+            if (leakedMavenMetadata.files) {
+              throw new GradleException("$it leaked third-party Maven descriptors: ${leakedMavenMetadata.files}")
+            }
+            if (project.hasProperty("vendoredDependenciesOnly")) {
+              Set<String> ownMavenFiles = project.zipTree(it).matching {
+                include "META-INF/maven/${project.group}/${project.name}/pom.xml"
+                include "META-INF/maven/${project.group}/${project.name}/pom.properties"
+              }.files.collect { f -> f.name } as Set<String>
+              if (!ownMavenFiles.containsAll(['pom.xml', 'pom.properties'])) {
+                throw new GradleException(
+                    "$it is missing generated Maven descriptors under META-INF/maven/${project.group}/${project.name}/")
+              }
             }
           }
         }
