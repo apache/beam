@@ -603,10 +603,13 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
               windowedInputCoder,
               windowingStrategy.getWindowFn().windowCoder(),
               getOperatorStateBackend(),
+              getBufferingKeyedStateBackend(),
               numConcurrentCheckpoints,
               serializedOptions,
-              getBufferingKeyedStateBackend(),
-              keyCoder != null ? () -> keyedStateInternals.getKey() : null);
+              null,
+              null,
+              keyCoder != null ? () -> keyedStateInternals.getKey() : null,
+              null);
     }
     return wrappedRunner;
   }

@@ -783,6 +783,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
               keyedBufferingBackend != null
                   ? input -> FlinkKey.of(((KV) input).getKey(), (Coder) keyCoder)
                   : null,
+              null,
               sdkHarnessRunner::emitResults);
     }
     return wrappedRunner;
