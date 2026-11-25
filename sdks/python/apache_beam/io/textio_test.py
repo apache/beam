@@ -2085,7 +2085,7 @@ class WriteStreamingTest(unittest.TestCase):
       shutil.rmtree(self.tempdir)
 
   def test_write_streaming_outputs_final_file_paths(self):
-    prefix = self.tempdir + '/output'
+    prefix = os.path.join(self.tempdir, 'output')
     expected = [
         prefix + '-[0.0, 10.0)-00000-of-00001.txt',
         prefix + '-[10.0, 20.0)-00000-of-00001.txt',
