@@ -2134,7 +2134,7 @@ class UtilTest(unittest.TestCase):
           mock_sleep.assert_not_called()
           mock_file_open.assert_not_called()
 
-  def test_modify_job_state_retries_transient_failed_precondition(self):
+  def test_modify_job_state_retries_failed_precondition_by_job_state(self):
     pipeline_options = PipelineOptions([
         '--project',
         'test-project',
@@ -2146,33 +2146,84 @@ class UtilTest(unittest.TestCase):
     pipeline_options.view_as(GoogleCloudOptions).no_auth = True
     client = apiclient.DataflowApplicationClient(pipeline_options)
 
-    for transient_msg in (
-        'Operation cancel not allowed for job 123. '
-        'Job is not yet ready for canceling.',
-        'Operation cancel not allowed for job 123. '
-        'Job has no backend assigned..',
+    # Cancel retries FailedPrecondition while job is still non-terminal,
+    # regardless of error wording.
+    for retryable_state in (
+        dataflow.JobState.JOB_STATE_PENDING,
+        dataflow.JobState.JOB_STATE_RUNNING,
+        dataflow.JobState.JOB_STATE_UNKNOWN,
     ):
       with mock.patch.object(
           client._jobs_client,
           'update_job',
           side_effect=[
-              api_core_exceptions.FailedPrecondition(transient_msg),
+              api_core_exceptions.FailedPrecondition('transient error'),
               mock.MagicMock(),
-          ]) as mock_update, mock.patch.object(time, 'sleep') as mock_sleep:
+          ]) as mock_update, mock.patch.object(
+              client,
+              'get_job',
+              return_value=dataflow.Job(current_state=retryable_state)
+          ) as mock_get_job, mock.patch.object(time, 'sleep') as mock_sleep:
         self.assertTrue(
             client.modify_job_state('job-123', 'JOB_STATE_CANCELLED'))
         self.assertEqual(mock_update.call_count, 2)
+        self.assertEqual(mock_get_job.call_count, 1)
         self.assertEqual(mock_sleep.call_count, 1)
 
+    # Cancel does not retry FailedPrecondition once the job is already
+    # terminal, cancelling, or cleaning up resources.
+    for non_retryable_state in (
+        dataflow.JobState.JOB_STATE_DONE,
+        dataflow.JobState.JOB_STATE_FAILED,
+        dataflow.JobState.JOB_STATE_CANCELLED,
+        dataflow.JobState.JOB_STATE_CANCELLING,
+        dataflow.JobState.JOB_STATE_RESOURCE_CLEANING_UP,
+    ):
+      with mock.patch.object(
+          client._jobs_client,
+          'update_job',
+          side_effect=api_core_exceptions.FailedPrecondition(
+              'already terminal')) as mock_update, mock.patch.object(
+                  client,
+                  'get_job',
+                  return_value=dataflow.Job(current_state=non_retryable_state)
+              ) as mock_get_job, mock.patch.object(time, 'sleep') as mock_sleep:
+        with self.assertRaises(api_core_exceptions.FailedPrecondition):
+          client.modify_job_state('job-123', 'JOB_STATE_CANCELLED')
+        self.assertEqual(mock_update.call_count, 1)
+        self.assertEqual(mock_get_job.call_count, 1)
+        mock_sleep.assert_not_called()
+
+    # Non-cancel transitions (e.g. draining a batch job) fail immediately
+    # without polling get_job or retrying FailedPrecondition.
     with mock.patch.object(
         client._jobs_client,
         'update_job',
         side_effect=api_core_exceptions.FailedPrecondition(
-            'Job has already terminated in state JOB_STATE_DONE.')
-    ) as mock_update, mock.patch.object(time, 'sleep') as mock_sleep:
+            'drain not supported')) as mock_update, mock.patch.object(
+                client, 'get_job') as mock_get_job, mock.patch.object(
+                    time, 'sleep') as mock_sleep:
+      with self.assertRaises(api_core_exceptions.FailedPrecondition):
+        client.modify_job_state('job-123', 'JOB_STATE_DRAINING')
+      self.assertEqual(mock_update.call_count, 1)
+      mock_get_job.assert_not_called()
+      mock_sleep.assert_not_called()
+
+    # If get_job fails while inspecting state, propagate the original
+    # FailedPrecondition without retrying.
+    with mock.patch.object(
+        client._jobs_client,
+        'update_job',
+        side_effect=api_core_exceptions.FailedPrecondition(
+            'cancel rejected')) as mock_update, mock.patch.object(
+                client,
+                'get_job',
+                side_effect=RuntimeError('get_job failed')
+            ) as mock_get_job, mock.patch.object(time, 'sleep') as mock_sleep:
       with self.assertRaises(api_core_exceptions.FailedPrecondition):
         client.modify_job_state('job-123', 'JOB_STATE_CANCELLED')
       self.assertEqual(mock_update.call_count, 1)
+      self.assertEqual(mock_get_job.call_count, 1)
       mock_sleep.assert_not_called()
 
 

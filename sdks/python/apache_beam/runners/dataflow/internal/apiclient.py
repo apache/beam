@@ -486,15 +486,15 @@ class Job(object):
     return (Job, (self.options, ))
 
 
-def _retry_on_modify_job_state_error(exception):
-  """Retries server errors and transient Dataflow job-state preconditions."""
-  if retry.retry_on_server_errors_filter(exception):
-    return True
-  if isinstance(exception, exceptions.FailedPrecondition):
-    msg = str(exception).lower()
-    return (
-        'not yet ready for canceling' in msg or 'no backend assigned' in msg)
-  return False
+_NON_RETRYABLE_CANCEL_STATES = frozenset({
+    dataflow.JobState.JOB_STATE_DONE,
+    dataflow.JobState.JOB_STATE_FAILED,
+    dataflow.JobState.JOB_STATE_CANCELLED,
+    dataflow.JobState.JOB_STATE_CANCELLING,
+    dataflow.JobState.JOB_STATE_UPDATED,
+    dataflow.JobState.JOB_STATE_DRAINED,
+    dataflow.JobState.JOB_STATE_RESOURCE_CLEANING_UP,
+})
 
 
 class DataflowApplicationClient(object):
@@ -941,7 +941,6 @@ class DataflowApplicationClient(object):
 
     return response
 
-  @retry.with_exponential_backoff(retry_filter=_retry_on_modify_job_state_error)
   def modify_job_state(self, job_id, new_state) -> bool:
     """Modify the run state of the job.
 
@@ -954,11 +953,11 @@ class DataflowApplicationClient(object):
       True if the job was modified successfully.
     """
     if new_state == 'JOB_STATE_DONE':
-      new_state = dataflow.JobState.JOB_STATE_DONE
+      requested_state = dataflow.JobState.JOB_STATE_DONE
     elif new_state == 'JOB_STATE_CANCELLED':
-      new_state = dataflow.JobState.JOB_STATE_CANCELLED
+      requested_state = dataflow.JobState.JOB_STATE_CANCELLED
     elif new_state == 'JOB_STATE_DRAINING':
-      new_state = dataflow.JobState.JOB_STATE_DRAINING
+      requested_state = dataflow.JobState.JOB_STATE_DRAINING
     else:
       # Other states could only be set by the service.
       return False
@@ -967,9 +966,35 @@ class DataflowApplicationClient(object):
     request.job_id = job_id
     request.project_id = self.google_cloud_options.project
     request.location = self.google_cloud_options.region
-    request.job = dataflow.Job(requested_state=new_state)
+    request.job = dataflow.Job(requested_state=requested_state)
 
-    self._jobs_client.update_job(request=request)
+    def _should_retry(exception):
+      if retry.retry_on_server_errors_filter(exception):
+        return True
+      if (requested_state == dataflow.JobState.JOB_STATE_CANCELLED and
+          isinstance(exception, exceptions.FailedPrecondition)):
+        try:
+          current_state = self.get_job(job_id).current_state
+        except Exception as get_job_exn:  # pylint: disable=broad-except
+          _LOGGER.warning(
+              'Unable to fetch job %s state after FailedPrecondition on '
+              'cancel; will not retry: %s',
+              job_id,
+              get_job_exn)
+          return False
+        return current_state not in _NON_RETRYABLE_CANCEL_STATES
+      return False
+
+    @retry.with_exponential_backoff(
+        num_retries=10,
+        initial_delay_secs=5.0,
+        max_delay_secs=30.0,
+        stop_after_secs=180.0,
+        retry_filter=_should_retry)
+    def _update_job():
+      self._jobs_client.update_job(request=request)
+
+    _update_job()
     return True
 
   @retry.with_exponential_backoff(
