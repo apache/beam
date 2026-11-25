@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utility functions for schemas. */
 @SuppressWarnings({
@@ -383,18 +384,20 @@ public class SchemaUtils {
 
   static String toPrettyRowString(Row row, String prefix) {
     Schema schema = row.getSchema();
-    int fieldCount = schema.getFieldCount();
-    String nextPrefix = null;
-    StringBuilder sb = null;
+    int fieldCount = Math.min(row.getFieldCount(), schema.getFieldCount());
+    @Nullable String nextPrefix = null;
+    @Nullable StringBuilder sb = null;
     for (int i = 0; i < fieldCount; i++) {
-      Object fieldValue = row.getValue(i);
+      @Nullable Object fieldValue = row.getValue(i);
       if (fieldValue == null) {
         continue;
       }
       Schema.Field field = schema.getField(i);
       if (sb == null) {
         nextPrefix = prefix + INDENT;
-        sb = new StringBuilder("{\n");
+        int remainingFields = fieldCount - i;
+        sb = new StringBuilder(Math.min(4096, Math.max(32, remainingFields * 24 + 4)));
+        sb.append("{\n");
       } else {
         sb.append(",\n");
       }

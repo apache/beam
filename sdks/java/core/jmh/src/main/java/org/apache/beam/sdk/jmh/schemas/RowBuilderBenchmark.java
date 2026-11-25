@@ -18,17 +18,20 @@
 package org.apache.beam.sdk.jmh.schemas;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.SchemaVerification;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -46,25 +49,59 @@ import org.openjdk.jmh.annotations.State;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 public class RowBuilderBenchmark {
 
-  /** Pre-initialized schemas, payloads, and baseline rows for JMH benchmarks. */
+  /** Pre-initialized schemas, payloads, boxed values, and dynamic string paths for JMH. */
   @State(Scope.Thread)
   public static class RowState {
     Schema flatSchema;
     Schema nullableSchema;
     Schema complexSchema;
+    Schema bytesSchema;
 
     Object[] flatValues;
     Row flatRow;
     Row childRow;
     Row complexRow;
+    Row deepRow;
     Row camelRow;
     List<String> tags;
     Map<String, Long> metrics;
     java.time.Instant javaInstant;
     BigDecimal decimal;
     byte[] payload;
+    ByteBuffer offsetZeroSlice;
     Instant jodaInstant;
     Map<String, Object> flatNamedValues;
+
+    // Pre-boxed values so named/id builder benchmarks avoid spurious autoboxing noise.
+    Integer intVal;
+    Long longVal;
+    Double doubleVal;
+    Float floatVal;
+    String stringVal;
+    Boolean boolVal;
+    Byte byteVal;
+    Short shortVal;
+    Long updatedChildId;
+
+    // Non-final string fields prevent JDK 9+ C2 @Stable String.value constant folding.
+    String fInt32;
+    String fInt64;
+    String fDouble;
+    String fFloat;
+    String fString;
+    String fBool;
+    String fByte;
+    String fInt16;
+    String fBytes;
+    String fDatetime;
+    String nestedPath;
+    String deepNestedPath;
+    String updatedString;
+    Schema.FieldType verifyFieldType;
+    String verifyFieldName;
+    String simpleFieldPath;
+    String dottedFieldPath;
+    String dottedWildcardPath;
 
     /** Populates schemas and sample inputs once per trial thread. */
     @Setup
@@ -106,6 +143,9 @@ public class RowBuilderBenchmark {
               .addNullableStringField("optional_note")
               .build();
 
+      Schema deepSchema =
+          Schema.builder().addStringField("top_id").addRowField("outer", complexSchema).build();
+
       Schema camelSchema =
           Schema.builder()
               .addStringField("userId")
@@ -114,41 +154,74 @@ public class RowBuilderBenchmark {
               .addBooleanField("isActive")
               .build();
 
+      bytesSchema = Schema.builder().addByteArrayField("bytes").build();
+
       payload = new byte[] {1, 2, 3, 4, 5, 6, 7, 8};
-      jodaInstant = new Instant(1_700_000_000_000L);
+      offsetZeroSlice = ByteBuffer.wrap(payload, 0, 4).slice();
+      jodaInstant = new Instant(1_700_000_000_123L);
+      intVal = 42;
+      longVal = 1234567890123L;
+      doubleVal = 12.5;
+      floatVal = 1.25f;
+      stringVal = "beam-row-value";
+      boolVal = Boolean.TRUE;
+      byteVal = (byte) 7;
+      shortVal = (short) 99;
+      updatedChildId = 200L;
+
+      fInt32 = "f_int32";
+      fInt64 = "f_int64";
+      fDouble = "f_double";
+      fFloat = "f_float";
+      fString = "f_string";
+      fBool = "f_bool";
+      fByte = "f_byte";
+      fInt16 = "f_int16";
+      fBytes = "f_bytes";
+      fDatetime = "f_datetime";
+      nestedPath = "child.child_id";
+      deepNestedPath = "outer.child.child_id";
+      updatedString = "updated";
+      verifyFieldType = Schema.FieldType.STRING;
+      verifyFieldName = "f_str";
+      simpleFieldPath = "f_string";
+      dottedFieldPath = "outer.child.child_id";
+      dottedWildcardPath = "outer.child.*";
+
       flatValues =
           new Object[] {
-            42,
-            1234567890123L,
-            12.5,
-            1.25f,
-            "beam-row-value",
-            Boolean.TRUE,
-            (byte) 7,
-            (short) 99,
+            intVal,
+            longVal,
+            doubleVal,
+            floatVal,
+            stringVal,
+            boolVal,
+            byteVal,
+            shortVal,
             payload,
             jodaInstant
           };
 
       flatNamedValues = new HashMap<>();
-      flatNamedValues.put("f_int32", 42);
-      flatNamedValues.put("f_int64", 1234567890123L);
-      flatNamedValues.put("f_double", 12.5);
-      flatNamedValues.put("f_float", 1.25f);
-      flatNamedValues.put("f_string", "beam-row-value");
-      flatNamedValues.put("f_bool", Boolean.TRUE);
-      flatNamedValues.put("f_byte", (byte) 7);
-      flatNamedValues.put("f_int16", (short) 99);
-      flatNamedValues.put("f_bytes", payload);
-      flatNamedValues.put("f_datetime", jodaInstant);
+      flatNamedValues.put(fInt32, intVal);
+      flatNamedValues.put(fInt64, longVal);
+      flatNamedValues.put(fDouble, doubleVal);
+      flatNamedValues.put(fFloat, floatVal);
+      flatNamedValues.put(fString, stringVal);
+      flatNamedValues.put(fBool, boolVal);
+      flatNamedValues.put(fByte, byteVal);
+      flatNamedValues.put(fInt16, shortVal);
+      flatNamedValues.put(fBytes, payload);
+      flatNamedValues.put(fDatetime, jodaInstant);
 
       flatRow = Row.withSchema(flatSchema).addValues(flatValues).build();
-      childRow = Row.withSchema(nestedChildSchema).attachValues("child-a", 100L);
+      childRow = Row.withSchema(nestedChildSchema).addValues("child-a", 100L).build();
       tags = Arrays.asList("alpha", "beta", "gamma");
       metrics = new HashMap<>();
       metrics.put("cpu", 10L);
       metrics.put("mem", 20L);
-      javaInstant = java.time.Instant.ofEpochMilli(1_700_000_000_000L);
+      // Use non-zero sub-second millis so MicrosInstant exercises non-cached microsecond values.
+      javaInstant = java.time.Instant.ofEpochMilli(1_700_000_000_123L);
       decimal = new BigDecimal("12345.67");
       complexRow =
           Row.withSchema(complexSchema)
@@ -160,6 +233,7 @@ public class RowBuilderBenchmark {
               .addValue(decimal)
               .addValue(null)
               .build();
+      deepRow = Row.withSchema(deepSchema).addValues("top-1", complexRow).build();
       camelRow =
           Row.withSchema(camelSchema).addValues("user-1", 12345L, "kafka", Boolean.TRUE).build();
     }
@@ -191,30 +265,30 @@ public class RowBuilderBenchmark {
   @Benchmark
   public Row buildFlatByFieldName(RowState s) {
     return Row.withSchema(s.flatSchema)
-        .withFieldValue("f_int32", 42)
-        .withFieldValue("f_int64", 1234567890123L)
-        .withFieldValue("f_double", 12.5)
-        .withFieldValue("f_float", 1.25f)
-        .withFieldValue("f_string", "beam-row-value")
-        .withFieldValue("f_bool", Boolean.TRUE)
-        .withFieldValue("f_byte", (byte) 7)
-        .withFieldValue("f_int16", (short) 99)
-        .withFieldValue("f_bytes", s.payload)
-        .withFieldValue("f_datetime", s.jodaInstant)
+        .withFieldValue(s.fInt32, s.intVal)
+        .withFieldValue(s.fInt64, s.longVal)
+        .withFieldValue(s.fDouble, s.doubleVal)
+        .withFieldValue(s.fFloat, s.floatVal)
+        .withFieldValue(s.fString, s.stringVal)
+        .withFieldValue(s.fBool, s.boolVal)
+        .withFieldValue(s.fByte, s.byteVal)
+        .withFieldValue(s.fInt16, s.shortVal)
+        .withFieldValue(s.fBytes, s.payload)
+        .withFieldValue(s.fDatetime, s.jodaInstant)
         .build();
   }
 
   @Benchmark
   public Row buildFlatByFieldId(RowState s) {
     return Row.withSchema(s.flatSchema)
-        .withFieldValue(0, 42)
-        .withFieldValue(1, 1234567890123L)
-        .withFieldValue(2, 12.5)
-        .withFieldValue(3, 1.25f)
-        .withFieldValue(4, "beam-row-value")
-        .withFieldValue(5, Boolean.TRUE)
-        .withFieldValue(6, (byte) 7)
-        .withFieldValue(7, (short) 99)
+        .withFieldValue(0, s.intVal)
+        .withFieldValue(1, s.longVal)
+        .withFieldValue(2, s.doubleVal)
+        .withFieldValue(3, s.floatVal)
+        .withFieldValue(4, s.stringVal)
+        .withFieldValue(5, s.boolVal)
+        .withFieldValue(6, s.byteVal)
+        .withFieldValue(7, s.shortVal)
         .withFieldValue(8, s.payload)
         .withFieldValue(9, s.jodaInstant)
         .build();
@@ -222,17 +296,37 @@ public class RowBuilderBenchmark {
 
   @Benchmark
   public Row fromRowSingleFlatOverride(RowState s) {
-    return Row.fromRow(s.flatRow).withFieldValue("f_string", "updated").build();
+    return Row.fromRow(s.flatRow).withFieldValue(s.fString, s.updatedString).build();
   }
 
   @Benchmark
   public Row fromRowNestedOverride(RowState s) {
-    return Row.fromRow(s.complexRow).withFieldValue("child.child_id", 200L).build();
+    return Row.fromRow(s.complexRow).withFieldValue(s.nestedPath, s.updatedChildId).build();
+  }
+
+  @Benchmark
+  public Row fromRowDeepNestedOverride(RowState s) {
+    return Row.fromRow(s.deepRow).withFieldValue(s.deepNestedPath, s.updatedChildId).build();
   }
 
   @Benchmark
   public Row nullRowCreation(RowState s) {
     return Row.nullRow(s.nullableSchema);
+  }
+
+  @Benchmark
+  public Row rowToRowCollector(RowState s) {
+    return Stream.of(s.flatValues).collect(Row.toRow(s.flatSchema));
+  }
+
+  @Benchmark
+  public List<Object> rowGetBaseValues(RowState s) {
+    return s.flatRow.getBaseValues();
+  }
+
+  @Benchmark
+  public String rowToPrettyString(RowState s) {
+    return s.flatRow.toString();
   }
 
   @Benchmark
@@ -246,17 +340,27 @@ public class RowBuilderBenchmark {
   }
 
   @Benchmark
-  public Object verifyFieldValueString() {
-    return SchemaVerification.verifyFieldValue("beam-row-value", Schema.FieldType.STRING, "f_str");
+  public Row buildByteBufferSliceRow(RowState s) {
+    return Row.withSchema(s.bytesSchema).addValue(s.offsetZeroSlice).build();
   }
 
   @Benchmark
-  public FieldAccessDescriptor parseSimpleFieldName() {
-    return FieldAccessDescriptorParser.parse("f_string");
+  public @Nullable Object verifyFieldValueString(RowState s) {
+    return SchemaVerification.verifyFieldValue(s.stringVal, s.verifyFieldType, s.verifyFieldName);
   }
 
   @Benchmark
-  public FieldAccessDescriptor parseDottedFieldPath() {
-    return FieldAccessDescriptorParser.parse("outer.child.child_id");
+  public FieldAccessDescriptor parseSimpleFieldName(RowState s) {
+    return FieldAccessDescriptorParser.parse(s.simpleFieldPath);
+  }
+
+  @Benchmark
+  public FieldAccessDescriptor parseDottedFieldPath(RowState s) {
+    return FieldAccessDescriptorParser.parse(s.dottedFieldPath);
+  }
+
+  @Benchmark
+  public FieldAccessDescriptor parseDottedWildcardPath(RowState s) {
+    return FieldAccessDescriptorParser.parse(s.dottedWildcardPath);
   }
 }
