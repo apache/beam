@@ -692,7 +692,7 @@ if __name__ == '__main__':
           'ml_cpu': [
               'tensorflow>=2.12.0',
               'torch==2.13.0+cpu',
-              'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
+              'transformers>=4.41.0,!=4.56.*,<5.21.0',
               'absl-py>=0.12.0'
           ],
           'redis': ['redis>=5.0.0,<6'],
