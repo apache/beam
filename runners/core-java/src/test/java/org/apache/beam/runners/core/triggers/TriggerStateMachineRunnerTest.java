@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +49,111 @@ public class TriggerStateMachineRunnerTest {
     when(mockState.access(TriggerStateMachineRunner.FINISHED_BITS_TAG))
         .thenReturn((ValueState) mockFinishedSetState);
     rootTrigger = ExecutableTriggerStateMachine.create(mockTriggerStateMachine);
+  }
+
+  private TriggerStateMachineRunner<?> createRunner(
+      TriggerStateMachine trigger, boolean useNewWindowOptimization) {
+    rootTrigger = ExecutableTriggerStateMachine.create(trigger);
+    return new TriggerStateMachineRunner<>(
+        rootTrigger,
+        (TriggerStateMachineContextFactory) mockContextFactory,
+        useNewWindowOptimization);
+  }
+
+  @Test
+  public void testFinishedSetElidedForTriggersThatNeverTrackIt() {
+    for (TriggerStateMachine trigger :
+        new TriggerStateMachine[] {
+          DefaultTriggerStateMachine.of(),
+          NeverStateMachine.ever(),
+          ReshuffleTriggerStateMachine.create()
+        }) {
+      TriggerStateMachineRunner<?> runner = createRunner(trigger, false);
+      runner.prefetchFinishedSet(mockState);
+      runner.persistFinishedSet(
+          mockState,
+          FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree()));
+    }
+
+    verify(mockState, never()).access(TriggerStateMachineRunner.FINISHED_BITS_TAG);
+  }
+
+  @Test
+  public void testFinishedSetElidedForRepeatedlyOnceTriggers() {
+    TriggerStateMachine afterPane = AfterPaneStateMachine.elementCountAtLeast(2);
+    TriggerStateMachine afterProcessingTime =
+        AfterProcessingTimeStateMachine.pastFirstElementInPane();
+    for (TriggerStateMachine trigger :
+        new TriggerStateMachine[] {
+          RepeatedlyStateMachine.forever(afterPane),
+          RepeatedlyStateMachine.forever(afterProcessingTime),
+          RepeatedlyStateMachine.forever(AfterWatermarkStateMachine.pastEndOfWindow()),
+          RepeatedlyStateMachine.forever(AfterFirstStateMachine.of(afterPane, afterProcessingTime)),
+          RepeatedlyStateMachine.forever(AfterAllStateMachine.of(afterPane, afterProcessingTime)),
+          RepeatedlyStateMachine.forever(RepeatedlyStateMachine.forever(afterPane))
+        }) {
+      TriggerStateMachineRunner<?> runner = createRunner(trigger, false);
+      assertFalse(runner.isNew(mockState));
+      runner.prefetchFinishedSet(mockState);
+      runner.persistFinishedSet(
+          mockState,
+          FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree()));
+    }
+
+    verify(mockState, never()).access(TriggerStateMachineRunner.FINISHED_BITS_TAG);
+  }
+
+  @Test
+  public void testFinishedSetRequiredForAfterEach() {
+    TriggerStateMachineRunner<?> runner =
+        createRunner(
+            AfterEachStateMachine.inOrder(
+                AfterPaneStateMachine.elementCountAtLeast(2),
+                AfterProcessingTimeStateMachine.pastFirstElementInPane()),
+            false);
+
+    runner.prefetchFinishedSet(mockState);
+
+    verify(mockFinishedSetState).readLater();
+  }
+
+  @Test
+  public void testFinishedSetRequiredForOrFinally() {
+    TriggerStateMachineRunner<?> runner =
+        createRunner(
+            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2))
+                .orFinally(AfterWatermarkStateMachine.pastEndOfWindow()),
+            false);
+
+    runner.prefetchFinishedSet(mockState);
+
+    verify(mockFinishedSetState).readLater();
+  }
+
+  @Test
+  public void testFinishedSetRequiredForLateAfterWatermark() {
+    TriggerStateMachineRunner<?> runner =
+        createRunner(
+            AfterWatermarkStateMachine.pastEndOfWindow()
+                .withLateFirings(AfterPaneStateMachine.elementCountAtLeast(2)),
+            false);
+
+    runner.prefetchFinishedSet(mockState);
+
+    verify(mockFinishedSetState).readLater();
+  }
+
+  @Test
+  public void testFinishedSetRequiredWithNewWindowOptimization() {
+    TriggerStateMachineRunner<?> runner =
+        createRunner(
+            RepeatedlyStateMachine.forever(AfterPaneStateMachine.elementCountAtLeast(2)), true);
+
+    assertTrue(runner.isNew(mockState));
+    runner.prefetchFinishedSet(mockState);
+
+    verify(mockFinishedSetState).read();
+    verify(mockFinishedSetState).readLater();
   }
 
   @Test
