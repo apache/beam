@@ -35,6 +35,9 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login}}'
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
