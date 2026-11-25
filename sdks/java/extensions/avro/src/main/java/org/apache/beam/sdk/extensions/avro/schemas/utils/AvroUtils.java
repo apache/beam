@@ -1225,6 +1225,10 @@ public class AvroUtils {
           baseType =
               LogicalTypes.timeMillis()
                   .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
+        } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+          baseType =
+              LogicalTypes.timeMicros()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
           baseType =
               LogicalTypes.timestampMicros()
@@ -1388,6 +1392,8 @@ public class AvroUtils {
           return (int) ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
           return (int) ((Instant) value).getMillis();
+        } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+          return TimeUnit.NANOSECONDS.toMicros(((java.time.LocalTime) value).toNanoOfDay());
         } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
           java.time.Instant instant = (java.time.Instant) value;
           return TimeUnit.SECONDS.toMicros(instant.getEpochSecond())

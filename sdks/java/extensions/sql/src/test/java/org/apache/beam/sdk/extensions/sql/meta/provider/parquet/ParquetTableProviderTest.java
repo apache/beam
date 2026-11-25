@@ -151,4 +151,20 @@ public class ParquetTableProviderTest {
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
     assertEquals(State.DONE, state);
   }
+
+  @Test
+  public void testTimeLogicalTypeWrite() {
+    File destinationDir = new File(tempFolder.getRoot(), "time-logical-type");
+    String locationPath = destinationDir.getAbsolutePath() + File.separator;
+
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE TimeTable (c TIME) TYPE parquet LOCATION '%s'", locationPath));
+
+    BeamSqlRelUtils.toPCollection(
+        writePipeline, env.parseQuery("INSERT INTO TimeTable VALUES (TIME '12:34:56')"));
+
+    PipelineResult.State state = writePipeline.run().waitUntilFinish();
+    assertEquals(State.DONE, state);
+  }
 }
