@@ -17,15 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -33,6 +41,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +70,26 @@ public class ParquetTableProviderTest {
   private static final Row ROW_2 =
       Row.withSchema(TABLE_SCHEMA).addValues("John", 42L, "USA").build();
   private static final List<Row> ALL_ROWS = Arrays.asList(ROW_1, ROW_2);
+
+  private static final String ALL_TYPES_FIELDS =
+      "(id INTEGER, ti TINYINT, si SMALLINT, bi BIGINT, f FLOAT, db DOUBLE, dc DECIMAL, b BOOLEAN,"
+          + " d DATE, ts TIMESTAMP, vc VARCHAR, vb VARBINARY)";
+
+  /** The values that {@link #writeAllTypesTable} writes to the row with id 1, by column. */
+  private static final Map<String, Object> ALL_TYPES_VALUES =
+      ImmutableMap.<String, Object>builder()
+          .put("ti", (byte) 1)
+          .put("si", (short) 2)
+          .put("bi", 3L)
+          .put("f", 1.5f)
+          .put("db", 2.5d)
+          .put("dc", new BigDecimal(4))
+          .put("b", true)
+          .put("d", LocalDate.of(2025, 7, 14))
+          .put("ts", Instant.parse("2025-07-14T01:02:03Z"))
+          .put("vc", "abc")
+          .put("vb", new byte[] {1, 2})
+          .build();
 
   private BeamSqlEnv env;
 
@@ -150,5 +180,80 @@ public class ParquetTableProviderTest {
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
     assertEquals(State.DONE, state);
+  }
+
+  @Test
+  public void testReadAllTypes() {
+    writeAllTypesTable();
+
+    PCollection<Row> rows =
+        BeamSqlRelUtils.toPCollection(readPipeline, env.parseQuery("SELECT * FROM AllTypes"));
+
+    PAssert.that(rows).satisfies(ParquetTableProviderTest::checkAllTypesRows);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadAllTypesWithProjectionPushDown() {
+    writeAllTypesTable();
+
+    BeamRelNode relNode = env.parseQuery("SELECT d, si, ti, ts, id FROM AllTypes");
+    assertThat(relNode, instanceOf(BeamPushDownIOSourceRel.class));
+    PCollection<Row> rows = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
+    assertThat(rows.getSchema().getFieldNames(), contains("d", "si", "ti", "ts", "id"));
+
+    PAssert.that(rows).satisfies(ParquetTableProviderTest::checkAllTypesRows);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  /** Writes a row with a value in every column (id 1) and a row with only nulls (id 2). */
+  private void writeAllTypesTable() {
+    String location =
+        new File(tempFolder.getRoot(), "all-types").getAbsolutePath() + File.separator;
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE AllTypes %s TYPE parquet LOCATION '%s'",
+            ALL_TYPES_FIELDS, location));
+    BeamSqlRelUtils.toPCollection(
+        writePipeline,
+        env.parseQuery(
+            "INSERT INTO AllTypes VALUES "
+                + "(1, CAST(1 AS TINYINT), CAST(2 AS SMALLINT), CAST(3 AS BIGINT),"
+                + " CAST(1.5 AS FLOAT), CAST(2.5 AS DOUBLE), CAST(4 AS DECIMAL), TRUE,"
+                + " DATE '2025-07-14', TIMESTAMP '2025-07-14 01:02:03', 'abc', X'0102'), "
+                + "(2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)"));
+    writePipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Checks each column of the rows written by {@link #writeAllTypesTable}, including the Java type
+   * of its value: for example, a DATE column must hold a {@link LocalDate}.
+   */
+  private static Void checkAllTypesRows(Iterable<Row> rows) {
+    int count = 0;
+    for (Row row : rows) {
+      count++;
+      int id = row.getInt32("id");
+      for (String field : row.getSchema().getFieldNames()) {
+        if (!"id".equals(field)) {
+          Object expected = id == 1 ? ALL_TYPES_VALUES.get(field) : null;
+          assertEquals(
+              "Column " + field + " of row " + id,
+              describe(expected),
+              describe(row.getValue(field)));
+        }
+      }
+    }
+    assertEquals(2, count);
+    return null;
+  }
+
+  private static String describe(Object value) {
+    if (value == null) {
+      return "null";
+    }
+    String valueString =
+        value instanceof byte[] ? Arrays.toString((byte[]) value) : value.toString();
+    return value.getClass().getName() + ": " + valueString;
   }
 }

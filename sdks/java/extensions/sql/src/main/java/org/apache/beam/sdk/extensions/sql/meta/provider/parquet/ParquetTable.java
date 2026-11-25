@@ -36,11 +36,13 @@ import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.Read;
 import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +62,7 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
     String filePattern = resolveFilePattern(checkArgumentNotNull(table.getLocation()));
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
-    return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
+    return toRows(begin.apply("ParquetIORead", read), table.getSchema());
   }
 
   @Override
@@ -69,12 +71,40 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
     String filePattern = resolveFilePattern(checkArgumentNotNull(table.getLocation()));
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
+    org.apache.beam.sdk.schemas.Schema rowSchema = table.getSchema();
     if (!fieldNames.isEmpty()) {
       Schema projectionSchema = projectSchema(schema, fieldNames);
       LOG.info("Projecting fields schema: {}", projectionSchema);
       read = read.withProjection(projectionSchema, projectionSchema);
+      rowSchema = projectBeamSchema(rowSchema, fieldNames);
     }
-    return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
+    return toRows(begin.apply("ParquetIORead", read), rowSchema);
+  }
+
+  /**
+   * Converts the records to rows of the table's own (possibly projected) schema. A schema inferred
+   * from the Avro schema doesn't round-trip every SQL type: for example, it reads an Avro {@code
+   * date} as {@code DATETIME} rather than as the SQL {@code DATE} type.
+   */
+  private static PCollection<Row> toRows(
+      PCollection<GenericRecord> records, org.apache.beam.sdk.schemas.Schema rowSchema) {
+    return records
+        .apply(
+            "ToRows",
+            MapElements.into(TypeDescriptors.rows())
+                .via(AvroUtils.getGenericRecordToRowFunction(rowSchema)))
+        .setRowSchema(rowSchema);
+  }
+
+  /** Returns a Beam schema with only the fieldNames fields, in the order given. */
+  private static org.apache.beam.sdk.schemas.Schema projectBeamSchema(
+      org.apache.beam.sdk.schemas.Schema schema, List<String> fieldNames) {
+    org.apache.beam.sdk.schemas.Schema.Builder builder =
+        org.apache.beam.sdk.schemas.Schema.builder();
+    for (String fieldName : fieldNames) {
+      builder.addField(schema.getField(fieldName));
+    }
+    return builder.build();
   }
 
   /** Returns a copy of the {@link Schema} with only the fieldNames fields. */
