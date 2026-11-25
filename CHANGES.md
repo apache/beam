@@ -154,6 +154,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed `WriteToBigQuery` rejecting string schemas that include spaces around field names or types, for example `name: STRING` ([#25704](https://github.com/apache/beam/issues/25704)).
 * (Java) Fixed `Combine.perKey` failing on the Spark 4 runner in batch with `Couldn't find method fromByteArray` for keys without a native Spark encoder, for example a `KV` or `Void` key ([#41466](https://github.com/apache/beam/issues/41466)).
 * (Python) Fixed `WatchFilePattern` comparing model files only against their own path, so an older model could be chosen and a poll that saw several models could crash `RunInference` (`AsSingleton` requires one value). Workers compare file times with the pipeline construction time sent with the job, so a model uploaded after submission is not treated as a file that already existed ([#40638](https://github.com/apache/beam/issues/40638)).
 * (Python) Fixed local filesystem copies deleting source data when copying onto the same file or directory, and deleting an existing destination when the source is missing ([#41561](https://github.com/apache/beam/issues/41561)).
