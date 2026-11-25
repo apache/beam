@@ -105,7 +105,7 @@ implementation:
       --beam-runner,
       {inputValue: beam_runner},
     ]</code></pre></div></div><p>In this case, each component shares an identical Dockerfile, but you can add extra component-specific dependencies where needed.</p><div class='language-Dockerfile snippet'><div class="notebook-skip code-snippet"><a target=_blank type=button data-bs-toggle=tooltip data-bs-placement=bottom title="View source code" href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/ml-orchestration/kfp/components/preprocessing/Dockerfile><img src=/images/code-icon.svg></a>
-<a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre tabindex=0 class=chroma><code class=language-Dockerfile data-lang=Dockerfile><span class=line><span class=cl><span class=k>FROM</span><span class=s> python:3.9-slim</span><span class=err>
+<a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre tabindex=0 class=chroma><code class=language-Dockerfile data-lang=Dockerfile><span class=line><span class=cl><span class=k>FROM</span><span class=s> python:3.11-slim</span><span class=err>
 </span></span></span><span class=line><span class=cl><span class=err>
 </span></span></span><span class=line><span class=cl><span class=err></span><span class=c># (Optional) install extra dependencies</span><span class=err>
 </span></span></span><span class=line><span class=cl><span class=err>
