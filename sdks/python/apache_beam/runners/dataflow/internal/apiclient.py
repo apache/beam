@@ -846,6 +846,8 @@ class DataflowApplicationClient(object):
 
   def create_job_description(self, job: Job):
     """Creates a job described by the workflow proto."""
+    self._warn_if_staging_bucket_has_ttl(
+        job.google_cloud_options.staging_location)
     DataflowApplicationClient._apply_sdk_environment_overrides(
         job.proto_pipeline, self._sdk_image_overrides, job.options)
 
@@ -871,6 +873,32 @@ class DataflowApplicationClient(object):
         proto_pipeline=job.proto_pipeline,
         pipeline_proto_hash=pipeline_proto_hash).proto
     _LOGGER.debug('JOB: %s', job)
+
+  def _warn_if_staging_bucket_has_ttl(self, staging_location):
+    """Warns when the staging bucket deletes objects by age."""
+    if not staging_location or not staging_location.startswith('gs://'):
+      return
+    bucket_name = staging_location[len('gs://'):].split('/', 1)[0]
+    try:
+      bucket = self._storage_client.get_bucket(bucket_name)
+    except Exception as e:  # pylint: disable=broad-except
+      _LOGGER.debug(
+          'Unable to check lifecycle rules of staging bucket %s: %s',
+          bucket_name,
+          e)
+      return
+    if bucket is None:
+      return
+    for rule in bucket.lifecycle_rules or []:
+      condition = rule.get('condition', {})
+      if rule.get('action', {}).get('type') == 'Delete' and 'age' in condition:
+        _LOGGER.warning(
+            'The staging bucket %s deletes objects after %s days. '
+            'Long-running and streaming pipelines may fail because staged '
+            'files can be deleted while they are still needed.',
+            bucket_name,
+            condition['age'])
+        return
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id) -> dataflow.JobMetrics:
