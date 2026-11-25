@@ -1484,6 +1484,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           f"got {op!r}.")
 
     def compute_idx(s):
+      # pandas raises on an empty partition, and on an all-NA one for some
+      # dtypes (e.g. datetime). Keep it for the final step instead.
+      if s.isna().all():
+        return s
       index = func(s, **kwargs)
       if pd.isna(index):
         return s
@@ -4160,6 +4164,10 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     columns_dtype = self._expr.proxy().columns.dtype
 
     def compute_idx(df):
+      # pandas raises on an empty partition, and on an all-NA column for some
+      # dtypes (e.g. datetime). Keep the partition for the final step instead.
+      if df.isna().all().any():
+        return df
       indexes = func(df, **kwargs).unique()
       if pd.isna(indexes).any():
         return df

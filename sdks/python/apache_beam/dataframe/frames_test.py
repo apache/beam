@@ -1511,6 +1511,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s2: s2.idxmax(), s2)
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
 
+  def test_idxmin_idxmax_all_na_partition(self):
+    # Each test partition holds a single row here, so the NaT rows make
+    # partitions with only missing values.
+    s = pd.Series(
+        pd.to_datetime([None, '2024-01-05', None, '2024-01-02']),
+        index=['A', 'B', 'C', 'D'])
+    df = pd.DataFrame({'t': s, 'x': [1.0, 4.0, 3.0, 2.0]})
+
+    self._run_test(lambda s: s.idxmin(), s)
+    self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmax(), df)
+
   def test_pipe(self):
     def df_times(df, column, times):
       df[column] = df[column] * times
