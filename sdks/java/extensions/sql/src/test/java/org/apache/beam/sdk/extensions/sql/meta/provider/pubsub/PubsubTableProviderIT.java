@@ -233,7 +233,7 @@ public class PubsubTableProviderIT implements Serializable {
     queryOutput.apply(
         "waitForSuccess",
         resultSignal.signalSuccessWhen(
-            SchemaCoder.of(PAYLOAD_SCHEMA),
+            queryOutput.getCoder(),
             observedRows -> {
               Map<Integer, String> entries = new HashMap<>();
               for (Row row : observedRows) {
