@@ -18,22 +18,39 @@
 package org.apache.beam.sdk.util.common;
 
 import java.util.Observable;
-import java.util.Observer;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** An observer that gets notified when additional bytes are read and/or used. */
+/**
+ * An observer that gets notified when additional bytes are read and/or used.
+ *
+ * <p>Instances are not thread-safe; callers sharing an instance across threads must synchronize
+ * externally.
+ *
+ * <p>All updates funnel through {@link #update(long)}, which adds directly to the accumulated size
+ * (using exact {@code long} arithmetic when {@code scalingFactor == 1.0}). Subclasses should
+ * override {@link #reportElementSize(long)} rather than overriding {@link #update(Observable,
+ * Object)} or {@link #update(Object)} alone, since primitive callers and {@link
+ * ElementByteSizeObservableIterator#notifyValueReturned(long)} dispatch directly to {@link
+ * #update(long)} without invoking {@link #update(Observable, Object)}. Note that per JLS §15.12.2,
+ * recompiled callers passing primitive integer values ({@code byte}, {@code short}, {@code char},
+ * {@code int}, {@code long}) widen directly to {@link #update(long)} without boxing.
+ */
 @Internal
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
-public abstract class ElementByteSizeObserver implements Observer {
+@NotThreadSafe
+public abstract class ElementByteSizeObserver extends PrimitiveByteSizeObserver {
   private boolean isLazy = false;
   private long totalSize = 0;
   private double scalingFactor = 1.0;
 
   public ElementByteSizeObserver() {}
 
-  /** Called to report element byte size. */
+  /**
+   * Called to report element byte size.
+   *
+   * @param elementByteSize byte size of the element
+   */
   protected abstract void reportElementSize(long elementByteSize);
 
   /**
@@ -53,18 +70,32 @@ public abstract class ElementByteSizeObserver implements Observer {
     return isLazy;
   }
 
-  /** Updates the observer with a context specified, but without an instance of the Observable. */
-  public void update(Object obj) {
+  /**
+   * Updates the observer with a boxed byte size ({@link Long} or {@link Integer}), without an
+   * instance of {@link Observable}. Delegates to {@link #update(Observable, Object)}.
+   *
+   * @param obj boxed {@link Long} or {@link Integer} size delta in bytes
+   * @throws AssertionError if {@code obj} is not an instance of {@link Long} or {@link Integer}
+   */
+  public void update(@Nullable Object obj) {
     update(null, obj);
   }
 
-  /** Updates the observer with a primitive byte size, avoiding {@link Long} boxing. */
+  /**
+   * Updates the observer with a primitive byte size, avoiding {@link Long} boxing.
+   *
+   * <p>When {@code scalingFactor == 1.0} (the default), adds {@code byteSize} directly with exact
+   * {@code long} precision (no IEEE-754 {@code double} rounding above {@code 2^53}). Otherwise adds
+   * {@code (long) (scalingFactor * byteSize)}.
+   *
+   * @param byteSize observed size delta in bytes
+   */
+  @Override
   public void update(long byteSize) {
-    if (scalingFactor == 1.0) {
-      totalSize += byteSize;
-    } else {
-      totalSize += (long) (scalingFactor * byteSize);
+    if (scalingFactor != 1.0) {
+      byteSize = (long) (scalingFactor * byteSize);
     }
+    totalSize += byteSize;
   }
 
   /** Sets a multiplier to use on observed sizes. */
@@ -72,11 +103,21 @@ public abstract class ElementByteSizeObserver implements Observer {
     this.scalingFactor = scalingFactor;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Accepts {@link Long} or {@link Integer} and delegates to {@link #update(long)}.
+   *
+   * @throws AssertionError if {@code obj} is not an instance of {@link Long} or {@link Integer}
+   */
   @Override
-  public void update(Observable obs, Object obj) {
+  public void update(@Nullable Observable obs, @Nullable Object obj) {
     if (obj instanceof Long) {
+      // .longValue() is required: calling update((Long) obj) binds to update(Object) per
+      // JLS §15.12.2 and causes infinite recursion (StackOverflowError).
       update(((Long) obj).longValue());
     } else if (obj instanceof Integer) {
+      // .longValue() is required to dispatch to update(long) rather than update(Object).
       update(((Integer) obj).longValue());
     } else {
       throw new AssertionError("unexpected parameter object");

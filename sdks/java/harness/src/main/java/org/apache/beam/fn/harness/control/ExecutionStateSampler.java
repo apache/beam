@@ -241,76 +241,54 @@ public class ExecutionStateSampler {
    * A {@link MetricsContainer} that uses the current {@link ExecutionState} tracked by the provided
    * {@link ExecutionStateTracker}.
    */
-  private static class MetricsContainerForTracker implements MetricsContainer {
+  private static final class MetricsContainerForTracker implements MetricsContainer {
     private final transient ExecutionStateTracker tracker;
 
     private MetricsContainerForTracker(ExecutionStateTracker tracker) {
       this.tracker = tracker;
     }
 
+    private MetricsContainer currentContainer() {
+      ExecutionStateTracker.ExecutionStateImpl state = tracker.currentState;
+      if (state != null) {
+        return state.metricsContainer;
+      }
+      return tracker.metricsContainerRegistry.getUnboundContainer();
+    }
+
     @Override
     public Counter getCounter(MetricName metricName) {
-      tracker.metricsAccessed = true;
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getCounter(metricName);
-      }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getCounter(metricName);
+      return currentContainer().getCounter(metricName);
     }
 
     @Override
     public Distribution getDistribution(MetricName metricName) {
-      tracker.metricsAccessed = true;
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getDistribution(metricName);
-      }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getDistribution(metricName);
+      return currentContainer().getDistribution(metricName);
     }
 
     @Override
     public Gauge getGauge(MetricName metricName) {
-      tracker.metricsAccessed = true;
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getGauge(metricName);
-      }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getGauge(metricName);
+      return currentContainer().getGauge(metricName);
     }
 
     @Override
     public StringSet getStringSet(MetricName metricName) {
-      tracker.metricsAccessed = true;
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getStringSet(metricName);
-      }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getStringSet(metricName);
+      return currentContainer().getStringSet(metricName);
     }
 
     @Override
     public BoundedTrie getBoundedTrie(MetricName metricName) {
-      tracker.metricsAccessed = true;
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getBoundedTrie(metricName);
-      }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getBoundedTrie(metricName);
+      return currentContainer().getBoundedTrie(metricName);
     }
 
     @Override
     public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
-      tracker.metricsAccessed = true;
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getHistogram(metricName, bucketType);
-      }
-      return tracker
-          .metricsContainerRegistry
-          .getUnboundContainer()
-          .getHistogram(metricName, bucketType);
+      return currentContainer().getHistogram(metricName, bucketType);
     }
 
     @Override
     public Iterable<MonitoringInfo> getMonitoringInfos() {
-      if (tracker.currentState != null) {
-        return tracker.currentState.metricsContainer.getMonitoringInfos();
-      }
-      return tracker.metricsContainerRegistry.getUnboundContainer().getMonitoringInfos();
+      return currentContainer().getMonitoringInfos();
     }
   }
 
@@ -344,9 +322,7 @@ public class ExecutionStateSampler {
     // If an exception occurs, this will be to state at the time of exception.
     private boolean inErrorState = false;
     // Tracks whether start() registered this tracker with activeStateTrackers.
-    private boolean active = false;
-    // Tracks whether metrics containers were accessed since the last reset.
-    private boolean metricsAccessed = false;
+    private volatile boolean active = false;
     // Tracks whether monitoring data was reported since the last reset.
     private volatile boolean monitoringReported = false;
     // Read and written by the ExecutionStateSampler thread
@@ -373,7 +349,6 @@ public class ExecutionStateSampler {
      * associated for the current bundle execution.
      */
     public MetricsContainerStepMap getMetricsContainerRegistry() {
-      this.metricsAccessed = true;
       return metricsContainerRegistry;
     }
 
@@ -533,7 +508,7 @@ public class ExecutionStateSampler {
     }
 
     /** {@link ExecutionState} represents the current state of an execution thread. */
-    private class ExecutionStateImpl implements ExecutionState {
+    private final class ExecutionStateImpl implements ExecutionState {
 
       private final String shortId;
       private final String ptransformId;
@@ -644,31 +619,31 @@ public class ExecutionStateSampler {
      * <p>Only invoked by the bundle processing thread.
      */
     public void start(String processBundleId) {
+      long nowMillis = clock.getMillis();
       BeamFnLoggingMDC.setStateTracker(this);
       this.processBundleId.lazySet(processBundleId);
-      long nowMillis = clock.getMillis();
       this.startTimeMillis.lazySet(nowMillis);
       this.lastTransitionTimeMillis.lazySet(nowMillis);
       this.trackedThread.lazySet(Thread.currentThread());
-      this.active = true;
       synchronized (activeStateTrackers) {
         activeStateTrackers.add(this);
+        this.active = true;
       }
     }
 
     @Override
     public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
       this.monitoringReported = true;
-      for (ExecutionStateImpl executionState : executionStates) {
-        executionState.updateMonitoringData(monitoringData);
+      for (int i = 0, size = executionStates.size(); i < size; i++) {
+        executionStates.get(i).updateMonitoringData(monitoringData);
       }
     }
 
     @Override
     public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
       this.monitoringReported = true;
-      for (ExecutionStateImpl executionState : executionStates) {
-        executionState.updateMonitoringData(monitoringData);
+      for (int i = 0, size = executionStates.size(); i < size; i++) {
+        executionStates.get(i).updateMonitoringData(monitoringData);
       }
     }
 
@@ -678,39 +653,36 @@ public class ExecutionStateSampler {
      */
     @Override
     public void reset() {
-      if (!active
-          && !monitoringReported
-          && !metricsAccessed
-          && numTransitions == 0
-          && !inErrorState) {
-        return;
-      }
-      if (active) {
+      boolean deactivated = false;
+      if (this.active) {
         synchronized (activeStateTrackers) {
-          activeStateTrackers.remove(this);
-          for (ExecutionStateImpl executionState : executionStates) {
-            executionState.reset();
+          if (this.active) {
+            activeStateTrackers.remove(this);
+            this.transitionsAtLastSample = 0;
+            this.active = false;
+            deactivated = true;
           }
-          this.transitionsAtLastSample = 0;
-        }
-        this.active = false;
-      } else if (monitoringReported) {
-        for (ExecutionStateImpl executionState : executionStates) {
-          executionState.reset();
         }
       }
-      this.processBundleId.lazySet(null);
-      this.trackedThread.lazySet(null);
-      this.startTimeMillis.lazySet(0);
-      this.numTransitions = 0;
-      this.numTransitionsLazy.lazySet(0);
-      this.lastTransitionTimeMillis.lazySet(0);
-      if (metricsAccessed) {
-        this.metricsContainerRegistry.reset();
-        this.metricsAccessed = false;
+      boolean wasReported = this.monitoringReported;
+      if (wasReported) {
+        this.monitoringReported = false;
       }
-      this.monitoringReported = false;
-      this.inErrorState = false;
+      if (deactivated || wasReported) {
+        for (int i = 0, size = executionStates.size(); i < size; i++) {
+          executionStates.get(i).reset();
+        }
+      }
+      if (deactivated || this.numTransitions != 0 || this.inErrorState) {
+        this.processBundleId.lazySet(null);
+        this.trackedThread.lazySet(null);
+        this.startTimeMillis.lazySet(0);
+        this.numTransitions = 0;
+        this.numTransitionsLazy.lazySet(0);
+        this.lastTransitionTimeMillis.lazySet(0);
+        this.inErrorState = false;
+      }
+      this.metricsContainerRegistry.reset();
       BeamFnLoggingMDC.setStateTracker(null);
     }
   }

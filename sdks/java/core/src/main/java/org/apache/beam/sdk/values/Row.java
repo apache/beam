@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -42,12 +41,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUtils;
-import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
-import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
-import org.apache.beam.sdk.values.RowUtils.FieldOverride;
 import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
-import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
-import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -108,9 +102,12 @@ public abstract class Row implements Serializable {
 
   /** Return a list of data values. Any LogicalType values are returned as base values. * */
   public List<Object> getBaseValues() {
-    return IntStream.range(0, getFieldCount())
-        .mapToObj(i -> getBaseValue(i))
-        .collect(Collectors.toList());
+    int fieldCount = getFieldCount();
+    List<Object> baseValues = new ArrayList<>(fieldCount);
+    for (int i = 0; i < fieldCount; i++) {
+      baseValues.add(getBaseValue(i));
+    }
+    return baseValues;
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
@@ -486,7 +483,10 @@ public abstract class Row implements Serializable {
       if (a == null) {
         return 0;
       } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-        return deepHashCode(a, fieldType.getLogicalType().getBaseType());
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+        return deepHashCode(
+            SchemaUtils.toLogicalBaseType(logicalType, a), logicalType.getBaseType());
       } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
         return Arrays.hashCode((byte[]) a);
       } else if (fieldType.getTypeName().isCollectionType()) {
@@ -682,8 +682,7 @@ public abstract class Row implements Serializable {
      * syntax.
      */
     public FieldValueBuilder withFieldValue(String fieldName, Object value) {
-      if (FieldAccessDescriptorParser.isSimpleIdentifier(fieldName) && schema.hasField(fieldName)) {
-        fieldOverrides.addDirectOverride(schema.indexOf(fieldName), value);
+      if (fieldOverrides.tryAddPathOverride(fieldName, value)) {
         return this;
       }
       return withFieldValue(FieldAccessDescriptor.withFieldNames(fieldName), value);
@@ -702,8 +701,11 @@ public abstract class Row implements Serializable {
     public FieldValueBuilder withFieldValue(
         FieldAccessDescriptor fieldAccessDescriptor, Object value) {
       FieldAccessDescriptor fieldAccess = fieldAccessDescriptor.resolve(getSchema());
-      checkArgument(fieldAccess.referencesSingleField(), "");
-      fieldOverrides.addOverride(fieldAccess, new FieldOverride(value));
+      checkArgument(
+          fieldAccess.referencesSingleField(),
+          "FieldAccessDescriptor must reference a single field, got: %s",
+          fieldAccessDescriptor);
+      fieldOverrides.addOverride(fieldAccess, value);
       return this;
     }
 
@@ -713,14 +715,7 @@ public abstract class Row implements Serializable {
      */
     public FieldValueBuilder withFieldValues(Map<String, Object> values) {
       for (Map.Entry<String, Object> e : values.entrySet()) {
-        String key = e.getKey();
-        if (FieldAccessDescriptorParser.isSimpleIdentifier(key) && schema.hasField(key)) {
-          fieldOverrides.addDirectOverride(schema.indexOf(key), e.getValue());
-        } else {
-          fieldOverrides.addOverride(
-              FieldAccessDescriptor.withFieldNames(key).resolve(getSchema()),
-              new FieldOverride(e.getValue()));
-        }
+        withFieldValue(e.getKey(), e.getValue());
       }
       return this;
     }
@@ -730,39 +725,33 @@ public abstract class Row implements Serializable {
      * selection syntax.
      */
     public FieldValueBuilder withFieldAccessDescriptors(Map<FieldAccessDescriptor, Object> values) {
-      values.entrySet().stream()
-          .forEach(e -> fieldOverrides.addOverride(e.getKey(), new FieldOverride(e.getValue())));
+      for (Map.Entry<FieldAccessDescriptor, Object> e : values.entrySet()) {
+        withFieldValue(e.getKey(), e.getValue());
+      }
       return this;
     }
 
     public Row build() {
-      if (!fieldOverrides.hasNestedOverrides()) {
-        return RowUtils.captureRowValues(schema, sourceRow, fieldOverrides);
-      }
-      Row row =
-          (Row)
-              new RowFieldMatcher()
-                  .match(
-                      new CapturingRowCases(getSchema(), this.fieldOverrides),
-                      FieldType.row(getSchema()),
-                      new RowPosition(FieldAccessDescriptor.create()),
-                      sourceRow);
-      return row;
+      return this.fieldOverrides.apply(sourceRow);
     }
   }
 
   /** Builder for {@link Row}. */
   public static class Builder {
-    private @Nullable List<Object> values;
+    private @Nullable List<@Nullable Object> values;
     private final Schema schema;
+    private boolean built;
 
     Builder(Schema schema) {
       this.schema = schema;
     }
 
-    private List<Object> ensureValues() {
+    private List<@Nullable Object> ensureValues() {
       if (this.values == null) {
         this.values = new ArrayList<>(schema.getFieldCount());
+      } else if (this.built) {
+        this.values = new ArrayList<>(this.values);
+        this.built = false;
       }
       return this.values;
     }
@@ -876,21 +865,28 @@ public abstract class Row implements Serializable {
       }
 
       if (values.size() != schema.getFieldCount()) {
-        throw new IllegalArgumentException(
-            "Row expected "
-                + schema.getFieldCount()
-                + String.format(
-                    " fields (%s).",
-                    schema.getFields().stream()
-                        .map(Object::toString)
-                        .collect(Collectors.joining(", ")))
-                + " initialized with "
-                + values.size()
-                + " fields.");
+        throw invalidFieldCountException(schema, values.size());
       }
 
-      return RowUtils.captureRowValues(schema, values);
+      if (built) {
+        return new RowWithStorage(schema, new ArrayList<>(values));
+      }
+      Row row = RowUtils.captureRowInPlace(schema, values);
+      built = true;
+      return row;
     }
+  }
+
+  private static IllegalArgumentException invalidFieldCountException(Schema schema, int actual) {
+    return new IllegalArgumentException(
+        "Row expected "
+            + schema.getFieldCount()
+            + String.format(
+                " fields (%s).",
+                schema.getFields().stream().map(Object::toString).collect(Collectors.joining(", ")))
+            + " initialized with "
+            + actual
+            + " fields.");
   }
 
   /** Creates a {@link Row} from the list of values and {@link #getSchema()}. */
@@ -902,62 +898,119 @@ public abstract class Row implements Serializable {
           left.addAll(right);
           return left;
         },
-        values -> Row.withSchema(schema).addValues(values).build());
+        values -> {
+          if (values.isEmpty()) {
+            return new RowWithStorage(schema, Collections.emptyList());
+          }
+          if (values.size() != schema.getFieldCount()) {
+            throw invalidFieldCountException(schema, values.size());
+          }
+          return RowUtils.captureRowInPlace(schema, values);
+        });
   }
 
   /** Creates a new record filled with nulls. */
   public static Row nullRow(Schema schema) {
-    return Row.withSchema(schema)
-        .addValues(Collections.nCopies(schema.getFieldCount(), null))
-        .build();
+    int fieldCount = schema.getFieldCount();
+    if (fieldCount == 0) {
+      return new RowWithStorage(schema, Collections.emptyList());
+    }
+    for (int i = 0; i < fieldCount; i++) {
+      Schema.Field field = schema.getField(i);
+      if (!field.getType().getNullable()) {
+        throw new IllegalArgumentException(
+            String.format("%s is not nullable in field %s", field.getType(), field.getName()));
+      }
+    }
+    return new RowWithStorage(schema, Collections.nCopies(fieldCount, null));
   }
 
   /** Returns an equivalent {@link Row} with fields lexicographically sorted by their name. */
   public Row sorted() {
-    Schema sortedSchema = getSchema().sorted();
-    return sortedSchema.getFields().stream()
-        .map(
-            field -> {
-              if (field.getType().getRowSchema() != null) {
-                Row innerRow = getValue(field.getName());
-                if (innerRow != null) {
-                  return innerRow.sorted();
-                }
-              }
-              return (Object) getValue(field.getName());
-            })
-        .collect(Row.toRow(sortedSchema));
+    return sorted(getSchema().sorted());
+  }
+
+  private Row sorted(Schema sortedSchema) {
+    int fieldCount = sortedSchema.getFieldCount();
+    if (fieldCount == 0) {
+      return new RowWithStorage(sortedSchema, Collections.emptyList());
+    }
+    Schema sourceSchema = getSchema();
+    List<@Nullable Object> sortedValues = new ArrayList<>(fieldCount);
+    for (int i = 0; i < fieldCount; i++) {
+      Schema.Field sortedField = sortedSchema.getField(i);
+      String name = sortedField.getName();
+      int sourceIdx = sourceSchema.indexOf(name);
+      Object value = getValue(sourceIdx);
+      Schema childSortedSchema = sortedField.getType().getRowSchema();
+      if (value != null && childSortedSchema != null) {
+        Row inner = (Row) value;
+        Schema expectedSourceChild = sourceSchema.getField(sourceIdx).getType().getRowSchema();
+        value =
+            (expectedSourceChild != null && expectedSourceChild.equals(inner.getSchema()))
+                ? inner.sorted(childSortedSchema)
+                : inner.sorted();
+      }
+      sortedValues.add(value);
+    }
+    return RowUtils.captureRowInPlace(sortedSchema, sortedValues);
   }
 
   /** Returns an equivalent {@link Row} with `snake_case` field names. */
   public Row toSnakeCase() {
-    return getSchema().getFields().stream()
-        .map(
-            field -> {
-              if (field.getType().getRowSchema() != null) {
-                Row innerRow = getValue(field.getName());
-                if (innerRow != null) {
-                  return innerRow.toSnakeCase();
-                }
-              }
-              return (Object) getValue(field.getName());
-            })
-        .collect(toRow(getSchema().toSnakeCase()));
+    return toSnakeCase(getSchema().toSnakeCase());
+  }
+
+  private Row toSnakeCase(Schema snakeCaseSchema) {
+    Schema sourceSchema = getSchema();
+    int fieldCount = sourceSchema.getFieldCount();
+    if (fieldCount == 0) {
+      return new RowWithStorage(snakeCaseSchema, Collections.emptyList());
+    }
+    List<@Nullable Object> values = new ArrayList<>(fieldCount);
+    for (int i = 0; i < fieldCount; i++) {
+      Schema.Field sourceField = sourceSchema.getField(i);
+      Object value = getValue(i);
+      Schema expectedSourceChild = sourceField.getType().getRowSchema();
+      if (value != null && expectedSourceChild != null) {
+        Row inner = (Row) value;
+        Schema childTargetSchema = snakeCaseSchema.getField(i).getType().getRowSchema();
+        value =
+            (childTargetSchema != null && expectedSourceChild.equals(inner.getSchema()))
+                ? inner.toSnakeCase(childTargetSchema)
+                : inner.toSnakeCase();
+      }
+      values.add(value);
+    }
+    return RowUtils.captureRowInPlace(snakeCaseSchema, values);
   }
 
   /** Returns an equivalent {@link Row} with `lowerCamelCase` field names. */
   public Row toCamelCase() {
-    return getSchema().getFields().stream()
-        .map(
-            field -> {
-              if (field.getType().getRowSchema() != null) {
-                Row innerRow = getValue(field.getName());
-                if (innerRow != null) {
-                  return innerRow.toCamelCase();
-                }
-              }
-              return (Object) getValue(field.getName());
-            })
-        .collect(toRow(getSchema().toCamelCase()));
+    return toCamelCase(getSchema().toCamelCase());
+  }
+
+  private Row toCamelCase(Schema camelCaseSchema) {
+    Schema sourceSchema = getSchema();
+    int fieldCount = sourceSchema.getFieldCount();
+    if (fieldCount == 0) {
+      return new RowWithStorage(camelCaseSchema, Collections.emptyList());
+    }
+    List<@Nullable Object> values = new ArrayList<>(fieldCount);
+    for (int i = 0; i < fieldCount; i++) {
+      Schema.Field sourceField = sourceSchema.getField(i);
+      Object value = getValue(i);
+      Schema expectedSourceChild = sourceField.getType().getRowSchema();
+      if (value != null && expectedSourceChild != null) {
+        Row inner = (Row) value;
+        Schema childTargetSchema = camelCaseSchema.getField(i).getType().getRowSchema();
+        value =
+            (childTargetSchema != null && expectedSourceChild.equals(inner.getSchema()))
+                ? inner.toCamelCase(childTargetSchema)
+                : inner.toCamelCase();
+      }
+      values.add(value);
+    }
+    return RowUtils.captureRowInPlace(camelCaseSchema, values);
   }
 }

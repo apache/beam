@@ -51,33 +51,132 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FieldAccessDescriptorParser {
+  // Keep synchronized with the IDENTIFIER rule in FieldSpecifierNotation.g4.
+  private static boolean isIdentifierChar(char c) {
+    return (c >= 'a' && c <= 'z')
+        || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9')
+        || c == '_'
+        || c == '$';
+  }
+
   /**
-   * Returns true if {@code expr} matches the {@code IDENTIFIER} grammar rule ({@code
-   * [a-zA-Z0-9_$]+}) with no dot-separators, qualifiers, wildcards, or whitespace.
+   * Returns {@code true} if {@code expr} matches the {@code IDENTIFIER} grammar rule ({@code
+   * [a-zA-Z0-9_$]+} in {@code FieldSpecifierNotation.g4}) with no dot-separators, qualifiers,
+   * wildcards, or whitespace.
+   *
+   * @param expr the selector string to inspect, or {@code null}
+   * @return {@code true} if {@code expr} is a non-empty simple identifier
    */
   public static boolean isSimpleIdentifier(@Nullable String expr) {
     if (expr == null || expr.isEmpty()) {
       return false;
     }
-    for (int i = 0; i < expr.length(); i++) {
-      char c = expr.charAt(i);
-      if (!((c >= 'a' && c <= 'z')
-          || (c >= 'A' && c <= 'Z')
-          || (c >= '0' && c <= '9')
-          || c == '_'
-          || c == '$')) {
+    return isSimpleIdentifier(expr, 0, expr.length());
+  }
+
+  /**
+   * Returns {@code true} if the slice {@code expr[start..end)} is a valid, non-empty {@code
+   * IDENTIFIER} ({@code [a-zA-Z0-9_$]+} in {@code FieldSpecifierNotation.g4}). Returns {@code
+   * false} for {@code null} inputs, empty/inverted ranges, or out-of-bounds indices.
+   *
+   * @param expr the string containing the slice, or {@code null}
+   * @param start inclusive start index
+   * @param end exclusive end index
+   * @return {@code true} if {@code expr[start..end)} is non-empty, in bounds, and consists solely
+   *     of identifier characters
+   */
+  public static boolean isSimpleIdentifier(@Nullable String expr, int start, int end) {
+    if (expr == null || start < 0 || start >= end || end > expr.length()) {
+      return false;
+    }
+    for (int i = start; i < end; i++) {
+      if (!isIdentifierChar(expr.charAt(i))) {
         return false;
       }
     }
     return true;
   }
 
-  public static FieldAccessDescriptor parse(String expr) {
-    if (isSimpleIdentifier(expr)) {
-      return FieldAccessDescriptor.withFields(FieldDescriptor.builder().setFieldName(expr).build());
+  private static @Nullable FieldAccessDescriptor tryParseSimpleDottedPath(
+      String expr, int firstDot) {
+    int len = expr.length();
+    // Single-pass validation of segments after firstDot (expr[0..firstDot) was already verified
+    // as non-empty identifier chars). Permits only a single terminal wildcard ("*"). Any other
+    // token falls back to ANTLR4 for identical behavior and exception messages.
+    int segStart = firstDot + 1;
+    if (segStart >= len) {
+      return null;
     }
-    if ("*".equals(expr)) {
-      return FieldAccessDescriptor.withAllFields();
+    int lastDot = firstDot;
+    for (int i = segStart; i < len; i++) {
+      char c = expr.charAt(i);
+      if (c == '.') {
+        if (i == segStart) {
+          return null;
+        }
+        lastDot = i;
+        segStart = i + 1;
+      } else if (c == '*') {
+        // Only a lone terminal wildcard (".*") is supported without ANTLR4.
+        if (i != segStart || i != len - 1) {
+          return null;
+        }
+      } else if (!isIdentifierChar(c)) {
+        return null;
+      }
+    }
+    if (segStart >= len) {
+      return null;
+    }
+    // Build nested FieldAccessDescriptor right-to-left matching BuildFieldAccessDescriptor.
+    FieldAccessDescriptor descriptor =
+        (len - lastDot == 2 && expr.charAt(lastDot + 1) == '*')
+            ? FieldAccessDescriptor.withAllFields()
+            : FieldAccessDescriptor.withFields(
+                FieldDescriptor.builder().setFieldName(expr.substring(lastDot + 1)).build());
+    int end = lastDot;
+    while (end > 0) {
+      int prevDot = expr.lastIndexOf('.', end - 1);
+      String seg = expr.substring(prevDot + 1, end);
+      descriptor =
+          FieldAccessDescriptor.create()
+              .withNestedField(FieldDescriptor.builder().setFieldName(seg).build(), descriptor);
+      end = prevDot;
+    }
+    return descriptor;
+  }
+
+  public static FieldAccessDescriptor parse(String expr) {
+    if (expr != null) {
+      int len = expr.length();
+      if (len > 0) {
+        if (len == 1 && expr.charAt(0) == '*') {
+          return FieldAccessDescriptor.withAllFields();
+        }
+        int dotIdx = -1;
+        boolean simple = true;
+        for (int i = 0; i < len; i++) {
+          char c = expr.charAt(i);
+          if (!isIdentifierChar(c)) {
+            if (c == '.' && i > 0) {
+              dotIdx = i;
+            }
+            simple = false;
+            break;
+          }
+        }
+        if (simple) {
+          return FieldAccessDescriptor.withFields(
+              FieldDescriptor.builder().setFieldName(expr).build());
+        }
+        if (dotIdx > 0) {
+          FieldAccessDescriptor fast = tryParseSimpleDottedPath(expr, dotIdx);
+          if (fast != null) {
+            return fast;
+          }
+        }
+      }
     }
     CharStream charStream = CharStreams.fromString(expr);
     FieldSpecifierNotationLexer lexer = new FieldSpecifierNotationLexer(charStream);

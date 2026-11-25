@@ -24,6 +24,8 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
@@ -36,10 +38,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
+import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
 import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.BoundedTrieResult;
@@ -47,6 +53,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -901,40 +908,238 @@ public class ExecutionStateSamplerTest {
 
   @Test
   public void testRepeatedResetAndReuse() {
-    MillisProvider clock = mock(MillisProvider.class);
-    when(clock.getMillis()).thenReturn(100L, 200L, 300L, 400L);
+    AtomicLong currentTimeMillis = new AtomicLong(100L);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.create(), clock, mockOnTimeoutExceededCallback);
-    ExecutionStateTracker tracker = sampler.create();
-    ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+            PipelineOptionsFactory.create(),
+            () -> currentTimeMillis.getAndAdd(10L),
+            mockOnTimeoutExceededCallback);
+    try {
+      ExecutionStateTracker tracker = sampler.create();
+      ExecutionState state =
+          tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
 
-    // Repeated reset before start should be a safe no-op.
-    tracker.reset();
-    tracker.reset();
-    assertNull(tracker.getStatus());
+      // Repeated reset before start should be a safe no-op.
+      tracker.reset();
+      tracker.reset();
+      assertNull(tracker.getStatus());
+      assertNull(BeamFnLoggingMDC.getStateTracker());
 
-    // First bundle lifecycle + redundant reset calls (as done by ProcessBundleHandler).
-    tracker.start("bundle1");
-    state.activate();
-    assertEquals("ptransformId", tracker.getCurrentThreadsPTransformId());
-    state.deactivate();
-    Map<String, ByteString> finalData = new HashMap<>();
-    tracker.updateFinalMonitoringData(finalData);
-    tracker.reset();
-    tracker.reset();
-    tracker.reset();
-    assertNull(tracker.getStatus());
-    assertNull(tracker.getCurrentThreadsPTransformId());
+      // First bundle lifecycle + redundant reset calls (as done by ProcessBundleHandler).
+      tracker.start("bundle1");
+      assertSame(tracker, BeamFnLoggingMDC.getStateTracker());
+      state.activate();
+      assertEquals("ptransformId", tracker.getCurrentThreadsPTransformId());
+      Counter counter = tracker.getMetricsContainer().getCounter(MetricName.named("ns", "c"));
+      counter.inc(7L);
+      state.deactivate();
+      Map<String, ByteString> finalData = new HashMap<>();
+      tracker.updateFinalMonitoringData(finalData);
+      assertTrue(finalData.containsKey("shortId"));
+      assertEquals(
+          7L,
+          tracker
+              .getMetricsContainerRegistry()
+              .getContainer("ptransformId")
+              .getCounter(MetricName.named("ns", "c"))
+              .getCumulative()
+              .longValue());
 
-    // Second bundle lifecycle on the same tracker should work identically.
-    tracker.start("bundle2");
-    state.activate();
-    assertEquals("ptransformId", tracker.getCurrentThreadsPTransformId());
-    state.deactivate();
-    tracker.reset();
-    assertNull(tracker.getStatus());
+      tracker.reset();
+      tracker.reset();
+      tracker.reset();
+      assertNull(tracker.getStatus());
+      assertNull(tracker.getCurrentThreadsPTransformId());
+      assertNull(BeamFnLoggingMDC.getStateTracker());
+      assertEquals(
+          0L,
+          tracker
+              .getMetricsContainerRegistry()
+              .getContainer("ptransformId")
+              .getCounter(MetricName.named("ns", "c"))
+              .getCumulative()
+              .longValue());
 
-    sampler.stop();
+      // Second bundle lifecycle on the same tracker should work identically.
+      tracker.start("bundle2");
+      state.activate();
+      assertEquals("ptransformId", tracker.getCurrentThreadsPTransformId());
+      state.deactivate();
+      tracker.reset();
+      assertNull(tracker.getStatus());
+      assertNull(BeamFnLoggingMDC.getStateTracker());
+    } finally {
+      sampler.stop();
+    }
+  }
+
+  @Test
+  public void testResetWithRetainedMetricHandlesAndRegistry() {
+    AtomicLong clockMillis = new AtomicLong(100L);
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(
+            PipelineOptionsFactory.create(), clockMillis::get, mockOnTimeoutExceededCallback);
+    try {
+      ExecutionStateTracker tracker = sampler.create();
+      ExecutionState state =
+          tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+      MetricsContainerStepMap registry = tracker.getMetricsContainerRegistry();
+
+      state.activate();
+      Counter retainedCounter =
+          tracker.getMetricsContainer().getCounter(MetricName.named("ns", "retained"));
+      Distribution retainedDist =
+          tracker.getMetricsContainer().getDistribution(MetricName.named("ns", "dist"));
+      Gauge retainedGauge = tracker.getMetricsContainer().getGauge(MetricName.named("ns", "gauge"));
+      StringSet retainedSet =
+          tracker.getMetricsContainer().getStringSet(MetricName.named("ns", "set"));
+      BoundedTrie retainedTrie =
+          tracker.getMetricsContainer().getBoundedTrie(MetricName.named("ns", "trie"));
+      HistogramData.BucketType bucketType = HistogramData.LinearBuckets.of(0, 1, 5);
+      Histogram retainedHist =
+          tracker.getMetricsContainer().getHistogram(MetricName.named("ns", "hist"), bucketType);
+      state.deactivate();
+
+      retainedCounter.inc(10L);
+      tracker.reset();
+      assertEquals(
+          0L,
+          registry
+              .getContainer("ptransformId")
+              .getCounter(MetricName.named("ns", "retained"))
+              .getCumulative()
+              .longValue());
+
+      // Mutate retained handles directly AFTER reset() without calling getCounter()/getRegistry().
+      retainedCounter.inc(42L);
+      retainedDist.update(5L);
+      retainedGauge.set(9L);
+      retainedSet.add("x");
+      retainedTrie.add("a");
+      retainedHist.update(1.0);
+      registry.getUnboundContainer().getCounter(MetricName.named("ns", "unbound")).inc(99L);
+
+      tracker.reset();
+      assertEquals(
+          0L,
+          registry
+              .getContainer("ptransformId")
+              .getCounter(MetricName.named("ns", "retained"))
+              .getCumulative()
+              .longValue());
+      assertEquals(
+          0L,
+          registry
+              .getContainer("ptransformId")
+              .getDistribution(MetricName.named("ns", "dist"))
+              .getCumulative()
+              .count());
+      assertEquals(
+          GaugeResult.empty(),
+          registry
+              .getContainer("ptransformId")
+              .getGauge(MetricName.named("ns", "gauge"))
+              .getCumulative()
+              .extractResult());
+      assertEquals(
+          0,
+          registry
+              .getContainer("ptransformId")
+              .getStringSet(MetricName.named("ns", "set"))
+              .getCumulative()
+              .stringSet()
+              .size());
+      assertTrue(
+          registry
+              .getContainer("ptransformId")
+              .getBoundedTrie(MetricName.named("ns", "trie"))
+              .getCumulative()
+              .toProto()
+              .getSingletonList()
+              .isEmpty());
+      assertEquals(
+          0L,
+          registry
+              .getContainer("ptransformId")
+              .getHistogram(MetricName.named("ns", "hist"), bucketType)
+              .getCumulative()
+              .getTotalCount());
+      assertEquals(
+          0L,
+          registry
+              .getUnboundContainer()
+              .getCounter(MetricName.named("ns", "unbound"))
+              .getCumulative()
+              .longValue());
+    } finally {
+      sampler.stop();
+    }
+  }
+
+  @Test
+  public void testResetInactiveMonitoringErrorAndDirectMdc() {
+    AtomicLong clockMillis = new AtomicLong(100L);
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(
+            PipelineOptionsFactory.create(), clockMillis::get, mockOnTimeoutExceededCallback);
+    try {
+      ExecutionStateTracker tracker = sampler.create();
+      ExecutionState state =
+          tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+
+      // Error flag set without calling start() must clear on reset().
+      assertTrue(state.error());
+      assertFalse(state.error());
+      tracker.reset();
+      assertTrue(state.error());
+      tracker.reset();
+
+      // Direct MDC binding without start() must still be cleared by reset().
+      BeamFnLoggingMDC.setStateTracker(tracker);
+      tracker.reset();
+      assertNull(BeamFnLoggingMDC.getStateTracker());
+
+      // Monitoring update without start() must still reset state reporting on reset().
+      Map<String, ByteString> data = new HashMap<>();
+      tracker.updateIntermediateMonitoringData(data);
+      assertTrue(data.containsKey("shortId"));
+      tracker.reset();
+
+      // Activation without start() clears error/transition state safely.
+      state.activate();
+      state.deactivate();
+      tracker.reset();
+      assertNull(tracker.getStatus());
+    } finally {
+      sampler.stop();
+    }
+  }
+
+  @Test
+  public void testStartClockThrowsDoesNotLeakMdc() {
+    Thread callerThread = Thread.currentThread();
+    AtomicBoolean shouldThrow = new AtomicBoolean(false);
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(
+            PipelineOptionsFactory.create(),
+            () -> {
+              if (shouldThrow.get() && Thread.currentThread() == callerThread) {
+                throw new IllegalStateException("clock failure");
+              }
+              return 100L;
+            },
+            mockOnTimeoutExceededCallback);
+    try {
+      ExecutionStateTracker tracker = sampler.create();
+      shouldThrow.set(true);
+      assertThrows(IllegalStateException.class, () -> tracker.start("bundle-fail"));
+      assertNull(BeamFnLoggingMDC.getStateTracker());
+      assertNull(tracker.getStatus());
+      tracker.reset();
+      assertNull(BeamFnLoggingMDC.getStateTracker());
+    } finally {
+      shouldThrow.set(false);
+      sampler.stop();
+    }
   }
 }

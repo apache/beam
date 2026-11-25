@@ -621,7 +621,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
           new OutputBuilderSupplier() {
             @Override
             public <OutputT> WindowedValues.Builder<OutputT> builder(OutputT value) {
-              return WindowedValues.builder(outputReceiver.builder(null)).withValue(value);
+              return WindowedValues.builder(outputReceiver.builder(null), value);
             }
           };
 

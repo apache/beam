@@ -29,7 +29,12 @@ import java.io.IOException;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -317,6 +322,100 @@ public class BagUserStateTest {
       userState.asyncClose();
     }
     assertNull(fakeClient.getData().get(key("A")));
+  }
+
+  @Test
+  public void testBoundedCacheWeightAndEviction() throws Exception {
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.as(SdkHarnessOptions.class).setMaxCacheMemoryUsageMb(1);
+    Cache<?, ?> cache = Caches.fromOptions(opts);
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of());
+
+    // Clear+append payload exceeding 1 MiB must be weighed by encoded bytes and trigger eviction.
+    String big = "x".repeat(1200 * 1024);
+    BagUserState<String> state =
+        new BagUserState<>(cache, fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+    state.clear();
+    state.append(big);
+    state.asyncClose();
+    assertTrue(cache.describeStats().contains("evictions 1"));
+
+    // A small payload stays cached; appending a large value later evicts it on weight overflow.
+    BagUserState<String> state2 =
+        new BagUserState<>(
+            Caches.subCache(cache, "small"),
+            fakeClient,
+            "instructionId",
+            key("B"),
+            StringUtf8Coder.of());
+    state2.clear();
+    state2.append("hello");
+    state2.asyncClose();
+    assertTrue(cache.describeStats().contains("evictions 1"));
+
+    BagUserState<String> state3 =
+        new BagUserState<>(
+            Caches.subCache(cache, "small"),
+            fakeClient,
+            "instructionId",
+            key("B"),
+            StringUtf8Coder.of());
+    state3.append(big);
+    state3.asyncClose();
+    assertTrue(cache.describeStats().contains("evictions 2"));
+  }
+
+  @Test
+  public void testNullableAndVoidValuesCached() throws Exception {
+    Cache<?, ?> nullableCache = Caches.eternal();
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(NullableCoder.of(StringUtf8Coder.of()), ImmutableMap.of());
+    BagUserState<String> writer =
+        new BagUserState<>(
+            nullableCache,
+            fakeClient,
+            "instructionId",
+            key("N"),
+            NullableCoder.of(StringUtf8Coder.of()));
+    writer.clear();
+    writer.append(null);
+    writer.append("val");
+    writer.asyncClose();
+
+    BagUserState<String> reader =
+        new BagUserState<>(
+            nullableCache,
+            requestBuilder -> {
+              throw new IllegalStateException("Unexpected call for test.");
+            },
+            "instructionId",
+            key("N"),
+            NullableCoder.of(StringUtf8Coder.of()));
+    assertArrayEquals(new String[] {null, "val"}, Iterables.toArray(reader.get(), String.class));
+    reader.asyncClose();
+
+    // 0-byte encoded elements (VoidCoder).
+    Cache<?, ?> voidCache = Caches.eternal();
+    FakeBeamFnStateClient voidClient = new FakeBeamFnStateClient(VoidCoder.of(), ImmutableMap.of());
+    BagUserState<Void> voidWriter =
+        new BagUserState<>(voidCache, voidClient, "instructionId", key("V"), VoidCoder.of());
+    voidWriter.clear();
+    voidWriter.append(null);
+    voidWriter.append(null);
+    voidWriter.asyncClose();
+
+    BagUserState<Void> voidReader =
+        new BagUserState<>(
+            voidCache,
+            requestBuilder -> {
+              throw new IllegalStateException("Unexpected call for test.");
+            },
+            "instructionId",
+            key("V"),
+            VoidCoder.of());
+    assertEquals(2, Iterables.size(voidReader.get()));
+    voidReader.asyncClose();
   }
 
   private StateKey key(String id) throws IOException {

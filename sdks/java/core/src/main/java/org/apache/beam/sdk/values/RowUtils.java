@@ -17,813 +17,467 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.RandomAccess;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.ListQualifier;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.MapQualifier;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.parser.FieldAccessDescriptorParser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
 class RowUtils {
-  static class RowPosition {
-    FieldAccessDescriptor descriptor;
-    List<FieldAccessDescriptor.FieldDescriptor.Qualifier> qualifiers;
 
-    RowPosition(FieldAccessDescriptor descriptor) {
-      this(descriptor, Collections.emptyList());
-    }
-
-    RowPosition(FieldAccessDescriptor descriptor, List<Qualifier> qualifiers) {
-      this.descriptor = descriptor;
-      this.qualifiers = qualifiers;
-    }
-
-    RowPosition withArrayQualifier() {
-      List<Qualifier> newQualifiers = Lists.newArrayListWithCapacity(qualifiers.size() + 1);
-      newQualifiers.addAll(qualifiers);
-      newQualifiers.add(Qualifier.of(ListQualifier.ALL));
-      return new RowPosition(descriptor, newQualifiers);
-    }
-
-    RowPosition withMapQualifier() {
-      List<Qualifier> newQualifiers = Lists.newArrayListWithCapacity(qualifiers.size() + 1);
-      newQualifiers.addAll(qualifiers);
-      newQualifiers.add(Qualifier.of(MapQualifier.ALL));
-      return new RowPosition(descriptor, newQualifiers);
-    }
-  }
-
-  // Subclasses of this interface implement process methods for each schema type. Each process
-  // method is invoked as
-  // a RowFieldMatcher walks down the schema tree. The FieldAccessDescriptor passed into each method
-  // identifies the
-  // current element of the schema being processed.
-  interface RowCases {
-    Row processRow(RowPosition rowPosition, Schema schema, Row value, RowFieldMatcher matcher);
-
-    Collection<Object> processArray(
-        RowPosition rowPosition,
-        FieldType collectionElementType,
-        Collection<Object> values,
-        RowFieldMatcher matcher);
-
-    Iterable<Object> processIterable(
-        RowPosition rowPosition,
-        FieldType collectionElementType,
-        Iterable<Object> values,
-        RowFieldMatcher matcher);
-
-    Map<Object, Object> processMap(
-        RowPosition rowPosition,
-        FieldType keyType,
-        FieldType valueType,
-        Map<Object, Object> valueMap,
-        RowFieldMatcher matcher);
-
-    Object processLogicalType(
-        RowPosition rowPosition, LogicalType logicalType, Object baseType, RowFieldMatcher matcher);
-
-    Instant processDateTime(
-        RowPosition rowPosition, AbstractInstant instant, RowFieldMatcher matcher);
-
-    Byte processByte(RowPosition rowPosition, Byte value, RowFieldMatcher matcher);
-
-    Short processInt16(RowPosition rowPosition, Short value, RowFieldMatcher matcher);
-
-    Integer processInt32(RowPosition rowPosition, Integer value, RowFieldMatcher matcher);
-
-    Long processInt64(RowPosition rowPosition, Long value, RowFieldMatcher matcher);
-
-    BigDecimal processDecimal(RowPosition rowPosition, BigDecimal value, RowFieldMatcher matcher);
-
-    Float processFloat(RowPosition rowPosition, Float value, RowFieldMatcher matcher);
-
-    Double processDouble(RowPosition rowPosition, Double value, RowFieldMatcher matcher);
-
-    String processString(RowPosition rowPosition, String value, RowFieldMatcher matcher);
-
-    Boolean processBoolean(RowPosition rowPosition, Boolean value, RowFieldMatcher matcher);
-
-    byte[] processBytes(RowPosition rowPosition, byte[] value, RowFieldMatcher matcher);
-  }
-
-  // Given a Row field, delegates processing to the correct process method on the RowCases
-  // parameter.
-  static class RowFieldMatcher {
-    public Object match(
-        RowCases cases, FieldType fieldType, RowPosition rowPosition, Object value) {
-      Object processedValue = null;
-      switch (fieldType.getTypeName()) {
-        case ARRAY:
-          processedValue =
-              cases.processArray(
-                  rowPosition,
-                  fieldType.getCollectionElementType(),
-                  (Collection<Object>) value,
-                  this);
-          break;
-        case ITERABLE:
-          processedValue =
-              cases.processIterable(
-                  rowPosition,
-                  fieldType.getCollectionElementType(),
-                  (Iterable<Object>) value,
-                  this);
-          break;
-        case MAP:
-          processedValue =
-              cases.processMap(
-                  rowPosition,
-                  fieldType.getMapKeyType(),
-                  fieldType.getMapValueType(),
-                  (Map<Object, Object>) value,
-                  this);
-          break;
-        case ROW:
-          processedValue =
-              cases.processRow(rowPosition, fieldType.getRowSchema(), (Row) value, this);
-          break;
-        case LOGICAL_TYPE:
-          LogicalType logicalType = fieldType.getLogicalType();
-          processedValue = cases.processLogicalType(rowPosition, logicalType, value, this);
-          break;
-        case DATETIME:
-          processedValue = cases.processDateTime(rowPosition, (AbstractInstant) value, this);
-          break;
-        case BYTE:
-          processedValue = cases.processByte(rowPosition, (Byte) value, this);
-          break;
-        case BYTES:
-          processedValue =
-              cases.processBytes(
-                  rowPosition,
-                  (byte[]) (value instanceof ByteBuffer ? ((ByteBuffer) value).array() : value),
-                  this);
-          break;
-        case INT16:
-          processedValue = cases.processInt16(rowPosition, (Short) value, this);
-          break;
-        case INT32:
-          processedValue = cases.processInt32(rowPosition, (Integer) value, this);
-          break;
-        case INT64:
-          processedValue = cases.processInt64(rowPosition, (Long) value, this);
-          break;
-        case DECIMAL:
-          processedValue = cases.processDecimal(rowPosition, (BigDecimal) value, this);
-          break;
-        case FLOAT:
-          processedValue = cases.processFloat(rowPosition, (Float) value, this);
-          break;
-        case DOUBLE:
-          processedValue = cases.processDouble(rowPosition, (Double) value, this);
-          break;
-        case STRING:
-          processedValue = cases.processString(rowPosition, (String) value, this);
-          break;
-        case BOOLEAN:
-          processedValue = cases.processBoolean(rowPosition, (Boolean) value, this);
-          break;
-        default:
-          // Shouldn't actually get here, but we need this case to satisfy linters.
-          throw new IllegalArgumentException(
-              String.format(
-                  "Not a primitive type for field name %s: %s", rowPosition.descriptor, fieldType));
-      }
-      if (processedValue == null) {
-        if (!fieldType.getNullable()) {
-          throw new IllegalArgumentException(
-              String.format("%s is not nullable in  field %s", fieldType, rowPosition.descriptor));
-        }
-      }
-      return processedValue;
-    }
-  }
-
-  static Row captureRowValues(Schema schema, List<Object> values) {
+  /** Validates and copies {@code rawValues} in-place, transferring ownership to the new Row. */
+  static Row captureRowInPlace(Schema schema, List<@Nullable Object> rawValues) {
     int fieldCount = schema.getFieldCount();
-    List<Object> captured = new ArrayList<>(fieldCount);
-    for (int i = 0; i < fieldCount; ++i) {
-      captured.add(captureValue(schema, i, schema.getField(i).getType(), values.get(i)));
+    for (int i = 0; i < fieldCount; i++) {
+      Schema.Field field = schema.getField(i);
+      @Nullable Object raw = rawValues.get(i);
+      @Nullable Object captured = captureValue(field.getType(), raw, field.getName());
+      if (captured != raw) {
+        rawValues.set(i, captured);
+      }
     }
-    return new RowWithStorage(schema, captured);
+    return new RowWithStorage(schema, rawValues);
   }
 
-  static Row captureRowValues(
-      Schema schema, @Nullable Row sourceRow, FieldOverrides fieldOverrides) {
-    int fieldCount = schema.getFieldCount();
-    List<Object> captured = new ArrayList<>(fieldCount);
-    for (int i = 0; i < fieldCount; ++i) {
-      Object rawValue = fieldOverrides.getDirectOverrideOrDefault(i, sourceRow);
-      captured.add(captureValue(schema, i, schema.getField(i).getType(), rawValue));
-    }
-    return new RowWithStorage(schema, captured);
-  }
-
-  private static @Nullable Object captureValue(
-      Schema topSchema, int fieldId, FieldType fieldType, @Nullable Object value) {
+  /**
+   * Validates and normalizes a single field value according to {@code fieldType}. Outlined throw
+   * helpers and direct case returns keep bytecode size well below HotSpot C2's default {@code
+   * FreqInlineSize} (325 bytes).
+   */
+  @SuppressWarnings("unchecked")
+  static @Nullable Object captureValue(
+      FieldType fieldType, @Nullable Object value, String fieldName) {
     if (value == null) {
       if (!fieldType.getNullable()) {
-        throw new IllegalArgumentException(
-            String.format(
-                "%s is not nullable in  field %s",
-                fieldType, FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
+        throw notNullable(fieldType, fieldName);
       }
       return null;
     }
-
-    Object processedValue;
     switch (fieldType.getTypeName()) {
-      case BYTE:
-        processedValue = (Byte) value;
-        break;
-      case INT16:
-        processedValue = (Short) value;
-        break;
-      case INT32:
-        processedValue = (Integer) value;
-        break;
-      case INT64:
-        processedValue = (Long) value;
-        break;
-      case DECIMAL:
-        processedValue = (BigDecimal) value;
-        break;
-      case FLOAT:
-        processedValue = (Float) value;
-        break;
-      case DOUBLE:
-        processedValue = (Double) value;
-        break;
-      case STRING:
-        processedValue = (String) value;
-        break;
-      case BOOLEAN:
-        processedValue = (Boolean) value;
-        break;
-      case BYTES:
-        processedValue =
-            (value instanceof ByteBuffer) ? ((ByteBuffer) value).array() : (byte[]) value;
-        break;
-      case DATETIME:
-        processedValue = ((AbstractInstant) value).toInstant();
-        break;
-      case ROW:
-        processedValue = (Row) value;
-        break;
       case ARRAY:
-        processedValue =
-            captureIterableDirect(
-                topSchema,
-                fieldId,
-                fieldType.getCollectionElementType(),
-                (Collection<Object>) value);
-        break;
+        return captureIterable(
+            checkNotNull(fieldType.getCollectionElementType()),
+            (Collection<@Nullable Object>) value,
+            fieldName);
       case ITERABLE:
-        processedValue =
-            captureIterableDirect(
-                topSchema, fieldId, fieldType.getCollectionElementType(), (Iterable<Object>) value);
-        break;
+        return captureIterable(
+            checkNotNull(fieldType.getCollectionElementType()),
+            (Iterable<@Nullable Object>) value,
+            fieldName);
       case MAP:
-        processedValue =
-            captureMapDirect(
-                topSchema,
-                fieldId,
-                fieldType.getMapKeyType(),
-                fieldType.getMapValueType(),
-                (Map<Object, Object>) value);
-        break;
+        return captureMap(
+            checkNotNull(fieldType.getMapKeyType()),
+            checkNotNull(fieldType.getMapValueType()),
+            (Map<@Nullable Object, @Nullable Object>) value,
+            fieldName);
+      case ROW:
+        // Do not reject nested rows via Schema.equals here: callers such as Beam SQL
+        // (CalciteUtils.toSchema) strip field descriptions and schema/field Options from
+        // nested ROW schemas produced by BigQuery, Avro, Protobuf, and Debezium.
+        return (Row) value;
       case LOGICAL_TYPE:
-        LogicalType logicalType = fieldType.getLogicalType();
-        processedValue = logicalType.toInputType(logicalType.toBaseType(value));
-        break;
+        return captureLogicalValue(fieldType, value, fieldName);
+      case DATETIME:
+        return ((AbstractInstant) value).toInstant();
+      case BYTE:
+        return (Byte) value;
+      case BYTES:
+        return toByteArray(value);
+      case INT16:
+        return (Short) value;
+      case INT32:
+        return (Integer) value;
+      case INT64:
+        return (Long) value;
+      case DECIMAL:
+        return (BigDecimal) value;
+      case FLOAT:
+        return (Float) value;
+      case DOUBLE:
+        return (Double) value;
+      case STRING:
+        return (String) value;
+      case BOOLEAN:
+        return (Boolean) value;
       default:
+        throw unsupportedType(fieldType, fieldName);
+    }
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static @Nullable Object captureLogicalValue(
+      FieldType fieldType, Object value, String fieldName) {
+    LogicalType logicalType = checkNotNull(fieldType.getLogicalType());
+    @Nullable Object processed = logicalType.toInputType(logicalType.toBaseType(value));
+    if (processed == null && !fieldType.getNullable()) {
+      throw notNullable(fieldType, fieldName);
+    }
+    return processed;
+  }
+
+  private static IllegalArgumentException notNullable(FieldType fieldType, String fieldName) {
+    return new IllegalArgumentException(
+        String.format("%s is not nullable in field %s", fieldType, fieldName));
+  }
+
+  private static IllegalArgumentException unsupportedType(FieldType fieldType, String fieldName) {
+    return new IllegalArgumentException(
+        String.format("Unsupported field type for field name %s: %s", fieldName, fieldType));
+  }
+
+  private static Collection<@Nullable Object> captureIterable(
+      FieldType collectionElementType, Iterable<@Nullable Object> values, String fieldName) {
+    if (values instanceof RandomAccess && values instanceof List) {
+      List<@Nullable Object> list = (List<@Nullable Object>) values;
+      int size = list.size();
+      List<@Nullable Object> captured = new ArrayList<>(size);
+      for (int i = 0; i < size; i++) {
+        @Nullable Object listValue = list.get(i);
+        captured.add(captureCollectionElement(collectionElementType, listValue, fieldName));
+      }
+      return captured;
+    }
+    List<@Nullable Object> captured =
+        (values instanceof Collection)
+            ? new ArrayList<>(((Collection<?>) values).size())
+            : new ArrayList<>();
+    for (@Nullable Object listValue : values) {
+      captured.add(captureCollectionElement(collectionElementType, listValue, fieldName));
+    }
+    return captured;
+  }
+
+  private static @Nullable Object captureCollectionElement(
+      FieldType collectionElementType, @Nullable Object listValue, String fieldName) {
+    if (listValue == null) {
+      if (!collectionElementType.getNullable()) {
         throw new IllegalArgumentException(
             String.format(
-                "Not a primitive type for field name %s: %s",
-                FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema), fieldType));
-    }
-
-    if (processedValue == null && !fieldType.getNullable()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s is not nullable in  field %s",
-              fieldType, FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
-    }
-    return processedValue;
-  }
-
-  private static Collection<Object> captureIterableDirect(
-      Schema topSchema, int fieldId, FieldType collectionElementType, Iterable<Object> values) {
-    int size =
-        (values instanceof Collection) ? ((Collection<?>) values).size() : Iterables.size(values);
-    List<Object> captured = new ArrayList<>(size);
-    for (Object listValue : values) {
-      if (listValue == null) {
-        if (!collectionElementType.getNullable()) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "%s is not nullable in Array field %s",
-                  collectionElementType,
-                  FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
-        }
-        captured.add(null);
-      } else {
-        captured.add(captureValue(topSchema, fieldId, collectionElementType, listValue));
+                "%s is not nullable in Array field %s", collectionElementType, fieldName));
       }
+      return null;
     }
-    return captured;
+    return captureValue(collectionElementType, listValue, fieldName);
   }
 
-  private static Map<Object, Object> captureMapDirect(
-      Schema topSchema,
-      int fieldId,
+  private static Map<@Nullable Object, @Nullable Object> captureMap(
       FieldType keyType,
       FieldType valueType,
-      Map<Object, Object> valueMap) {
-    Map<Object, Object> captured = Maps.newHashMapWithExpectedSize(valueMap.size());
-    for (Entry<Object, Object> kv : valueMap.entrySet()) {
-      Object capturedKey = captureValue(topSchema, fieldId, keyType, kv.getKey());
-      Object rawVal = kv.getValue();
-      if (rawVal == null) {
+      Map<@Nullable Object, @Nullable Object> valueMap,
+      String fieldName) {
+    Map<@Nullable Object, @Nullable Object> retValue =
+        Maps.newHashMapWithExpectedSize(valueMap.size());
+    for (Entry<@Nullable Object, @Nullable Object> kv : valueMap.entrySet()) {
+      @Nullable Object capturedKey = captureValue(keyType, kv.getKey(), fieldName);
+      @Nullable Object rawValue = kv.getValue();
+      if (rawValue == null) {
         if (!valueType.getNullable()) {
           throw new IllegalArgumentException(
-              String.format(
-                  "%s is not nullable in Map field %s",
-                  valueType, FieldAccessDescriptor.withFieldIds(fieldId).resolve(topSchema)));
+              String.format("%s is not nullable in Map field %s", valueType, fieldName));
         }
-        captured.put(capturedKey, null);
+        retValue.put(capturedKey, null);
       } else {
-        captured.put(capturedKey, captureValue(topSchema, fieldId, valueType, rawVal));
+        retValue.put(capturedKey, captureValue(valueType, rawValue, fieldName));
       }
     }
-    return captured;
+    return retValue;
   }
 
-  static class FieldOverride {
-    FieldOverride(Object overrideValue) {
-      this.overrideValue = overrideValue;
+  private static byte[] toByteArray(Object value) {
+    if (value instanceof byte[]) {
+      return (byte[]) value;
     }
-
-    Object getOverrideValue() {
-      return overrideValue;
+    if (value instanceof ByteBuffer) {
+      ByteBuffer buf = (ByteBuffer) value;
+      if (buf.hasArray()) {
+        byte[] backing = buf.array();
+        // Compare limit against backing.length (not buf.capacity()): a HeapByteBuffer.slice() at
+        // offset 0 sets capacity() == limit() even when backing.length is larger. The fast path
+        // aliases the caller's backing array, matching direct byte[] and legacy buf.array().
+        if (buf.arrayOffset() == 0 && buf.position() == 0 && buf.limit() == backing.length) {
+          return backing;
+        }
+        int start = buf.arrayOffset() + buf.position();
+        return Arrays.copyOfRange(backing, start, start + buf.remaining());
+      }
+      byte[] bytes = new byte[buf.remaining()];
+      buf.duplicate().get(bytes);
+      return bytes;
     }
-
-    final Object overrideValue;
+    return (byte[]) value;
   }
 
-  static class FieldOverrides {
+  /**
+   * Compact node storing sparse field overrides inline without boxing into wrapper objects. Direct
+   * value arrays and nested child-node arrays are both allocated lazily so a node with only nested
+   * overrides does not allocate or fill a {@code values} array, and a flat node never allocates a
+   * {@code nestedAccess} array. {@link #UNSET} distinguishes an unset slot from an explicit {@code
+   * null} override.
+   */
+  static class FieldAccessNode {
     private static final Object UNSET = new Object();
 
-    private @Nullable FieldAccessNode topNode;
+    private final int fieldCount;
+    private @Nullable Object @Nullable [] values;
+    private @Nullable FieldAccessNode @Nullable [] nestedAccess;
+
+    FieldAccessNode(int fieldCount) {
+      this.fieldCount = fieldCount;
+    }
+
+    void setDirect(int fieldId, @Nullable Object value) {
+      @Nullable Object[] vals = this.values;
+      if (vals == null) {
+        vals = new Object[fieldCount];
+        Arrays.fill(vals, UNSET);
+        this.values = vals;
+      }
+      vals[fieldId] = value;
+      @Nullable FieldAccessNode[] nested = this.nestedAccess;
+      if (nested != null) {
+        // Direct override replaces any prior nested field overrides under this field.
+        nested[fieldId] = null;
+      }
+    }
+
+    FieldAccessNode getOrCreateNested(int fieldId, int nestedFieldCount) {
+      @Nullable FieldAccessNode[] nested = this.nestedAccess;
+      if (nested == null) {
+        nested = new FieldAccessNode[fieldCount];
+        this.nestedAccess = nested;
+      }
+      @Nullable FieldAccessNode child = nested[fieldId];
+      if (child == null) {
+        child = new FieldAccessNode(nestedFieldCount);
+        nested[fieldId] = child;
+      }
+      return child;
+    }
+
+    void addOverride(
+        FieldAccessDescriptor fieldAccessDescriptor, @Nullable Object value, Schema currentSchema) {
+      if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
+        FieldDescriptor fieldDescriptor =
+            Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
+        setDirect(checkNotNull(fieldDescriptor.getFieldId()), value);
+      } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
+        Entry<FieldDescriptor, FieldAccessDescriptor> entry =
+            Iterables.getOnlyElement(fieldAccessDescriptor.getNestedFieldsAccessed().entrySet());
+        int fieldId = checkNotNull(entry.getKey().getFieldId());
+        Schema.Field field = currentSchema.getField(fieldId);
+        @Nullable Schema nestedSchema = field.getType().getRowSchema();
+        if (nestedSchema == null) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot apply nested field override to non-ROW field %s", field.getName()));
+        }
+        FieldAccessNode child = getOrCreateNested(fieldId, nestedSchema.getFieldCount());
+        child.addOverride(entry.getValue(), value, nestedSchema);
+      }
+    }
+
+    Row apply(Schema schema, @Nullable Row sourceRow) {
+      int count = schema.getFieldCount();
+      @Nullable Object @Nullable [] vals = this.values;
+      @Nullable FieldAccessNode @Nullable [] nested = this.nestedAccess;
+      List<@Nullable Object> result = new ArrayList<>(count);
+      if (nested == null) {
+        for (int i = 0; i < count; i++) {
+          Schema.Field field = schema.getField(i);
+          @Nullable Object raw;
+          if (vals != null && vals[i] != UNSET) {
+            raw = vals[i];
+          } else {
+            raw = (sourceRow != null) ? sourceRow.getValue(i) : null;
+          }
+          result.add(captureValue(field.getType(), raw, field.getName()));
+        }
+      } else {
+        for (int i = 0; i < count; i++) {
+          Schema.Field field = schema.getField(i);
+          FieldType fieldType = field.getType();
+          @Nullable FieldAccessNode child = nested[i];
+          @Nullable Object directVal = (vals != null) ? vals[i] : UNSET;
+          if (child != null) {
+            // Compose nested overrides on top of any earlier direct override (or sourceRow field),
+            // so both ("nested.x", v) then ("nested", r) and ("nested", r) then ("nested.x", v)
+            // behave sequentially.
+            @Nullable Row nestedSource =
+                (directVal != UNSET)
+                    ? (Row) directVal
+                    : (sourceRow != null ? sourceRow.getValue(i) : null);
+            result.add(child.apply(checkNotNull(fieldType.getRowSchema()), nestedSource));
+          } else if (directVal != UNSET) {
+            result.add(captureValue(fieldType, directVal, field.getName()));
+          } else {
+            @Nullable Object raw = (sourceRow != null) ? sourceRow.getValue(i) : null;
+            result.add(captureValue(fieldType, raw, field.getName()));
+          }
+        }
+      }
+      return new RowWithStorage(schema, result);
+    }
+  }
+
+  /**
+   * Root override node used by {@link Row.FieldValueBuilder}. Extends {@link FieldAccessNode}
+   * directly to share all storage/override/apply logic with zero extra wrapper object allocation.
+   */
+  static final class FieldOverrides extends FieldAccessNode {
     private final Schema rootSchema;
-    private final Object[] directOverrides;
-    private boolean hasDirectOverrides;
 
     FieldOverrides(Schema rootSchema) {
+      super(rootSchema.getFieldCount());
       this.rootSchema = rootSchema;
-      this.directOverrides = new Object[rootSchema.getFieldCount()];
-      Arrays.fill(this.directOverrides, UNSET);
-    }
-
-    FieldOverrides(Schema rootSchema, List<Object> overrides) {
-      this.rootSchema = rootSchema;
-      this.directOverrides = overrides.toArray();
-      this.hasDirectOverrides = !overrides.isEmpty();
-    }
-
-    private FieldAccessNode ensureTopNode() {
-      if (topNode == null) {
-        topNode = new FieldAccessNode(rootSchema);
-      }
-      return topNode;
-    }
-
-    boolean isEmpty() {
-      return !hasDirectOverrides && (topNode == null || topNode.isEmpty());
-    }
-
-    boolean hasNestedOverrides() {
-      return topNode != null && !topNode.nestedAccess.isEmpty();
     }
 
     void addDirectOverride(int fieldId, @Nullable Object value) {
-      directOverrides[fieldId] = value;
-      hasDirectOverrides = true;
+      setDirect(fieldId, value);
     }
 
-    @Nullable Object getDirectOverrideOrDefault(int fieldId, @Nullable Row sourceRow) {
-      if (hasDirectOverrides) {
-        Object val = directOverrides[fieldId];
-        if (val != UNSET) {
-          return val;
-        }
+    /**
+     * Fast path for flat ({@code "foo"}) and dotted ({@code "nested.foo"}) identifier paths that
+     * bypasses ANTLR4 parsing, {@link FieldAccessDescriptor} construction, and schema resolution.
+     * Returns {@code false} without mutating state if the path contains qualifiers, wildcards,
+     * whitespace, unknown fields, or non-{@code ROW} intermediates so the caller can fall back to
+     * {@link FieldAccessDescriptor#withFieldNames(String...)}.
+     */
+    boolean tryAddPathOverride(@Nullable String fieldPath, @Nullable Object value) {
+      if (fieldPath == null || fieldPath.isEmpty()) {
+        return false;
       }
-      return sourceRow != null ? sourceRow.getValue(fieldId) : null;
-    }
-
-    void addOverride(FieldAccessDescriptor fieldAccessDescriptor, FieldOverride fieldOverride) {
-      if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
-        FieldDescriptor fieldDescriptor =
-            Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-        addDirectOverride(fieldDescriptor.getFieldId(), fieldOverride.getOverrideValue());
-        return;
-      }
-      ensureTopNode().addOverride(fieldAccessDescriptor, fieldOverride, rootSchema);
-    }
-
-    void setOverrides(List<Object> values) {
-      for (int i = 0; i < values.size() && i < directOverrides.length; i++) {
-        directOverrides[i] = values.get(i);
-      }
-      hasDirectOverrides = !values.isEmpty();
-      if (topNode != null) {
-        List<FieldOverride> overrides = Lists.newArrayListWithExpectedSize(values.size());
-        for (Object value : values) {
-          overrides.add(new FieldOverride(value));
-        }
-        topNode.setOverrides(overrides);
-      }
-    }
-
-    @Nullable FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
-      if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
-        FieldDescriptor fieldDescriptor =
-            Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-        int id = fieldDescriptor.getFieldId();
-        if (hasDirectOverrides && id < directOverrides.length && directOverrides[id] != UNSET) {
-          return new FieldOverride(directOverrides[id]);
-        }
-      }
-      return topNode != null ? topNode.getOverride(fieldAccessDescriptor) : null;
-    }
-
-    boolean hasOverrideBelow(FieldAccessDescriptor fieldAccessDescriptor) {
-      if (topNode != null) {
-        return topNode.hasOverrideBelow(fieldAccessDescriptor);
-      }
-      return fieldAccessDescriptor.getFieldsAccessed().isEmpty()
-          && fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty();
-    }
-
-    private static class FieldAccessNode {
-      List<FieldOverride> fieldOverrides;
-      List<FieldAccessNode> nestedAccess;
-
-      FieldAccessNode(Schema schema) {
-        fieldOverrides = Lists.newArrayListWithExpectedSize(schema.getFieldCount());
-        nestedAccess = Lists.newArrayList();
-      }
-
-      FieldAccessNode(Schema schema, List<Object> overrides) {
-        fieldOverrides = Lists.newArrayListWithExpectedSize(schema.getFieldCount());
-        for (Object value : overrides) {
-          fieldOverrides.add(new FieldOverride(value));
-        }
-        nestedAccess = Lists.newArrayList();
-      }
-
-      boolean isEmpty() {
-        return fieldOverrides.isEmpty() && nestedAccess.isEmpty();
-      }
-
-      void addOverride(
-          FieldAccessDescriptor fieldAccessDescriptor,
-          FieldOverride fieldOverride,
-          Schema currentSchema) {
-        if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
-          FieldDescriptor fieldDescriptor =
-              Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-          int aheadPosition = fieldDescriptor.getFieldId() - fieldOverrides.size() + 1;
-          if (aheadPosition > 0) {
-            fieldOverrides.addAll(Collections.nCopies(aheadPosition, null));
-          }
-          fieldOverrides.set(fieldDescriptor.getFieldId(), fieldOverride);
-        } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
-          Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
-              Iterables.getOnlyElement(fieldAccessDescriptor.getNestedFieldsAccessed().entrySet());
-          int aheadPosition = entry.getKey().getFieldId() - nestedAccess.size() + 1;
-          if (aheadPosition > 0) {
-            nestedAccess.addAll(Collections.nCopies(aheadPosition, null));
-          }
-
-          Schema nestedSchema =
-              currentSchema.getField(entry.getKey().getFieldId()).getType().getRowSchema();
-          FieldAccessNode node = nestedAccess.get(entry.getKey().getFieldId());
-          if (node == null) {
-            node = new FieldAccessNode(nestedSchema);
-            nestedAccess.set(entry.getKey().getFieldId(), node);
-          }
-          node.addOverride(entry.getValue(), fieldOverride, nestedSchema);
-        }
-      }
-
-      void setOverrides(List<FieldOverride> overrides) {
-        this.fieldOverrides = overrides;
-      }
-
-      @Nullable FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
-        FieldOverride override = null;
-        if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
-          FieldDescriptor fieldDescriptor =
-              Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-          if (fieldDescriptor.getFieldId() < fieldOverrides.size()) {
-            override = fieldOverrides.get(fieldDescriptor.getFieldId());
-          }
-        } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
-          Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
-              Iterables.getOnlyElement(fieldAccessDescriptor.getNestedFieldsAccessed().entrySet());
-          if (entry.getKey().getFieldId() < nestedAccess.size()) {
-            FieldAccessNode node = nestedAccess.get(entry.getKey().getFieldId());
-            if (node != null) {
-              override = node.getOverride(entry.getValue());
-            }
-          }
-        }
-        return override;
-      }
-
-      boolean hasOverrideBelow(FieldAccessDescriptor fieldAccessDescriptor) {
-        if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
-          FieldDescriptor fieldDescriptor =
-              Iterables.getOnlyElement(fieldAccessDescriptor.getFieldsAccessed());
-          return ((fieldDescriptor.getFieldId() < nestedAccess.size())
-              && nestedAccess.get(fieldDescriptor.getFieldId()) != null);
-        } else if (!fieldAccessDescriptor.getNestedFieldsAccessed().isEmpty()) {
-          Map.Entry<FieldDescriptor, FieldAccessDescriptor> entry =
-              Iterables.getOnlyElement(fieldAccessDescriptor.getNestedFieldsAccessed().entrySet());
-          if (entry.getKey().getFieldId() < nestedAccess.size()) {
-            FieldAccessNode node = nestedAccess.get(entry.getKey().getFieldId());
-            if (node != null) {
-              return node.hasOverrideBelow(entry.getValue());
-            }
-          }
-        } else {
+      if (FieldAccessDescriptorParser.isSimpleIdentifier(fieldPath)) {
+        if (rootSchema.hasField(fieldPath)) {
+          setDirect(rootSchema.indexOf(fieldPath), value);
           return true;
         }
         return false;
       }
-    }
-  }
-
-  // This implementation of RowCases captures a Row into a new Row. It also has the effect of
-  // validating all the
-  // field parameters.
-  // A Map of field values can also be passed in, and those field values will be used to override
-  // the values in the
-  // passed-in row.
-  static class CapturingRowCases implements RowCases {
-    private final Schema topSchema;
-    private final FieldOverrides fieldOverrides;
-
-    CapturingRowCases(Schema topSchema, FieldOverrides fieldOverrides) {
-      this.topSchema = topSchema;
-      this.fieldOverrides = fieldOverrides;
+      return tryAddDottedPathOverride(fieldPath, value);
     }
 
-    private @Nullable FieldOverride override(RowPosition rowPosition) {
-      if (!rowPosition.qualifiers.isEmpty()) {
-        // Currently we only support overriding named schema fields. Individual array/map elements
-        // or nested collections
-        // cannot be overriden without overriding the entire schema fields.
-        return null;
-      } else {
-        return fieldOverrides.getOverride(rowPosition.descriptor);
+    private boolean tryAddDottedPathOverride(String fieldPath, @Nullable Object value) {
+      int len = fieldPath.length();
+      int firstDot = fieldPath.indexOf('.');
+      if (firstDot <= 0 || firstDot == len - 1) {
+        return false;
       }
-    }
-
-    private <T> T overrideOrReturn(RowPosition rowPosition, T value) {
-      FieldOverride fieldOverride = override(rowPosition);
-      // null return means the item isn't in the map.
-      return (fieldOverride != null) ? (T) fieldOverride.getOverrideValue() : value;
-    }
-
-    @Override
-    public Row processRow(
-        RowPosition rowPosition, Schema schema, Row value, RowFieldMatcher matcher) {
-      FieldOverride override = override(rowPosition);
-      Row retValue = value;
-      if (override != null) {
-        retValue = (Row) override.getOverrideValue();
-      } else if (fieldOverrides.hasOverrideBelow(rowPosition.descriptor)) {
-        List<Object> values = Lists.newArrayListWithCapacity(schema.getFieldCount());
-        for (int i = 0; i < schema.getFieldCount(); ++i) {
-          FieldAccessDescriptor nestedDescriptor =
-              FieldAccessDescriptor.withFieldIds(rowPosition.descriptor, i).resolve(topSchema);
-          Object fieldValue = (value != null) ? value.getValue(i) : null;
-          values.add(
-              matcher.match(
-                  this,
-                  schema.getField(i).getType(),
-                  new RowPosition(nestedDescriptor),
-                  fieldValue));
+      if (!FieldAccessDescriptorParser.isSimpleIdentifier(fieldPath, 0, firstDot)) {
+        return false;
+      }
+      String firstSeg = fieldPath.substring(0, firstDot);
+      if (!rootSchema.hasField(firstSeg)) {
+        return false;
+      }
+      int firstId = rootSchema.indexOf(firstSeg);
+      @Nullable Schema secondSchema = rootSchema.getField(firstId).getType().getRowSchema();
+      if (secondSchema == null) {
+        return false;
+      }
+      int secondDot = fieldPath.indexOf('.', firstDot + 1);
+      if (secondDot < 0) {
+        // Common 2-segment dotted path ("nested.field"): zero auxiliary array allocation.
+        if (!FieldAccessDescriptorParser.isSimpleIdentifier(fieldPath, firstDot + 1, len)) {
+          return false;
         }
-        retValue = new RowWithStorage(schema, values);
-      }
-      return retValue;
-    }
-
-    @Override
-    public Collection<Object> processArray(
-        RowPosition rowPosition,
-        FieldType collectionElementType,
-        Collection<Object> values,
-        RowFieldMatcher matcher) {
-      Collection<Object> retValue = null;
-      FieldOverride override = override(rowPosition);
-      if (override != null) {
-        retValue =
-            captureIterable(
-                rowPosition,
-                collectionElementType,
-                (Collection<Object>) override.getOverrideValue(),
-                matcher);
-      } else if (values != null) {
-        retValue = captureIterable(rowPosition, collectionElementType, values, matcher);
-      }
-      return retValue;
-    }
-
-    @Override
-    public Iterable<Object> processIterable(
-        RowPosition rowPosition,
-        FieldType collectionElementType,
-        Iterable<Object> values,
-        RowFieldMatcher matcher) {
-      Iterable<Object> retValue = null;
-      FieldOverride override = override(rowPosition);
-      if (override != null) {
-        retValue =
-            captureIterable(
-                rowPosition,
-                collectionElementType,
-                (Iterable<Object>) override.getOverrideValue(),
-                matcher);
-      } else if (values != null) {
-        retValue = captureIterable(rowPosition, collectionElementType, values, matcher);
-      }
-      return retValue;
-    }
-
-    private Collection<Object> captureIterable(
-        RowPosition rowPosition,
-        FieldType collectionElementType,
-        Iterable<Object> values,
-        RowFieldMatcher matcher) {
-      if (values == null) {
-        return null;
-      }
-
-      List<Object> captured = Lists.newArrayListWithCapacity(Iterables.size(values));
-      RowPosition elementPosition = rowPosition.withArrayQualifier();
-      for (Object listValue : values) {
-        if (listValue == null) {
-          if (!collectionElementType.getNullable()) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "%s is not nullable in Array field %s",
-                    collectionElementType, rowPosition.descriptor));
-          }
-          captured.add(null);
-        } else {
-          Object capturedElement =
-              matcher.match(this, collectionElementType, elementPosition, listValue);
-          captured.add(capturedElement);
+        String leafSeg = fieldPath.substring(firstDot + 1, len);
+        if (!secondSchema.hasField(leafSeg)) {
+          return false;
         }
+        int leafId = secondSchema.indexOf(leafSeg);
+        getOrCreateNested(firstId, secondSchema.getFieldCount()).setDirect(leafId, value);
+        return true;
       }
-      return captured;
+      return tryAddDeepDottedPathOverride(fieldPath, value, firstId, secondSchema, firstDot + 1);
     }
 
-    @Override
-    public Map<Object, Object> processMap(
-        RowPosition rowPosition,
-        FieldType keyType,
-        FieldType valueType,
-        Map<Object, Object> valueMap,
-        RowFieldMatcher matcher) {
-      Map<Object, Object> retValue = null;
-      FieldOverride override = override(rowPosition);
-      if (override != null) {
-        valueMap = (Map<Object, Object>) override.getOverrideValue();
-      }
-
-      if (valueMap != null) {
-        RowPosition elementPosition = rowPosition.withMapQualifier();
-
-        retValue = Maps.newHashMapWithExpectedSize(valueMap.size());
-        for (Entry<Object, Object> kv : valueMap.entrySet()) {
-          if (kv.getValue() == null) {
-            if (!valueType.getNullable()) {
-              throw new IllegalArgumentException(
-                  String.format(
-                      "%s is not nullable in Map field %s", valueType, rowPosition.descriptor));
-            }
-            retValue.put(matcher.match(this, keyType, elementPosition, kv.getKey()), null);
-          } else {
-            retValue.put(
-                matcher.match(this, keyType, elementPosition, kv.getKey()),
-                matcher.match(this, valueType, elementPosition, kv.getValue()));
-          }
+    private boolean tryAddDeepDottedPathOverride(
+        String fieldPath, @Nullable Object value, int firstId, Schema secondSchema, int start) {
+      int len = fieldPath.length();
+      int[] fieldIds = new int[4];
+      fieldIds[0] = firstId;
+      int depth = 1;
+      Schema currentSchema = secondSchema;
+      while (true) {
+        int nextDot = fieldPath.indexOf('.', start);
+        int end = (nextDot < 0) ? len : nextDot;
+        if (!FieldAccessDescriptorParser.isSimpleIdentifier(fieldPath, start, end)) {
+          return false;
         }
-      }
-      return retValue;
-    }
-
-    @Override
-    public Object processLogicalType(
-        RowPosition rowPosition, LogicalType logicalType, Object value, RowFieldMatcher matcher) {
-      Object retValue = null;
-      FieldOverride override = override(rowPosition);
-      if (override != null) {
-        if (override.getOverrideValue() == null) {
-          // This value is supposed to be overridden with null
-          return null;
+        String seg = fieldPath.substring(start, end);
+        if (!currentSchema.hasField(seg)) {
+          return false;
         }
-        retValue = logicalType.toInputType(logicalType.toBaseType(override.getOverrideValue()));
-      } else if (value != null) {
-        retValue = logicalType.toInputType(logicalType.toBaseType(value));
+        int id = currentSchema.indexOf(seg);
+        if (depth == fieldIds.length) {
+          fieldIds = Arrays.copyOf(fieldIds, fieldIds.length * 2);
+        }
+        fieldIds[depth++] = id;
+        if (nextDot < 0) {
+          break;
+        }
+        @Nullable Schema nextSchema = currentSchema.getField(id).getType().getRowSchema();
+        if (nextSchema == null) {
+          return false;
+        }
+        currentSchema = nextSchema;
+        start = nextDot + 1;
       }
-      return retValue;
+      // Commit using cached fieldIds with no second substring() / indexOf() pass.
+      FieldAccessNode node = this;
+      currentSchema = rootSchema;
+      for (int i = 0; i < depth - 1; i++) {
+        int id = fieldIds[i];
+        Schema nextSchema = checkNotNull(currentSchema.getField(id).getType().getRowSchema());
+        node = node.getOrCreateNested(id, nextSchema.getFieldCount());
+        currentSchema = nextSchema;
+      }
+      node.setDirect(fieldIds[depth - 1], value);
+      return true;
     }
 
-    @Override
-    public Instant processDateTime(
-        RowPosition rowPosition, AbstractInstant value, RowFieldMatcher matcher) {
-      AbstractInstant instantValue = overrideOrReturn(rowPosition, value);
-      return (instantValue != null) ? instantValue.toInstant() : null;
+    void addOverride(FieldAccessDescriptor fieldAccessDescriptor, @Nullable Object value) {
+      validateOverridePath(fieldAccessDescriptor, rootSchema);
+      addOverride(fieldAccessDescriptor, value, rootSchema);
     }
 
-    @Override
-    public Byte processByte(RowPosition rowPosition, Byte value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
+    private static void validateOverridePath(
+        FieldAccessDescriptor descriptor, Schema currentSchema) {
+      while (descriptor.getFieldsAccessed().isEmpty()
+          && !descriptor.getNestedFieldsAccessed().isEmpty()) {
+        Entry<FieldDescriptor, FieldAccessDescriptor> entry =
+            Iterables.getOnlyElement(descriptor.getNestedFieldsAccessed().entrySet());
+        int fieldId = checkNotNull(entry.getKey().getFieldId());
+        Schema.Field field = currentSchema.getField(fieldId);
+        @Nullable Schema nestedSchema = field.getType().getRowSchema();
+        if (nestedSchema == null) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Cannot apply nested field override to non-ROW field %s", field.getName()));
+        }
+        currentSchema = nestedSchema;
+        descriptor = entry.getValue();
+      }
     }
 
-    @Override
-    public Short processInt16(RowPosition rowPosition, Short value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public Integer processInt32(RowPosition rowPosition, Integer value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public Long processInt64(RowPosition rowPosition, Long value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public BigDecimal processDecimal(
-        RowPosition rowPosition, BigDecimal value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public Float processFloat(RowPosition rowPosition, Float value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public Double processDouble(RowPosition rowPosition, Double value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public String processString(RowPosition rowPosition, String value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public Boolean processBoolean(RowPosition rowPosition, Boolean value, RowFieldMatcher matcher) {
-      return overrideOrReturn(rowPosition, value);
-    }
-
-    @Override
-    public byte[] processBytes(RowPosition rowPosition, byte[] value, RowFieldMatcher matcher) {
-      Object retValue = overrideOrReturn(rowPosition, value);
-      return (retValue instanceof ByteBuffer) ? ((ByteBuffer) retValue).array() : (byte[]) retValue;
+    Row apply(@Nullable Row sourceRow) {
+      return apply(rootSchema, sourceRow);
     }
   }
 }

@@ -49,6 +49,15 @@ public interface WindowedValue<T> {
 
   @Nullable String getRecordId();
 
+  /**
+   * Returns the OpenTelemetry {@link Context} associated with this element, or {@code null} if no
+   * active non-root context is attached.
+   *
+   * <p>A {@code null} return value is semantically equivalent to {@link Context#root()} (no active
+   * trace context): factories and coders may normalize {@link Context#root()} to {@code null} to
+   * avoid carrying and attaching empty contexts on untraced pipelines, and runners may isolate
+   * thread-local state to {@link Context#root()} when dispatching a {@code null}-context element.
+   */
   @Nullable Context getOpenTelemetryContext();
 
   @Nullable Long getRecordOffset();

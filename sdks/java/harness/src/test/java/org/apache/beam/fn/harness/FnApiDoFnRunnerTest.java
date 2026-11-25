@@ -88,6 +88,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -132,6 +133,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -1336,6 +1339,553 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertThat(
           additionalOutputValues,
           contains(isValueInGlobalWindow(row("taggedRow:A"), new Instant(1400L))));
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
+    }
+
+    private static class TestProcessElementFastPathDoFn extends DoFn<String, Row> {
+      private final TupleTag<Row> mainOutput;
+      private final TupleTag<String> sideConvertedTag;
+      private final TupleTag<String> sideStringTag;
+
+      private TestProcessElementFastPathDoFn(
+          TupleTag<Row> mainOutput,
+          TupleTag<String> sideConvertedTag,
+          TupleTag<String> sideStringTag) {
+        this.mainOutput = mainOutput;
+        this.sideConvertedTag = sideConvertedTag;
+        this.sideStringTag = sideStringTag;
+      }
+
+      @ProcessElement
+      public void processElement(
+          @Element String elem, @Timestamp Instant ts, MultiOutputReceiver receiver) {
+        Instant shifted = ts.plus(Duration.millis(50));
+        IntervalWindow w = new IntervalWindow(ts, ts.plus(Duration.millis(100)));
+
+        // Exercises ProcessBundleContextBase.mainRowOutputReceiver.
+        OutputReceiver<Row> mainRow = receiver.getRowReceiver(mainOutput);
+        mainRow.output(row("m:" + elem));
+        mainRow.outputWithTimestamp(row("mts:" + elem), shifted);
+        mainRow.outputWindowedValue(
+            row("mw:" + elem),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        mainRow.outputWindowedValue(
+            row("mk:" + elem),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.DELETE);
+        mainRow.builder(row("mb:" + elem)).setRecordId("override-" + elem).output();
+
+        // Exercises tagged RowOutputReceiver with non-identity SchemaCoder (Row -> String).
+        OutputReceiver<Row> sideRow = receiver.getRowReceiver(sideConvertedTag);
+        sideRow.output(row("sr:" + elem));
+        sideRow.outputWithTimestamp(row("srts:" + elem), shifted);
+        sideRow.outputWindowedValue(
+            row("srw:" + elem),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        sideRow.outputWindowedValue(
+            row("srk:" + elem),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.UPDATE_AFTER);
+        sideRow.builder(row("srb:" + elem)).setRecordId("sr-override-" + elem).output();
+
+        // Exercises ProcessBundleContextBase.taggedOutputReceiver.get(sideStringTag).
+        OutputReceiver<String> sideStr = receiver.get(sideStringTag);
+        sideStr.output("s:" + elem);
+        sideStr.outputWithTimestamp("sts:" + elem, shifted);
+        sideStr.outputWindowedValue(
+            "sw:" + elem, shifted, Collections.singletonList(w), PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        sideStr.outputWindowedValue(
+            "sk:" + elem,
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.DELETE);
+        sideStr.builder("sb:" + elem).setRecordOffset(999L).output();
+      }
+    }
+
+    @Test
+    public void testProcessElementRowAndTaggedOutputReceiversMetadataPropagation()
+        throws Exception {
+      Pipeline p = Pipeline.create();
+      PCollection<String> input = p.apply(Create.of("unused"));
+      TupleTag<Row> mainOutput = new TupleTag<Row>("main") {};
+      TupleTag<String> sideConvertedTag = new TupleTag<String>("sideRow") {};
+      TupleTag<String> sideStringTag = new TupleTag<String>("sideStr") {};
+      PCollectionTuple outputs =
+          input.apply(
+              TEST_TRANSFORM_ID,
+              ParDo.of(
+                      new TestProcessElementFastPathDoFn(
+                          mainOutput, sideConvertedTag, sideStringTag))
+                  .withOutputTags(
+                      mainOutput, TupleTagList.of(sideConvertedTag).and(sideStringTag)));
+      outputs.get(mainOutput).setRowSchema(ROW_SCHEMA);
+      outputs
+          .get(sideConvertedTag)
+          .setCoder(
+              SchemaCoder.of(
+                  ROW_SCHEMA,
+                  TypeDescriptor.of(String.class),
+                  s -> row(s),
+                  r -> "conv:" + r.getString(0)));
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String inputId = sdkComponents.registerPCollection(input);
+      String mainOutId = sdkComponents.registerPCollection(outputs.get(mainOutput));
+      String sideRowId = sdkComponents.registerPCollection(outputs.get(sideConvertedTag));
+      String sideStrId = sdkComponents.registerPCollection(outputs.get(sideStringTag));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+
+      List<WindowedValue<Row>> mainValues = new ArrayList<>();
+      List<WindowedValue<String>> sideRowValues = new ArrayList<>();
+      List<WindowedValue<String>> sideStrValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .processBundleInstructionId("57L")
+              .components(pProto.getComponents())
+              .build();
+      context.addPCollectionConsumer(
+          mainOutId, (FnDataReceiver) (FnDataReceiver<WindowedValue<Row>>) mainValues::add);
+      context.addPCollectionConsumer(
+          sideRowId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) sideRowValues::add);
+      context.addPCollectionConsumer(
+          sideStrId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) sideStrValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      FnDataReceiver<WindowedValue<String>> inputConsumer =
+          (FnDataReceiver) context.getPCollectionConsumer(inputId);
+      Instant ts = new Instant(1000L);
+      IntervalWindow w1 = new IntervalWindow(ts, ts.plus(Duration.millis(500)));
+      // Process two elements to exercise both cache miss and cache hit on taggedOutputReceiver.
+      inputConsumer.accept(
+          WindowedValues.of(
+              "A",
+              ts,
+              w1,
+              PaneInfo.NO_FIRING,
+              "rid-A",
+              11L,
+              CausedByDrain.CAUSED_BY_DRAIN,
+              null,
+              ValueKind.UPDATE_BEFORE));
+      inputConsumer.accept(
+          WindowedValues.of(
+              "B",
+              ts.plus(Duration.millis(200)),
+              GlobalWindow.INSTANCE,
+              PaneInfo.NO_FIRING,
+              "rid-B",
+              22L,
+              CausedByDrain.NORMAL,
+              null,
+              ValueKind.INSERT));
+
+      assertEquals(10, mainValues.size());
+      assertEquals(row("m:A"), mainValues.get(0).getValue());
+      assertEquals("rid-A", mainValues.get(0).getRecordId());
+      assertEquals(Long.valueOf(11L), mainValues.get(0).getRecordOffset());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, mainValues.get(0).causedByDrain());
+      assertEquals(ValueKind.UPDATE_BEFORE, mainValues.get(0).getValueKind());
+      assertEquals(new Instant(1050L), mainValues.get(1).getTimestamp());
+      assertEquals(ValueKind.DELETE, mainValues.get(3).getValueKind());
+      assertEquals("override-A", mainValues.get(4).getRecordId());
+      assertEquals(row("m:B"), mainValues.get(5).getValue());
+      assertEquals("rid-B", mainValues.get(5).getRecordId());
+
+      assertEquals(10, sideRowValues.size());
+      assertEquals("conv:sr:A", sideRowValues.get(0).getValue());
+      assertEquals("rid-A", sideRowValues.get(0).getRecordId());
+      assertEquals(Long.valueOf(11L), sideRowValues.get(0).getRecordOffset());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, sideRowValues.get(0).causedByDrain());
+      assertEquals("conv:srts:A", sideRowValues.get(1).getValue());
+      assertEquals(new Instant(1050L), sideRowValues.get(1).getTimestamp());
+      assertEquals("conv:srw:A", sideRowValues.get(2).getValue());
+      assertEquals(PaneInfo.ON_TIME_AND_ONLY_FIRING, sideRowValues.get(2).getPaneInfo());
+      assertEquals("conv:srk:A", sideRowValues.get(3).getValue());
+      assertEquals(ValueKind.UPDATE_AFTER, sideRowValues.get(3).getValueKind());
+      assertEquals("conv:srb:A", sideRowValues.get(4).getValue());
+      assertEquals("sr-override-A", sideRowValues.get(4).getRecordId());
+      assertEquals("conv:sr:B", sideRowValues.get(5).getValue());
+
+      assertEquals(10, sideStrValues.size());
+      assertEquals("s:A", sideStrValues.get(0).getValue());
+      assertEquals("rid-A", sideStrValues.get(0).getRecordId());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, sideStrValues.get(0).causedByDrain());
+      assertEquals(ValueKind.UPDATE_BEFORE, sideStrValues.get(0).getValueKind());
+      assertEquals(new Instant(1050L), sideStrValues.get(1).getTimestamp());
+      assertEquals(ValueKind.DELETE, sideStrValues.get(3).getValueKind());
+      assertEquals("sb:A", sideStrValues.get(4).getValue());
+      assertEquals(Long.valueOf(999L), sideStrValues.get(4).getRecordOffset());
+      assertEquals("s:B", sideStrValues.get(5).getValue());
+      assertEquals("rid-B", sideStrValues.get(5).getRecordId());
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
+    }
+
+    private static class TestTimerFastPathsDoFn extends DoFn<KV<String, String>, String> {
+      @TimerId("event")
+      private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      private final TupleTag<String> mainOutput;
+      private final TupleTag<String> sideOutput;
+      private final TupleTag<String> unknownOutput;
+
+      private TestTimerFastPathsDoFn(
+          TupleTag<String> mainOutput,
+          TupleTag<String> sideOutput,
+          TupleTag<String> unknownOutput) {
+        this.mainOutput = mainOutput;
+        this.sideOutput = sideOutput;
+        this.unknownOutput = unknownOutput;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c, @TimerId("event") Timer timer) {
+        timer.set(c.timestamp());
+      }
+
+      @OnTimer("event")
+      public void onTimer(
+          @Key String key,
+          @Timestamp Instant holdTs,
+          OutputReceiver<String> mainReceiver,
+          MultiOutputReceiver multi) {
+        if ("bad-ts".equals(key)) {
+          mainReceiver.outputWithTimestamp("fail", holdTs.minus(Duration.millis(1)));
+          return;
+        }
+        if ("bad-tag".equals(key)) {
+          multi.get(unknownOutput).output("fail");
+          return;
+        }
+        Instant shifted = holdTs.plus(Duration.millis(10));
+        IntervalWindow w = new IntervalWindow(holdTs, holdTs.plus(Duration.millis(100)));
+        mainReceiver.output("tm:" + key);
+        mainReceiver.outputWithTimestamp("tmts:" + key, shifted);
+        mainReceiver.outputWindowedValue(
+            "tmw:" + key, shifted, Collections.singletonList(w), PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        mainReceiver.outputWindowedValue(
+            "tmk:" + key,
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.DELETE);
+
+        OutputReceiver<Row> mainRow = multi.getRowReceiver(mainOutput);
+        mainRow.output(row("tmr:" + key));
+        mainRow.outputWithTimestamp(row("tmrts:" + key), shifted);
+        mainRow.outputWindowedValue(
+            row("tmrw:" + key),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        mainRow.outputWindowedValue(
+            row("tmrk:" + key),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.UPDATE_BEFORE);
+
+        OutputReceiver<String> side = multi.get(sideOutput);
+        side.output("ts:" + key);
+        side.outputWithTimestamp("tsts:" + key, shifted);
+        side.outputWindowedValue(
+            "tsw:" + key, shifted, Collections.singletonList(w), PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        side.outputWindowedValue(
+            "tsk:" + key,
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.UPDATE_AFTER);
+
+        OutputReceiver<Row> sideRow = multi.getRowReceiver(sideOutput);
+        sideRow.output(row("tsr:" + key));
+        sideRow.outputWithTimestamp(row("tsrts:" + key), shifted);
+        sideRow.outputWindowedValue(
+            row("tsrw:" + key),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        sideRow.outputWindowedValue(
+            row("tsrk:" + key),
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.DELETE);
+      }
+
+      @OnWindowExpiration
+      public void onWindowExpiration(
+          @Key String key, @Timestamp Instant holdTs, OutputReceiver<String> mainReceiver) {
+        if ("bad-exp-ts".equals(key)) {
+          mainReceiver.outputWithTimestamp("fail", holdTs.minus(Duration.millis(1)));
+          return;
+        }
+        Instant shifted = holdTs.plus(Duration.millis(20));
+        IntervalWindow w = new IntervalWindow(holdTs, holdTs.plus(Duration.millis(100)));
+        mainReceiver.output("exp:" + key);
+        mainReceiver.outputWithTimestamp("expts:" + key, shifted);
+        mainReceiver.outputWindowedValue(
+            "expw:" + key, shifted, Collections.singletonList(w), PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        mainReceiver.outputWindowedValue(
+            "expk:" + key,
+            shifted,
+            Collections.singletonList(w),
+            PaneInfo.NO_FIRING,
+            ValueKind.DELETE);
+      }
+    }
+
+    @Test
+    public void testTimerAndWindowExpirationOutputFastPaths() throws Exception {
+      TupleTag<String> mainTag = new TupleTag<String>("main") {};
+      TupleTag<String> sideTag = new TupleTag<String>("side") {};
+      TupleTag<String> unknownTag = new TupleTag<String>("unknown") {};
+      SchemaCoder<String> stringSchemaCoder =
+          SchemaCoder.of(
+              ROW_SCHEMA,
+              TypeDescriptor.of(String.class),
+              s -> row(s),
+              r -> "fromRow:" + r.getString(0));
+
+      Pipeline p = Pipeline.create();
+      PCollection<KV<String, String>> input = p.apply(Create.of(KV.of("unused", "unused")));
+      PCollectionTuple outputs =
+          input.apply(
+              TEST_TRANSFORM_ID,
+              ParDo.of(new TestTimerFastPathsDoFn(mainTag, sideTag, unknownTag))
+                  .withOutputTags(mainTag, TupleTagList.of(sideTag)));
+      outputs.get(mainTag).setCoder(stringSchemaCoder);
+      outputs.get(sideTag).setCoder(stringSchemaCoder);
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String mainOutId = sdkComponents.registerPCollection(outputs.get(mainTag));
+      String sideOutId = sdkComponents.registerPCollection(outputs.get(sideTag));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+
+      List<WindowedValue<String>> mainValues = new ArrayList<>();
+      List<WindowedValue<String>> sideValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .beamFnStateClient(new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of()))
+              .processBundleInstructionId("57L")
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
+              .outboundAggregators(
+                  ImmutableMap.of(
+                      ApiServiceDescriptor.getDefaultInstance(),
+                      new TestBeamFnDataOutboundAggregator(() -> "57L")))
+              .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
+              .build();
+      context.addPCollectionConsumer(
+          mainOutId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainValues::add);
+      context.addPCollectionConsumer(
+          sideOutId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) sideValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      Instant holdTs = new Instant(1400L);
+      Instant fireTs = new Instant(2400L);
+      FnDataReceiver<Object> eventTimer =
+          context.getIncomingTimerEndpoint("ts-event").getReceiver();
+      eventTimer.accept(
+          org.apache.beam.sdk.util.construction.Timer.of(
+              "A",
+              "",
+              Collections.singletonList(GlobalWindow.INSTANCE),
+              fireTs,
+              holdTs,
+              PaneInfo.createPane(false, false, PaneInfo.Timing.EARLY, 1, 0),
+              CausedByDrain.CAUSED_BY_DRAIN));
+      // Second timer triggers cached lookup in OnTimerContext.taggedOutputReceiver.
+      eventTimer.accept(
+          org.apache.beam.sdk.util.construction.Timer.of(
+              "B",
+              "",
+              Collections.singletonList(GlobalWindow.INSTANCE),
+              fireTs,
+              holdTs,
+              PaneInfo.NO_FIRING,
+              CausedByDrain.NORMAL));
+
+      assertEquals(16, mainValues.size());
+      assertEquals("tm:A", mainValues.get(0).getValue());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, mainValues.get(0).causedByDrain());
+      assertEquals(new Instant(1410L), mainValues.get(1).getTimestamp());
+      assertEquals(PaneInfo.ON_TIME_AND_ONLY_FIRING, mainValues.get(2).getPaneInfo());
+      assertEquals(ValueKind.DELETE, mainValues.get(3).getValueKind());
+      assertEquals("fromRow:tmr:A", mainValues.get(4).getValue());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, mainValues.get(4).causedByDrain());
+      assertEquals(ValueKind.UPDATE_BEFORE, mainValues.get(7).getValueKind());
+      assertEquals("tm:B", mainValues.get(8).getValue());
+      assertEquals(CausedByDrain.NORMAL, mainValues.get(8).causedByDrain());
+
+      assertEquals(16, sideValues.size());
+      assertEquals("ts:A", sideValues.get(0).getValue());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, sideValues.get(0).causedByDrain());
+      assertEquals(ValueKind.UPDATE_AFTER, sideValues.get(3).getValueKind());
+      assertEquals("fromRow:tsr:A", sideValues.get(4).getValue());
+      assertEquals(ValueKind.DELETE, sideValues.get(7).getValueKind());
+      assertEquals("ts:B", sideValues.get(8).getValue());
+      assertEquals(CausedByDrain.NORMAL, sideValues.get(8).causedByDrain());
+
+      // Timestamp skew violation reports "timestamp of the timer".
+      Exception timerTsEx =
+          Assert.assertThrows(
+              Exception.class,
+              () -> eventTimer.accept(timerInGlobalWindow("bad-ts", holdTs, fireTs)));
+      assertThat(timerTsEx.getCause(), instanceOf(IllegalArgumentException.class));
+      assertThat(timerTsEx.getCause().getMessage(), containsString("timestamp of the timer"));
+
+      // Unknown output tag inside @OnTimer.
+      Exception unknownTagEx =
+          Assert.assertThrows(
+              Exception.class,
+              () -> eventTimer.accept(timerInGlobalWindow("bad-tag", holdTs, fireTs)));
+      assertThat(unknownTagEx.getCause(), instanceOf(IllegalArgumentException.class));
+
+      // @OnWindowExpiration fast paths + drain + timestamp skew validation.
+      mainValues.clear();
+      String onWindowExpirationId =
+          RunnerApi.ParDoPayload.parseFrom(pTransform.getSpec().getPayload())
+              .getOnWindowExpirationTimerFamilySpec();
+      FnDataReceiver<Object> expTimer =
+          context.getIncomingTimerEndpoint(onWindowExpirationId).getReceiver();
+      expTimer.accept(
+          org.apache.beam.sdk.util.construction.Timer.of(
+              "E",
+              "",
+              Collections.singletonList(GlobalWindow.INSTANCE),
+              fireTs,
+              holdTs,
+              PaneInfo.NO_FIRING,
+              CausedByDrain.CAUSED_BY_DRAIN));
+      assertEquals(4, mainValues.size());
+      assertEquals("exp:E", mainValues.get(0).getValue());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, mainValues.get(0).causedByDrain());
+      assertEquals(new Instant(1420L), mainValues.get(1).getTimestamp());
+      assertEquals(PaneInfo.ON_TIME_AND_ONLY_FIRING, mainValues.get(2).getPaneInfo());
+      assertEquals(ValueKind.DELETE, mainValues.get(3).getValueKind());
+
+      Exception expTsEx =
+          Assert.assertThrows(
+              Exception.class,
+              () -> expTimer.accept(timerInGlobalWindow("bad-exp-ts", holdTs, fireTs)));
+      assertThat(expTsEx.getCause(), instanceOf(IllegalArgumentException.class));
+      assertThat(expTsEx.getCause().getMessage(), containsString("timestamp of the timer"));
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
+    }
+
+    @Test
+    public void testNonWindowObservingOutputFastPathsAndUnknownTag() throws Exception {
+      TupleTag<String> unknownTag = new TupleTag<String>("unknown") {};
+      TupleTag<String> mainTag = new TupleTag<String>("main") {};
+      DoFn<String, String> doFn =
+          new DoFn<String, String>() {
+            @Override
+            public Duration getAllowedTimestampSkew() {
+              return Duration.millis(Long.MAX_VALUE);
+            }
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext c, OutputReceiver<String> out, MultiOutputReceiver multi) {
+              if ("unknown".equals(c.element())) {
+                multi.get(unknownTag).output("boom");
+                return;
+              }
+              out.outputWithTimestamp("skewed:" + c.element(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+              out.outputWindowedValue(
+                  "kind:" + c.element(),
+                  c.timestamp(),
+                  Collections.singletonList(GlobalWindow.INSTANCE),
+                  PaneInfo.NO_FIRING,
+                  ValueKind.DELETE);
+            }
+          };
+
+      Pipeline p = Pipeline.create();
+      PCollection<String> input = p.apply(Create.of("unused"));
+      PCollectionTuple outputs =
+          input.apply(
+              TEST_TRANSFORM_ID, ParDo.of(doFn).withOutputTags(mainTag, TupleTagList.empty()));
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String inputId = sdkComponents.registerPCollection(input);
+      String mainOutId = sdkComponents.registerPCollection(outputs.get(mainTag));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+
+      List<WindowedValue<String>> mainValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .processBundleInstructionId("57L")
+              .components(pProto.getComponents())
+              .build();
+      context.addPCollectionConsumer(
+          mainOutId, (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      FnDataReceiver<WindowedValue<String>> inputConsumer =
+          (FnDataReceiver) context.getPCollectionConsumer(inputId);
+      // Negative timestamp - Long.MAX_VALUE overflows long -> clamps lower bound to MIN_VALUE.
+      inputConsumer.accept(
+          WindowedValues.of(
+              "ok",
+              new Instant(-100L),
+              GlobalWindow.INSTANCE,
+              PaneInfo.NO_FIRING,
+              "rid-skew",
+              3L,
+              CausedByDrain.CAUSED_BY_DRAIN,
+              null,
+              ValueKind.UPDATE_BEFORE));
+
+      assertEquals(2, mainValues.size());
+      assertEquals("skewed:ok", mainValues.get(0).getValue());
+      assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, mainValues.get(0).getTimestamp());
+      assertEquals("rid-skew", mainValues.get(0).getRecordId());
+      assertEquals(ValueKind.UPDATE_BEFORE, mainValues.get(0).getValueKind());
+      assertEquals("kind:ok", mainValues.get(1).getValue());
+      assertEquals(ValueKind.DELETE, mainValues.get(1).getValueKind());
+
+      Exception thrown =
+          Assert.assertThrows(
+              Exception.class,
+              () -> inputConsumer.accept(WindowedValues.valueInGlobalWindow("unknown")));
+      assertThat(thrown.getCause(), instanceOf(IllegalArgumentException.class));
 
       Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();

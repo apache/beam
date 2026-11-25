@@ -296,9 +296,13 @@ public class DataflowExecutionContextTest {
     Map<String, IntSummaryStatistics> finalStats = tracker.getProcessingTimesByStepCopy();
     Assert.assertEquals(
         new HashSet<>(Arrays.asList("UserStep1", "UserStep2")), finalStats.keySet());
-    Assert.assertEquals(3L, finalStats.get("UserStep1").getCount());
-    Assert.assertEquals(0, finalStats.get("UserStep1").getMin());
-    assertTrue(finalStats.get("UserStep1").getMax() >= 1);
+    IntSummaryStatistics step1Stats = finalStats.get("UserStep1");
+    Assert.assertEquals(3L, step1Stats.getCount());
+    assertTrue(step1Stats.getMin() >= 0);
+    assertTrue(step1Stats.getMin() <= step1Stats.getMax());
+    assertTrue(step1Stats.getMax() >= 1);
+    assertTrue(step1Stats.getSum() >= step1Stats.getCount() * step1Stats.getMin());
+    assertTrue(step1Stats.getSum() <= step1Stats.getCount() * step1Stats.getMax());
     Assert.assertEquals(1L, finalStats.get("UserStep2").getCount());
     assertFalse(tracker.getActiveMessageMetadata().isPresent());
 
@@ -313,6 +317,84 @@ public class DataflowExecutionContextTest {
     Map<String, IntSummaryStatistics> postResetStats = tracker.getProcessingTimesByStepCopy();
     Assert.assertEquals(1, postResetStats.size());
     Assert.assertEquals(1L, postResetStats.get("UserStep1").getCount());
+  }
+
+  @Test
+  public void testStepProcessingStatsExactValuesAndConcurrentSnapshots() throws Exception {
+    DataflowExecutionContext.DataflowExecutionStateTracker.StepProcessingStats stats =
+        new DataflowExecutionContext.DataflowExecutionStateTracker.StepProcessingStats("StepX");
+    Assert.assertNull(stats.snapshot());
+
+    stats.recordZeroMillis();
+    IntSummaryStatistics snap = stats.snapshot();
+    Assert.assertNotNull(snap);
+    Assert.assertEquals(1L, snap.getCount());
+    Assert.assertEquals(0, snap.getMin());
+    Assert.assertEquals(0, snap.getMax());
+    Assert.assertEquals(0L, snap.getSum());
+
+    stats.record(5);
+    stats.record(10);
+    stats.recordZeroMillis();
+    snap = stats.snapshot();
+    Assert.assertNotNull(snap);
+    Assert.assertEquals(4L, snap.getCount());
+    Assert.assertEquals(0, snap.getMin());
+    Assert.assertEquals(10, snap.getMax());
+    Assert.assertEquals(15L, snap.getSum());
+
+    stats.reset();
+    Assert.assertNull(stats.snapshot());
+
+    // Stress concurrent non-zero record(), recordZeroMillis(), and reset() against snapshot().
+    AtomicBoolean done = new AtomicBoolean(false);
+    AtomicReference<Throwable> readerError = new AtomicReference<>();
+    Thread reader =
+        new Thread(
+            () -> {
+              try {
+                while (!done.get()) {
+                  IntSummaryStatistics s = stats.snapshot();
+                  if (s != null) {
+                    long count = s.getCount();
+                    int min = s.getMin();
+                    int max = s.getMax();
+                    long sum = s.getSum();
+                    if (count <= 0L
+                        || min < 0
+                        || min > max
+                        || sum < count * min
+                        || sum > count * max) {
+                      readerError.set(new IllegalStateException("Inconsistent snapshot: " + s));
+                      return;
+                    }
+                  }
+                }
+              } catch (Throwable t) {
+                readerError.set(t);
+              }
+            });
+    reader.start();
+
+    try {
+      for (int i = 0; i < 50_000; i++) {
+        stats.record(50);
+        stats.record(10);
+        stats.record(100);
+        stats.recordZeroMillis();
+        stats.recordZeroMillis();
+        stats.record(1);
+        if ((i & 31) == 0) {
+          stats.reset();
+        }
+      }
+    } finally {
+      done.set(true);
+      reader.join(10_000);
+    }
+
+    assertFalse("Reader thread did not terminate", reader.isAlive());
+    Assert.assertNull("Reader thread failed: " + readerError.get(), readerError.get());
   }
 
   @Test
@@ -332,6 +414,7 @@ public class DataflowExecutionContextTest {
     DataflowOperationContext op2 =
         execContext.createOperationContext(NameContext.create("S01", "s2", "s2", "StepB"));
     Set<String> validSteps = new HashSet<>(Arrays.asList("StepA", "StepB"));
+    long maxReasonableElapsedNanos = TimeUnit.MINUTES.toNanos(5);
 
     AtomicBoolean done = new AtomicBoolean(false);
     AtomicReference<Throwable> readerError = new AtomicReference<>();
@@ -349,8 +432,11 @@ public class DataflowExecutionContextTest {
                               "Unexpected active step: " + active.get().userStepName()));
                       return;
                     }
-                    if (active.get().stopwatch().elapsed(TimeUnit.NANOSECONDS) < 0L) {
-                      readerError.set(new IllegalStateException("Negative elapsed nanos"));
+                    long elapsedNanos = active.get().stopwatch().elapsed(TimeUnit.NANOSECONDS);
+                    if (elapsedNanos < 0L || elapsedNanos > maxReasonableElapsedNanos) {
+                      readerError.set(
+                          new IllegalStateException(
+                              "Corrupt active elapsed nanos: " + elapsedNanos));
                       return;
                     }
                   }
@@ -362,10 +448,15 @@ public class DataflowExecutionContextTest {
                       return;
                     }
                     IntSummaryStatistics s = entry.getValue();
-                    if (s.getCount() <= 0L
-                        || s.getMin() < 0
-                        || s.getMin() > s.getMax()
-                        || s.getSum() < 0L) {
+                    long count = s.getCount();
+                    int min = s.getMin();
+                    int max = s.getMax();
+                    long sum = s.getSum();
+                    if (count <= 0L
+                        || min < 0
+                        || min > max
+                        || sum < count * min
+                        || sum > count * max) {
                       readerError.set(new IllegalStateException("Inconsistent stats: " + s));
                       return;
                     }
@@ -377,12 +468,23 @@ public class DataflowExecutionContextTest {
             });
     reader.start();
 
-    int iterations = 100_000;
-    try (Closeable activation = tracker.activate()) {
-      for (int i = 0; i < iterations; i++) {
-        try (Closeable c1 = op1.enterProcess()) {
-          try (Closeable c2 = op2.enterProcess()) {
-            // Simulate minimal fused step work
+    int rounds = 5;
+    int iterationsPerRound = 20_000;
+    try {
+      for (int round = 0; round < rounds; round++) {
+        if (round > 0) {
+          tracker.reset();
+        }
+        try (Closeable activation = tracker.activate()) {
+          for (int i = 0; i < iterationsPerRound; i++) {
+            try (Closeable c1 = op1.enterProcess()) {
+              try (Closeable c2 = op2.enterProcess()) {
+                // Periodically cross 1 ms so non-zero record() updates run concurrently.
+                if (i == 0) {
+                  Thread.sleep(2);
+                }
+              }
+            }
           }
         }
       }
@@ -391,10 +493,227 @@ public class DataflowExecutionContextTest {
       reader.join(10_000);
     }
 
+    assertFalse("Reader thread did not terminate", reader.isAlive());
     Assert.assertNull("Reader thread failed: " + readerError.get(), readerError.get());
     Map<String, IntSummaryStatistics> finalStats = tracker.getProcessingTimesByStepCopy();
-    Assert.assertEquals(iterations, finalStats.get("StepA").getCount());
-    Assert.assertEquals(iterations, finalStats.get("StepB").getCount());
+    Assert.assertEquals(iterationsPerRound, finalStats.get("StepA").getCount());
+    Assert.assertEquals(iterationsPerRound, finalStats.get("StepB").getCount());
+    assertTrue(finalStats.get("StepB").getMax() >= 1);
     assertFalse(tracker.getActiveMessageMetadata().isPresent());
+  }
+
+  @Test(timeout = 5_000)
+  public void testGetActiveMessageMetadataBoundsRetriesAndResetHealsOddSeq() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.newForTest(), null, null, options, "work-odd");
+
+    // Simulate a preempted writer holding activeSeq odd; reader must bound retries and return empty
+    // instead of spinning indefinitely.
+    tracker.setActiveSeqForTesting(1L);
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+
+    // Backing off on an interrupted reader thread must not clear its interrupt status.
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(tracker.getActiveMessageMetadata().isPresent());
+      assertTrue(Thread.currentThread().isInterrupted());
+    } finally {
+      Thread.interrupted();
+    }
+
+    // reset() must heal odd parity and strictly advance activeSeq to an even value > 1.
+    tracker.reset();
+    long healedSeq = tracker.getActiveSeqForTesting();
+    assertTrue("Expected healed seq > 1, got " + healedSeq, healedSeq > 1L);
+    Assert.assertEquals(0L, healedSeq & 1L);
+
+    StreamingModeExecutionState state =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP);
+    try (Closeable c = tracker.enterState(state)) {
+      Optional<ActiveMessageMetadata> active = tracker.getActiveMessageMetadata();
+      assertTrue(active.isPresent());
+      Assert.assertEquals(
+          NameContextsForTests.nameContextForTest().userName(), active.get().userStepName());
+    }
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+  }
+
+  @Test
+  public void testCrossThreadResetKeepsSequenceMonotonicAndEven() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.newForTest(), null, null, options, "work-cross-reset");
+
+    DataflowExecutionContext.DataflowExecutionStateTracker.StepProcessingStats stats =
+        tracker.getOrCreateStepStats(NameContextsForTests.USER_NAME);
+    StreamingModeExecutionState state =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP);
+    try (Closeable c = tracker.enterState(state)) {
+      assertTrue(tracker.getActiveMessageMetadata().isPresent());
+    }
+    long activeSeqBefore = tracker.getActiveSeqForTesting();
+    long statsSeqBefore = stats.getSeqForTesting();
+    Assert.assertEquals(0L, activeSeqBefore & 1L);
+    Assert.assertEquals(0L, statsSeqBefore & 1L);
+
+    AtomicReference<Throwable> resetError = new AtomicReference<>();
+    Thread resetThread =
+        new Thread(
+            () -> {
+              try {
+                // Intentionally call reset() from a different thread without deactivate().
+                tracker.reset();
+              } catch (Throwable t) {
+                resetError.set(t);
+              }
+            });
+    resetThread.start();
+    resetThread.join(5_000);
+    assertFalse("Reset thread did not terminate", resetThread.isAlive());
+    Assert.assertNull(resetError.get());
+
+    long activeSeqAfter = tracker.getActiveSeqForTesting();
+    long statsSeqAfter = stats.getSeqForTesting();
+    assertTrue(activeSeqAfter > activeSeqBefore);
+    assertTrue(statsSeqAfter > statsSeqBefore);
+    Assert.assertEquals(0L, activeSeqAfter & 1L);
+    Assert.assertEquals(0L, statsSeqAfter & 1L);
+    assertTrue(tracker.getProcessingTimesByStepCopy().isEmpty());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+  }
+
+  @Test
+  public void testRecordElapsedNanosClampingAndSaturation() {
+    DataflowExecutionContext.DataflowExecutionStateTracker.StepProcessingStats stats =
+        new DataflowExecutionContext.DataflowExecutionStateTracker.StepProcessingStats("ClampStep");
+
+    // Negative and sub-millisecond elapsed nanos clamp to 0 ms.
+    DataflowExecutionContext.DataflowExecutionStateTracker.recordElapsedNanos(stats, -5_000_000L);
+    DataflowExecutionContext.DataflowExecutionStateTracker.recordElapsedNanos(stats, 999_999L);
+    IntSummaryStatistics snap = stats.snapshot();
+    Assert.assertNotNull(snap);
+    Assert.assertEquals(2L, snap.getCount());
+    Assert.assertEquals(0, snap.getMin());
+    Assert.assertEquals(0, snap.getMax());
+    Assert.assertEquals(0L, snap.getSum());
+
+    // Exact millisecond elapsed nanos.
+    DataflowExecutionContext.DataflowExecutionStateTracker.recordElapsedNanos(stats, 2_500_000L);
+    snap = stats.snapshot();
+    Assert.assertEquals(3L, snap.getCount());
+    Assert.assertEquals(0, snap.getMin());
+    Assert.assertEquals(2, snap.getMax());
+    Assert.assertEquals(2L, snap.getSum());
+
+    // > Integer.MAX_VALUE milliseconds saturates to Integer.MAX_VALUE rather than overflowing.
+    DataflowExecutionContext.DataflowExecutionStateTracker.recordElapsedNanos(
+        stats, Long.MAX_VALUE);
+    snap = stats.snapshot();
+    Assert.assertEquals(4L, snap.getCount());
+    Assert.assertEquals(0, snap.getMin());
+    Assert.assertEquals(Integer.MAX_VALUE, snap.getMax());
+    Assert.assertEquals(2L + Integer.MAX_VALUE, snap.getSum());
+  }
+
+  @Test
+  public void testEnterStateRollsBackOnElementExecutionTrackerException() {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--experiments=enable_streaming_engine,"
+                    + DataflowElementExecutionTracker.TIME_PER_ELEMENT_EXPERIMENT)
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        new DataflowExecutionContext.DataflowExecutionStateTracker(
+            ExecutionStateSampler.newForTest(), null, null, options, "work-rollback");
+    StreamingModeExecutionState baseState =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(), "other", null, NoopProfileScope.NOOP) {
+          @Override
+          public void onActivate(boolean pushing) {
+            if (!pushing) {
+              throw new IllegalStateException("secondary activate failure");
+            }
+          }
+        };
+    tracker.enterStateDirect(baseState);
+
+    // Return a real NameContext for the streaming active-step update, then return null for
+    // elementExecutionTracker.enter(...) so Optional.of(step) throws NullPointerException.
+    StreamingModeExecutionState failingState =
+        new StreamingModeExecutionState(
+            NameContextsForTests.nameContextForTest(),
+            PROCESS_STATE_NAME,
+            null,
+            NoopProfileScope.NOOP) {
+          private int calls = 0;
+
+          @Override
+          public NameContext getStepName() {
+            return (calls++ == 0) ? super.getStepName() : null;
+          }
+        };
+
+    try {
+      tracker.enterState(failingState);
+      Assert.fail("Expected NullPointerException from elementExecutionTracker.enter()");
+    } catch (NullPointerException expected) {
+      Throwable[] suppressed = expected.getSuppressed();
+      Assert.assertEquals(1, suppressed.length);
+      Assert.assertTrue(suppressed[0] instanceof IllegalStateException);
+      Assert.assertEquals("secondary activate failure", suppressed[0].getMessage());
+    }
+
+    Assert.assertSame(baseState, tracker.getCurrentState());
+    assertFalse(tracker.getActiveMessageMetadata().isPresent());
+  }
+
+  @Test
+  public void testStepStatsBufferGeometricGrowth() throws Exception {
+    DataflowWorkerHarnessOptions options =
+        PipelineOptionsFactory.fromArgs("--experiments=enable_streaming_engine")
+            .as(DataflowWorkerHarnessOptions.class);
+    options.setStreaming(true);
+
+    BatchModeExecutionContext execContext =
+        BatchModeExecutionContext.forTesting(options, "testGrowthStage");
+    DataflowExecutionContext.DataflowExecutionStateTracker tracker =
+        (DataflowExecutionContext.DataflowExecutionStateTracker)
+            execContext.getExecutionStateTracker();
+
+    int numSteps = 10;
+    for (int i = 0; i < numSteps; i++) {
+      String stepName = "Step-" + i;
+      DataflowOperationContext op =
+          execContext.createOperationContext(NameContext.create("S01", "s" + i, "s" + i, stepName));
+      try (Closeable c = op.enterProcess()) {
+        assertTrue(tracker.getActiveMessageMetadata().isPresent());
+        Assert.assertEquals(stepName, tracker.getActiveMessageMetadata().get().userStepName());
+      }
+    }
+
+    Map<String, IntSummaryStatistics> stats = tracker.getProcessingTimesByStepCopy();
+    Assert.assertEquals(numSteps, stats.size());
+    for (int i = 0; i < numSteps; i++) {
+      Assert.assertEquals(1L, stats.get("Step-" + i).getCount());
+    }
   }
 }
