@@ -47,8 +47,10 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -72,6 +74,9 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.service.AutoService;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.BucketInfo.LifecycleRule;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -365,6 +370,21 @@ public class DataflowRunnerTest implements Serializable {
     doNothing().when(mockGcsUtil).verifyBucketAccessible(GcsPath.fromUri("gs://bucket/object"));
 
     return mockGcsUtil;
+  }
+
+  private static Bucket bucketWithLifecycleRule(String actionType, Integer age) {
+    BucketInfo.LifecycleRule.LifecycleAction action =
+        mock(BucketInfo.LifecycleRule.LifecycleAction.class);
+    when(action.getActionType()).thenReturn(actionType);
+    BucketInfo.LifecycleRule.LifecycleCondition condition =
+        mock(BucketInfo.LifecycleRule.LifecycleCondition.class);
+    when(condition.getAge()).thenReturn(age);
+    LifecycleRule rule = mock(LifecycleRule.class);
+    when(rule.getAction()).thenReturn(action);
+    when(rule.getCondition()).thenReturn(condition);
+    Bucket bucket = mock(Bucket.class);
+    doReturn(ImmutableList.of(rule)).when(bucket).getLifecycleRules();
+    return bucket;
   }
 
   private DataflowPipelineOptions buildPipelineOptions() throws IOException {
@@ -1040,6 +1060,65 @@ public class DataflowRunnerTest implements Serializable {
     DataflowRunner.fromOptions(options);
 
     assertNotNull(options.getStagingLocation());
+  }
+
+  @Test
+  public void testWarnIfStagingBucketHasTtl() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Bucket bucket = bucketWithLifecycleRule("Delete", 7);
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyWarn("deletes objects after 7 days");
+  }
+
+  @Test
+  public void testNoWarningIfStagingBucketLifecycleRuleHasNoAge() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Bucket bucket = bucketWithLifecycleRule("Delete", null);
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyNotLogged("deletes objects after");
+  }
+
+  @Test
+  public void testNoWarningIfStagingBucketLifecycleRuleIsNotDelete() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Bucket bucket = bucketWithLifecycleRule("SetStorageClass", 7);
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyNotLogged("deletes objects after");
+  }
+
+  @Test
+  public void testStagingBucketLifecycleCheckFailureDoesNotFailSubmission() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenThrow(new IOException("access denied"));
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyDebug("Unable to check lifecycle rules of staging bucket");
+  }
+
+  @Test
+  public void testLocalStagingLocationSkipsLifecycleCheck() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    GcsUtil gcsUtil = mock(GcsUtil.class);
+    options.setGcsUtil(gcsUtil);
+    options.setStagingLocation("/tmp/staging");
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    verifyNoInteractions(gcsUtil);
   }
 
   @Test
