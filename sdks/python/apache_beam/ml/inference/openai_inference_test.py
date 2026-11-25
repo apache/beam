@@ -531,6 +531,14 @@ class OpenAIModelHandlerTest(unittest.TestCase):
             'element_size_fn': len
         })
 
+  def test_no_default_max_batch_size_with_custom_request_fn(self):
+    # A custom request_fn may send the whole batch in one request.
+    handler = OpenAIModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=_fake_chat_request_fn,
+        api_key='fake')
+    self.assertEqual(handler.batch_elements_kwargs(), {})
+
   def test_custom_retry_filter(self):
     custom_filter = lambda e: False
     handler = OpenAIModelHandler(

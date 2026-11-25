@@ -204,8 +204,10 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
-        inputs. Defaults to 32, unless element_size_fn is set without
-        max_batch_weight.
+        inputs. Defaults to 32 with the built-in request functions. There is
+        no default when element_size_fn is set without max_batch_weight, or
+        with a custom request_fn: set it to the largest batch the function
+        can send.
       max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
       max_batch_weight: optional. the maximum total weight of a batch. Cannot
@@ -233,7 +235,11 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
     # so the default number of prompts does not apply.
     sized_by_element_size_fn = (
         element_size_fn is not None and max_batch_weight is None)
-    if max_batch_size is None and not sized_by_element_size_fn:
+    # A custom request_fn may send the whole batch in one request.
+    custom_request_fn = request_fn not in (
+        generate_from_string, generate_image_from_strings_and_images)
+    skip_default = sized_by_element_size_fn or custom_request_fn
+    if max_batch_size is None and not skip_default:
       max_batch_size = max(
           min_batch_size or 0, _MAX_CONCURRENT_REQUESTS_PER_BATCH)
     if max_batch_size is not None:

@@ -303,9 +303,10 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
         batching inputs.
       max_batch_size: optional. the maximum batch size to use when
         batching inputs. Defaults to 2048 with embedding_from_string, the
-        most inputs the API accepts in one request, and to 32 otherwise.
-        There is no default when element_size_fn is set without
-        max_batch_weight.
+        most inputs the API accepts in one request, and to 32 with the other
+        built-in request functions. There is no default when element_size_fn
+        is set without max_batch_weight, or with a custom request_fn: set it
+        to the largest batch the function can send.
       max_batch_duration_secs: optional. the maximum amount of time to
         buffer a batch before emitting; used in streaming contexts.
       max_batch_weight: the maximum total weight of a batch. Cannot be
@@ -333,7 +334,13 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
     # so the default number of prompts does not apply.
     sized_by_element_size_fn = (
         element_size_fn is not None and max_batch_weight is None)
-    if max_batch_size is None and not sized_by_element_size_fn:
+    # A custom request_fn may send the whole batch in one request.
+    custom_request_fn = request_fn not in (
+        chat_completion_from_string,
+        chat_completion_from_conversation,
+        embedding_from_string)
+    skip_default = sized_by_element_size_fn or custom_request_fn
+    if max_batch_size is None and not skip_default:
       max_batch_size = max(
           min_batch_size or 0,
           _MAX_INPUTS_PER_EMBEDDING_REQUEST if request_fn

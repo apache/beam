@@ -193,6 +193,14 @@ class ModelHandlerArgConditions(unittest.TestCase):
             'element_size_fn': len
         })
 
+  def test_no_default_max_batch_size_with_custom_request_fn(self):
+    # A custom request_fn may send the whole batch in one request.
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=_fake_request_fn,
+        api_key="123456789")
+    self.assertEqual(handler.batch_elements_kwargs(), {})
+
 
 @mock.patch('apache_beam.ml.inference.gemini_inference.genai.Client')
 @mock.patch('apache_beam.ml.inference.gemini_inference.HttpOptions')
