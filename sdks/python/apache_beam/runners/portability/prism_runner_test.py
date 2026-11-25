@@ -21,6 +21,7 @@ import logging
 import os.path
 import queue
 import shlex
+import subprocess
 import threading
 import time
 import typing
@@ -32,6 +33,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 from unittest import mock
 
+import fasteners
 import pytest
 from parameterized import parameterized
 
@@ -473,6 +475,78 @@ class PrismJobServerTest(unittest.TestCase):
             mock_zipfile_init.assert_not_called()
           else:
             mock_zipfile_init.assert_called_once()
+
+  def test_install_from_source_serializes_concurrent_calls(self):
+    install_cache = os.path.join(self.local_dir, 'install_cache')
+    expected_lock_path = os.path.join(install_cache, 'prism.install.lock')
+    num_workers = 4
+    barrier = threading.Barrier(num_workers)
+    state_lock = threading.Lock()
+    active_builds = 0
+    max_active_builds = 0
+    events = []
+    results = []
+    errors = []
+
+    real_lock_cls = fasteners.InterProcessLock
+
+    class TrackingInterProcessLock(real_lock_cls):
+      def __enter__(self):
+        ret = super().__enter__()
+        with state_lock:
+          events.append(('enter', os.fsdecode(self.path)))
+        return ret
+
+      def __exit__(self, exc_type, exc_val, exc_tb):
+        with state_lock:
+          events.append(('exit', os.fsdecode(self.path)))
+        return super().__exit__(exc_type, exc_val, exc_tb)
+
+    def fake_run(cmd, **kwargs):
+      nonlocal active_builds, max_active_builds
+      with state_lock:
+        active_builds += 1
+        max_active_builds = max(max_active_builds, active_builds)
+        events.append(('run', cmd))
+      try:
+        time.sleep(0.05)
+      finally:
+        with state_lock:
+          active_builds -= 1
+      return subprocess.CompletedProcess(cmd, 0, stdout=b'')
+
+    def worker():
+      try:
+        barrier.wait(timeout=5)
+        results.append(
+            prism_runner.PrismJobServer._install_from_source('v2.0.0.dev'))
+      except Exception as e:
+        errors.append(e)
+
+    with mock.patch.object(
+        prism_runner.PrismJobServer, 'BIN_CACHE', install_cache), \
+        mock.patch.object(
+            prism_runner.fasteners,
+            'InterProcessLock',
+            TrackingInterProcessLock), \
+        mock.patch.object(
+            prism_runner.subprocess, 'run', side_effect=fake_run):
+      threads = [threading.Thread(target=worker) for _ in range(num_workers)]
+      for t in threads:
+        t.start()
+      for t in threads:
+        t.join(timeout=10)
+        self.assertFalse(t.is_alive())
+
+    self.assertEqual(errors, [])
+    self.assertEqual(max_active_builds, 1)
+    self.assertEqual(results, ['%s/prism' % install_cache] * num_workers)
+    self.assertTrue(os.path.exists(expected_lock_path))
+    self.assertEqual(len(events), num_workers * 3)
+    for i in range(0, len(events), 3):
+      self.assertEqual(events[i], ('enter', expected_lock_path))
+      self.assertEqual(events[i + 1][0], 'run')
+      self.assertEqual(events[i + 2], ('exit', expected_lock_path))
 
 
 class PrismRunnerSingletonTest(unittest.TestCase):
