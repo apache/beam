@@ -17,6 +17,8 @@
 
 """End-to-End test for Pytorch Inference"""
 
+import ast
+import collections
 import logging
 import os
 import unittest
@@ -67,6 +69,24 @@ def process_outputs(filepath):
     'Missing dependencies. '
     'Test depends on torch, torchvision, pillow, and transformers')
 class PyTorchInference(unittest.TestCase):
+  def _assert_labels_match(self, actual_labels_str, predicted_labels_str):
+    # MaskRCNN returns all detections above score 0.05 sorted by confidence, so
+    # minor rounding differences across Pillow/PyTorch versions can reorder
+    # nearly-tied predictions or toggle borderline detections near 0.05.
+    expected = ast.literal_eval(actual_labels_str)
+    predicted = ast.literal_eval(predicted_labels_str)
+    top_k = min(5, len(expected))
+    self.assertEqual(expected[:top_k], predicted[:top_k])
+    expected_counts = collections.Counter(expected)
+    predicted_counts = collections.Counter(predicted)
+    intersection = sum((expected_counts & predicted_counts).values())
+    union = sum((expected_counts | predicted_counts).values())
+    self.assertGreaterEqual(
+        intersection / union,
+        0.8,
+        f'Prediction overlap too low: expected={expected}, '
+        f'predicted={predicted}')
+
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
   def test_torch_run_inference_imagenet_mobilenetv2(self):
@@ -127,7 +147,7 @@ class PyTorchInference(unittest.TestCase):
     for actual in actuals:
       filename, actual_labels = actual.split(';')
       prediction_labels = predictions_dict[filename]
-      self.assertEqual(actual_labels, prediction_labels)
+      self._assert_labels_match(actual_labels, prediction_labels)
 
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
@@ -173,8 +193,16 @@ class PyTorchInference(unittest.TestCase):
       v1actuals = a[1]
       v2actuals = a[2]
       v1prediction_labels, v2prediction_labels = predictions_dict[filename]
-      self.assertEqual(v1actuals, v1prediction_labels)
-      self.assertEqual(v2actuals, v2prediction_labels)
+      self.assertTrue(
+          v1prediction_labels.strip().startswith('v1 predictions: '))
+      self.assertTrue(
+          v2prediction_labels.strip().startswith('v2 predictions: '))
+      self._assert_labels_match(
+          v1actuals.split('v1 predictions: ', 1)[1].strip(),
+          v1prediction_labels.split('v1 predictions: ', 1)[1].strip())
+      self._assert_labels_match(
+          v2actuals.split('v2 predictions: ', 1)[1].strip(),
+          v2prediction_labels.split('v2 predictions: ', 1)[1].strip())
 
   @pytest.mark.uses_pytorch
   @pytest.mark.it_postcommit
