@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import json
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
@@ -185,11 +186,19 @@ class BigQueryVectorSearchParameters:
   def format_query(self, items: list[EmbeddableItem]) -> str:
     """Format the vector search query template."""
     base_columns_str = ", ".join(f"base.{col}" for col in self.columns)
-    columns_str = ", ".join(self.columns)
+    select_columns = list(self.columns)
+    if self.embedding_column not in select_columns:
+      select_columns.append(self.embedding_column)
+    select_columns_str = ", ".join(select_columns)
     distance_clause = (
         f", distance_type => '{self.distance_type}'"
         if self.distance_type else "")
-    options_clause = (f", options => {self.options}" if self.options else "")
+    if self.options:
+      escaped_options = (
+          json.dumps(self.options).replace("\\", "\\\\").replace("'", "\\'"))
+      options_clause = f", options => '{escaped_options}'"
+    else:
+      options_clause = ""
 
     # Create metadata check function only if needed
     metadata_fn = """
@@ -240,7 +249,7 @@ class BigQueryVectorSearchParameters:
  {base_columns_str})
                 ) as chunks
             FROM VECTOR_SEARCH(
-                (SELECT {columns_str}, {self.embedding_column}
+                (SELECT {select_columns_str}
                  FROM `{self.table_name}`
                  {where_clause}),
                 '{self.embedding_column}',
