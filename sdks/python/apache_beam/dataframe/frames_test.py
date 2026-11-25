@@ -1518,11 +1518,39 @@ class DeferredFrameTest(_AbstractFrameTest):
         pd.to_datetime([None, '2024-01-05', None, '2024-01-02']),
         index=['A', 'B', 'C', 'D'])
     df = pd.DataFrame({'t': s, 'x': [1.0, 4.0, 3.0, 2.0]})
+    df2 = pd.DataFrame({
+        't': pd.to_datetime(['2024-01-03', '2024-01-05', '2024-01-01', None]),
+        'x': [1.0, None, 3.0, 2.0]
+    },
+                       index=['A', 'B', 'C', 'D'])
 
     self._run_test(lambda s: s.idxmin(), s)
     self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
     self._run_test(lambda df: df.idxmin(), df)
     self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df2: df2.idxmin(numeric_only=True), df2)
+    self._run_test(lambda df2: df2.idxmax(numeric_only=True), df2)
+
+  def test_idxmin_idxmax_all_na_partition_is_reduced(self):
+    # An all-NA column in a partition should not stop the other columns from
+    # being reduced before the final step.
+    df = pd.DataFrame({
+        't': pd.Series(pd.NaT, index=range(100), dtype='datetime64[ns]'),
+        'x': np.arange(100.0),
+    })
+    deferred_df, = _get_deferred_args(df)
+
+    def partial_rows(result):
+      return len(expressions.Session({}).evaluate(result._expr.args()[0]))
+
+    self.assertEqual(partial_rows(deferred_df.idxmin()), 1)
+    self.assertEqual(partial_rows(deferred_df.idxmax(skipna=False)), 1)
+    self.assertEqual(partial_rows(deferred_df.idxmin(numeric_only=True)), 1)
+    self.assertEqual(partial_rows(deferred_df[['t']].idxmax()), 1)
+    self.assertEqual(partial_rows(deferred_df.t.idxmin()), 1)
+    self.assertEqual(partial_rows(deferred_df.t.idxmax(skipna=False)), 1)
 
   def test_pipe(self):
     def df_times(df, column, times):

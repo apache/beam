@@ -1485,9 +1485,10 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     def compute_idx(s):
       # pandas raises on an empty partition, and on an all-NA one for some
-      # dtypes (e.g. datetime). Keep it for the final step instead.
+      # dtypes (e.g. datetime). One NA row is enough for the final step to
+      # give the same result, for skipna=True and skipna=False.
       if s.isna().all():
-        return s
+        return s.iloc[:1]
       index = func(s, **kwargs)
       if pd.isna(index):
         return s
@@ -4165,10 +4166,19 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
     def compute_idx(df):
       # pandas raises on an empty partition, and on an all-NA column for some
-      # dtypes (e.g. datetime). Keep the partition for the final step instead.
-      if df.isna().all().any():
-        return df
-      indexes = func(df, **kwargs).unique()
+      # dtypes (e.g. datetime). Reduce only the other columns. Each row passed
+      # on holds an NA for every all-NA column, which is enough for the final
+      # step to give the same result, for skipna=True and skipna=False.
+      all_na = df.isna().all()
+      if all_na.all():
+        return df.iloc[:1]
+      if all_na.any():
+        indexes = func(df.loc[:, ~all_na.to_numpy()], **kwargs).unique()
+      else:
+        indexes = func(df, **kwargs).unique()
+      if len(indexes) == 0:
+        # e.g. numeric_only=True and every numeric column is all-NA here.
+        return df.iloc[:1]
       if pd.isna(indexes).any():
         return df
       else:
