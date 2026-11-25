@@ -72,6 +72,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -485,36 +486,49 @@ public class WriteFilesTest {
     assertThat(counterValue(result, "directWriteBundles"), Matchers.greaterThan(0L));
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testDirectWriteDisabledForBoundedWithFixedSharding() throws IOException {
-    List<String> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add("number: " + i);
-    }
-    WriteFiles<String, Void, String> write =
-        WriteFiles.to(makeSimpleSink()).withNumShards(3).withDirectWriteByteThreshold(1L);
-    p.apply(Create.of(elements)).apply(write);
-    PipelineResult result = p.run();
-
-    checkFileContents(getBaseOutputFilename(), elements, Optional.of(3), true, null);
-    assertEquals(0L, counterValue(result, "directWriteBundles"));
+  private static boolean hasDirectWriteTransform(Pipeline pipeline) {
+    AtomicBoolean found = new AtomicBoolean(false);
+    pipeline.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            if (node.getTransform() instanceof WriteFiles.WriteFilesDirectly) {
+              found.set(true);
+              return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    return found.get();
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  public void testDirectWriteEnabledExpansion() throws IOException {
+    p.enableAbandonedNodeEnforcement(false);
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withDirectWriteByteThreshold(1L);
+    p.apply(TestStream.create(StringUtf8Coder.of()).advanceWatermarkToInfinity())
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write);
+    assertTrue(hasDirectWriteTransform(p));
+  }
+
+  @Test
+  public void testDirectWriteDisabledForBoundedWithFixedSharding() throws IOException {
+    p.enableAbandonedNodeEnforcement(false);
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink()).withNumShards(3).withDirectWriteByteThreshold(1L);
+    p.apply(Create.of("a", "b")).apply(write);
+    assertFalse(hasDirectWriteTransform(p));
+  }
+
+  @Test
   public void testDirectWriteDisabledForBoundedWithoutFixedSharding() throws IOException {
-    List<String> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add("number: " + i);
-    }
+    p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink()).withDirectWriteByteThreshold(1L);
-    p.apply(Create.of(elements)).apply(write);
-    PipelineResult result = p.run();
-
-    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertEquals(0L, counterValue(result, "directWriteBundles"));
+    p.apply(Create.of("a", "b")).apply(write);
+    assertFalse(hasDirectWriteTransform(p));
   }
 
   @Test
@@ -587,45 +601,21 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
   public void testDirectWriteDisabledWithAccumulatingPanes() throws IOException {
-    List<String> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add("number: " + i);
-    }
-    Instant startInstant = new Instant(0L);
-    TestStream<String> testStream =
-        TestStream.create(StringUtf8Coder.of())
-            .advanceWatermarkTo(startInstant)
-            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
-            .addElements(
-                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
-            .addElements(
-                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
-            .advanceWatermarkToInfinity();
-
-    // A 1-byte threshold would otherwise write every bundle directly. The trigger fires once per
-    // window, so accumulating doesn't repeat records and the file contents can be checked exactly.
+    p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink())
             .withWindowedWrites()
             .withNumShards(3)
             .withDirectWriteByteThreshold(1L);
-    p.apply(testStream)
+    p.apply(TestStream.create(StringUtf8Coder.of()).advanceWatermarkToInfinity())
         .apply(
             Window.<String>into(FixedWindows.of(Duration.standardSeconds(10)))
                 .triggering(AfterWatermark.pastEndOfWindow())
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.ZERO))
-        .apply(write)
-        .getPerDestinationOutputFilenames()
-        .apply(new VerifyFilesExist<>());
-    PipelineResult result = p.run();
-
-    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertEquals(0L, counterValue(result, "directWriteBundles"));
+        .apply(write);
+    assertFalse(hasDirectWriteTransform(p));
   }
 
   private static class SideInputDestinations extends DynamicDestinations<String, String, String> {
@@ -709,41 +699,17 @@ public class WriteFilesTest {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesUnboundedPCollections.class, UsesTestStream.class})
   public void testDirectWriteDisabledWithMergingWindows() throws IOException {
-    List<String> elements = Lists.newArrayList();
-    for (int i = 0; i < 30; ++i) {
-      elements.add("number: " + i);
-    }
-    Instant startInstant = new Instant(0L);
-    TestStream<String> testStream =
-        TestStream.create(StringUtf8Coder.of())
-            .advanceWatermarkTo(startInstant)
-            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
-            .addElements(
-                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
-            .addElements(
-                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
-            .advanceWatermarkToInfinity();
-
-    // Merging windows require an explicit shard count, and a 1-byte threshold would otherwise
-    // write every bundle directly.
+    p.enableAbandonedNodeEnforcement(false);
     WriteFiles<String, Void, String> write =
         WriteFiles.to(makeSimpleSink())
             .withWindowedWrites()
             .withNumShards(3)
             .withDirectWriteByteThreshold(1L);
-    p.apply(testStream)
+    p.apply(TestStream.create(StringUtf8Coder.of()).advanceWatermarkToInfinity())
         .apply(Window.into(Sessions.withGapDuration(Duration.standardSeconds(1))))
-        .apply(write)
-        .getPerDestinationOutputFilenames()
-        .apply(new VerifyFilesExist<>());
-    PipelineResult result = p.run();
-
-    checkFileContents(getBaseOutputFilename(), elements, Optional.absent(), false, null);
-    assertEquals(0L, counterValue(result, "directWriteBundles"));
+        .apply(write);
+    assertFalse(hasDirectWriteTransform(p));
   }
 
   /** Routes each element to a destination chosen by {@code destinationOf}, without side inputs. */

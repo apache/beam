@@ -98,6 +98,7 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -1300,7 +1301,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
   }
 
-  private class WriteFilesDirectly extends PTransform<PCollection<UserT>, PCollectionTuple> {
+  @VisibleForTesting
+  class WriteFilesDirectly extends PTransform<PCollection<UserT>, PCollectionTuple> {
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
     private final long thresholdBytes;
