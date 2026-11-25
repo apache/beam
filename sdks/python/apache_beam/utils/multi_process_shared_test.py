@@ -626,10 +626,12 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(proxy.increment(5), 55)
 
   def test_unsafe_hard_delete_missing_tag_is_noop(self):
+    before_pids = {p.pid for p in multiprocessing.active_children()}
     handle = multi_process_shared.MultiProcessShared(
         Counter, tag='nonexistent_tag', always_proxy=True, spawn_process=True)
     handle.unsafe_hard_delete()
-    self.assertEqual(multiprocessing.active_children(), [])
+    new_pids = {p.pid for p in multiprocessing.active_children()} - before_pids
+    self.assertEqual(new_pids, set())
 
     with tempfile.TemporaryDirectory() as tmp_dir:
       stale_address = os.path.join(tmp_dir, 'stale_tag.address')
@@ -643,12 +645,17 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
           spawn_process=True)
       stale_handle.unsafe_hard_delete()
       self.assertFalse(os.path.exists(stale_address))
-      self.assertEqual(multiprocessing.active_children(), [])
+      new_pids = {
+          p.pid
+          for p in multiprocessing.active_children()
+      } - before_pids
+      self.assertEqual(new_pids, set())
 
   def test_unsafe_hard_delete_terminates_server_during_inflight_blocked_call(
       self):
     with tempfile.TemporaryDirectory() as tmp_dir:
       entered_path = os.path.join(tmp_dir, 'entered')
+      before_pids = {p.pid for p in multiprocessing.active_children()}
       handle = multi_process_shared.MultiProcessShared(
           lambda: SlowBlockingObject(entered_path),
           tag='inflight_hard_delete',
@@ -656,7 +663,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
           spawn_process=True)
       proxy = handle.acquire()
       server_proc = next(
-          p for p in multiprocessing.active_children() if p.is_alive())
+          p for p in multiprocessing.active_children()
+          if p.is_alive() and p.pid not in before_pids)
 
       def call_ignoring_disconnect():
         try:
