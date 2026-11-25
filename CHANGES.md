@@ -192,6 +192,7 @@
 * (Python) Fixed `GroupByKey`, `CombinePerKey`, `Distinct` and stateful DoFns failing with "Unable to deterministically encode" on `datetime.date`, `datetime.timedelta` and naive or UTC `datetime.datetime` keys ([#21034](https://github.com/apache/beam/issues/21034)).
 * (Python) Fixed file-based sinks such as `WriteToText` treating glob characters in the output path as a pattern: a path such as `out[12]` deleted other files that the pattern matched and then failed to finalize ([#41567](https://github.com/apache/beam/issues/41567)).
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
+* (Python) The file paths that file-based sinks such as `WriteToText` output in batch pipelines are now timestamped at the end of the global window instead of past it. Grouping them downstream no longer fails the job on Prism, and `Count.Globally()` on them no longer returns 0 on the BundleBasedDirectRunner ([#41245](https://github.com/apache/beam/issues/41245)).
 
 ## Security Fixes
 
