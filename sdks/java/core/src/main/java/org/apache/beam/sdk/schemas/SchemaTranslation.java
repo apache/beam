@@ -50,6 +50,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.Time;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
@@ -116,6 +117,7 @@ public class SchemaTranslation {
           .put(FixedString.IDENTIFIER, FixedString.class)
           .put(VariableString.IDENTIFIER, VariableString.class)
           .put(Date.IDENTIFIER, Date.class)
+          .put(Time.IDENTIFIER, Time.class)
           .put(Timestamp.IDENTIFIER, Timestamp.class)
           .build();
 
