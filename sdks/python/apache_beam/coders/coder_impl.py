@@ -1149,6 +1149,9 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
       assert isinstance(c, CoderImpl), c
     self._coder_impls = tuple(coder_impls)
     self._num_coders = len(self._coder_impls)
+    # Unroll 2-component (KV) coders for performance since this is the most
+    # common usage of AbstractComponentCoderImpl; there is no functional
+    # difference in how components are encoded or decoded.
     self._is_kv = self._num_coders == 2
     if self._is_kv:
       self._coder_0 = self._coder_impls[0]
