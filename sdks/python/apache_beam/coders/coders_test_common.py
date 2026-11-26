@@ -31,6 +31,7 @@ import sys
 import textwrap
 import unittest
 from decimal import Decimal
+from decimal import localcontext
 from typing import Any
 from typing import NamedTuple
 
@@ -1120,6 +1121,67 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(
           test_encodings[idx],
           base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
+
+  def test_decimal_coder_keeps_digits_beyond_context_precision(self):
+    test_coder = coders.DecimalCoder()
+    test_values = [
+        Decimal("1234567890123456789012345678.0123456789"),
+        Decimal("-0." + "7" * 38),
+        Decimal("9" * 60 + ".5"),
+        Decimal("1.20E+40"),
+        Decimal("1." + "2" * 35 + "E+40"),
+    ]
+    with localcontext() as ctx:
+      ctx.prec = 28
+      for value in test_values:
+        for encode, decode in (
+            (test_coder.encode, test_coder.decode),
+            (test_coder.encode_nested, test_coder.decode_nested),
+        ):
+          decoded = decode(encode(value))
+          self.assertEqual(value.as_tuple(), decoded.as_tuple())
+
+      # Matches Java BigDecimalCoder wire format for test_values[0] (38 digits).
+      expected_b64 = "CglJsPbwAjMTxEmQTsxnRRU"
+      encoded = test_coder.encode(test_values[0])
+      self.assertEqual(
+          expected_b64, base64.b64encode(encoded).decode().rstrip("="))
+      self.assertEqual(
+          test_values[0].as_tuple(),
+          test_coder.decode(base64.b64decode(expected_b64 + "=")).as_tuple())
+
+      # -0 decodes as 0 (preserving scale), and non-finite values still raise.
+      for neg_zero, expected in (
+          (Decimal("-0"), Decimal("0")),
+          (Decimal("-0.00"), Decimal("0.00")),
+      ):
+        self.assertEqual(
+            expected.as_tuple(),
+            test_coder.decode(test_coder.encode(neg_zero)).as_tuple())
+      for non_finite in (
+          Decimal("NaN"),
+          Decimal("sNaN"),
+          Decimal("Infinity"),
+          Decimal("-Infinity"),
+      ):
+        with self.assertRaises(TypeError):
+          test_coder.encode(non_finite)
+
+    # Verify encode and decode are each independent of the thread context.
+    value = test_values[0]
+    with localcontext() as ctx:
+      ctx.prec = 60
+      encoded_high_prec = test_coder.encode(value)
+    with localcontext() as ctx:
+      ctx.prec = 28
+      decoded_low_prec = test_coder.decode(encoded_high_prec)
+      encoded_low_prec = test_coder.encode(value)
+    with localcontext() as ctx:
+      ctx.prec = 60
+      decoded_high_prec = test_coder.decode(encoded_low_prec)
+    self.assertEqual(encoded_high_prec, encoded_low_prec)
+    self.assertEqual(value.as_tuple(), decoded_low_prec.as_tuple())
+    self.assertEqual(value.as_tuple(), decoded_high_prec.as_tuple())
 
   def test_byte_coder(self):
     test_coder = coders.ByteCoder()
