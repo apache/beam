@@ -1,7 +1,7 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "iceberg": "chamikaramj"
+    "java": "kennknowles"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
