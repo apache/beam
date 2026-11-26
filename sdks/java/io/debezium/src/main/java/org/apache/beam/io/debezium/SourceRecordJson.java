@@ -109,7 +109,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code after} (so full metadata still applies) and gain the schema change payload ({@link
  * #loadSchemaChangeEvent}): {@code databaseName}, {@code schemaName}, {@code ddl}, {@code ts_ms}
  * and {@code tableChanges}, which lists each changed table and its columns. For a {@code DROP}, the
- * entry's {@code table} is null and only its {@code type} and {@code id} are set.
+ * entry's {@code table} is null and only its {@code type} and {@code id} are set. The SQL Server
+ * and Db2 connectors don't capture the DDL statement, so for them {@code ddl} is the literal {@code
+ * "N/A"} and {@code tableChanges} describes the change.
  *
  * <h3>Usage Example</h3>
  *
@@ -746,7 +748,8 @@ public class SourceRecordJson {
      *
      * @param databaseName Database the DDL statement was applied to
      * @param schemaName Schema the DDL statement was applied to, null for MySQL
-     * @param ddl DDL statement that changed the schema
+     * @param ddl DDL statement that changed the schema, the literal {@code "N/A"} for SQL Server
+     *     and Db2
      * @param tsMs Time the connector processed the event, in milliseconds
      * @param tableChanges Tables created, altered or dropped by the DDL statement
      */
