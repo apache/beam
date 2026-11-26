@@ -95,6 +95,35 @@ class TestBigTableEnrichmentHandler(unittest.TestCase):
     self.assertEqual(str(ctx.exception), "'from-custom-fn'")
     handler._table.read_row.assert_not_called()
 
+  def test_row_key_fn_empty_row_includes_decoded_key(self):
+    handler = BigTableEnrichmentHandler(
+        project_id='p',
+        instance_id='i',
+        table_id='t',
+        row_key_fn=lambda request: b'user-1',
+        exception_level=ExceptionLevel.WARN)
+    handler._table = mock.MagicMock()
+    handler._table.read_row.return_value = None
+    with self.assertLogs(level='WARNING') as logs:
+      _, response = handler(beam.Row(user_id=1))
+    handler._table.read_row.assert_called_once_with(
+        b'user-1', filter_=mock.ANY)
+    self.assertEqual(response, beam.Row())
+    self.assertTrue(any('row_key: user-1' in msg for msg in logs.output))
+
+  def test_row_key_fn_none_skips_read(self):
+    handler = BigTableEnrichmentHandler(
+        project_id='p',
+        instance_id='i',
+        table_id='t',
+        row_key_fn=lambda request: None,
+        exception_level=ExceptionLevel.RAISE)
+    handler._table = mock.MagicMock()
+    with self.assertRaisesRegex(
+        ValueError, 'no matching row found for row_key: None'):
+      handler(beam.Row(user_id=1))
+    handler._table.read_row.assert_not_called()
+
   def test_get_cache_key_distinguishes_none_from_string(self):
     handler = self._handler()
     self.assertEqual(

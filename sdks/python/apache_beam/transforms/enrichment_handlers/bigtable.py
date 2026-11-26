@@ -129,6 +129,16 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     try:
       if self._row_key_fn:
         row_key = self._row_key_fn(request)
+        # A custom fn can return None, or bytes whose text is needed when the
+        # Bigtable row is missing. Do not leave row_key_str empty in that case.
+        if row_key is None:
+          self._handle_empty_row(str(None))
+          return request, beam.Row()
+        if isinstance(row_key, bytes):
+          row_key_str = row_key.decode(self._encoding, errors='replace')
+        else:
+          row_key_str = str(row_key)
+          row_key = row_key_str.encode(self._encoding)
       else:
         request_dict = request._asdict()
         # Scope KeyError to field lookup so failures inside a custom
