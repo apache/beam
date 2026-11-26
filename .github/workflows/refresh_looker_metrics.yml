@@ -22,10 +22,10 @@ on:
     inputs:
       LOOKERSDK_CLIENT_ID:
         description: Your Looker Client ID.
-        required: true
+        required: false
       LOOKERSDK_CLIENT_SECRET:
         description: Your Looker Client Secret.
-        required: true
+        required: false
   schedule:
     - cron: "0 6 * * 0"
 
