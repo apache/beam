@@ -26,7 +26,7 @@ toolchain go1.26.10
 
 require (
 	cloud.google.com/go/bigquery v1.86.3
-	cloud.google.com/go/bigtable v1.58.0
+	cloud.google.com/go/bigtable v1.58.1
 	cloud.google.com/go/datastore v1.28.1
 	cloud.google.com/go/profiler v0.7.1
 	cloud.google.com/go/pubsub v1.52.0
