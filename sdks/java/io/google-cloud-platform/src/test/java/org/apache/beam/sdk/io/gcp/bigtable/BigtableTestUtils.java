@@ -169,4 +169,11 @@ public class BigtableTestUtils {
         .withEndTime(endTime)
         .withBigtableClientOverride(clientOverride);
   }
+
+  public static BigtableIO.ReadChangeStream configureChangeStreamForTest(
+      BigtableIO.ReadChangeStream readChangeStream,
+      Instant endTime,
+      BigtableClientOverride clientOverride) {
+    return readChangeStream.withEndTime(endTime).withBigtableClientOverride(clientOverride);
+  }
 }
