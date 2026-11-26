@@ -43,7 +43,10 @@ that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
 # pytype: skip-file
+import datetime
+import decimal
 import os
+import uuid
 from functools import partial
 from typing import Any
 from typing import Callable
@@ -63,6 +66,7 @@ from apache_beam.io.iobase import Read
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import PTransform
 from apache_beam.typehints import schemas
+from apache_beam.utils.timestamp import Timestamp
 
 __all__ = [
     'ReadFromAvro',
@@ -564,6 +568,16 @@ BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES = {
 
 _AvroSchemaType = Union[str, list, dict]
 
+# fastavro decodes these logical types to Python objects, so the Beam field
+# must use the matching Python type rather than the underlying primitive.
+AVRO_LOGICAL_TYPES_TO_PYTHON_TYPES = {
+    'timestamp-millis': Timestamp,
+    'timestamp-micros': Timestamp,
+    'date': datetime.date,
+    'decimal': decimal.Decimal,
+    'uuid': str,
+}
+
 
 def avro_union_type_to_beam_type(union_type: list) -> schema_pb2.FieldType:
   """convert an avro union type to a beam type
@@ -594,7 +608,15 @@ def avro_type_to_beam_type(avro_type: _AvroSchemaType) -> schema_pb2.FieldType:
     # Union type
     return avro_union_type_to_beam_type(avro_type)
   type_name = avro_type['type']
-  if type_name in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
+  logical_type = avro_type.get('logicalType')
+  if logical_type in AVRO_LOGICAL_TYPES_TO_PYTHON_TYPES:
+    return schemas.typing_to_runner_api(
+        AVRO_LOGICAL_TYPES_TO_PYTHON_TYPES[logical_type])
+  elif logical_type is not None and type_name in ('int', 'long'):
+    # Other logical types (time-*, local-timestamp-*) also decode to Python
+    # objects that have no matching Beam type.
+    return schemas.typing_to_runner_api(Any)
+  elif type_name in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
     return schema_pb2.FieldType(
         atomic_type=AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES[type_name])
   elif type_name in ('fixed', 'enum'):
@@ -652,6 +674,9 @@ def avro_value_to_beam_value(
     beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
+    if beam_type.atomic_type == schema_pb2.STRING:
+      # fastavro decodes the uuid logical type to uuid.UUID.
+      return lambda value: str(value) if isinstance(value, uuid.UUID) else value
     return lambda value: value
   elif type_info == "array_type":
     element_converter = avro_value_to_beam_value(
@@ -678,6 +703,9 @@ def avro_value_to_beam_value(
         {name: convert(value[name])
          for (name, convert) in converters.items()})
   elif type_info == "logical_type":
+    if beam_type.logical_type.urn == schemas.MicrosInstant.urn():
+      return lambda value: (
+          value if value is None else Timestamp.from_utc_datetime(value))
     return lambda value: value
   else:
     raise ValueError(f"Unrecognized type_info: {type_info!r}")
