@@ -80,6 +80,10 @@ public class FlinkStreamingAggregationsTranslators {
 
     @Override
     public Iterable<T> addInput(Iterable<T> accumulator, T input) {
+      if (accumulator instanceof ArrayList) {
+        ((ArrayList<T>) accumulator).add(input);
+        return accumulator;
+      }
       ArrayList<T> arr = Lists.newArrayList(accumulator);
       arr.add(input);
       return arr;
