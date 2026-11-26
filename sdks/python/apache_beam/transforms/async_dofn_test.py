@@ -29,7 +29,8 @@ from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
-from apache_beam.transforms.window import GlobalWindows, IntervalWindow
+from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import IntervalWindow
 
 
 class BasicDofn(beam.DoFn):

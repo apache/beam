@@ -82,16 +82,25 @@ class DataflowMetrics(MetricResults):
     self._job_graph = job_graph
 
   @staticmethod
+  def _result_value(metric_result):
+    # A metric can have only committed data, in which case attempted is None.
+    if metric_result.attempted is not None:
+      return metric_result.attempted
+    return metric_result.committed
+
+  @staticmethod
   def _is_counter(metric_result):
-    return isinstance(metric_result.attempted, numbers.Number)
+    return isinstance(
+        DataflowMetrics._result_value(metric_result), numbers.Number)
 
   @staticmethod
   def _is_distribution(metric_result):
-    return isinstance(metric_result.attempted, DistributionResult)
+    return isinstance(
+        DataflowMetrics._result_value(metric_result), DistributionResult)
 
   @staticmethod
   def _is_string_set(metric_result):
-    return isinstance(metric_result.attempted, set)
+    return isinstance(DataflowMetrics._result_value(metric_result), set)
 
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
@@ -185,8 +194,8 @@ class DataflowMetrics(MetricResults):
 
     # Now we create the MetricResult elements.
     for metric_key, metric in metrics_by_name.items():
-      attempted = self._get_metric_value(metric['tentative'])
-      committed = self._get_metric_value(metric['committed'])
+      attempted = self._get_metric_value(metric.get('tentative'))
+      committed = self._get_metric_value(metric.get('committed'))
       result.append(
           MetricResult(metric_key, attempted=attempted, committed=committed))
 

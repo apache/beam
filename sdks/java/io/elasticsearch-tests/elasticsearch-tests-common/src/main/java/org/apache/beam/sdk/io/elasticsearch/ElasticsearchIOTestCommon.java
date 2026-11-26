@@ -68,6 +68,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -86,16 +89,24 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
@@ -391,8 +402,7 @@ class ElasticsearchIOTestCommon {
 
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
-        DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
+    try (BulkIOBundleFnRunner fnTester = new BulkIOBundleFnRunner(write.getBulkIO())) {
       // inserts into Elasticsearch
       fnTester.processBundle(serializeDocs(write, input));
     }
@@ -570,8 +580,7 @@ class ElasticsearchIOTestCommon {
 
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
-        DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
+    try (BulkIOBundleFnRunner fnTester = new BulkIOBundleFnRunner(write.getBulkIO())) {
       // inserts into Elasticsearch
       fnTester.processBundle(serializeDocs(write, input));
     }
@@ -585,8 +594,7 @@ class ElasticsearchIOTestCommon {
 
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
-        DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
+    try (BulkIOBundleFnRunner fnTester = new BulkIOBundleFnRunner(write.getBulkIO())) {
       List<String> input =
           ElasticsearchIOTestUtils.createDocuments(
               numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -640,8 +648,7 @@ class ElasticsearchIOTestCommon {
             .withMaxBatchSizeBytes(BATCH_SIZE_BYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    try (DoFnTester<Document, Document> fnTester =
-        DoFnTester.of(new BulkIO.BulkIOBundleFn(write.getBulkIO()))) {
+    try (BulkIOBundleFnRunner fnTester = new BulkIOBundleFnRunner(write.getBulkIO())) {
       List<String> input =
           ElasticsearchIOTestUtils.createDocuments(
               numDocs, ElasticsearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -1456,5 +1463,87 @@ class ElasticsearchIOTestCommon {
       }
       return null;
     };
+  }
+
+  /**
+   * Runs {@link BulkIO.BulkIOBundleFn} in-process, in the global window. Bundle size is the
+   * runner's decision, so the write tests drive the fn outside of a runner to control where a
+   * bundle ends and to check Elasticsearch between elements of the same bundle.
+   */
+  private static class BulkIOBundleFnRunner implements AutoCloseable {
+    private final DoFnInvoker<Document, Document> invoker;
+    private final DoFnRunner<Document, Document> runner;
+    private boolean bundleStarted = false;
+
+    BulkIOBundleFnRunner(BulkIO bulkIO) {
+      BulkIO.BulkIOBundleFn fn = new BulkIO.BulkIOBundleFn(bulkIO);
+      PipelineOptions options = PipelineOptionsFactory.create();
+      invoker = DoFnInvokers.tryInvokeSetupFor(fn, options);
+      runner =
+          DoFnRunners.simpleRunner(
+              options,
+              fn,
+              NullSideInputReader.empty(),
+              new WindowedValueMultiReceiver() {
+                @Override
+                public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+                  // The tests check what was written to Elasticsearch, not the fn's output.
+                }
+              },
+              new TupleTag<>(),
+              Collections.emptyList(),
+              null,
+              null,
+              Collections.emptyMap(),
+              WindowingStrategy.globalDefault(),
+              DoFnSchemaInformation.create(),
+              Collections.emptyMap());
+    }
+
+    /** Processes {@code document}, starting a bundle first if none is open. */
+    void processElement(Document document) throws Exception {
+      if (!bundleStarted) {
+        unwrap(runner::startBundle);
+        bundleStarted = true;
+      }
+      unwrap(() -> runner.processElement(WindowedValues.valueInGlobalWindow(document)));
+    }
+
+    /** Processes {@code documents} as one bundle and finishes it. */
+    void processBundle(Iterable<Document> documents) throws Exception {
+      for (Document document : documents) {
+        processElement(document);
+      }
+      finishBundle();
+    }
+
+    private void finishBundle() throws Exception {
+      if (bundleStarted) {
+        bundleStarted = false;
+        unwrap(runner::finishBundle);
+      }
+    }
+
+    /** Finishes any open bundle, then tears the fn down. */
+    @Override
+    public void close() throws Exception {
+      try {
+        finishBundle();
+      } finally {
+        invoker.invokeTeardown();
+      }
+    }
+
+    /** Rethrows the fn's own exception rather than the runner's {@link UserCodeException}. */
+    private static void unwrap(Runnable action) throws Exception {
+      try {
+        action.run();
+      } catch (UserCodeException e) {
+        if (e.getCause() instanceof Exception) {
+          throw (Exception) e.getCause();
+        }
+        throw e;
+      }
+    }
   }
 }

@@ -58,7 +58,7 @@ from apache_beam.utils import subprocess_server
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DATA_DIRECTORY = "gs://beam-tpcds/datasets/text"
-SUPPORTED_DATA_SIZES: Set[str] = {
+SUPPORTED_DATA_SIZES: set[str] = {
     "10M",
     "10MB",
     "1G",
@@ -130,10 +130,10 @@ def build_table_pcollections(
     pipeline: beam.Pipeline,
     table_names: Sequence[str],
     data_directory: str = DEFAULT_DATA_DIRECTORY,
-    data_size: str = "10MB") -> Dict[str, beam.PCollection]:
+    data_size: str = "10MB") -> dict[str, beam.PCollection]:
   """Creates schema-typed input PCollections from TPC-DS .dat files."""
   normalized_size = check_and_normalize_data_size(data_size)
-  tables: Dict[str, beam.PCollection] = {}
+  tables: dict[str, beam.PCollection] = {}
   base_dir = data_directory.rstrip("/")
   for table_name in table_names:
     row_cls = get_table_row_class(table_name)
@@ -310,7 +310,7 @@ def format_summary_table(results: Sequence[TpcdsQueryResult]) -> str:
   return "\n".join(lines)
 
 
-def main(argv: Optional[Sequence[str]] = None) -> List[TpcdsQueryResult]:
+def main(argv: Optional[Sequence[str]] = None) -> list[TpcdsQueryResult]:
   parser = argparse.ArgumentParser(
       description="Run Apache Beam Python TPC-DS benchmark suite.")
   parser.add_argument(
@@ -361,7 +361,7 @@ def main(argv: Optional[Sequence[str]] = None) -> List[TpcdsQueryResult]:
   normalized_size = check_and_normalize_data_size(known_args.data_size)
   query_names = parse_query_selection(known_args.queries)
 
-  all_results: List[TpcdsQueryResult] = []
+  all_results: list[TpcdsQueryResult] = []
   with subprocess_server.SubprocessServer.cache_subprocesses():
     for qname in query_names:
       query_sql = read_query(qname, known_args.queries_directory)
@@ -398,7 +398,7 @@ def main(argv: Optional[Sequence[str]] = None) -> List[TpcdsQueryResult]:
 
 def verify_no_regressions(
     results: Sequence[TpcdsQueryResult],
-    known_failing: Optional[Dict[str, str]] = None) -> None:
+    known_failing: Optional[dict[str, str]] = None) -> None:
   """Verifies that query results match SUPPORTED_QUERIES and KNOWN_FAILING_QUERIES.
 
   Raises RuntimeError if:
@@ -410,8 +410,8 @@ def verify_no_regressions(
   """
   expected_map = KNOWN_FAILING_QUERIES if known_failing is None else known_failing
   supported_set = set(parse_query_selection("supported"))
-  regressions: List[str] = []
-  unexpected_passes: List[str] = []
+  regressions: list[str] = []
+  unexpected_passes: list[str] = []
   expected_failures_matched = 0
   passed_queries = 0
 

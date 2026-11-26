@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         id: filter
         with:
@@ -73,6 +75,14 @@ jobs:
 
       - name: Generate Matrix
         id: set-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          FILTER_ACTIONS: ${{ steps.filter.outputs.actions }}
+          FILTER_GO: ${{ steps.filter.outputs.go }}
+          FILTER_JAVA_KOTLIN: ${{ steps.filter.outputs['java-kotlin'] }}
+          FILTER_JAVASCRIPT_TYPESCRIPT: ${{ steps.filter.outputs['javascript-typescript'] }}
+          FILTER_PYTHON: ${{ steps.filter.outputs.python }}
+          FILTER_RUST: ${{ steps.filter.outputs.rust }}
         run: |
           # Full matrix of all CodeQL supported languages and their build modes in Apache Beam.
           ALL_MATRIX='[
@@ -85,19 +95,26 @@ jobs:
           ]'
 
           # On periodic scheduled runs (cron) or manual dispatches, scan all languages.
-          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${EVENT_NAME}" == "schedule" || "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             COMPACT_ALL=$(echo "$ALL_MATRIX" | jq -c .)
             echo "matrix=$COMPACT_ALL" >> $GITHUB_OUTPUT
           else
             # Filter ALL_MATRIX entries keeping only entries for languages with path changes.
-            FILTERED=$(echo "$ALL_MATRIX" | jq -c '[.[] | select(
-              (.language == "actions" and "${{ steps.filter.outputs.actions }}" == "true") or
-              (.language == "go" and "${{ steps.filter.outputs.go }}" == "true") or
-              (.language == "java-kotlin" and "${{ steps.filter.outputs['java-kotlin'] }}" == "true") or
-              (.language == "javascript-typescript" and "${{ steps.filter.outputs['javascript-typescript'] }}" == "true") or
-              (.language == "python" and "${{ steps.filter.outputs.python }}" == "true") or
-              (.language == "rust" and "${{ steps.filter.outputs.rust }}" == "true")
-            )]')
+            FILTERED=$(echo "$ALL_MATRIX" | jq -c \
+              --arg actions "${FILTER_ACTIONS}" \
+              --arg go "${FILTER_GO}" \
+              --arg java_kotlin "${FILTER_JAVA_KOTLIN}" \
+              --arg javascript_typescript "${FILTER_JAVASCRIPT_TYPESCRIPT}" \
+              --arg python "${FILTER_PYTHON}" \
+              --arg rust "${FILTER_RUST}" \
+              '[.[] | select(
+                (.language == "actions" and $actions == "true") or
+                (.language == "go" and $go == "true") or
+                (.language == "java-kotlin" and $java_kotlin == "true") or
+                (.language == "javascript-typescript" and $javascript_typescript == "true") or
+                (.language == "python" and $python == "true") or
+                (.language == "rust" and $rust == "true")
+              )]')
             echo "matrix=$FILTERED" >> $GITHUB_OUTPUT
           fi
 
@@ -159,7 +176,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4.39.3
+      uses: github/codeql-action/init@v4.39.4
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
@@ -182,8 +199,9 @@ jobs:
       env:
         GOTMPDIR: ${{ runner.temp }}
         TMPDIR: ${{ runner.temp }}
+        MATRIX_LANGUAGE: ${{ matrix.language }}
       run: |
-        if [ "${{ matrix.language }}" = "go" ]; then
+        if [ "${MATRIX_LANGUAGE}" = "go" ]; then
           echo "Building sdks module..."
           (cd sdks && go build ./...)
 
@@ -196,11 +214,11 @@ jobs:
           echo "Building learning/tour-of-beam/backend module..."
           (cd learning/tour-of-beam/backend && go build ./cmd/... ./internal/... ./playground_api/...)
         else
-          echo "No manual build steps defined for ${{ matrix.language }}"
+          echo "No manual build steps defined for ${MATRIX_LANGUAGE}"
           exit 1
         fi
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4.39.3
+      uses: github/codeql-action/analyze@v4.39.4
       with:
         category: "/language:${{matrix.language}}"

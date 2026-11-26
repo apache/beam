@@ -797,6 +797,36 @@ class CreateInferOutputSchemaTest(unittest.TestCase):
       beam.Create([beam.Row(a=None), beam.Row(a=None)]).infer_output_type(None)
 
 
+class SubprocessDoFnTest(unittest.TestCase):
+  def test_call_remote_retries_broken_process_pool_on_init(self):
+    import concurrent.futures
+    import concurrent.futures.process
+    from unittest import mock
+
+    dofn = beam.core._SubprocessDoFn(beam.core.CallableWrapperDoFn(lambda x: x))
+    dofn.setup()
+
+    broken_future = concurrent.futures.Future()
+    broken_future.set_exception(
+        concurrent.futures.process.BrokenProcessPool('init crash'))
+    ok_init_future = concurrent.futures.Future()
+    ok_init_future.set_result(None)
+    ok_proc_future = concurrent.futures.Future()
+    ok_proc_future.set_result(['ok'])
+
+    pool1 = mock.MagicMock(_processes={})
+    pool1.submit.return_value = broken_future
+    pool2 = mock.MagicMock(_processes={})
+    pool2.submit.side_effect = [ok_init_future, ok_proc_future]
+
+    with mock.patch('concurrent.futures.ProcessPoolExecutor',
+                    side_effect=[pool1, pool2]) as mock_executor:
+      self.assertEqual(dofn.process('elem'), ['ok'])
+      self.assertEqual(mock_executor.call_count, 2)
+      pool1.shutdown.assert_called_once_with(wait=False)
+      self.assertIs(dofn._pool, pool2)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

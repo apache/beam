@@ -49,6 +49,7 @@ public class IntegrationTestEnv extends ExternalResource {
   private static final int MAX_DATABASE_NAME_LENGTH = 30;
   private static final String METADATA_TABLE_NAME_PREFIX = "TestMetadata";
   private static final String SINGERS_TABLE_NAME_PREFIX = "Singers";
+  private static final String UUID_SINGERS_TABLE_NAME_PREFIX = "UuidSingers";
   private static final String CHANGE_STREAM_NAME_PREFIX = "SingersStream";
   private static final String DATABASE_ROLE = "test_role";
   private List<String> changeStreams;
@@ -237,6 +238,36 @@ public class IntegrationTestEnv extends ExternalResource {
         + "   LastName   STRING(1024),"
         + "   SingerInfo BYTES(MAX)"
         + " ) PRIMARY KEY (SingerId)";
+  }
+
+  /**
+   * Creates a table that has a {@code UUID} primary key and a regular {@code UUID} column. Only
+   * defined for the GoogleSQL dialect.
+   */
+  String createUuidSingersTable()
+      throws InterruptedException, ExecutionException, TimeoutException {
+    if (this.isPostgres) {
+      throw new UnsupportedOperationException(
+          "The UUID singers table is only defined for the GoogleSQL dialect.");
+    }
+    final String tableName = generateTableName(UUID_SINGERS_TABLE_NAME_PREFIX);
+    LOG.info("Creating table {}", tableName);
+    databaseAdminClient
+        .updateDatabaseDdl(
+            instanceId,
+            databaseId,
+            Collections.singletonList(
+                "CREATE TABLE "
+                    + tableName
+                    + " ("
+                    + "   SingerId   UUID NOT NULL,"
+                    + "   ExternalId UUID,"
+                    + "   FirstName  STRING(1024)"
+                    + " ) PRIMARY KEY (SingerId)"),
+            null)
+        .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+    tables.add(tableName);
+    return tableName;
   }
 
   String createChangeStreamFor(String tableName)

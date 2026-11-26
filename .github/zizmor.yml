@@ -3,3 +3,7 @@ rules:
     config:
       policies:
         "*": ref-pin # Allow non-hashed pins, but still require versioned
+  self-repository:
+    # Beam workflows do not check out untrusted PR refs in pull_request_target/workflow_run
+    # before invoking ./.github/actions/..., so workspace-relative local action paths are safe.
+    disable: true

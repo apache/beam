@@ -649,7 +649,6 @@ public class WorkerCustomSourcesTest {
             /* systemName= */ "systemName",
             StreamingCounters.create(),
             mock(FailureTracker.class),
-            "sourceBytesProcessCounterName",
             MultiKeyBundleOptions.fromOptions(options),
             SideInputStateFetcherFactory.fromOptions(options));
 
@@ -1027,7 +1026,6 @@ public class WorkerCustomSourcesTest {
             /* systemName= */ "systemName",
             StreamingCounters.create(),
             mock(FailureTracker.class),
-            "sourceBytesProcessCounterName",
             MultiKeyBundleOptions.fromOptions(options),
             SideInputStateFetcherFactory.fromOptions(options));
 
