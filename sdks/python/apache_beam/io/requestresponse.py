@@ -338,15 +338,19 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
         _CallDoFn(self._caller, self._timeout, self._repeater, self._throttler))
 
 
-class _WindowedRequest:
-  """Internal wrapper preserving per-element windowing metadata across batching."""
+class _WindowedElement:
+  """Internal wrapper preserving per-element windowing metadata across batching.
+
+  Holds a payload (request before the call, response after) plus the original
+  timestamp/windows/pane_info so FlattenBatch can restore WindowedValues.
+  """
   def __init__(
       self,
-      request: Any,
+      value: Any,
       timestamp: Any,
       windows: tuple[Any, ...],
       pane_info: Any = windowed_value.PANE_INFO_UNKNOWN):
-    self.request = request
+    self.value = value
     self.timestamp = timestamp
     self.windows = windows
     self.pane_info = pane_info
@@ -360,7 +364,7 @@ class _AttachWindowMetadataDoFn(beam.DoFn):
       timestamp=beam.DoFn.TimestampParam,
       window=beam.DoFn.WindowParam,
       pane_info=beam.DoFn.PaneInfoParam):
-    yield _WindowedRequest(element, timestamp, (window, ), pane_info)
+    yield _WindowedElement(element, timestamp, (window, ), pane_info)
 
 
 def _adapt_batching_kwargs(
@@ -371,30 +375,44 @@ def _adapt_batching_kwargs(
       orig_fn = adapted[fn_key]
       adapted[fn_key] = (
           lambda el, _fn=orig_fn: _fn(
-              el.request if isinstance(el, _WindowedRequest) else el))
+              el.value if isinstance(el, _WindowedElement) else el))
   return adapted
 
 
 def _reattach_window_metadata(
-    windowed_requests: list[_WindowedRequest],
-    raw_responses: Any) -> list[_WindowedRequest]:
+    windowed_elements: list[_WindowedElement],
+    raw_responses: Any) -> list[_WindowedElement]:
+  """Pair caller responses with the pre-batch window metadata.
+
+  Matching heuristics for iterable responses (checked in order):
+  1. If a response item is a ``(request, response)`` tuple, prefer an
+     identity match on ``id(request)`` against the original batched
+     requests (fast path for handlers that return the same objects).
+  2. If identity fails, fall back to equality (``==``) so reconstructed
+     values such as new ``beam.Row`` instances still match.
+  3. Otherwise (plain response items, or no match), use positional
+     alignment with the original batch order.
+
+  A non-iterable / scalar response (including ``bytes``, ``str``, and
+  ``beam.Row``) is wrapped with the first element's metadata.
+  """
   if not isinstance(raw_responses, collections.abc.Iterable) or isinstance(
       raw_responses, (bytes, str, beam.Row)):
-    w0 = windowed_requests[0]
+    w0 = windowed_elements[0]
     return [
-        _WindowedRequest(raw_responses, w0.timestamp, w0.windows, w0.pane_info)
+        _WindowedElement(raw_responses, w0.timestamp, w0.windows, w0.pane_info)
     ]
 
   resp_list = list(raw_responses)
-  by_id: dict[int, collections.deque[_WindowedRequest]] = (
+  by_id: dict[int, collections.deque[_WindowedElement]] = (
       collections.defaultdict(collections.deque))
-  for w in windowed_requests:
-    by_id[id(w.request)].append(w)
-  remaining: list[_WindowedRequest] = list(windowed_requests)
+  for w in windowed_elements:
+    by_id[id(w.value)].append(w)
+  remaining: list[_WindowedElement] = list(windowed_elements)
 
-  wrapped: list[_WindowedRequest] = []
+  wrapped: list[_WindowedElement] = []
   for idx, resp_item in enumerate(resp_list):
-    matched_w: Optional[_WindowedRequest] = None
+    matched_w: Optional[_WindowedElement] = None
     if isinstance(resp_item, tuple) and len(resp_item) == 2:
       req_candidate = resp_item[0]
       cand_id = id(req_candidate)
@@ -406,18 +424,18 @@ def _reattach_window_metadata(
             break
       else:
         for r_idx, rem_w in enumerate(remaining):
-          if rem_w.request == req_candidate:
+          if rem_w.value == req_candidate:
             matched_w = remaining.pop(r_idx)
-            rem_id = id(matched_w.request)
+            rem_id = id(matched_w.value)
             if rem_id in by_id and matched_w in by_id[rem_id]:
               by_id[rem_id].remove(matched_w)
             break
     if matched_w is None:
       matched_w = (
-          windowed_requests[idx]
-          if idx < len(windowed_requests) else windowed_requests[-1])
+          windowed_elements[idx]
+          if idx < len(windowed_elements) else windowed_elements[-1])
     wrapped.append(
-        _WindowedRequest(
+        _WindowedElement(
             resp_item,
             matched_w.timestamp,
             matched_w.windows,
@@ -461,8 +479,8 @@ class _CallDoFn(beam.DoFn):
 
     is_windowed_batch = (
         isinstance(request, list) and len(request) > 0 and
-        isinstance(request[0], _WindowedRequest))
-    caller_request: Any = ([w.request
+        isinstance(request[0], _WindowedElement))
+    caller_request: Any = ([w.value
                             for w in request] if is_windowed_batch else request)
 
     try:
@@ -473,7 +491,7 @@ class _CallDoFn(beam.DoFn):
       if self._throttler is not None:
         self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
       if is_windowed_batch:
-        windowed_batch: list[_WindowedRequest] = request  # type: ignore[assignment]
+        windowed_batch: list[_WindowedElement] = request  # type: ignore[assignment]
         wrapped_response = _reattach_window_metadata(windowed_batch, response)
         min_ts = min(w.timestamp for w in windowed_batch)
         yield windowed_value.WindowedValue(
@@ -846,9 +864,9 @@ class FlattenBatch(beam.DoFn):
   """Flatten a batched PCollection, restoring per-element windowing metadata."""
   def process(self, elements, *args, **kwargs):
     for element in elements:
-      if isinstance(element, _WindowedRequest):
+      if isinstance(element, _WindowedElement):
         yield windowed_value.WindowedValue(
-            element.request,
+            element.value,
             element.timestamp,
             element.windows,
             element.pane_info)

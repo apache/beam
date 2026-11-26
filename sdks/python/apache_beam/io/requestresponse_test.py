@@ -255,12 +255,12 @@ class TestCaller(unittest.TestCase):
 
   def test_reattach_window_metadata_equality_and_positional(self):
     from apache_beam.io.requestresponse import _reattach_window_metadata
-    from apache_beam.io.requestresponse import _WindowedRequest
+    from apache_beam.io.requestresponse import _WindowedElement
     from apache_beam.transforms.window import GlobalWindow
     from apache_beam.utils.timestamp import Timestamp
 
-    w1 = _WindowedRequest(beam.Row(id=1), Timestamp(100), (GlobalWindow(), ))
-    w2 = _WindowedRequest(beam.Row(id=2), Timestamp(200), (GlobalWindow(), ))
+    w1 = _WindowedElement(beam.Row(id=1), Timestamp(100), (GlobalWindow(), ))
+    w2 = _WindowedElement(beam.Row(id=2), Timestamp(200), (GlobalWindow(), ))
 
     # Reconstructed Row objects (different object id, equal value) in reverse.
     reconstructed_responses = [
