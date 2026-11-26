@@ -7,3 +7,12 @@ rules:
     # Beam workflows do not check out untrusted PR refs in pull_request_target/workflow_run
     # before invoking ./.github/actions/..., so workspace-relative local action paths are safe.
     disable: true
+  dangerous-triggers:
+    # Audited PR/issue bot and CI housekeeping workflows require pull_request_target,
+    # workflow_run, or issue_comment for fork PRs and do not execute untrusted PR code.
+    ignore:
+      - cancel.yml
+      - gemini_code_review.yml
+      - label_prs.yml
+      - pr-bot-pr-updates.yml
+      - self-assign.yml
