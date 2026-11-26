@@ -35,8 +35,7 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   push_docker_artifacts:

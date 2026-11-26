@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import com.google.auto.value.AutoValue;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,7 +36,8 @@ public abstract class MultiKeyBundleOptions {
 
   // Don't use. Experiment guarding multi key bundles. The feature is work in progress and
   // incomplete.
-  public static final String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE = "unstable_enable_multi_key_bundle";
+  public static final String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE =
+      DataflowStreamingPipelineOptions.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE;
 
   private static final String WINDMILL_MAX_KEY_GROUP_BATCH_SIZE =
       "windmill_max_key_group_batch_size";

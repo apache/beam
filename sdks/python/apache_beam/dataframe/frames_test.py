@@ -948,6 +948,26 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df, df2: df.corrwith(df2, axis=1), df, df2, check_proxy=False)
 
+  def test_dataframe_cov_corr_diagonal(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.cov(ddof=0), df)
+    self._run_test(lambda df: df.cov(ddof=2), df)
+
+    df.loc[df.index[:5], 'a'] = np.nan
+    self._run_test(lambda df: df.cov(min_periods=16), df)
+    self._run_test(lambda df: df.corr(min_periods=16), df)
+
+  def test_cov_single_row_ddof_0(self):
+    df = pd.DataFrame({'a': [1.0], 'b': [2.0]})
+    self._run_test(lambda df: df.cov(ddof=0), df)
+    self._run_test(lambda df: df.a.cov(df.b, ddof=0), df)
+
+  def test_corr_no_variance(self):
+    df = pd.DataFrame({'a': np.random.randn(10), 'b': 0.1})
+    self._run_test(lambda df: df.a.corr(df.b), df)
+    self._run_test(lambda df: df.b.corr(df.b), df)
+    self._run_test(lambda df: df.corr(), df)
+
   def test_corrwith_bad_axis(self):
     df = pd.DataFrame({'a': range(3), 'b': range(3, 6), 'c': range(6, 9)})
     self._run_error_test(lambda df: df.corrwith(df.a, axis=2), df)
@@ -1135,6 +1155,10 @@ class DeferredFrameTest(_AbstractFrameTest):
         nonparallel=True)
     self._run_test(
         lambda df: df.groupby(level=0, observed=False).mean(),
+        df,
+        nonparallel=True)
+    self._run_test(
+        lambda df: df.groupby(level=0, observed=False).A.describe(),
         df,
         nonparallel=True)
 
@@ -1486,6 +1510,47 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
     self._run_test(lambda s2: s2.idxmax(), s2)
     self._run_test(lambda s2: s2.idxmax(skipna=False), s2)
+
+  def test_idxmin_idxmax_all_na_partition(self):
+    # Each test partition holds a single row here, so the NaT rows make
+    # partitions with only missing values.
+    s = pd.Series(
+        pd.to_datetime([None, '2024-01-05', None, '2024-01-02']),
+        index=['A', 'B', 'C', 'D'])
+    df = pd.DataFrame({'t': s, 'x': [1.0, 4.0, 3.0, 2.0]})
+    df2 = pd.DataFrame({
+        't': pd.to_datetime(['2024-01-03', '2024-01-05', '2024-01-01', None]),
+        'x': [1.0, None, 3.0, 2.0]
+    },
+                       index=['A', 'B', 'C', 'D'])
+
+    self._run_test(lambda s: s.idxmin(), s)
+    self._run_test(lambda s: s.idxmax(), s)
+    self._run_test(lambda s: s.idxmin(skipna=False), s, check_proxy=False)
+    self._run_test(lambda s: s.idxmax(skipna=False), s, check_proxy=False)
+    self._run_test(lambda df: df.idxmin(), df)
+    self._run_test(lambda df: df.idxmax(), df)
+    self._run_test(lambda df2: df2.idxmin(numeric_only=True), df2)
+    self._run_test(lambda df2: df2.idxmax(numeric_only=True), df2)
+
+  def test_idxmin_idxmax_all_na_partition_is_reduced(self):
+    # An all-NA column in a partition should not stop the other columns from
+    # being reduced before the final step.
+    df = pd.DataFrame({
+        't': pd.Series(pd.NaT, index=range(100), dtype='datetime64[ns]'),
+        'x': np.arange(100.0),
+    })
+    deferred_df, = _get_deferred_args(df)
+
+    def partial_rows(result):
+      return len(expressions.Session({}).evaluate(result._expr.args()[0]))
+
+    self.assertEqual(partial_rows(deferred_df.idxmin()), 1)
+    self.assertEqual(partial_rows(deferred_df.idxmax(skipna=False)), 1)
+    self.assertEqual(partial_rows(deferred_df.idxmin(numeric_only=True)), 1)
+    self.assertEqual(partial_rows(deferred_df[['t']].idxmax()), 1)
+    self.assertEqual(partial_rows(deferred_df.t.idxmin()), 1)
+    self.assertEqual(partial_rows(deferred_df.t.idxmax(skipna=False)), 1)
 
   def test_pipe(self):
     def df_times(df, column, times):
@@ -1886,10 +1951,6 @@ class GroupByTest(_AbstractFrameTest):
   def test_groupby_project_series(self, agg_type):
     df = GROUPBY_DF
 
-    if agg_type == 'describe':
-      self.skipTest(
-          "https://github.com/apache/beam/issues/20967: proxy generation of "
-          "SeriesGroupBy.describe fails")
     if agg_type in ('corr', 'cov'):
       self.skipTest(
           "https://github.com/apache/beam/issues/20895: "
@@ -2072,6 +2133,25 @@ class GroupByTest(_AbstractFrameTest):
 
     self._run_test(lambda df: df.groupby('group').sum(min_count=2), df)
 
+  def test_groupby_describe_multiple_keys(self):
+    df = pd.DataFrame({
+        'foo': [1, 2, 3, 4, 5, 6, 7, 9],
+        'g1': list('xyxyxyxy'),
+        'g2': [1, 1, 1, 1, 2, 2, 2, 2],
+    })
+    self._run_test(lambda df: df.groupby(['g1', 'g2']).foo.describe(), df)
+
+  def test_groupby_skew_of_integer_columns(self):
+    df = pd.DataFrame({
+        'foo': [1, 2, 3, 4, 5, 6, 7, 9],
+        'bar': [2, 7, 1, 8, 2, 8, 1, 8],
+        'baz': np.array([1, 2, 3, 4, 5, 6, 7, 9], dtype=np.float32),
+        'group': list('xyxyxyxy'),
+    })
+    self._run_test(lambda df: df.groupby('group').foo.skew(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['foo', 'bar', 'baz']].skew(), df)
+
   @unittest.skipIf(
       PD_VERSION >= (2, 0), "dtypes on groups is deprecated in Pandas 2.")
   def test_groupby_dtypes(self):
@@ -2097,10 +2177,6 @@ class GroupByTest(_AbstractFrameTest):
 
   @parameterized.expand(ALL_GROUPING_AGGREGATIONS)
   def test_series_groupby_series(self, agg_type):
-    if agg_type == 'describe':
-      self.skipTest(
-          "https://github.com/apache/beam/issues/20967: proxy generation of "
-          "SeriesGroupBy.describe fails")
     if agg_type in ('corr', 'cov'):
       self.skipTest(
           "https://github.com/apache/beam/issues/20895: "
@@ -2595,6 +2671,14 @@ class BeamSpecificTest(unittest.TestCase):
         expressions.PartitioningSession if distributed else expressions.Session)
 
     return session_type({}).evaluate(func(*deferred_args)._expr)
+
+  def test_cov_ddof_equal_to_count(self):
+    # pandas divides by zero here; Beam returns NaN as Series.var does.
+    df = pd.DataFrame({'a': [1.0, 2.0], 'b': [3.0, 5.0]})
+    result = self._evaluate(lambda df: df.cov(ddof=2), df)
+    self.assertTrue(result.isna().all().all())
+    result = self._evaluate(lambda df: df.a.cov(df.b, ddof=2), df)
+    self.assertTrue(np.isnan(result))
 
   def test_drop_duplicates_keep_any(self):
     df = pd.DataFrame({

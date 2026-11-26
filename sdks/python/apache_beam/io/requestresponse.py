@@ -328,10 +328,15 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
     self._should_backoff = should_backoff
     self._repeater = repeater
     self._throttler = throttler
-    self._exception_handling_args: Optional[dict[str, Any]] = None
+    self._exception_handling_args: Optional[tuple] = None
 
-  def with_exception_handling(self, **kwargs):
-    self._exception_handling_args = kwargs
+  def with_exception_handling(self, *args, **kwargs):
+    """Enable dead-letter outputs for failed calls.
+
+    Arguments are forwarded to
+    :meth:`apache_beam.transforms.core.DoFn.with_exception_handling`.
+    """
+    self._exception_handling_args = (args, kwargs)
     return self
 
   def expand(
@@ -340,8 +345,8 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
     pardo = beam.ParDo(
         _CallDoFn(self._caller, self._timeout, self._repeater, self._throttler))
     if self._exception_handling_args is not None:
-      return requests | pardo.with_exception_handling(
-          **self._exception_handling_args)
+      eh_args, eh_kwargs = self._exception_handling_args
+      return requests | pardo.with_exception_handling(*eh_args, **eh_kwargs)
     return requests | pardo
 
 
@@ -799,10 +804,17 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     self._cache = cache
     self._throttler = throttler
     self._batching_kwargs = self._caller.batch_elements_kwargs()
-    self._exception_handling_args: Optional[dict[str, Any]] = None
+    self._exception_handling_args: Optional[tuple] = None
 
-  def with_exception_handling(self, **kwargs):
-    self._exception_handling_args = kwargs
+  def with_exception_handling(self, *args, **kwargs):
+    """Enable dead-letter outputs for failed requests.
+
+    Arguments are forwarded to
+    :meth:`apache_beam.transforms.core.DoFn.with_exception_handling`.
+    See that method for accepted parameters such as ``main_tag``,
+    ``dead_letter_tag``, ``exc_class``, and ``timeout``.
+    """
+    self._exception_handling_args = (args, kwargs)
     return self
 
   def expand(
@@ -849,14 +861,19 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
 
     errors = None
     if self._exception_handling_args is not None:
-      main_tag = self._exception_handling_args.get('main_tag', 'good')
-      dead_letter_tag = self._exception_handling_args.get(
-          'dead_letter_tag', 'bad')
+      eh_args, eh_kwargs = self._exception_handling_args
+      main_tag = eh_kwargs.get(
+          'main_tag', eh_args[0] if len(eh_args) > 0 else 'good')
+      dead_letter_tag = eh_kwargs.get(
+          'dead_letter_tag', eh_args[1] if len(eh_args) > 1 else 'bad')
       call_result = inputs | call_transform.with_exception_handling(
-          **self._exception_handling_args)
+          *eh_args, **eh_kwargs)
       responses = call_result[main_tag]
       errors = call_result[dead_letter_tag]
       if self._batching_kwargs:
+        # BatchElements feeds lists into _CallDoFn, so failed records from
+        # DoFn.with_exception_handling are shaped (batch_list, error). Expand
+        # to per-element (request, error) to match the non-batched DLQ shape.
         errors = (
             errors
             | "FlattenBatchErrors" >> beam.FlatMap(

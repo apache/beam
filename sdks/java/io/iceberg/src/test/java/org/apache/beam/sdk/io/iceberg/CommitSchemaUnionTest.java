@@ -560,14 +560,22 @@ public class CommitSchemaUnionTest {
             required(1, "id", Types.LongType.get()),
             required(2, "region", Types.StringType.get()),
             optional(3, "score", Types.DoubleType.get()));
+    // this v2 table cannot hold timestamp_ns: skipped like any incompatible schema, not thrown
+    Schema needsV3 =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            required(2, "region", Types.StringType.get()),
+            optional(3, "ts_ns", Types.TimestampNanoType.withoutZone()));
     commit(
         ADDITION_ONLY,
         IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
         files(good, 9),
-        files(needsPromotion, 1));
+        files(needsPromotion, 1),
+        files(needsV3, 1));
     Table table = load();
     assertNotNull(table.schema().findField("email"));
     assertEquals(Types.FloatType.get(), table.schema().findField("score").type());
+    assertNull(table.schema().findField("ts_ns"));
   }
 
   @Test

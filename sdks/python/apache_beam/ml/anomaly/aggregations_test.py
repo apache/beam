@@ -68,6 +68,21 @@ class MajorityVoteTest(unittest.TestCase):
 
     self.assertEqual(vote([outlier, normal]), outlier)
 
+  def test_tie_breaker_defaults_to_custom_normal_label(self):
+    normal = AnomalyPrediction(label=5)
+    outlier = AnomalyPrediction(label=7)
+    vote = aggregations.MajorityVote(normal_label=5, outlier_label=7).apply
+
+    self.assertEqual(vote([outlier, normal]), normal)
+
+  def test_explicit_tie_breaker_with_custom_labels(self):
+    normal = AnomalyPrediction(label=5)
+    outlier = AnomalyPrediction(label=7)
+    vote = aggregations.MajorityVote(
+        normal_label=5, outlier_label=7, tie_breaker=7).apply
+
+    self.assertEqual(vote([outlier, normal]), outlier)
+
 
 class AllVoteTest(unittest.TestCase):
   def test_default(self):

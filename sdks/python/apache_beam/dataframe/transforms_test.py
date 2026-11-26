@@ -178,6 +178,15 @@ class TransformTest(unittest.TestCase):
       self.run_scenario(
           df, lambda df: df.groupby('key').sum().val / df.val.agg(sum))
 
+  def test_idxmin_idxmax_with_empty_partition(self):
+    # run_scenario splits the input into two batches, and the filter leaves
+    # the second one empty.
+    df = pd.DataFrame({'x': [10.0, 1.0, 30.0, 2.0, 20.0]})
+    self.run_scenario(df, lambda df: df[df.x > 5].x.idxmin())
+    self.run_scenario(df, lambda df: df[df.x > 5].x.idxmax())
+    self.run_scenario(df, lambda df: df[df.x > 5].idxmin())
+    self.run_scenario(df, lambda df: df[df.x > 5].idxmax())
+
   def test_getitem_projection(self):
     df = pd.DataFrame({
         'Animal': ['Aardvark', 'Ant', 'Elephant', 'Zebra'],

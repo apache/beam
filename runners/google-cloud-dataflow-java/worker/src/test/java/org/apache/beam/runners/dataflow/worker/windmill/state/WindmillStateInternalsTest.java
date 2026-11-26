@@ -3860,6 +3860,103 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testCachedMultimap() throws Exception {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final byte[] key = "key1".getBytes(StandardCharsets.UTF_8);
+
+    assertEquals(0, cache.getWeight());
+
+    SettableFuture<Iterable<Integer>> entryFuture = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(entryFuture);
+    waitAndSet(entryFuture, weightedList(1, 2, 3), 30);
+    assertThat(multimapState.get(key).read(), Matchers.containsInAnyOrder(1, 2, 3));
+    multimapState.put(key, 300);
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    // The read values weigh 1 each, 300 encodes to 2 bytes and the key to 4 bytes.
+    assertEquals(359, cache.getWeight());
+
+    resetUnderTest();
+    multimapState = underTest.state(NAMESPACE, addr);
+    multimapState.remove(key);
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(354, cache.getWeight());
+
+    resetUnderTest();
+    multimapState = underTest.state(NAMESPACE, addr);
+    multimapState.clear();
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(222, cache.getWeight());
+  }
+
+  @Test
+  public void testCachedMultimapReadOnly() throws Exception {
+    final String tag = "multimap";
+    StateTag<MultimapState<byte[], Integer>> addr =
+        StateTags.multimap(tag, ByteArrayCoder.of(), VarIntCoder.of());
+    MultimapState<byte[], Integer> multimapState = underTest.state(NAMESPACE, addr);
+
+    final byte[] key = "key1".getBytes(StandardCharsets.UTF_8);
+
+    assertEquals(0, cache.getWeight());
+
+    SettableFuture<Iterable<Integer>> entryFuture = SettableFuture.create();
+    when(mockReader.multimapFetchSingleEntryFuture(
+            encodeWithCoder(key, ByteArrayCoder.of()),
+            key(NAMESPACE, tag),
+            STATE_FAMILY,
+            VarIntCoder.of()))
+        .thenReturn(entryFuture);
+    waitAndSet(entryFuture, weightedList(1, 2, 3), 30);
+    assertThat(multimapState.get(key).read(), Matchers.containsInAnyOrder(1, 2, 3));
+
+    underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    // The read values weigh 1 each and the key encodes to 4 bytes.
+    assertEquals(357, cache.getWeight());
+  }
+
+  @Test
+  public void testCachedMapViaMultimap() throws Exception {
+    StateTag<MapState<byte[], byte[]>> addr =
+        StateTags.map("map", ByteArrayCoder.of(), ByteArrayCoder.of());
+    MapState<byte[], byte[]> mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+
+    final byte[] key = "key".getBytes(StandardCharsets.UTF_8);
+
+    assertEquals(0, cacheViaMultimap.getWeight());
+
+    mapState.put(key, new byte[1000]);
+    underTestMapViaMultimap.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(1351, cacheViaMultimap.getWeight());
+
+    // Overwriting the value replaces its weight instead of adding to it.
+    resetUnderTest();
+    mapState = underTestMapViaMultimap.state(NAMESPACE, addr);
+    mapState.put(dup(key), new byte[2000]);
+    underTestMapViaMultimap.persist(Windmill.WorkItemCommitRequest.newBuilder());
+
+    assertEquals(2351, cacheViaMultimap.getWeight());
+
+    Mockito.verifyNoInteractions(mockReader);
+  }
+
+  @Test
   public void testMultimapReadLaterSkipsCachedAndNonexistentKeys() {
     final String tag = "multimap";
     StateTag<MultimapState<byte[], Integer>> addr =

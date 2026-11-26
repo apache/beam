@@ -19,8 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.Iterator;
 import org.apache.flink.api.common.state.ListState;
 
 /** A non-keyed implementation of a {@link BufferingElementsHandler}. */
@@ -37,9 +36,9 @@ public class NonKeyedBufferingElementsHandler<T> implements BufferingElementsHan
   }
 
   @Override
-  public Stream<BufferedElement> getElements() {
+  public Iterator<BufferedElement> getElements() {
     try {
-      return StreamSupport.stream(elementState.get().spliterator(), false);
+      return elementState.get().iterator();
     } catch (Exception e) {
       throw new RuntimeException("Failed to retrieve buffered element from state backend.", e);
     }

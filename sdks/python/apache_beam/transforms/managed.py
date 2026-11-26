@@ -80,9 +80,7 @@ from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
-# TODO(https://github.com/apache/beam/issues/34212): keep ICEBERG_CDC private
-#  until we vet it with integration tests
-_ICEBERG_CDC = "iceberg_cdc"
+ICEBERG_CDC = "iceberg_cdc"
 KAFKA = "kafka"
 BIGQUERY = "bigquery"
 POSTGRES = "postgres"
@@ -94,6 +92,7 @@ ICEBERG_ADD_FILES = "iceberg_add_files"
 
 __all__ = [
     "ICEBERG",
+    "ICEBERG_CDC",
     "KAFKA",
     "BIGQUERY",
     "DELTA",
@@ -108,7 +107,7 @@ class Read(PTransform):
   """Read using Managed Transforms"""
   _READ_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
-      _ICEBERG_CDC: ManagedTransforms.Urns.ICEBERG_CDC_READ.urn,
+      ICEBERG_CDC: ManagedTransforms.Urns.ICEBERG_CDC_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn,
       POSTGRES: ManagedTransforms.Urns.POSTGRES_READ.urn,

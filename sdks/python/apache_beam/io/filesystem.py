@@ -257,8 +257,10 @@ class CompressedFile(object):
         # file. We read concatenated files by recursively creating decompressor
         # objects for the unused compressed data.
         buf = self._decompressor.unused_data
-        self._initialize_decompressor()
       if buf:
+        # A member may end exactly at a compressed read boundary.
+        if self._decompressor.eof:
+          self._initialize_decompressor()
         decompressed = self._decompressor.decompress(buf)
         del buf  # Free up some possibly large and no-longer-needed memory.
         self._read_buffer.write(decompressed)
@@ -331,9 +333,21 @@ class CompressedFile(object):
     self._file.close()
 
   def flush(self) -> None:
+    """Writes buffered data to the file without finishing the compressed stream.
+
+    Only close() finishes the stream, so more data can be written after a flush.
+    """
     if self.writeable():
       assert self._compressor
-      self._file.write(self._compressor.flush())
+      if self._compression_type in (CompressionTypes.GZIP,
+                                    CompressionTypes.DEFLATE):
+        self._file.write(self._compressor.flush(zlib.Z_SYNC_FLUSH))
+      elif self._compression_type == CompressionTypes.ZSTD:
+        self._file.write(
+            self._compressor.flush(zstandard.COMPRESSOBJ_FLUSH_BLOCK))
+      # BZIP2 and LZMA compressors cannot flush without finishing the stream,
+      # so their buffered data is written by close(), as in bz2.BZ2File and
+      # lzma.LZMAFile.
     self._file.flush()
 
   @property
@@ -649,7 +663,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
   def translate_pattern(pattern: str) -> str:
     """
     Translate a *pattern* to a regular expression.
-    There is no way to quote meta-characters.
+    To match a meta-character literally, put it in brackets, such as ``[*]``.
 
     Pattern syntax:
       The pattern syntax is based on the fnmatch_ syntax, with the following
@@ -696,6 +710,9 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
           res = res + r'\['
         else:
           stuff = pattern[i:j].replace('\\', '\\\\')
+          # Escape '[' and the set operations '&', '~' and '|', so that a
+          # class such as '[[]' compiles without a FutureWarning.
+          stuff = re.sub(r'([&~|\[])', r'\\\1', stuff)
           i = j + 1
           if stuff[0] == '!':
             stuff = '^' + stuff[1:]
@@ -738,14 +755,16 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
       # Get the part of the pattern before the first globbing character.
       # For example scheme://path/foo* will become scheme://path/foo for
       # filesystems like GCS, or converted to scheme://path for filesystems with
-      # directories.
-      prefix_or_dir = re.match('^[^[*?]*', pattern).group(0)
+      # directories. An escaped character such as [*], [?] or [[] matches
+      # itself, so it stays in the prefix.
+      prefix_match = re.match(r'^(?:[^[*?]|\[[*?[]\])*', pattern).group(0)
+      prefix_or_dir = re.sub(r'\[([*?[])\]', r'\1', prefix_match)
 
       file_metadatas = []
-      if prefix_or_dir == pattern:
+      if prefix_match == pattern:
         # Short-circuit calling self.list() if there's no glob pattern to match.
-        if self.exists(pattern):
-          file_metadatas = [self.metadata(pattern)]
+        if self.exists(prefix_or_dir):
+          file_metadatas = [self.metadata(prefix_or_dir)]
       else:
         if self.has_dirs():
           prefix_dirname = self._url_dirname(prefix_or_dir)
