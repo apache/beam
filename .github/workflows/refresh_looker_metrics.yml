@@ -26,15 +26,14 @@ on:
       LOOKERSDK_CLIENT_SECRET:
         description: Your Looker Client Secret.
         required: true
-      LOOKERSDK_BASE_URL:
-        description: Your Looker Base URL.
-        required: true
+  schedule:
+    - cron: "0 6 * * 0"
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LOOKERSDK_BASE_URL: ${{ github.event.inputs.LOOKERSDK_BASE_URL }}
-  LOOKERSDK_CLIENT_ID: ${{ github.event.inputs.LOOKERSDK_CLIENT_ID }}
-  LOOKERSDK_CLIENT_SECRET: ${{ github.event.inputs.LOOKERSDK_CLIENT_SECRET }}
+  LOOKERSDK_BASE_URL: 'https://28cd0c7f-7a84-428c-bfa7-6e8316f6931b.looker.app'
+  LOOKERSDK_CLIENT_ID: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.LOOKERSDK_CLIENT_ID || secrets.LOOKERSDK_CLIENT_ID }}
+  LOOKERSDK_CLIENT_SECRET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.LOOKERSDK_CLIENT_SECRET || secrets.LOOKERSDK_CLIENT_SECRET }}
   GCS_BUCKET: 'public_looker_explores_us_a3853f40'
 
 permissions:
