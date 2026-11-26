@@ -131,9 +131,11 @@ def enrichment_transform(
         f"handler. Please install using 'pip install apache-beam[gcp]'.")
 
   handler = handler_map[enrichment_handler](**handler_config)
-  # Enrichment gains on_miss and prefix in #41451. Build kwargs dynamically
-  # so type checkers against current master Enrichment stay clean, and raise
-  # if the YAML asks for those options before that API is available.
+  # on_miss/prefix land in a follow-up to #41451. Build kwargs dynamically so
+  # type checkers against current master Enrichment stay clean, and raise if
+  # the YAML asks for those options before that API is available.
+  # error_handling uses Enrichment.with_exception_handling from #41451 via
+  # maybe_with_exception_handling_transform_fn / _PValueWithErrors.
   enrich_kwargs: dict[str, Any] = {
       'source_handler': handler,
       'timeout': timeout,
@@ -143,12 +145,12 @@ def enrichment_transform(
     enrich_kwargs['on_miss'] = on_miss
   elif on_miss not in (None, 'null'):
     raise ValueError(
-        "Enrichment does not support on_miss yet. Merge "
-        "https://github.com/apache/beam/pull/41451 first.")
+        "Enrichment does not support on_miss yet. That API is staged on "
+        "feat-enrichment-on-miss-prefix-followup-41356 after #41451.")
   if 'prefix' in enrich_params:
     enrich_kwargs['prefix'] = prefix
   elif prefix:
     raise ValueError(
-        "Enrichment does not support prefix yet. Merge "
-        "https://github.com/apache/beam/pull/41451 first.")
+        "Enrichment does not support prefix yet. That API is staged on "
+        "feat-enrichment-on-miss-prefix-followup-41356 after #41451.")
   return pcoll | Enrichment(**enrich_kwargs)

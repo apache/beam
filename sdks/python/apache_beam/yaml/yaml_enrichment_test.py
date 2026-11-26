@@ -92,13 +92,14 @@ class EnrichmentTransformTest(unittest.TestCase):
 
   def _require_file_enrichment_dependencies(self):
     # These tests exercise FileEnrichmentHandler plus Enrichment on_miss/prefix.
-    # Those land in #41452 and #41451. Until both are on this branch, running
+    # File handler lands in #41452; on_miss/prefix follow #41451. Until both
     # the tests fails for a missing module rather than a behavior regression.
     if FileEnrichmentHandler is None:
       self.skipTest('FileEnrichmentHandler is added in #41452')
     params = inspect.signature(Enrichment.__init__).parameters
     if 'on_miss' not in params or 'prefix' not in params:
-      self.skipTest('Enrichment on_miss and prefix are added in #41451')
+      self.skipTest(
+          'Enrichment on_miss and prefix land in a follow-up to #41451')
 
   def test_enrichment_with_bigquery(self):
     input_data = [
