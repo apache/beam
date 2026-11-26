@@ -320,6 +320,80 @@ public class DebeziumIOTest implements Serializable {
   }
 
   @Test
+  public void testSchemaChangeEventsKeepsFullMetadataOfFormatFunction() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(true))
+            .withSchemaChangeEvents(true)
+            .resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, true, true).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testFullMetadataKeepsSchemaChangeEventsOfFormatFunction() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(false, true))
+            .withFullMetadata(true)
+            .resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, true, true).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testReadFlagOverridesFormatFunction() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(true, true))
+            .withFullMetadata(false)
+            .resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, false, true).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testReadSchemaChangeEventsFlagOverridesFormatFunction() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(true, true))
+            .withSchemaChangeEvents(false)
+            .resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, true, false).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testReadFlagsBothFalseOverrideFormatFunction() throws Exception {
+    SourceRecord record = SourceRecordJsonTest.buildSchemaChangeRecord();
+    SourceRecordMapper<String> fn =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(true, true))
+            .withFullMetadata(false)
+            .withSchemaChangeEvents(false)
+            .resolveFormatFunction();
+    assertEquals(new SourceRecordJson(record, false, false).toJson(), fn.mapSourceRecord(record));
+  }
+
+  @Test
+  public void testReadFlagMatchingFormatFunctionIsUnchanged() {
+    DebeziumIO.Read<String> read =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(true, true))
+            .withFullMetadata(true)
+            .withSchemaChangeEvents(true);
+    assertSame(read.getFormatFunction(), read.resolveFormatFunction());
+  }
+
+  @Test
+  public void testFormatFunctionWithoutReadFlagsIsUnchanged() {
+    DebeziumIO.Read<String> read =
+        DebeziumIO.<String>read()
+            .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper(true, true));
+    assertSame(read.getFormatFunction(), read.resolveFormatFunction());
+  }
+
+  @Test
   public void testBuildExternalWithSchemaChangeEvents() throws Exception {
     DebeziumTransformRegistrar.ReadBuilder.Configuration config =
         new DebeziumTransformRegistrar.ReadBuilder.Configuration();

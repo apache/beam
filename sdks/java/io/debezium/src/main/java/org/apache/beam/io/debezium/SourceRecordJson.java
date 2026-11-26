@@ -480,6 +480,16 @@ public class SourceRecordJson {
       this.schemaChangeEvents = schemaChangeEvents;
     }
 
+    /** Whether this mapper adds the full Debezium metadata. */
+    boolean isFullMetadata() {
+      return fullMetadata;
+    }
+
+    /** Whether this mapper adds the schema change payload to schema change events. */
+    boolean isSchemaChangeEvents() {
+      return schemaChangeEvents;
+    }
+
     @Override
     public String mapSourceRecord(SourceRecord sourceRecord) throws Exception {
       return new SourceRecordJson(sourceRecord, fullMetadata, schemaChangeEvents).toJson();
