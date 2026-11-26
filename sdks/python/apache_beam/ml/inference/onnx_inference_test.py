@@ -43,6 +43,7 @@ try:
   from sklearn import linear_model
   from tensorflow.keras import layers
 
+  from apache_beam.ml.inference.base import ModelMetadata
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.onnx_inference import OnnxModelHandlerNumpy
@@ -170,6 +171,13 @@ class TestDataAndModel():
     return model
 
 
+def _build_sklearn_one_feature_model(slope):
+  """Returns a sklearn model of y = slope * x + 0.5."""
+  model = linear_model.LinearRegression()
+  model.fit([[0], [1]], [0.5, slope + 0.5])
+  return model
+
+
 def _compare_prediction_result(a, b):
   example_equal = np.array_equal(a.example, b.example)
   if isinstance(a.inference, dict):
@@ -247,7 +255,7 @@ class OnnxPytorchRunInferenceTest(OnnxTestBase):
     )  # this list specifies priority - prioritize gpu if cuda kernel exists
     predictions = inference_runner.run_inference(examples, inference_session)
     for actual, expected in zip(predictions, expected_predictions):
-      self.assertEqual(actual, expected)
+      self.assertEqual(actual, expected._replace(model_id=path))
 
   def test_num_bytes(self):
     inference_runner = TestOnnxModelHandler("dummy")
@@ -291,7 +299,7 @@ class OnnxTensorflowRunInferenceTest(OnnxTestBase):
     )  # this list specifies priority - prioritize gpu if cuda kernel exists
     predictions = inference_runner.run_inference(examples, inference_session)
     for actual, expected in zip(predictions, expected_predictions):
-      self.assertEqual(actual, expected)
+      self.assertEqual(actual, expected._replace(model_id=path))
 
 
 @pytest.mark.uses_onnx
@@ -318,7 +326,28 @@ class OnnxSklearnRunInferenceTest(OnnxTestBase):
     predictions = inference_runner.run_inference(examples, inference_session)
     for actual, expected in \
         zip(predictions, expected_predictions):
-      self.assertEqual(actual, expected)
+      self.assertEqual(actual, expected._replace(model_id=path))
+
+  def test_update_model_path(self):
+    path_a = os.path.join(self.tmpdir, 'model_a')
+    path_b = os.path.join(self.tmpdir, 'model_b')
+    self.save_model(_build_sklearn_one_feature_model(slope=2.0), 1, path_a)
+    self.save_model(_build_sklearn_one_feature_model(slope=5.0), 1, path_b)
+
+    model_handler = OnnxModelHandlerNumpy(path_a)
+    model_handler.update_model_path(path_b)
+    examples = [np.array([2.0], dtype=np.float32)]
+    predictions = list(
+        model_handler.run_inference(examples, model_handler.load_model()))
+
+    self.assertEqual(len(predictions), 1)
+    np.testing.assert_allclose(predictions[0].inference, [10.5], rtol=1e-5)
+    self.assertEqual(predictions[0].model_id, path_b)
+
+  def test_update_model_path_without_path_keeps_model(self):
+    model_handler = OnnxModelHandlerNumpy('model_a')
+    model_handler.update_model_path(None)
+    self.assertEqual(model_handler._model_uri, 'model_a')
 
 
 @pytest.mark.uses_onnx
@@ -520,6 +549,35 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
           equal_to(
               self.test_data_and_model.get_two_feature_predictions(),
               equals_fn=_compare_prediction_result))
+
+  def test_pipeline_updates_model_from_side_input(self):
+    path_a = os.path.join(self.tmpdir, 'model_a')
+    path_b = os.path.join(self.tmpdir, 'model_b')
+    self.save_model(_build_sklearn_one_feature_model(slope=2.0), 1, path_a)
+    self.save_model(_build_sklearn_one_feature_model(slope=5.0), 1, path_b)
+
+    def compare_with_model_id(actual, expected):
+      return (
+          np.allclose(actual.inference, expected.inference, rtol=1e-5) and
+          actual.model_id == expected.model_id)
+
+    with TestPipeline() as pipeline:
+      side_input = pipeline | 'side' >> beam.Create(
+          [ModelMetadata(model_id=path_b, model_name='model_b')])
+      predictions = (
+          pipeline
+          | 'start' >> beam.Create([np.array([2.0], dtype=np.float32)])
+          | RunInference(
+              OnnxModelHandlerNumpy(path_a), model_metadata_pcoll=side_input))
+      assert_that(
+          predictions,
+          equal_to([
+              PredictionResult(
+                  np.array([2.0], dtype=np.float32),
+                  np.array([10.5], dtype=np.float32),
+                  model_id=path_b)
+          ],
+                   equals_fn=compare_with_model_id))
 
   @unittest.skipIf(GCSFileSystem is None, 'GCP dependencies are not installed')
   def test_pipeline_gcs_model(self):

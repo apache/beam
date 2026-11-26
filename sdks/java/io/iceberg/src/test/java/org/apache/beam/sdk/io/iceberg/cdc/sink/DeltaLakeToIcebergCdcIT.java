@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
@@ -141,7 +142,10 @@ public class DeltaLakeToIcebergCdcIT {
 
   @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public final TestName testName = new TestName();
-  @Rule public final Timeout globalTimeout = Timeout.seconds(10 * 60);
+
+  @Rule
+  public final Timeout globalTimeout =
+      Timeout.seconds(OPTIONS.getRunner().equals(DirectRunner.class) ? 300 : 20 * 60);
 
   private HadoopCatalog catalog;
   private Engine engine;

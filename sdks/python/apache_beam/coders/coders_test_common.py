@@ -20,6 +20,7 @@
 
 import base64
 import collections
+import datetime
 import enum
 import logging
 import math
@@ -337,6 +338,50 @@ class CodersTest(unittest.TestCase):
       self.check_coder(deterministic_coder, list(MyIntEnum))
       self.check_coder(deterministic_coder, list(MyIntFlag))
       self.check_coder(deterministic_coder, list(MyFlag))
+
+      utc = datetime.timezone.utc
+      self.check_coder(
+          deterministic_coder,
+          datetime.date(2020, 12, 2),
+          datetime.date.min,
+          datetime.date.max,
+          datetime.datetime(2020, 12, 2, 3, 4, 5, 6),
+          datetime.datetime.min,
+          datetime.datetime.max,
+          datetime.datetime(2020, 12, 2, 3, 4, 5, 6, tzinfo=utc),
+          datetime.datetime(2021, 11, 7, 1, 30, fold=1),
+          datetime.timedelta(days=-3, seconds=4, microseconds=5),
+          datetime.timedelta.min,
+          datetime.timedelta.max,
+          (datetime.date(2020, 12, 2), datetime.timedelta(1)))
+      # fold is not part of ==, so check it explicitly.
+      self.assertEqual(
+          deterministic_coder.decode(
+              deterministic_coder.encode(
+                  datetime.datetime(2021, 11, 7, 1, 30, fold=1))).fold,
+          1)
+      # A date is not a datetime, and naive differs from UTC.
+      encode = deterministic_coder.encode
+      self.assertNotEqual(
+          encode(datetime.date(2020, 12, 2)),
+          encode(datetime.datetime(2020, 12, 2)))
+      self.assertNotEqual(
+          encode(datetime.datetime(2020, 12, 2)),
+          encode(datetime.datetime(2020, 12, 2, tzinfo=utc)))
+
+      # Other tzinfo and datetime subclasses are still rejected.
+      class MyDatetime(datetime.datetime):
+        pass
+
+      with self.assertRaises(TypeError):
+        deterministic_coder.encode(MyDatetime(2020, 12, 2))
+      with self.assertRaises(TypeError):
+        deterministic_coder.encode(
+            datetime.datetime(
+                2020,
+                12,
+                2,
+                tzinfo=datetime.timezone(datetime.timedelta(hours=1))))
 
       self.check_coder(
           deterministic_coder,

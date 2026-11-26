@@ -21,6 +21,9 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -56,6 +59,24 @@ public class LogElementsTest {
 
     PAssert.that(output).containsInAnyOrder(elements);
     pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testStdoutPrintsElements() {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    PrintStream originalStdout = System.out;
+    System.setOut(new PrintStream(stdout, true, StandardCharsets.UTF_8));
+    try {
+      pipeline.apply(Create.of("a", "b")).apply(LogElements.<String>stdout().withPrefix("row: "));
+      pipeline.run();
+    } finally {
+      System.setOut(originalStdout);
+    }
+
+    String printed = stdout.toString(StandardCharsets.UTF_8);
+    assertThat(printed, containsString("row: a"));
+    assertThat(printed, containsString("row: b"));
   }
 
   @Test
@@ -104,5 +125,6 @@ public class LogElementsTest {
     assertThat(displayData, hasDisplayItem("withTimestamp", true));
     assertThat(displayData, hasDisplayItem("withWindow", true));
     assertThat(displayData, hasDisplayItem("withPaneInfo", true));
+    assertThat(DisplayData.from(LogElements.stdout()), hasDisplayItem("output", "stdout"));
   }
 }

@@ -487,15 +487,18 @@ class _TruncatingFileHandle(object):
     self._buffer_start_pos = len(self._header)
     self._iterator = None
     start = self._tracker.current_restriction().start
-    # Seek to first delimiter after the start position.
+    # Seek to first delimiter starting at start - 1 so that a restriction
+    # starting right on a record boundary includes that record (matching
+    # TextSource's half-open [start, stop) convention).
     if start > len(self._header):
-      if start > len(self._header) + len(self._buffer):
-        self._buffer_start_pos = start
+      seek_pos = start - 1
+      if seek_pos > len(self._header) + len(self._buffer):
+        self._buffer_start_pos = seek_pos
         self._buffer = self._empty
-        self._underlying.seek(start)
+        self._underlying.seek(seek_pos)
       else:
-        self._buffer_start_pos = start
-        self._buffer = self._buffer[start - len(self._header):]
+        self._buffer_start_pos = seek_pos
+        self._buffer = self._buffer[seek_pos - len(self._header):]
       skip, self._buffer = self._splitter.read_to_record_boundary(
           self._buffer, self._underlying)
       self._buffer_start_pos += len(skip)
@@ -578,9 +581,12 @@ class _TruncatingFileHandle(object):
       if offset <= 0:
         res = self._empty
       else:
+        # Start scanning from offset - 1 (byte stop - 1) so that if the
+        # preceding record ended right at stop, we stop before stop instead of
+        # reading the record starting at stop (owned by [stop, ...)).
         rest, _ = self._splitter.read_to_record_boundary(
-            self._buffer[offset:], self._underlying)
-        res = self._buffer[:offset] + rest
+            self._buffer[offset - 1:], self._underlying)
+        res = self._buffer[:offset - 1] + rest
       self._done = True
     return res
 
