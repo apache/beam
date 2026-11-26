@@ -106,6 +106,16 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         instance=self.instance,
         app_profile_id=self._app_profile_id)
 
+  def _handle_empty_row(self, row_key_str: str):
+    if self._exception_level == ExceptionLevel.WARN:
+      _LOGGER.warning(
+          'no matching row found for row_key: %s '
+          'with row_filter: %s' % (row_key_str, self._row_filter))
+    elif self._exception_level == ExceptionLevel.RAISE:
+      raise ValueError(
+          'no matching row found for row_key: %s '
+          'with row_filter=%s' % (row_key_str, self._row_filter))
+
   def __call__(self, request: beam.Row, *args, **kwargs):
     """
     Reads a row from the GCP Bigtable and returns
@@ -121,7 +131,19 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         row_key = self._row_key_fn(request)
       else:
         request_dict = request._asdict()
-        row_key_str = str(request_dict[self._row_key])
+        # Scope KeyError to field lookup so failures inside a custom
+        # row_key_fn are not rewritten as "row_key not found...".
+        try:
+          row_key_value = request_dict[self._row_key]
+        except KeyError:
+          raise KeyError(
+              'row_key %s not found in input PCollection.' % self._row_key)
+        # None join keys must not be coerced via str(None) -> 'None', which
+        # would query Bigtable for the literal key b'None'.
+        if row_key_value is None:
+          self._handle_empty_row(str(None))
+          return request, beam.Row()
+        row_key_str = str(row_key_value)
         row_key = row_key_str.encode(self._encoding)
       row = self._table.read_row(row_key, filter_=self._row_filter)
       if row:
@@ -135,16 +157,8 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
             else:
               response_dict[cf_id][col_id.decode(
                   self._encoding)] = col_v[0].value.decode(self._encoding)
-      elif self._exception_level == ExceptionLevel.WARN:
-        _LOGGER.warning(
-            'no matching row found for row_key: %s '
-            'with row_filter: %s' % (row_key_str, self._row_filter))
-      elif self._exception_level == ExceptionLevel.RAISE:
-        raise ValueError(
-            'no matching row found for row_key: %s '
-            'with row_filter=%s' % (row_key_str, self._row_filter))
-    except KeyError:
-      raise KeyError('row_key %s not found in input PCollection.' % row_key_str)
+      else:
+        self._handle_empty_row(row_key_str)
     except NotFound:
       raise NotFound(
           'GCP Bigtable cluster `%s:%s:%s` not found.' %
@@ -165,4 +179,5 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     a request made to `Bigtable`."""
     if self._row_key_fn:
       return "row_key: %s" % str(self._row_key_fn(request))
-    return "%s: %s" % (self._row_key, request._asdict()[self._row_key])
+    # Use %r so None and the literal string "None" do not collide.
+    return "%s: %r" % (self._row_key, request._asdict()[self._row_key])

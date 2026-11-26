@@ -66,6 +66,7 @@
 
 ## Bugfixes
 
+
 * (Java) Improved the error message when decoding with a ProtoCoder for the raw `com.google.protobuf.Message` type (for example inferred from a generic `T extends Message`): it now explains how to fix it instead of surfacing a `NoSuchMethodException` ([#19713](https://github.com/apache/beam/issues/19713)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
@@ -154,6 +155,9 @@
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
+
+* (Python) Fixed `BigTableEnrichmentHandler` coercing `None` lookup keys to literal `b'None'` and reporting a blank field name in the missing `row_key` `KeyError` ([#41346](https://github.com/apache/beam/issues/41346)).
+
 
 * (Python) Fixed `WriteToBigQuery` rejecting string schemas that include spaces around field names or types, for example `name: STRING` ([#25704](https://github.com/apache/beam/issues/25704)).
 * (Java) Fixed `Combine.perKey` failing on the Spark 4 runner in batch with `Couldn't find method fromByteArray` for keys without a native Spark encoder, for example a `KV` or `Void` key ([#41466](https://github.com/apache/beam/issues/41466)).
