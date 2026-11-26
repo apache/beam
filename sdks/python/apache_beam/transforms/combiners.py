@@ -229,16 +229,18 @@ class Top(object):
         # This is a more efficient global algorithm.
         top_per_bundle = pcoll | core.ParDo(
             _TopPerBundle(self._n, self._key, self._reverse))
-        # If pcoll is empty, we can't guarantee that top_per_bundle
-        # won't be empty, so inject at least one empty accumulator
-        # so that downstream is guaranteed to produce non-empty output.
-        empty_bundle = (
-            pcoll.pipeline | core.Create([(None, [])]).with_output_types(
-                top_per_bundle.element_type))
-        return ((top_per_bundle, empty_bundle) | core.Flatten()
-                | core.GroupByKey()
-                | core.ParDo(
-                    _MergeTopPerBundle(self._n, self._key, self._reverse)))
+        if self.has_defaults:
+          # If pcoll is empty, top_per_bundle is empty too, so inject one
+          # empty accumulator so that downstream is guaranteed to produce
+          # non-empty output.
+          empty_bundle = (
+              pcoll.pipeline | core.Create([(None, [])]).with_output_types(
+                  top_per_bundle.element_type))
+          top_per_bundle = (top_per_bundle, empty_bundle) | core.Flatten()
+        return (
+            top_per_bundle
+            | core.GroupByKey()
+            | core.ParDo(_MergeTopPerBundle(self._n, self._key, self._reverse)))
       else:
         if self.has_defaults:
           return pcoll | core.CombineGlobally(
@@ -334,8 +336,10 @@ class _TopPerBundle(core.DoFn):
 
   def start_bundle(self):
     self._heap = []
+    self._has_elements = False
 
   def process(self, element):
+    self._has_elements = True
     if self._compare or self._key:
       element = cy_combiners.ComparableValue(element, self._compare, self._key)
     if len(self._heap) < self._n:
@@ -344,6 +348,9 @@ class _TopPerBundle(core.DoFn):
       heapq.heappushpop(self._heap, element)
 
   def finish_bundle(self):
+    if not self._has_elements:
+      # Top.Of adds an empty accumulator itself when it has defaults.
+      return
     # Though sorting here results in more total work, this allows us to
     # skip most elements in the reducer.
     # Essentially, given s map bundles, we are trading about O(sn) compares in

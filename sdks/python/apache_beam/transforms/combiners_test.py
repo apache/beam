@@ -179,6 +179,30 @@ class CombineTest(unittest.TestCase):
     with TestPipeline() as p:
       assert_that(p | beam.Create([]) | combine.Top.Largest(10), equal_to([[]]))
 
+  def test_empty_global_top_without_defaults(self):
+    with TestPipeline() as p:
+      empty = p | beam.Create([])
+      assert_that(
+          empty | 'Of' >> combine.Top.Of(3).without_defaults(),
+          equal_to([]),
+          label='assert:of')
+      assert_that(
+          empty | 'Largest' >> combine.Top.Largest(3, has_defaults=False),
+          equal_to([]),
+          label='assert:largest')
+      assert_that(
+          empty | 'Smallest' >> combine.Top.Smallest(3, has_defaults=False),
+          equal_to([]),
+          label='assert:smallest')
+
+  def test_global_top_without_defaults(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create([6, 3, 9, 1])
+          | combine.Top.Largest(2, has_defaults=False))
+      assert_that(result, equal_to([[9, 6]]))
+
   def test_sharded_top(self):
     elements = list(range(100))
     random.shuffle(elements)
