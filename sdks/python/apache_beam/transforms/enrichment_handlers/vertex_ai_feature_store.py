@@ -169,15 +169,15 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
               data_format=aiplatform.gapic.FeatureViewDataFormat.PROTO_STRUCT,
           ))
     except NotFound:
+      if self.exception_level == ExceptionLevel.RAISE:
+        raise ValueError(
+            _not_found_err_message(
+                self.feature_store_name, self.feature_view_name, entity_id))
       if self.exception_level == ExceptionLevel.WARN:
         _LOGGER.warning(
             _not_found_err_message(
                 self.feature_store_name, self.feature_view_name, entity_id))
-        return request, beam.Row()
-      elif self.exception_level == ExceptionLevel.RAISE:
-        raise ValueError(
-            _not_found_err_message(
-                self.feature_store_name, self.feature_view_name, entity_id))
+      return request, beam.Row()
     response_dict = dict(response.proto_struct)
     return request, beam.Row(**response_dict)
 
@@ -300,9 +300,15 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
               entity_id=entity_id,
               feature_selector=selector))
     except NotFound:
-      raise ValueError(
-          _not_found_err_message(
-              self.feature_store_id, self.entity_type_id, entity_id))
+      if self.exception_level == ExceptionLevel.RAISE:
+        raise ValueError(
+            _not_found_err_message(
+                self.feature_store_id, self.entity_type_id, entity_id))
+      if self.exception_level == ExceptionLevel.WARN:
+        _LOGGER.warning(
+            _not_found_err_message(
+                self.feature_store_id, self.entity_type_id, entity_id))
+      return request, beam.Row()
 
     response_dict = {}
     proto_to_dict = proto.Message.to_dict(response.entity_view)
