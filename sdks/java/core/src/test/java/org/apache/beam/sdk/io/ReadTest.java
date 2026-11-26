@@ -22,14 +22,18 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +49,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -66,11 +72,13 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
@@ -315,6 +323,106 @@ public class ReadTest implements Serializable {
     assertEquals(DoFn.ProcessContinuation.resume(), continuation);
     assertEquals(1, source.checkpointMarkCalls.get());
     assertEquals(1, finalizedCallbacks.get());
+
+    // A runner checkpoints the restriction via trySplit(0) after processElement returns resume();
+    // this must reuse the checkpoint taken in processElement rather than taking a second one.
+    SplitResult<Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>>
+        split = tracker.trySplit(0);
+    assertNotNull(split);
+    assertEquals(1, source.checkpointMarkCalls.get());
+    assertEquals(2L, split.getResidual().getCheckpoint().getLastEmitted());
+  }
+
+  @Test
+  public void testUnboundedSdfWrapperReusesReaderWhenSourceSerializationChanges() throws Exception {
+    NonDeterministicSerializationSource source = new NonDeterministicSerializationSource();
+    SerializableCoder<NonDeterministicSerializationSource> rawSourceCoder =
+        SerializableCoder.of(NonDeterministicSerializationSource.class);
+    byte[] rawBytes1 = CoderUtils.encodeToByteArray(rawSourceCoder, source);
+    NonDeterministicSerializationSource roundTripped =
+        CoderUtils.decodeFromByteArray(rawSourceCoder, rawBytes1);
+    byte[] rawBytes2 = CoderUtils.encodeToByteArray(rawSourceCoder, roundTripped);
+    assertFalse(Arrays.equals(rawBytes1, rawBytes2));
+
+    Read.UnboundedSourceAsSDFWrapperFn<Long, CounterMark> wrapperFn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
+    wrapperFn.setUp();
+    Coder<Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>>
+        restrictionCoder = wrapperFn.restrictionCoder();
+
+    Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark> restriction =
+        CoderUtils.decodeFromByteArray(
+            restrictionCoder,
+            CoderUtils.encodeToByteArray(restrictionCoder, wrapperFn.initialRestriction(source)));
+
+    for (int bundle = 1; bundle <= 3; bundle++) {
+      RestrictionTracker<
+              Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>,
+              Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[]>
+          tracker = wrapperFn.restrictionTracker(restriction, PipelineOptionsFactory.create());
+      TestOutputReceiver<ValueWithRecordId<Long>> receiver = new TestOutputReceiver<>();
+      WatermarkEstimators.Manual watermarkEstimator =
+          wrapperFn.newWatermarkEstimator(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      DoFn.BundleFinalizer bundleFinalizer = (callbackExpiry, callback) -> {};
+
+      DoFn.ProcessContinuation continuation =
+          wrapperFn.processElement(tracker, watermarkEstimator, receiver, bundleFinalizer);
+      assertEquals(DoFn.ProcessContinuation.resume(), continuation);
+      assertEquals(1, receiver.getOutputs().size());
+      assertEquals(Long.valueOf(bundle), receiver.getOutputs().get(0).getValue());
+
+      SplitResult<Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>>
+          split = tracker.trySplit(0);
+      assertNotNull(split);
+      // Simulate the runner serializing and deserializing the residual restriction between bundles.
+      restriction =
+          CoderUtils.decodeFromByteArray(
+              restrictionCoder,
+              CoderUtils.encodeToByteArray(restrictionCoder, split.getResidual()));
+    }
+  }
+
+  @Test
+  public void testUnboundedSdfClosesReaderWhenProcessElementFails() throws Exception {
+    CheckpointCountingSource source = new CheckpointCountingSource(2);
+    Read.UnboundedSourceAsSDFWrapperFn<Long, CounterMark> wrapperFn =
+        new Read.UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
+    wrapperFn.setUp();
+    // Wrap the tracker in RestrictionTrackers.observe as FnApiDoFnRunner does.
+    RestrictionTracker<
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceRestriction<Long, CounterMark>,
+            Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[]>
+        tracker =
+            RestrictionTrackers.observe(
+                wrapperFn.restrictionTracker(
+                    wrapperFn.initialRestriction(source), PipelineOptionsFactory.create()),
+                new RestrictionTrackers.ClaimObserver<
+                    Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[]>() {
+                  @Override
+                  public void onClaimed(
+                      Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[] position) {}
+
+                  @Override
+                  public void onClaimFailed(
+                      Read.UnboundedSourceAsSDFWrapperFn.UnboundedSourceValue<Long>[] position) {}
+                });
+    DoFn.BundleFinalizer bundleFinalizer = (callbackExpiry, callback) -> {};
+    WatermarkEstimators.Manual watermarkEstimator =
+        wrapperFn.newWatermarkEstimator(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    TestOutputReceiver<ValueWithRecordId<Long>> failingReceiver =
+        new TestOutputReceiver<ValueWithRecordId<Long>>() {
+          @Override
+          public void outputWithTimestamp(ValueWithRecordId<Long> value, Instant timestamp) {
+            throw new IllegalStateException("downstream failure");
+          }
+        };
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            wrapperFn.processElement(
+                tracker, watermarkEstimator, failingReceiver, bundleFinalizer));
+    assertEquals(1, source.closeCalls.get());
   }
 
   private <T extends Serializable & Consumer<Instant>>
@@ -405,6 +513,7 @@ public class ReadTest implements Serializable {
   /** A source whose readers count the checkpoints they take. */
   private static class CheckpointCountingSource extends UnboundedSource<Long, CounterMark> {
     private final AtomicInteger checkpointMarkCalls = new AtomicInteger();
+    private final AtomicInteger closeCalls = new AtomicInteger();
     private final long maxElements;
 
     CheckpointCountingSource() {
@@ -452,7 +561,9 @@ public class ReadTest implements Serializable {
         }
 
         @Override
-        public void close() {}
+        public void close() {
+          closeCalls.incrementAndGet();
+        }
 
         @Override
         public Instant getWatermark() {
@@ -468,6 +579,99 @@ public class ReadTest implements Serializable {
         @Override
         public UnboundedSource<Long, ?> getCurrentSource() {
           return CheckpointCountingSource.this;
+        }
+      };
+    }
+
+    @Override
+    public Coder<Long> getOutputCoder() {
+      return VarLongCoder.of();
+    }
+
+    @Override
+    public Coder<CounterMark> getCheckpointMarkCoder() {
+      return new CountingSource.CounterMarkCoder();
+    }
+  }
+
+  /**
+   * A source whose Java serialization output changes after each deserialization (like sources
+   * holding a {@code Hashtable} or {@code HashMap} whose iteration order changes on round-trip),
+   * and that fails if a second reader is created instead of reusing the cached reader.
+   */
+  private static class NonDeterministicSerializationSource
+      extends UnboundedSource<Long, CounterMark> {
+    private static final AtomicInteger SERIALIZATION_COUNTER = new AtomicInteger();
+    private int serializationNonce = SERIALIZATION_COUNTER.incrementAndGet();
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      in.defaultReadObject();
+      serializationNonce = SERIALIZATION_COUNTER.incrementAndGet();
+    }
+
+    @Override
+    public List<? extends UnboundedSource<Long, CounterMark>> split(
+        int desiredNumSplits, PipelineOptions options) {
+      return ImmutableList.of(this);
+    }
+
+    @Override
+    public UnboundedReader<Long> createReader(
+        PipelineOptions options, @Nullable CounterMark checkpointMark) throws IOException {
+      if (checkpointMark != null) {
+        throw new IOException(
+            "Expected cached reader to be reused, but createReader was called with checkpoint "
+                + checkpointMark
+                + " (nonce="
+                + serializationNonce
+                + ")");
+      }
+      return new UnboundedReader<Long>() {
+        private long current;
+        private boolean emittedInThisBundle;
+
+        @Override
+        public boolean start() {
+          return advance();
+        }
+
+        @Override
+        public boolean advance() {
+          if (emittedInThisBundle) {
+            emittedInThisBundle = false;
+            return false;
+          }
+          current++;
+          emittedInThisBundle = true;
+          return true;
+        }
+
+        @Override
+        public Long getCurrent() {
+          return current;
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() {
+          return BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+
+        @Override
+        public void close() {}
+
+        @Override
+        public Instant getWatermark() {
+          return BoundedWindow.TIMESTAMP_MIN_VALUE;
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          return new CounterMark(current, BoundedWindow.TIMESTAMP_MIN_VALUE);
+        }
+
+        @Override
+        public UnboundedSource<Long, ?> getCurrentSource() {
+          return NonDeterministicSerializationSource.this;
         }
       };
     }
