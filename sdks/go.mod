@@ -43,7 +43,7 @@ require (
 	github.com/go-sql-driver/mysql v1.10.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/johannesboyne/gofakes3 v1.2.0
+	github.com/johannesboyne/gofakes3 v1.3.0
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/nats-io/nats-server/v2 v2.15.2
