@@ -37,6 +37,7 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import decorators
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
@@ -133,6 +134,30 @@ class RuntimeTypeCheckTest(unittest.TestCase):
       dofn = MyDoFnBadAnnotation(f.name)
       with self.assertRaisesRegex(ValueError, r'int.*is not iterable'):
         _ = self.p | beam.Create([1, 2, 3]) | beam.ParDo(dofn)
+
+  def test_timestamped_value_output_checks_wrapped_value(self):
+    # Runners unwrap TimestampedValue, so the output hint applies to its value
+    # unless the hint itself accepts TimestampedValue.
+    def timestamped(e) -> Iterable[int]:
+      yield TimestampedValue(e, 0)
+
+    def timestamped_hint(e) -> Iterable[TimestampedValue]:
+      yield TimestampedValue(e, 0)
+
+    result = (
+        self.p
+        | 'Create' >> beam.Create([1, 2])
+        | 'Wrapped' >> beam.FlatMap(timestamped)
+        | 'Hinted' >> beam.FlatMap(timestamped_hint))
+    assert_that(result, equal_to([1, 2]))
+    self.p.run()
+
+    p = TestPipeline(
+        'FnApiRunner', options=PipelineOptions(runtime_type_check=True))
+    with self.assertRaisesRegex(Exception,
+                                r'output should be.*int.*received.*str'):
+      _ = p | beam.Create(['a']) | beam.FlatMap(timestamped)
+      p.run()
 
 
 class PerformanceRuntimeTypeCheckTest(unittest.TestCase):

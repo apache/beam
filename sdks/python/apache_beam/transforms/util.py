@@ -127,11 +127,6 @@ U = TypeVar('U')
 
 RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
 REIFY_TYPEHINT_BREAKING_CHANGE_VERSION = "2.79.0"
-_ReifiedWindowInfo = tuple[Any, Timestamp, window.BoundedWindow]
-_ReifiedKeyedWindowInfo = tuple[Any, _ReifiedWindowInfo]
-# Subscripting TimestampedValue on every element is slow, so do it once.
-_TimestampedWindowInfo = TimestampedValue[_ReifiedWindowInfo]
-_TimestampedKeyedWindowInfo = TimestampedValue[_ReifiedKeyedWindowInfo]
 
 
 class CoGroupByKey(PTransform):
@@ -2465,10 +2460,7 @@ class Reify(object):
     @staticmethod
     def add_window_info(
         element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
-      # The yielded instance is a subscripted TimestampedValue (not a type
-      # hint), so runtime_type_check checks the wrapped tuple instead of the
-      # TimestampedValue object itself.
-      yield _TimestampedWindowInfo((element, timestamp, window), timestamp)
+      yield TimestampedValue((element, timestamp, window), timestamp)
 
     def expand(self, pcoll):
       if pcoll.pipeline.options.is_compat_version_prior_to(
@@ -2502,8 +2494,7 @@ class Reify(object):
     def add_window_info(
         element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       key, value = element
-      yield _TimestampedKeyedWindowInfo(
-          (key, (value, timestamp, window)), timestamp)
+      yield TimestampedValue((key, (value, timestamp, window)), timestamp)
 
     def expand(self, pcoll):
       if pcoll.pipeline.options.is_compat_version_prior_to(

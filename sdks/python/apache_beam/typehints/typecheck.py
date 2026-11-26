@@ -40,6 +40,7 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
+from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.typehints.typehints import normalize
 
 
@@ -135,6 +136,12 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       self._input_hints = None
     # TODO(robertwb): Multi-output.
     self._output_type_hint = type_hints.simple_output_type(label)
+    # Runners unwrap TimestampedValue before passing elements downstream, so
+    # check the wrapped value unless the declared output hint explicitly accepts
+    # TimestampedValue (e.g. `-> TimestampedValue` or `Any`).
+    self._unwrap_timestamped_value = (
+        self._output_type_hint is not None and
+        not is_consistent_with(TimestampedValue, self._output_type_hint))
 
   def wrapper(self, method, args, kwargs):
     result = method(*args, **kwargs)
@@ -166,6 +173,8 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       else:
         # TODO(robertwb): Multi-output.
         x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o
+        if isinstance(x, TimestampedValue) and self._unwrap_timestamped_value:
+          x = x.value
 
         self.type_check(self._output_type_hint, x, is_input=False)
 
