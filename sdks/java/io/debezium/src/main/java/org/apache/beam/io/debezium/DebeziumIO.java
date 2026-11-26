@@ -334,6 +334,11 @@ public class DebeziumIO {
      * Adds the schema change payload ({@code databaseName}, {@code schemaName}, {@code ddl}, {@code
      * ts_ms} and {@code tableChanges}) to schema change events when reading as JSON.
      *
+     * <p>This only changes how schema change events are mapped to JSON; it doesn't make the
+     * connector emit them. Debezium emits them by default, but drops them when the connector has
+     * {@code include.schema.changes=false}, as in the class example above. Leave that property
+     * unset or set it to {@code true} to receive them.
+     *
      * <p>Only applies to {@link DebeziumIO#readAsJson()} / {@link
      * SourceRecordJson.SourceRecordJsonMapper}; combining it with a custom {@link
      * #withFormatFunction(SourceRecordMapper)} fails with an {@link IllegalArgumentException} when
