@@ -156,6 +156,9 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     model.load_model(model_state_bytearray)
     return model
 
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._model_state = model_path if model_path else self._model_state
+
   def get_metrics_namespace(self) -> str:
     return 'BeamML_XGBoost'
 

@@ -34,6 +34,9 @@ concurrency:
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
+permissions:
+  contents: read
+
 jobs:
   playground_frontend_test:
     name: Playground Frontend Test

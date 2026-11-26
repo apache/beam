@@ -633,6 +633,41 @@ atomized in instants hammered around the
               f, compression_type, read_size=self.read_block_size)
           self.assertEqual(readable.read(), self.content)
 
+  @parameterized.expand([
+      CompressionTypes.BZIP2,
+      CompressionTypes.DEFLATE,
+      CompressionTypes.GZIP,
+      CompressionTypes.ZSTD,
+      CompressionTypes.LZMA,
+  ])
+  def test_concatenated_compressed_file_at_read_boundary(
+      self, compression_type):
+    for members in ((self.content, b'last row\n'), (b'', self.content),
+                    (self.content, b'', b'last row\n', b''), (b'', b'')):
+      file_name = self._create_compressed_file(compression_type, members[0])
+      read_size = os.path.getsize(file_name)
+      for member in members[1:]:
+        next_file = self._create_compressed_file(compression_type, member)
+        with open(file_name, 'ab') as destination, open(next_file, 'rb') as source:
+          destination.write(source.read())
+      expected = b''.join(members)
+
+      for read_lines in (False, True):
+        with self.subTest(members=tuple(map(len, members)),
+                          read_lines=read_lines):
+          with open(file_name, 'rb') as raw:
+            readable = CompressedFile(
+                raw, compression_type, read_size=read_size)
+            if read_lines:
+              actual = b''.join(iter(readable.readline, b''))
+            else:
+              actual = readable.read(len(expected) + 1)
+            self.assertEqual(actual, expected)
+            self.assertEqual(readable.tell(), len(expected))
+            self.assertEqual(readable.read(1), b'')
+            readable.seek(0)
+            self.assertEqual(readable.read(len(expected) + 1), expected)
+
   def test_concatenated_compressed_file(self):
     # The test apache_beam.io.textio_test.test_read_gzip_concat
     # does not encounter the problem in the Beam 2.13 and earlier

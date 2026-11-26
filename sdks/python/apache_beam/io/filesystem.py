@@ -260,8 +260,10 @@ class CompressedFile(object):
         # file. We read concatenated files by recursively creating decompressor
         # objects for the unused compressed data.
         buf = self._decompressor.unused_data
-        self._initialize_decompressor()
       if buf:
+        # A member may end exactly at a compressed read boundary.
+        if self._decompressor.eof:
+          self._initialize_decompressor()
         decompressed = self._decompressor.decompress(buf)
         del buf  # Free up some possibly large and no-longer-needed memory.
         self._read_buffer.write(decompressed)
