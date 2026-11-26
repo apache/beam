@@ -204,13 +204,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Test
   public void testMapStateStructuralKeys() throws Exception {
-    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
-    FlinkStateInternals<String> stateInternals =
-        new FlinkStateInternals<>(
-            keyedStateBackend,
-            StringUtf8Coder.of(),
-            IntervalWindow.getCoder(),
-            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+    FlinkStateInternals<String> stateInternals = newStateInternals(createStateBackend());
 
     StateTag<MapState<byte[], Integer>> tag =
         StateTags.map("byte-map", ByteArrayCoder.of(), VarIntCoder.of());
@@ -251,13 +245,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Test
   public void testMapStateNullableKeys() throws Exception {
-    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
-    FlinkStateInternals<String> stateInternals =
-        new FlinkStateInternals<>(
-            keyedStateBackend,
-            StringUtf8Coder.of(),
-            IntervalWindow.getCoder(),
-            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+    FlinkStateInternals<String> stateInternals = newStateInternals(createStateBackend());
 
     StateTag<MapState<String, Integer>> tag =
         StateTags.map("nullable-map", NullableCoder.of(StringUtf8Coder.of()), VarIntCoder.of());
@@ -278,13 +266,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Test
   public void testSetStateStructuralValues() throws Exception {
-    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
-    FlinkStateInternals<String> stateInternals =
-        new FlinkStateInternals<>(
-            keyedStateBackend,
-            StringUtf8Coder.of(),
-            IntervalWindow.getCoder(),
-            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+    FlinkStateInternals<String> stateInternals = newStateInternals(createStateBackend());
 
     StateTag<SetState<byte[]>> tag = StateTags.set("byte-set", ByteArrayCoder.of());
     SetState<byte[]> setState = stateInternals.state(StateNamespaces.global(), tag);
@@ -326,16 +308,10 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
 
   @Test
   public void testSetStateAvroReflectPojo() throws Exception {
-    KeyedStateBackend<FlinkKey> keyedStateBackend = createStateBackend();
-    FlinkStateInternals<String> stateInternals =
-        new FlinkStateInternals<>(
-            keyedStateBackend,
-            StringUtf8Coder.of(),
-            IntervalWindow.getCoder(),
-            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+    FlinkStateInternals<String> stateInternals = newStateInternals(createStateBackend());
 
-    AvroCoder<AvroEvent> pojoCoder = AvroCoder.of(AvroEvent.class);
-    StateTag<SetState<AvroEvent>> pojoTag = StateTags.set("avro-pojo-set", pojoCoder);
+    StateTag<SetState<AvroEvent>> pojoTag =
+        StateTags.set("avro-pojo-set", AvroCoder.of(AvroEvent.class));
     SetState<AvroEvent> pojoSet = stateInternals.state(StateNamespaces.global(), pojoTag);
 
     pojoSet.add(new AvroEvent("evt-1", 5));
@@ -344,6 +320,15 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
     assertThat(pojoSet.contains(new AvroEvent("evt-1", 6)).read(), is(false));
     pojoSet.remove(new AvroEvent("evt-1", 5));
     assertThat(pojoSet.isEmpty().read(), is(true));
+  }
+
+  private static FlinkStateInternals<String> newStateInternals(
+      KeyedStateBackend<FlinkKey> keyedStateBackend) throws Exception {
+    return new FlinkStateInternals<>(
+        keyedStateBackend,
+        StringUtf8Coder.of(),
+        IntervalWindow.getCoder(),
+        new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
   }
 
   public static KeyedStateBackend<FlinkKey> createStateBackend() throws Exception {
@@ -360,9 +345,7 @@ public class FlinkStateInternalsTest extends StateInternalsTest {
             null,
             Collections.emptyList(),
             new CloseableRegistry());
-
     changeKey(keyedStateBackend);
-
     return keyedStateBackend;
   }
 

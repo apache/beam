@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
@@ -87,12 +89,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -176,6 +180,9 @@ public final class FlinkStateInternals<K> implements StateInternals {
   private final TreeMultiset<Long> watermarkHolds = TreeMultiset.create();
   // State to persist combined watermark holds for all keys of this partition
   private final MapStateDescriptor<String, Instant> watermarkHoldStateDescriptor;
+
+  /** Map/Set state IDs already checked for pre-StructuralKey heap savepoint migration. */
+  private final Set<String> migratedHeapMapStates = new HashSet<>();
 
   private final boolean fasterCopy;
 
@@ -280,6 +287,10 @@ public final class FlinkStateInternals<K> implements StateInternals {
       FlinkSetState<T2> setState =
           new FlinkSetState<>(
               flinkStateBackend, id, namespace, elemCoder, namespaceKeySerializer, fasterCopy);
+      if (setState.wrapStructuralKey && migratedHeapMapStates.add(id)) {
+        migrateLegacyHeapMapKeysIfNeeded(
+            flinkStateBackend, namespaceKeySerializer, setState.flinkStateDescriptor, elemCoder);
+      }
       collectGlobalWindowStateDescriptor(
           setState.flinkStateDescriptor, setState.namespace, namespaceKeySerializer);
       return setState;
@@ -300,6 +311,10 @@ public final class FlinkStateInternals<K> implements StateInternals {
               mapValueCoder,
               namespaceKeySerializer,
               fasterCopy);
+      if (mapState.wrapStructuralKey && migratedHeapMapStates.add(id)) {
+        migrateLegacyHeapMapKeysIfNeeded(
+            flinkStateBackend, namespaceKeySerializer, mapState.flinkStateDescriptor, mapKeyCoder);
+      }
       collectGlobalWindowStateDescriptor(
           mapState.flinkStateDescriptor, mapState.namespace, namespaceKeySerializer);
       return mapState;
@@ -1320,9 +1335,9 @@ public final class FlinkStateInternals<K> implements StateInternals {
    * Flink {@link org.apache.flink.api.common.state.MapState}.
    *
    * <p>Heap and batch keyed state backends back {@code MapState} with a Java {@link Map}, which
-   * compares keys by {@link Object#equals} and rejects {@code null} keys on RocksDB. Coders that
-   * are {@link Coder#consistentWithEquals()} and cannot encode {@code null} (i.e. not {@link
-   * NullableCoder}) can store raw keys directly, preserving savepoint compatibility.
+   * compares keys by {@link Object#equals}, and both heap ({@code CopyOnWriteStateMap}) and RocksDB
+   * reject {@code null} keys. Coders that are {@link Coder#consistentWithEquals()} and cannot
+   * encode {@code null} (i.e. not {@link NullableCoder}) store raw keys directly.
    */
   private static boolean usesStructuralKey(Coder<?> coder) {
     return !coder.consistentWithEquals() || coder instanceof NullableCoder;
@@ -1342,13 +1357,93 @@ public final class FlinkStateInternals<K> implements StateInternals {
   }
 
   /**
+   * Re-wraps raw {@code KeyT} entries restored from a pre-{@link StructuralKey} heap savepoint.
+   *
+   * <p>Note: {@code UnversionedTypeSerializerSnapshot.resolveSchemaCompatibility} must remain
+   * {@code compatibleAsIs()} rather than {@code compatibleAfterMigration()} because {@code
+   * RocksDBKeyedStateBackend.migrateStateValues} rejects key-serializer migration on {@code
+   * MapState} with {@code StateMigrationException} (RocksDB wire bytes already match), while {@code
+   * HeapKeyedStateBackend} deserializes snapshot entries via the old {@code restoreSerializer()}
+   * during {@code initializeState} and skips in-memory migration unless TTL changed.
+   */
+  private static <KeyT, ValueT> void migrateLegacyHeapMapKeysIfNeeded(
+      KeyedStateBackend<FlinkKey> flinkStateBackend,
+      FlinkStateNamespaceKeySerializer namespaceSerializer,
+      MapStateDescriptor<Object, ValueT> stateDescriptor,
+      Coder<KeyT> keyCoder) {
+    if (!usesStructuralKey(keyCoder) || !(flinkStateBackend instanceof HeapKeyedStateBackend)) {
+      return;
+    }
+    try {
+      FlinkKey previousKey = flinkStateBackend.getCurrentKey();
+      try {
+        if (!hasLegacyRawKeys(flinkStateBackend, namespaceSerializer, stateDescriptor)) {
+          return;
+        }
+        List<Tuple2<FlinkKey, StateNamespace>> keysAndNamespaces;
+        try (Stream<Tuple2<FlinkKey, StateNamespace>> stream =
+            flinkStateBackend.getKeysAndNamespaces(stateDescriptor.getName())) {
+          keysAndNamespaces = stream.collect(Collectors.toList());
+        }
+        for (Tuple2<FlinkKey, StateNamespace> keyAndNamespace : keysAndNamespaces) {
+          flinkStateBackend.setCurrentKey(keyAndNamespace.f0);
+          org.apache.flink.api.common.state.MapState<Object, ValueT> state =
+              flinkStateBackend.getPartitionedState(
+                  keyAndNamespace.f1, namespaceSerializer, stateDescriptor);
+          Object firstKey = Iterables.getFirst(state.keys(), null);
+          if (firstKey == null || firstKey instanceof StructuralKey) {
+            continue;
+          }
+          Map<Object, ValueT> migrated = new HashMap<>();
+          for (Map.Entry<Object, ValueT> entry : state.entries()) {
+            @SuppressWarnings("unchecked")
+            KeyT rawKey = (KeyT) entry.getKey();
+            migrated.put(new StructuralKey<>(keyCoder, rawKey), entry.getValue());
+          }
+          state.clear();
+          state.putAll(migrated);
+        }
+      } finally {
+        if (previousKey != null) {
+          flinkStateBackend.setCurrentKey(previousKey);
+        }
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to migrate legacy heap MapState keys.", e);
+    }
+  }
+
+  private static <ValueT> boolean hasLegacyRawKeys(
+      KeyedStateBackend<FlinkKey> flinkStateBackend,
+      FlinkStateNamespaceKeySerializer namespaceSerializer,
+      MapStateDescriptor<Object, ValueT> stateDescriptor)
+      throws Exception {
+    try (Stream<Tuple2<FlinkKey, StateNamespace>> stream =
+        flinkStateBackend.getKeysAndNamespaces(stateDescriptor.getName())) {
+      Iterator<Tuple2<FlinkKey, StateNamespace>> it = stream.iterator();
+      while (it.hasNext()) {
+        Tuple2<FlinkKey, StateNamespace> keyAndNamespace = it.next();
+        flinkStateBackend.setCurrentKey(keyAndNamespace.f0);
+        org.apache.flink.api.common.state.MapState<Object, ValueT> state =
+            flinkStateBackend.getPartitionedState(
+                keyAndNamespace.f1, namespaceSerializer, stateDescriptor);
+        Object firstKey = Iterables.getFirst(state.keys(), null);
+        if (firstKey != null) {
+          return !(firstKey instanceof StructuralKey);
+        }
+      }
+      return false;
+    }
+  }
+
+  /**
    * Wraps a key together with its {@link Coder#structuralValue} so Flink's in-memory {@code
    * MapState} implementations compare keys by encoded equality (and accept {@code null} keys) while
    * still retaining the original {@code KeyT} for {@code keys()} and {@code entries()}.
    */
   private static final class StructuralKey<K> {
     private final @Nullable K key;
-    private final Object structuralValue;
+    private final @Nullable Object structuralValue;
 
     StructuralKey(Coder<K> coder, @Nullable K key) {
       this.key = key;
@@ -1368,16 +1463,18 @@ public final class FlinkStateInternals<K> implements StateInternals {
         return false;
       }
       StructuralKey<?> that = (StructuralKey<?>) o;
-      return structuralValue.equals(that.structuralValue);
+      return Objects.equals(structuralValue, that.structuralValue);
     }
 
     @Override
     public int hashCode() {
-      return structuralValue.hashCode();
+      return Objects.hashCode(structuralValue);
     }
   }
 
   private static final class StructuralKeyCoder<K> extends StructuredCoder<StructuralKey<K>> {
+    private static final long serialVersionUID = 1L;
+
     private final Coder<K> keyCoder;
 
     StructuralKeyCoder(Coder<K> keyCoder) {
@@ -1391,20 +1488,8 @@ public final class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public void encode(StructuralKey<K> value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
-      keyCoder.encode(value.key(), outStream, context);
-    }
-
-    @Override
     public StructuralKey<K> decode(InputStream inStream) throws CoderException, IOException {
       return new StructuralKey<>(keyCoder, keyCoder.decode(inStream));
-    }
-
-    @Override
-    public StructuralKey<K> decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
-      return new StructuralKey<>(keyCoder, keyCoder.decode(inStream, context));
     }
 
     @Override
@@ -1913,9 +1998,11 @@ public final class FlinkStateInternals<K> implements StateInternals {
     @Override
     public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
       try {
-        keyedStateBackend.getOrCreateKeyedState(
-            namespaceSerializer,
-            createMapStateDescriptor(id, elemCoder, BooleanSerializer.INSTANCE, fasterCopy));
+        MapStateDescriptor<Object, Boolean> descriptor =
+            createMapStateDescriptor(id, elemCoder, BooleanSerializer.INSTANCE, fasterCopy);
+        keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, descriptor);
+        migrateLegacyHeapMapKeysIfNeeded(
+            keyedStateBackend, namespaceSerializer, descriptor, elemCoder);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -1929,10 +2016,12 @@ public final class FlinkStateInternals<K> implements StateInternals {
         Coder<KeyT> mapKeyCoder,
         Coder<ValueT> mapValueCoder) {
       try {
-        keyedStateBackend.getOrCreateKeyedState(
-            namespaceSerializer,
+        MapStateDescriptor<Object, ValueT> descriptor =
             createMapStateDescriptor(
-                id, mapKeyCoder, new CoderTypeSerializer<>(mapValueCoder, fasterCopy), fasterCopy));
+                id, mapKeyCoder, new CoderTypeSerializer<>(mapValueCoder, fasterCopy), fasterCopy);
+        keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, descriptor);
+        migrateLegacyHeapMapKeysIfNeeded(
+            keyedStateBackend, namespaceSerializer, descriptor, mapKeyCoder);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

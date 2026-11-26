@@ -56,10 +56,12 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -100,10 +102,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Fluent
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -2870,6 +2876,160 @@ public class DoFnOperatorTest {
       assertThat(
           stripStreamRecordFromWindowedValue(restored.getOutput()),
           contains(WindowedValues.valueInGlobalWindow("[1, 2]:22:false")));
+    }
+  }
+
+  private static final class LegacyRawKeyStateWriterOperator
+      extends AbstractStreamOperator<WindowedValue<String>>
+      implements OneInputStreamOperator<
+          WindowedValue<KV<String, KV<String, Integer>>>, WindowedValue<String>> {
+    private final MapStateDescriptor<String, Integer> mapDesc =
+        new MapStateDescriptor<>(
+            "legacy-map",
+            new CoderTypeSerializer<>(SerializableCoder.of(String.class), false),
+            new CoderTypeSerializer<>(VarIntCoder.of(), false));
+    private final MapStateDescriptor<byte[], Boolean> setDesc =
+        new MapStateDescriptor<>(
+            "legacy-set",
+            new CoderTypeSerializer<>(ByteArrayCoder.of(), false),
+            BooleanSerializer.INSTANCE);
+    private final FlinkStateInternals.FlinkStateNamespaceKeySerializer namespaceSerializer =
+        new FlinkStateInternals.FlinkStateNamespaceKeySerializer(GlobalWindow.Coder.INSTANCE);
+    private final StateNamespace globalWindowNs =
+        StateNamespaces.window(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE);
+
+    @Override
+    public void processElement(StreamRecord<WindowedValue<KV<String, KV<String, Integer>>>> element)
+        throws Exception {
+      KV<String, Integer> entry = element.getValue().getValue().getValue();
+      getKeyedStateBackend()
+          .getPartitionedState(globalWindowNs, namespaceSerializer, mapDesc)
+          .put(entry.getKey(), entry.getValue());
+      getKeyedStateBackend()
+          .getPartitionedState(globalWindowNs, namespaceSerializer, setDesc)
+          .put(new byte[] {1, 2}, true);
+    }
+  }
+
+  @Test
+  public void testRestorePreStructuralKeySnapshot() throws Exception {
+    DoFn<KV<String, KV<String, Integer>>, String> fn =
+        new DoFn<KV<String, KV<String, Integer>>, String>() {
+          @StateId("legacy-map")
+          private final StateSpec<MapState<String, Integer>> mapSpec =
+              StateSpecs.map(SerializableCoder.of(String.class), VarIntCoder.of());
+
+          @StateId("legacy-set")
+          private final StateSpec<SetState<byte[]>> setSpec = StateSpecs.set(ByteArrayCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              @Element KV<String, KV<String, Integer>> element,
+              @StateId("legacy-map") MapState<String, Integer> mapState,
+              @StateId("legacy-set") SetState<byte[]> setState,
+              OutputReceiver<String> out) {
+            String itemKey = element.getValue().getKey();
+            int delta = element.getValue().getValue();
+            Integer prev = mapState.get(itemKey).read();
+            int next = (prev == null ? 0 : prev) + delta;
+            mapState.put(itemKey, next);
+            boolean added = Boolean.TRUE.equals(setState.addIfAbsent(new byte[] {1, 2}).read());
+            out.output(element.getKey() + ":" + itemKey + ":" + next + ":" + added);
+          }
+        };
+
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    Coder<WindowedValue<KV<String, KV<String, Integer>>>> inputCoder =
+        WindowedValues.getFullCoder(
+            KvCoder.of(
+                StringUtf8Coder.of(),
+                KvCoder.of(SerializableCoder.of(String.class), VarIntCoder.of())),
+            GlobalWindow.Coder.INSTANCE);
+    Coder<WindowedValue<String>> outputCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+    KvToFlinkKeyKeySelector<String, KV<String, Integer>> keySelector =
+        new KvToFlinkKeyKeySelector<>(StringUtf8Coder.of());
+
+    Supplier<DoFnOperator<KV<String, KV<String, Integer>>, KV<String, KV<String, Integer>>, String>>
+        operatorFactory =
+            () ->
+                new DoFnOperator<>(
+                    fn,
+                    "stepName",
+                    inputCoder,
+                    Collections.emptyMap(),
+                    outputTag,
+                    Collections.emptyList(),
+                    new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                        outputTag, outputCoder, new SerializablePipelineOptions(options)),
+                    WindowingStrategy.globalDefault(),
+                    new HashMap<>(),
+                    Collections.emptyList(),
+                    options,
+                    StringUtf8Coder.of(),
+                    keySelector,
+                    DoFnSchemaInformation.create(),
+                    Collections.emptyMap());
+
+    // 1. Write a pre-PR snapshot using raw CoderTypeSerializer(keyCoder).
+    OperatorSubtaskState legacySnapshot;
+    try (KeyedOneInputStreamOperatorTestHarness<
+            FlinkKey, WindowedValue<KV<String, KV<String, Integer>>>, WindowedValue<String>>
+        legacyHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                new LegacyRawKeyStateWriterOperator(),
+                keySelector,
+                ValueTypeInfo.of(FlinkKey.class))) {
+      legacyHarness.open();
+      legacyHarness.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("touched", KV.of("k1", 10)))));
+      legacyHarness.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("untouched", KV.of("k2", 20)))));
+      legacySnapshot = legacyHarness.snapshot(1L, 1L);
+    }
+
+    // 2. Restore into DoFnOperator (runs EarlyBinder migration), update "touched", and snapshot.
+    OperatorSubtaskState upgradedSnapshot;
+    try (KeyedOneInputStreamOperatorTestHarness<
+            FlinkKey, WindowedValue<KV<String, KV<String, Integer>>>, WindowedValue<String>>
+        upgraded =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operatorFactory.get(), keySelector, ValueTypeInfo.of(FlinkKey.class))) {
+      upgraded.initializeState(legacySnapshot);
+      upgraded.open();
+      upgraded.processElement(
+          new StreamRecord<>(WindowedValues.valueInGlobalWindow(KV.of("touched", KV.of("k1", 5)))));
+
+      assertThat(
+          stripStreamRecordFromWindowedValue(upgraded.getOutput()),
+          contains(WindowedValues.valueInGlobalWindow("touched:k1:15:false")));
+
+      upgradedSnapshot = upgraded.snapshot(2L, 2L);
+    }
+
+    // 3. Restore the upgraded snapshot and verify both "touched" and "untouched" keys.
+    try (KeyedOneInputStreamOperatorTestHarness<
+            FlinkKey, WindowedValue<KV<String, KV<String, Integer>>>, WindowedValue<String>>
+        restored =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operatorFactory.get(), keySelector, ValueTypeInfo.of(FlinkKey.class))) {
+      restored.initializeState(upgradedSnapshot);
+      restored.open();
+      restored.processElement(
+          new StreamRecord<>(WindowedValues.valueInGlobalWindow(KV.of("touched", KV.of("k1", 7)))));
+      restored.processElement(
+          new StreamRecord<>(
+              WindowedValues.valueInGlobalWindow(KV.of("untouched", KV.of("k2", 5)))));
+
+      assertThat(
+          stripStreamRecordFromWindowedValue(restored.getOutput()),
+          contains(
+              WindowedValues.valueInGlobalWindow("touched:k1:22:false"),
+              WindowedValues.valueInGlobalWindow("untouched:k2:25:false")));
     }
   }
 
