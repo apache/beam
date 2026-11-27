@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import unittest
+from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
@@ -613,6 +614,166 @@ class TestCloudSQLEnrichment(unittest.TestCase):
       handler._extract_values_from_request(request)
     self.assertIn(
         "Unsupported query configuration type", str(context.exception))
+
+  def test_column_names_auto_includes_where_clause_fields(self):
+    """Test that column_names automatically includes where_clause_fields."""
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
+    config = TableFieldsQueryConfig(
+        table_id="users",
+        where_clause_template="id = :id",
+        where_clause_fields=["id"])
+
+    # where_clause_fields ('id') omitted from column_names.
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=config,
+        column_names=["name", "age"])
+    self.assertEqual(handler._column_names, "name,age,id")
+    self.assertEqual(
+        handler.query_template, "SELECT name,age,id FROM users WHERE id = :id")
+
+    # where_clause_fields ('id') already in column_names.
+    handler2 = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=config,
+        column_names=["id", "name"])
+    self.assertEqual(handler2._column_names, "id,name")
+
+  def test_process_batch_request_handles_unmatched_and_preserves_order(self):
+    """Test batch processing returns beam.Row() for unmatched requests and preserves order."""
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
+    config = TableFieldsQueryConfig(
+        table_id="users",
+        where_clause_template="id = :id",
+        where_clause_fields=["id"])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config, query_config=config)
+
+    import apache_beam as beam
+    req1 = beam.Row(id=1, tag="first")
+    req2 = beam.Row(id=2, tag="second")  # DB miss
+    req3 = beam.Row(id=3, tag="third")
+    requests = [req1, req2, req3]
+
+    handler._execute_query = MagicMock(
+        return_value=[{
+            "id": 1, "name": "Alice"
+        }, {
+            "id": 3, "name": "Charlie"
+        }])
+
+    responses = handler._process_batch_request(requests)
+
+    self.assertEqual(len(responses), 3)
+    self.assertEqual(responses[0][0], req1)
+    self.assertEqual(responses[0][1]._asdict(), {"id": 1, "name": "Alice"})
+    self.assertEqual(responses[1][0], req2)
+    self.assertEqual(responses[1][1]._asdict(), {})  # beam.Row() on miss
+    self.assertEqual(responses[2][0], req3)
+    self.assertEqual(responses[2][1]._asdict(), {"id": 3, "name": "Charlie"})
+
+  def test_process_batch_request_handles_duplicate_keys(self):
+    """Test batch processing enriches all requests when duplicate keys exist in a batch."""
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
+    config = TableFieldsQueryConfig(
+        table_id="users",
+        where_clause_template="id = :id",
+        where_clause_fields=["id"])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config, query_config=config)
+
+    import apache_beam as beam
+    req1 = beam.Row(id=1, tag="first")
+    req2 = beam.Row(id=1, tag="second")
+    requests = [req1, req2]
+
+    handler._execute_query = MagicMock(
+        return_value=[{
+            "id": 1, "name": "Alice"
+        }])
+
+    responses = handler._process_batch_request(requests)
+
+    self.assertEqual(len(responses), 2)
+    self.assertEqual(responses[0][0], req1)
+    self.assertEqual(responses[0][1]._asdict(), {"id": 1, "name": "Alice"})
+    self.assertEqual(responses[1][0], req2)
+    self.assertEqual(responses[1][1]._asdict(), {"id": 1, "name": "Alice"})
+
+  def test_cache_key_consistency_between_single_and_batch(self):
+    """Test cache key consistency between single and batch modes."""
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
+    config = TableFieldsQueryConfig(
+        table_id="users",
+        where_clause_template="id = :id AND name = :name",
+        where_clause_fields=["id", "name"])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config, query_config=config)
+
+    import apache_beam as beam
+    req1 = beam.Row(id=1, name="Alice")
+    req2 = beam.Row(id=2, name="Bob")
+
+    single_key1 = handler.get_cache_key(req1)
+    single_key2 = handler.get_cache_key(req2)
+    batch_keys = handler.get_cache_key([req1, req2])
+
+    self.assertEqual(single_key1, "1;Alice")
+    self.assertEqual(single_key2, "2;Bob")
+    self.assertEqual(batch_keys, [single_key1, single_key2])
+
+  def test_create_row_key_missing_field_safe(self):
+    """Test that create_row_key safely returns None if row lacks join fields."""
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
+    config = TableFieldsQueryConfig(
+        table_id="users",
+        where_clause_template="id = :id",
+        where_clause_fields=["id"])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config, query_config=config)
+
+    import apache_beam as beam
+    row_without_id = beam.Row(name="Alice")
+    self.assertIsNone(handler.create_row_key(row_without_id))
 
 
 if __name__ == '__main__':
