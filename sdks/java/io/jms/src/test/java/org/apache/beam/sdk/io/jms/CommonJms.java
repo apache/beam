@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
@@ -133,12 +134,27 @@ public class CommonJms implements Serializable {
     }
   }
 
+  private ConnectionFactory newConnectionFactory(String url)
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
+          IllegalAccessException {
+    ConnectionFactory factory =
+        connectionFactoryClass.getConstructor(String.class).newInstance(url);
+    if (factory instanceof ActiveMQConnectionFactory) {
+      // Match broker.setAdvisorySupport(false) so clients do not create an AdvisoryConsumer
+      // subscribing to the shared temp-destination advisory topic under concurrent connects.
+      ((ActiveMQConnectionFactory) factory).setWatchTopicAdvisories(false);
+    }
+    return factory;
+  }
+
   ConnectionFactory createConnectionFactory()
       throws NoSuchMethodException,
           InvocationTargetException,
           InstantiationException,
           IllegalAccessException {
-    return connectionFactoryClass.getConstructor(String.class).newInstance(getBrokerUrlWithPort());
+    return newConnectionFactory(getBrokerUrlWithPort());
   }
 
   ConnectionFactory createConnectionFactoryWithLocalReceiveNoWait()
@@ -152,7 +168,7 @@ public class CommonJms implements Serializable {
       // is ignored by PrefetchSubscription.pullMessage() and hangs for the 60s drainTimeout.
       url = url + (url.contains("?") ? "&" : "?") + "jms.receiveNoWaitLocalOnly=true";
     }
-    return connectionFactoryClass.getConstructor(String.class).newInstance(url);
+    return newConnectionFactory(url);
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
@@ -160,9 +176,8 @@ public class CommonJms implements Serializable {
           InvocationTargetException,
           InstantiationException,
           IllegalAccessException {
-    return connectionFactoryClass
-        .getConstructor(String.class)
-        .newInstance(getBrokerUrlWithPort() + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
+    return newConnectionFactory(
+        getBrokerUrlWithPort() + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
   }
 
   void stopBroker() throws Exception {
