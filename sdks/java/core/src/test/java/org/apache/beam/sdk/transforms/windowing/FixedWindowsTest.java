@@ -17,21 +17,16 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.assignedWindows;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -46,41 +41,54 @@ import org.junit.runners.JUnit4;
 public class FixedWindowsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  private static IntervalWindow window(long start, long end) {
+    return new IntervalWindow(new Instant(start), new Instant(end));
+  }
+
+  /** Asserts that {@code windowFn} assigns {@code timestamp} to exactly {@code windows}. */
+  private static void assertWindows(
+      WindowFn<Object, IntervalWindow> windowFn, long timestamp, IntervalWindow... windows)
+      throws Exception {
+    assertThat(
+        "windows for timestamp " + timestamp,
+        assignedWindows(windowFn, timestamp),
+        containsInAnyOrder(windows));
+  }
+
   @Test
   public void testSimpleFixedWindow() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(1, 2, 5, 9));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
-    expected.put(new IntervalWindow(new Instant(100), new Instant(110)), set(100));
-    assertEquals(
-        expected,
-        runWindowFn(
-            FixedWindows.of(Duration.millis(10)), Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
+    FixedWindows windowFn = FixedWindows.of(Duration.millis(10));
+    assertWindows(windowFn, 1, window(0, 10));
+    assertWindows(windowFn, 2, window(0, 10));
+    assertWindows(windowFn, 5, window(0, 10));
+    assertWindows(windowFn, 9, window(0, 10));
+    assertWindows(windowFn, 10, window(10, 20));
+    assertWindows(windowFn, 11, window(10, 20));
+    assertWindows(windowFn, 100, window(100, 110));
   }
 
   @Test
   public void testFixedOffsetWindow() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5), new Instant(5)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(5), new Instant(15)), set(5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(95), new Instant(105)), set(100));
-    assertEquals(
-        expected,
-        runWindowFn(
-            FixedWindows.of(Duration.millis(10)).withOffset(Duration.millis(5)),
-            Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L, 100L)));
+    FixedWindows windowFn = FixedWindows.of(Duration.millis(10)).withOffset(Duration.millis(5));
+    assertWindows(windowFn, 1, window(-5, 5));
+    assertWindows(windowFn, 2, window(-5, 5));
+    assertWindows(windowFn, 5, window(5, 15));
+    assertWindows(windowFn, 9, window(5, 15));
+    assertWindows(windowFn, 10, window(5, 15));
+    assertWindows(windowFn, 11, window(5, 15));
+    assertWindows(windowFn, 100, window(95, 105));
   }
 
   @Test
   public void testTimeUnit() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5000), new Instant(5000)), set(1, 2, 1000));
-    expected.put(new IntervalWindow(new Instant(5000), new Instant(15000)), set(5000, 5001, 10000));
-    assertEquals(
-        expected,
-        runWindowFn(
-            FixedWindows.of(Duration.standardSeconds(10)).withOffset(Duration.standardSeconds(5)),
-            Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
+    FixedWindows windowFn =
+        FixedWindows.of(Duration.standardSeconds(10)).withOffset(Duration.standardSeconds(5));
+    assertWindows(windowFn, 1, window(-5000, 5000));
+    assertWindows(windowFn, 2, window(-5000, 5000));
+    assertWindows(windowFn, 1000, window(-5000, 5000));
+    assertWindows(windowFn, 5000, window(5000, 15000));
+    assertWindows(windowFn, 5001, window(5000, 15000));
+    assertWindows(windowFn, 10000, window(5000, 15000));
   }
 
   @Test

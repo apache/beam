@@ -17,20 +17,16 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.assignedWindows;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -45,85 +41,96 @@ import org.junit.runners.JUnit4;
 public class SlidingWindowsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  private static IntervalWindow window(long start, long end) {
+    return new IntervalWindow(new Instant(start), new Instant(end));
+  }
+
+  /** Asserts that {@code windowFn} assigns {@code timestamp} to exactly {@code windows}. */
+  private static void assertWindows(
+      WindowFn<Object, IntervalWindow> windowFn, long timestamp, IntervalWindow... windows)
+      throws Exception {
+    assertThat(
+        "windows for timestamp " + timestamp,
+        assignedWindows(windowFn, timestamp),
+        containsInAnyOrder(windows));
+  }
+
   @Test
   public void testSimple() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5), new Instant(5)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(1, 2, 5, 9));
-    expected.put(new IntervalWindow(new Instant(5), new Instant(15)), set(5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10, 11));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(10)).every(Duration.millis(5));
-    assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
+    assertWindows(windowFn, 1, window(-5, 5), window(0, 10));
+    assertWindows(windowFn, 2, window(-5, 5), window(0, 10));
+    assertWindows(windowFn, 5, window(0, 10), window(5, 15));
+    assertWindows(windowFn, 9, window(0, 10), window(5, 15));
+    assertWindows(windowFn, 10, window(5, 15), window(10, 20));
+    assertWindows(windowFn, 11, window(5, 15), window(10, 20));
     assertThat(windowFn.assignsToOneWindow(), is(false));
   }
 
   @Test
   public void testSlightlyOverlapping() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5), new Instant(2)), set(1));
-    expected.put(new IntervalWindow(new Instant(0), new Instant(7)), set(1, 2, 5));
-    expected.put(new IntervalWindow(new Instant(5), new Instant(12)), set(5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(17)), set(10, 11));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(7)).every(Duration.millis(5));
-    assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
+    assertWindows(windowFn, 1, window(-5, 2), window(0, 7));
+    assertWindows(windowFn, 2, window(0, 7));
+    assertWindows(windowFn, 5, window(0, 7), window(5, 12));
+    assertWindows(windowFn, 9, window(5, 12));
+    assertWindows(windowFn, 10, window(5, 12), window(10, 17));
+    assertWindows(windowFn, 11, window(5, 12), window(10, 17));
     assertThat(windowFn.assignsToOneWindow(), is(false));
   }
 
   @Test
   public void testEqualSize() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(3), new Instant(6)), set(3, 4, 5));
-    expected.put(new IntervalWindow(new Instant(6), new Instant(9)), set(6, 7));
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(3)).every(Duration.millis(3));
-    assertEquals(expected, runWindowFn(windowFn, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L)));
+    assertWindows(windowFn, 1, window(0, 3));
+    assertWindows(windowFn, 2, window(0, 3));
+    assertWindows(windowFn, 3, window(3, 6));
+    assertWindows(windowFn, 4, window(3, 6));
+    assertWindows(windowFn, 5, window(3, 6));
+    assertWindows(windowFn, 6, window(6, 9));
+    assertWindows(windowFn, 7, window(6, 9));
     assertThat(windowFn.assignsToOneWindow(), is(true));
   }
 
   @Test
   public void testElidings() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(3)), set(1, 2));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(13)), set(10, 11));
-    expected.put(new IntervalWindow(new Instant(100), new Instant(103)), set(100));
+    // Only look at the first 3 millisecs of every 10-millisec interval.
     SlidingWindows windowFn = SlidingWindows.of(Duration.millis(3)).every(Duration.millis(10));
-    assertEquals(
-        expected,
-        runWindowFn(
-            // Only look at the first 3 millisecs of every 10-millisec interval.
-            windowFn, Arrays.asList(1L, 2L, 3L, 5L, 9L, 10L, 11L, 100L)));
+    assertWindows(windowFn, 1, window(0, 3));
+    assertWindows(windowFn, 2, window(0, 3));
+    assertWindows(windowFn, 3);
+    assertWindows(windowFn, 5);
+    assertWindows(windowFn, 9);
+    assertWindows(windowFn, 10, window(10, 13));
+    assertWindows(windowFn, 11, window(10, 13));
+    assertWindows(windowFn, 100, window(100, 103));
     assertThat(windowFn.assignsToOneWindow(), is(true));
   }
 
   @Test
   public void testOffset() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-8), new Instant(2)), set(1));
-    expected.put(new IntervalWindow(new Instant(-3), new Instant(7)), set(1, 2, 5));
-    expected.put(new IntervalWindow(new Instant(2), new Instant(12)), set(2, 5, 9, 10, 11));
-    expected.put(new IntervalWindow(new Instant(7), new Instant(17)), set(9, 10, 11));
-    assertEquals(
-        expected,
-        runWindowFn(
-            SlidingWindows.of(Duration.millis(10))
-                .every(Duration.millis(5))
-                .withOffset(Duration.millis(2)),
-            Arrays.asList(1L, 2L, 5L, 9L, 10L, 11L)));
+    SlidingWindows windowFn =
+        SlidingWindows.of(Duration.millis(10))
+            .every(Duration.millis(5))
+            .withOffset(Duration.millis(2));
+    assertWindows(windowFn, 1, window(-8, 2), window(-3, 7));
+    assertWindows(windowFn, 2, window(-3, 7), window(2, 12));
+    assertWindows(windowFn, 5, window(-3, 7), window(2, 12));
+    assertWindows(windowFn, 9, window(2, 12), window(7, 17));
+    assertWindows(windowFn, 10, window(2, 12), window(7, 17));
+    assertWindows(windowFn, 11, window(2, 12), window(7, 17));
   }
 
   @Test
   public void testTimeUnit() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(-5000), new Instant(5000)), set(1, 2, 1000));
-    expected.put(
-        new IntervalWindow(new Instant(0), new Instant(10000)), set(1, 2, 1000, 5000, 5001));
-    expected.put(new IntervalWindow(new Instant(5000), new Instant(15000)), set(5000, 5001, 10000));
-    expected.put(new IntervalWindow(new Instant(10000), new Instant(20000)), set(10000));
-    assertEquals(
-        expected,
-        runWindowFn(
-            SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5)),
-            Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
+    SlidingWindows windowFn =
+        SlidingWindows.of(Duration.standardSeconds(10)).every(Duration.standardSeconds(5));
+    assertWindows(windowFn, 1, window(-5000, 5000), window(0, 10000));
+    assertWindows(windowFn, 2, window(-5000, 5000), window(0, 10000));
+    assertWindows(windowFn, 1000, window(-5000, 5000), window(0, 10000));
+    assertWindows(windowFn, 5000, window(0, 10000), window(5000, 15000));
+    assertWindows(windowFn, 5001, window(0, 10000), window(5000, 15000));
+    assertWindows(windowFn, 10000, window(5000, 15000), window(10000, 20000));
   }
 
   @Test
