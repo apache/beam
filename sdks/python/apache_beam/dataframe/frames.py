@@ -1075,8 +1075,11 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     key_expr = expressions.ConstantExpression(
         key_series, proxy=key_series.iloc[:0])
 
+    drop_level = kwargs.get('drop_level', True)
+
     if level is None:
       reindexed = self
+      restore_order = None
     else:
       if not isinstance(level, list):
         level = [level]
@@ -1088,8 +1091,12 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
           for l in level
       ]
 
-      reindexed = self.reorder_levels(
+      reindex_order = (
           level + [i for i in range(self.index.nlevels) if i not in level])
+      reindexed = self.reorder_levels(reindex_order)
+      restore_order = [
+          reindex_order.index(i) for i in range(self.index.nlevels)
+      ]
 
     if key_size < reindexed.index.nlevels:
 
@@ -1097,8 +1104,15 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         if not len(key):
           # key is not in this partition, return empty dataframe/series
           result = frame.iloc[:0]
-          return result.droplevel(list(range(key_size)))
-        return frame.xs(key.item(), **kwargs)
+          if drop_level:
+            return result.droplevel(list(range(key_size)))
+          if restore_order is not None:
+            return result.reorder_levels(restore_order)
+          return result
+        res = frame.xs(key.item(), **kwargs)
+        if not drop_level and restore_order is not None:
+          return res.reorder_levels(restore_order)
+        return res
 
       return frame_base.DeferredFrame.wrap(
           expressions.ComputedExpression(
@@ -1122,6 +1136,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         k = key.item()
         try:
           res = frame.xs(k, **kwargs)
+          if (not drop_level and restore_order is not None and
+              isinstance(res, (pd.DataFrame, pd.Series))):
+            res = res.reorder_levels(restore_order)
           return pd.Series([res], dtype=object)
         except KeyError:
           return pd.Series([], dtype=object)

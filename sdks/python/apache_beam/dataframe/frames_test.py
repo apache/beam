@@ -416,6 +416,79 @@ class DeferredFrameTest(_AbstractFrameTest):
     res_s = deferred_s.xs('x')
     self.assertIsInstance(res_s, frame_base.DeferredBase)
 
+  def test_dataframe_xs_drop_level(self):
+    idx = pd.MultiIndex.from_tuples([('a', 'x', 1), ('a', 'y', 2),
+                                     ('b', 'x', 3), ('b', 'y', 4)],
+                                    names=['lvl0', 'lvl1', 'lvl2'])
+    df = pd.DataFrame({'val': [10, 20, 30, 40]}, index=idx)
+
+    # Verify drop_level=False preserves all index level names, count, and shape
+    self._run_test(lambda df: df.xs('a', level='lvl0', drop_level=False), df)
+    self._run_test(
+        lambda df: df.xs(('a', 'x'), level=['lvl0', 'lvl1'], drop_level=False),
+        df)
+    # The implementation reorders requested levels before partitioning; a
+    # full-key lookup must restore the original order as well.
+    self._run_test(
+        lambda df: df.xs(('x', 'a'), level=['lvl1', 'lvl0'], drop_level=False),
+        df)
+    self._run_test(lambda df: df.xs('x', level='lvl1', drop_level=False), df)
+
+    # Verify drop_level=True retains standard level-dropping behavior
+    self._run_test(lambda df: df.xs('a', level='lvl0', drop_level=True), df)
+
+    # MultiIndex with unnamed levels
+    df_unnamed = pd.DataFrame({'val': [1, 2, 3, 4]},
+                              index=pd.MultiIndex.from_tuples(
+                                  [('a', 'x', 1), ('a', 'y', 2), ('b', 'x', 3),
+                                   ('b', 'y', 4)],
+                                  names=[None, None, None]))
+    self._run_test(lambda df: df.xs('x', level=1, drop_level=False), df_unnamed)
+
+    # MultiIndex with duplicate labels
+    df_dup = pd.DataFrame({'val': [1, 2, 3, 4]},
+                          index=pd.MultiIndex.from_tuples(
+                              [('a', 'x', 1), ('a', 'x', 1), ('b', 'y', 2),
+                               ('b', 'y', 2)],
+                              names=['lvl0', 'lvl1', 'lvl2']))
+    self._run_test(
+        lambda df: df.xs('a', level='lvl0', drop_level=False), df_dup)
+
+  def test_series_xs_drop_level(self):
+    idx = pd.MultiIndex.from_tuples([('a', 'x', 1), ('a', 'y', 2),
+                                     ('b', 'x', 3), ('b', 'y', 4)],
+                                    names=['lvl0', 'lvl1', 'lvl2'])
+    s = pd.Series([10, 20, 30, 40], index=idx, name='target')
+
+    # Verify drop_level=False preserves all index level names, count, and values
+    self._run_test(lambda s: s.xs('a', level='lvl0', drop_level=False), s)
+    self._run_test(
+        lambda s: s.xs(('a', 'x'), level=['lvl0', 'lvl1'], drop_level=False), s)
+    self._run_test(
+        lambda s: s.xs(('x', 'a'), level=['lvl1', 'lvl0'], drop_level=False), s)
+    self._run_test(lambda s: s.xs('x', level='lvl1', drop_level=False), s)
+
+    # Verify drop_level=True retains standard level-dropping behavior
+    self._run_test(lambda s: s.xs('a', level='lvl0', drop_level=True), s)
+
+    # Series with unnamed MultiIndex levels
+    s_unnamed = pd.Series([1, 2, 3, 4],
+                          index=pd.MultiIndex.from_tuples(
+                              [('a', 'x', 1), ('a', 'y', 2), ('b', 'x', 3),
+                               ('b', 'y', 4)],
+                              names=[None, None, None]),
+                          name='target')
+    self._run_test(lambda s: s.xs('x', level=1, drop_level=False), s_unnamed)
+
+    # Series with duplicate MultiIndex labels
+    s_dup = pd.Series([1, 2, 3, 4],
+                      index=pd.MultiIndex.from_tuples(
+                          [('a', 'x', 1), ('a', 'x', 1), ('b', 'y', 2),
+                           ('b', 'y', 2)],
+                          names=['lvl0', 'lvl1', 'lvl2']),
+                      name='target')
+    self._run_test(lambda s: s.xs('a', level='lvl0', drop_level=False), s_dup)
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
