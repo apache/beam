@@ -36,7 +36,7 @@ The Spark runner comes in three flavors:
 
 1. A *legacy Runner* which supports only Java (and other JVM-based languages) and that is based on Spark RDD/DStream
 2. An *Structured Streaming Spark Runner* which supports only Java (and other JVM-based languages) and that is based on Spark Datasets and the [Apache Spark Structured Streaming](https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html) framework.
-> **Note:** It is still experimental, its coverage of the Beam model is partial. As for now it only supports batch mode.
+> **Note:** It is still experimental, its coverage of the Beam model is partial. It supports batch mode, and streaming mode on Spark 4 as of Beam 2.79.0.
 3. A *portable Runner* which supports Java, Python, and Go
 
 This guide is split into two parts to document the non-portable and
@@ -464,7 +464,7 @@ Providing support for additional Sinks supported by Spark is easy and straight-f
 If your pipeline uses an <code>UnboundedSource</code> the Spark Runner will automatically set streaming mode. Forcing streaming mode is mostly used for testing and is not recommended.
 <br>
 <br><b>For Structured Streaming based runner:</b><br>
-Streaming mode is not implemented yet in the Spark Structured Streaming runner.
+Streaming mode requires Spark 4 (<code>beam-runners-spark-4</code>) and Beam 2.79.0 or later. Like the RDD/DStream based runner, it is set automatically when the pipeline reads an unbounded source. Its Spark Structured Streaming queries checkpoint under <code>--checkpointDir</code>, which should be on a reliable filesystem such as HDFS, S3 or GCS for durability.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
