@@ -28,7 +28,10 @@ in another, without writing a pipeline first. It builds a two-step Beam YAML
 pipeline (see `pipe_spec`) and runs it like `beam run`. `--dry-run` prints
 that pipeline instead, ready to save, edit and `beam run`.
 
-On top of that, both give command-line users and scripts what they rely on:
+`beam sql` launches the interactive Apache Beam SQL shell (`BeamSqlLine`),
+caching shaded JARs in `~/.beam/cache/` compatibly with `scripts/beam-sql.sh`.
+
+On top of that, the CLI gives command-line users and scripts what they rely on:
 errors without tracebacks unless `--verbose` is given, documented exit codes,
 Ctrl-C cancelling the pipeline, and a last line naming the runner that ran it.
 """
@@ -43,6 +46,7 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.cli import pipe_spec
+from apache_beam.cli import sql
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import StandardOptions
@@ -88,17 +92,47 @@ existing output is never overwritten.
 Every other --flag is passed to the pipeline as a Beam pipeline option.
 """ + _EXIT_CODES
 
+_SQL_EPILOG = """\
+examples:
+  # Open an interactive Beam SQL shell (0: BeamSQL>)
+  beam sql
+  beam sql --io kafka --io iceberg
+  beam sql --runner dataflow --io iceberg
+
+  # Execute a one-shot query and exit
+  beam sql -e "SELECT 1 + 1 AS two;"
+
+  # Read CSV (built-in TYPE text), filter & aggregate, and write Parquet
+  beam sql --io parquet \\
+      -e "CREATE EXTERNAL TABLE orders (customer VARCHAR, amount INTEGER) TYPE text LOCATION 'orders.csv';" \\
+      -e "CREATE EXTERNAL TABLE totals (customer VARCHAR, total_amount BIGINT) TYPE parquet LOCATION 'totals/';" \\
+      -e "INSERT INTO totals SELECT customer, SUM(amount) FROM orders WHERE amount >= 50 GROUP BY customer;"
+
+  # Or execute the same statements from a SQL script file
+  beam sql --io parquet -f query.sql
+
+Without -e or -f, `beam sql` opens an interactive BeamSqlLine prompt.
+Built-in table types (`text` for CSV, `avro`, `datagen`, `bigquery`, `pubsub`,
+`bigtable`) work out of the box; pass `--io` to bundle optional connectors
+such as `parquet`, `kafka`, `iceberg`, or `delta` (`beam sql --list-ios`).
+Builds a shaded Beam SQL JAR once with Maven Wrapper and caches it in
+~/.beam/cache/ (sharing the cache with scripts/beam-sql.sh). Requires Java 11+.
+Every other argument is passed through to BeamSqlLine.
+""" + _EXIT_CODES
+
 
 def main(argv=None):
   """Runs the `beam` command and returns its exit code."""
   argv = sys.argv[1:] if argv is None else argv
-  args, pipeline_args = _build_parser().parse_known_args(argv)
+  args, extra_args = _build_parser().parse_known_args(argv)
   # The same logging setup as `python -m apache_beam.yaml.main`.
   logging.getLogger().setLevel(logging.INFO)
   try:
     if args.command == 'run':
-      return _run(args.file, pipeline_args, args.verbose)
-    return _pipe(args, pipeline_args, argv[argv.index('pipe') + 1:])
+      return _run(args.file, extra_args, args.verbose)
+    if args.command == 'pipe':
+      return _pipe(args, extra_args, argv[argv.index('pipe') + 1:])
+    return _sql(args, extra_args)
   except _CliError as e:
     print(f'error: {e}', file=sys.stderr)
     return e.exit_code
@@ -176,6 +210,49 @@ def _build_parser():
       help='check the pipeline and print it as YAML instead of running it')
   pipe.add_argument(
       '--verbose', action='store_true', help='show tracebacks for errors')
+
+  sql_parser = commands.add_parser(
+      'sql',
+      help='run Beam SQL queries or open the interactive SQL shell',
+      description=(
+          'Launch the Apache Beam SQL shell (BeamSqlLine) interactively, or '
+          'execute SQL statements with -e / -f, caching shaded JARs in '
+          '~/.beam/cache/ compatibly with scripts/beam-sql.sh.'),
+      epilog=_SQL_EPILOG,
+      formatter_class=argparse.RawDescriptionHelpFormatter,
+      allow_abbrev=False)
+  sql_parser.add_argument(
+      '--version',
+      metavar='VER',
+      help='Beam release version for SQL artifacts (default: installed SDK)')
+  sql_parser.add_argument(
+      '--runner',
+      default='direct',
+      metavar='RUNNER',
+      help='runner to include: direct (default) or dataflow')
+  sql_parser.add_argument(
+      '--io',
+      dest='ios',
+      action='append',
+      default=[],
+      metavar='CONNECTOR',
+      help='IO connector to include; may be given multiple times')
+  sql_parser.add_argument(
+      '--list-versions',
+      action='store_true',
+      help='list recent Beam versions on Maven Central and exit')
+  sql_parser.add_argument(
+      '--list-ios',
+      action='store_true',
+      help='list available IO connectors on Maven Central and exit')
+  sql_parser.add_argument(
+      '--list-runners',
+      action='store_true',
+      help='list available runners on Maven Central and exit')
+  sql_parser.add_argument(
+      '--debug',
+      action='store_true',
+      help='print Maven and Java commands as they run')
   return parser
 
 
@@ -184,6 +261,23 @@ class _CliError(Exception):
   def __init__(self, message, exit_code):
     super().__init__(message)
     self.exit_code = exit_code
+
+
+def _sql(args, sqlline_args):
+  if sqlline_args and sqlline_args[0] == '--':
+    sqlline_args = sqlline_args[1:]
+  try:
+    return sql.run(
+        version=args.version,
+        runner=args.runner,
+        ios=args.ios,
+        list_versions=args.list_versions,
+        list_ios=args.list_ios,
+        list_runners=args.list_runners,
+        debug=args.debug,
+        sqlline_args=sqlline_args)
+  except sql.SqlError as e:
+    raise _CliError(str(e), e.exit_code) from None
 
 
 def _run(file, pipeline_args, verbose):
