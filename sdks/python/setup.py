@@ -174,6 +174,8 @@ dataframe_dependency = [
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
 qdrant_dependency = ['qdrant-client>=1.15.0']
+# 1.2.8 added num_retries_429 to Vespa.feed_iterable.
+vespa_dependency = ['pyvespa>=1.2.8,<2']
 # NOTE: When updating these bounds, also update the bounds in
 # apache_beam/ml/inference/xgboost_tests_requirements.txt, which is used by the
 # XGBoost RunInference integration tests, and the py311-xgboost-* environments
@@ -634,13 +636,16 @@ if __name__ == '__main__':
               # which tensorflow-transform 1.21 requires.
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
-          'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency,
+          'p311_ml_test': ml_base + xgboost_dependency + qdrant_dependency +
+          vespa_dependency,
           'p312_ml_test': [
               'typesafe-sdk>=0.7.1,<0.8',
-          ] + ml_base + xgboost_dependency + qdrant_dependency,
+          ] + ml_base + xgboost_dependency + qdrant_dependency +
+          vespa_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
-          'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency,
+          'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency +
+          vespa_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -728,6 +733,7 @@ if __name__ == '__main__':
           ],
           'milvus': milvus_dependency,
           'qdrant': qdrant_dependency,
+          'vespa': vespa_dependency,
           'vllm': ['openai>=2.25.0,<3.0.0', 'vllm==0.32.0']
       },
       zip_safe=False,
