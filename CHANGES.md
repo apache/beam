@@ -134,6 +134,7 @@
 * (Java) Flink runner: batch pipelines now assign source splits to readers statically by default instead of lazily. Set `--sourceStaticSplitThresholdMb=0` to restore lazy assignment ([#40607](https://github.com/apache/beam/issues/40607)).
 * (Python) Datatable support in the XGBoost model handler has been removed. ([#41586](https://github.com/apache/beam/issues/41586)).
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Job servers and gRPC servers from `ServerFactory` now listen on the requested host, instead of on all interfaces. The Flink and Spark job servers listen on `localhost` by default. To accept connections from other hosts or through published container ports, set `--job-host=0.0.0.0` ([#41006](https://github.com/apache/beam/issues/41006)).
 
 ### Package upgrades
 

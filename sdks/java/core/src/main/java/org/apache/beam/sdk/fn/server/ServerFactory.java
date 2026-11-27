@@ -51,26 +51,34 @@ public abstract class ServerFactory {
 
   /** Create a default {@link InetSocketAddressServerFactory}. */
   public static ServerFactory createDefault() {
-    return new InetSocketAddressServerFactory(UrlFactory.createDefault());
+    return new InetSocketAddressServerFactory(UrlFactory.createDefault(), () -> 0, false);
   }
 
-  /** Create a {@link InetSocketAddressServerFactory} that uses the given url factory. */
+  /**
+   * Create a {@link InetSocketAddressServerFactory} that uses the given url factory.
+   *
+   * <p>Servers with an allocated address listen on all interfaces, because a url factory is for
+   * clients in a different networking context.
+   */
   public static ServerFactory createWithUrlFactory(UrlFactory urlFactory) {
-    return new InetSocketAddressServerFactory(urlFactory);
+    return new InetSocketAddressServerFactory(urlFactory, () -> 0, true);
   }
 
   /** Create a {@link InetSocketAddressServerFactory} that uses ports from a supplier. */
   public static ServerFactory createWithPortSupplier(Supplier<Integer> portSupplier) {
-    return new InetSocketAddressServerFactory(UrlFactory.createDefault(), portSupplier);
+    return new InetSocketAddressServerFactory(UrlFactory.createDefault(), portSupplier, false);
   }
 
   /**
    * Create a {@link InetSocketAddressServerFactory} that uses the given url factory and ports from
    * a supplier.
+   *
+   * <p>Servers with an allocated address listen on all interfaces, because a url factory is for
+   * clients in a different networking context.
    */
   public static ServerFactory createWithUrlFactoryAndPortSupplier(
       UrlFactory urlFactory, Supplier<Integer> portSupplier) {
-    return new InetSocketAddressServerFactory(urlFactory, portSupplier);
+    return new InetSocketAddressServerFactory(urlFactory, portSupplier, true);
   }
 
   /** Create a {@link EpollSocket}. */
@@ -106,29 +114,35 @@ public abstract class ServerFactory {
   /**
    * Creates a {@link Server gRPC Server} using the default server factory.
    *
-   * <p>The server is created listening any open port on "localhost".
+   * <p>{@link #create} listens on the host in the service descriptor. {@link
+   * #allocateAddressAndCreate} listens on "localhost", unless the factory has a custom {@link
+   * UrlFactory}.
    */
   public static class InetSocketAddressServerFactory extends ServerFactory {
     private final UrlFactory urlFactory;
     private final Supplier<Integer> portSupplier;
+    private final boolean allocateOnAllInterfaces;
 
-    private InetSocketAddressServerFactory(UrlFactory urlFactory) {
-      this(urlFactory, () -> 0);
-    }
-
-    private InetSocketAddressServerFactory(UrlFactory urlFactory, Supplier<Integer> portSupplier) {
+    private InetSocketAddressServerFactory(
+        UrlFactory urlFactory, Supplier<Integer> portSupplier, boolean allocateOnAllInterfaces) {
       this.urlFactory = urlFactory;
       this.portSupplier = portSupplier;
+      this.allocateOnAllInterfaces = allocateOnAllInterfaces;
     }
 
     @Override
     public Server allocateAddressAndCreate(
         List<BindableService> services, Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptor)
         throws IOException {
-      InetSocketAddress address =
-          new InetSocketAddress(InetAddress.getLoopbackAddress(), portSupplier.get());
-      Server server = createServer(services, address);
-      apiServiceDescriptor.setUrl(urlFactory.createUrl(address.getHostName(), server.getPort()));
+      InetAddress loopback = InetAddress.getLoopbackAddress();
+      int port = portSupplier.get();
+      Server server =
+          createServer(
+              services,
+              allocateOnAllInterfaces
+                  ? new InetSocketAddress(port)
+                  : new InetSocketAddress(loopback, port));
+      apiServiceDescriptor.setUrl(urlFactory.createUrl(loopback.getHostName(), server.getPort()));
       return server;
     }
 
@@ -149,7 +163,7 @@ public abstract class ServerFactory {
     private static Server createServer(List<BindableService> services, InetSocketAddress socket)
         throws IOException {
       NettyServerBuilder builder =
-          NettyServerBuilder.forPort(socket.getPort())
+          NettyServerBuilder.forAddress(socket)
               // Set the message size to max value here. The actual size is governed by the
               // buffer size in the layers above.
               .maxInboundMessageSize(Integer.MAX_VALUE)
