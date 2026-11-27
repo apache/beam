@@ -35,12 +35,15 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.Read;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,21 +63,43 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
     String filePattern = resolveFilePattern(checkArgumentNotNull(table.getLocation()));
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
-    return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
+    return toRows(begin.apply("ParquetIORead", read), schema);
   }
 
   @Override
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
+    Schema readSchema = schema;
     String filePattern = resolveFilePattern(checkArgumentNotNull(table.getLocation()));
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     if (!fieldNames.isEmpty()) {
-      Schema projectionSchema = projectSchema(schema, fieldNames);
-      LOG.info("Projecting fields schema: {}", projectionSchema);
-      read = read.withProjection(projectionSchema, projectionSchema);
+      readSchema = projectSchema(schema, fieldNames);
+      LOG.info("Projecting fields schema: {}", readSchema);
+      read = read.withProjection(readSchema, readSchema);
     }
-    return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
+    return toRows(begin.apply("ParquetIORead", read), readSchema);
+  }
+
+  private PCollection<Row> toRows(PCollection<GenericRecord> records, Schema avroSchema) {
+    org.apache.beam.sdk.schemas.Schema inferredSchema = AvroUtils.toBeamSchema(avroSchema);
+    org.apache.beam.sdk.schemas.Schema.Builder builder =
+        org.apache.beam.sdk.schemas.Schema.builder();
+    for (org.apache.beam.sdk.schemas.Schema.Field field : inferredSchema.getFields()) {
+      org.apache.beam.sdk.schemas.Schema.FieldType tableFieldType =
+          table.getSchema().getField(field.getName()).getType();
+      builder.addField(
+          tableFieldType.isLogicalType(SqlTypes.TIME.getIdentifier())
+              ? field.toBuilder().setType(tableFieldType).build()
+              : field);
+    }
+    org.apache.beam.sdk.schemas.Schema readSchema = builder.build();
+    return records
+        .apply(
+            "ToRows",
+            MapElements.into(TypeDescriptors.rows())
+                .via(AvroUtils.getGenericRecordToRowFunction(readSchema)))
+        .setRowSchema(readSchema);
   }
 
   /** Returns a copy of the {@link Schema} with only the fieldNames fields. */
