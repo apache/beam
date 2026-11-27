@@ -16,6 +16,8 @@
 #
 # pytype: skip-file
 
+import threading
+import time
 import unittest
 from dataclasses import dataclass
 from unittest import mock
@@ -58,6 +60,16 @@ class FakeMessage:
 
 def _make_fake_response(text):
   return FakeMessage(content=[FakeContentBlock(text=text)])
+
+
+def _echo_last_message(**kwargs):
+  """Returns a fake response derived from the request's last message.
+
+  Requests within a batch are issued concurrently, so call order is
+  nondeterministic; keying the response on the request contents lets tests
+  check that results are returned in batch order.
+  """
+  return _make_fake_response(f"answer for: {kwargs['messages'][-1]['content']}")
 
 
 class RetryOnErrorTest(unittest.TestCase):
@@ -111,20 +123,104 @@ class RetryOnErrorTest(unittest.TestCase):
 class MessageFromStringTest(unittest.TestCase):
   def test_sends_each_prompt(self):
     client = mock.MagicMock()
-    client.messages.create.side_effect = [
-        _make_fake_response("answer 1"),
-        _make_fake_response("answer 2"),
-    ]
+    client.messages.create.side_effect = _echo_last_message
     results = message_from_string(_TEST_MODEL, ['hello', 'world'], client, {})
-    self.assertEqual(len(results), 2)
+    self.assertEqual([r.content[0].text for r in results],
+                     ["answer for: hello", "answer for: world"])
     self.assertEqual(client.messages.create.call_count, 2)
 
-    call_args = client.messages.create.call_args_list[0]
-    self.assertEqual(call_args.kwargs['model'], _TEST_MODEL)
+    calls = client.messages.create.call_args_list
+    sent_messages = sorted((c.kwargs['messages'] for c in calls),
+                           key=lambda m: m[0]['content'])
     self.assertEqual(
-        call_args.kwargs['messages'], [{
+        sent_messages,
+        [[{
             "role": "user", "content": "hello"
-        }])
+        }], [{
+            "role": "user", "content": "world"
+        }]])
+    for c in calls:
+      self.assertEqual(c.kwargs['model'], _TEST_MODEL)
+
+  def test_requests_run_concurrently_and_preserve_order(self):
+    lock = threading.Lock()
+    state = {'in_flight': 0, 'max_in_flight': 0}
+    completion_order = []
+    prompts = [f'p{i}' for i in range(4)]
+
+    def slow_create(**kwargs):
+      prompt = kwargs['messages'][-1]['content']
+      with lock:
+        state['in_flight'] += 1
+        state['max_in_flight'] = max(state['max_in_flight'], state['in_flight'])
+      # Earlier prompts sleep longer so they finish last.
+      time.sleep(0.05 * (len(prompts) - prompts.index(prompt)))
+      with lock:
+        state['in_flight'] -= 1
+        completion_order.append(prompt)
+      return _make_fake_response(f"answer for: {prompt}")
+
+    client = mock.MagicMock()
+    client.messages.create.side_effect = slow_create
+    results = message_from_string(_TEST_MODEL, prompts, client, {})
+
+    self.assertGreater(state['max_in_flight'], 1)
+    self.assertNotEqual(completion_order, prompts)
+    self.assertEqual([r.content[0].text for r in results],
+                     [f"answer for: {p}" for p in prompts])
+
+  def test_concurrency_is_capped(self):
+    lock = threading.Lock()
+    state = {'in_flight': 0, 'max_in_flight': 0}
+
+    def slow_create(**kwargs):
+      with lock:
+        state['in_flight'] += 1
+        state['max_in_flight'] = max(state['max_in_flight'], state['in_flight'])
+      time.sleep(0.02)
+      with lock:
+        state['in_flight'] -= 1
+      return _make_fake_response("ok")
+
+    client = mock.MagicMock()
+    client.messages.create.side_effect = slow_create
+    with mock.patch('apache_beam.ml.inference.anthropic_inference.'
+                    '_MAX_CONCURRENT_REQUESTS_PER_BATCH',
+                    2):
+      results = message_from_string(
+          _TEST_MODEL, [f'p{i}' for i in range(6)], client, {})
+
+    self.assertEqual(len(results), 6)
+    self.assertLessEqual(state['max_in_flight'], 2)
+
+  def test_propagates_request_error(self):
+    rate_limited = APIStatusError(
+        message="Rate limited",
+        response=mock.MagicMock(status_code=429, headers={}),
+        body=None)
+
+    def create(**kwargs):
+      if kwargs['messages'][-1]['content'] == 'bad':
+        raise rate_limited
+      return _make_fake_response("ok")
+
+    client = mock.MagicMock()
+    client.messages.create.side_effect = create
+    with self.assertRaises(APIStatusError) as ctx:
+      message_from_string(_TEST_MODEL, ['good', 'bad', 'good'], client, {})
+    self.assertIs(ctx.exception, rate_limited)
+    self.assertTrue(_retry_on_appropriate_error(ctx.exception))
+
+  def test_every_request_gets_max_tokens(self):
+    client = mock.MagicMock()
+    client.messages.create.side_effect = _echo_last_message
+    inference_args = {'max_tokens': 2048, 'temperature': 0.5}
+    message_from_string(_TEST_MODEL, ['a', 'b', 'c'], client, inference_args)
+    calls = client.messages.create.call_args_list
+    self.assertEqual(len(calls), 3)
+    for c in calls:
+      self.assertEqual(c.kwargs['max_tokens'], 2048)
+      self.assertEqual(c.kwargs['temperature'], 0.5)
 
   def test_passes_inference_args(self):
     client = mock.MagicMock()
@@ -159,6 +255,26 @@ class MessageFromConversationTest(unittest.TestCase):
     call_args = client.messages.create.call_args
     self.assertEqual(call_args.kwargs['messages'], convo)
 
+  def test_sends_conversations_concurrently_and_preserves_order(self):
+    barrier = threading.Barrier(3, timeout=5)
+
+    def create(**kwargs):
+      # Every request waits here until all three are in flight at once.
+      barrier.wait()
+      return _echo_last_message(**kwargs)
+
+    client = mock.MagicMock()
+    client.messages.create.side_effect = create
+    convos = [[{"role": "user", "content": f"c{i}"}] for i in range(3)]
+    results = message_from_conversation(_TEST_MODEL, convos, client, {})
+
+    self.assertEqual([r.content[0].text for r in results],
+                     ["answer for: c0", "answer for: c1", "answer for: c2"])
+    sent = sorted(
+        (c.kwargs['messages'] for c in client.messages.create.call_args_list),
+        key=lambda m: m[0]['content'])
+    self.assertEqual(sent, convos)
+
 
 class AnthropicModelHandlerTest(unittest.TestCase):
   def test_max_batch_weight_requires_element_size_fn(self):
@@ -190,19 +306,22 @@ class AnthropicModelHandlerTest(unittest.TestCase):
     handler = AnthropicModelHandler(
         model_name=_TEST_MODEL, request_fn=message_from_string, api_key='fake')
     mock_client = mock.MagicMock()
-    resp1 = _make_fake_response("answer 1")
-    resp2 = _make_fake_response("answer 2")
-    mock_client.messages.create.side_effect = [resp1, resp2]
+    responses = {
+        'q1': _make_fake_response("answer 1"),
+        'q2': _make_fake_response("answer 2"),
+    }
+    mock_client.messages.create.side_effect = (
+        lambda **kwargs: responses[kwargs['messages'][-1]['content']])
 
     results = list(handler.request(['q1', 'q2'], mock_client, {}))
 
     self.assertEqual(len(results), 2)
     self.assertIsInstance(results[0], PredictionResult)
     self.assertEqual(results[0].example, 'q1')
-    self.assertEqual(results[0].inference, resp1)
+    self.assertEqual(results[0].inference, responses['q1'])
     self.assertEqual(results[0].model_id, _TEST_MODEL)
     self.assertEqual(results[1].example, 'q2')
-    self.assertEqual(results[1].inference, resp2)
+    self.assertEqual(results[1].inference, responses['q2'])
 
   def test_batch_elements_kwargs(self):
     handler = AnthropicModelHandler(
