@@ -671,6 +671,84 @@ public class GroupTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAggregateSingleFieldNestedArrayQualifier() {
+    Schema itemSchema = Schema.builder().addInt64Field("v").build();
+    Schema inputSchema =
+        Schema.builder()
+            .addStringField("k")
+            .addArrayField("items", FieldType.row(itemSchema))
+            .build();
+
+    Row r1 =
+        Row.withSchema(inputSchema)
+            .addValues(
+                "g1",
+                java.util.Arrays.asList(
+                    Row.withSchema(itemSchema).addValues(10L).build(),
+                    Row.withSchema(itemSchema).addValues(20L).build()))
+            .build();
+    Row r2 =
+        Row.withSchema(inputSchema)
+            .addValues(
+                "g1",
+                java.util.Collections.singletonList(
+                    Row.withSchema(itemSchema).addValues(30L).build()))
+            .build();
+
+    org.apache.beam.sdk.transforms.Combine.CombineFn<List<Long>, Long, Long> sumLists =
+        new org.apache.beam.sdk.transforms.Combine.CombineFn<List<Long>, Long, Long>() {
+          @Override
+          public Long createAccumulator() {
+            return 0L;
+          }
+
+          @Override
+          public Long addInput(Long acc, List<Long> input) {
+            long sum = acc;
+            for (Long x : input) {
+              sum += x;
+            }
+            return sum;
+          }
+
+          @Override
+          public Long mergeAccumulators(Iterable<Long> accs) {
+            long sum = 0L;
+            for (Long a : accs) {
+              sum += a;
+            }
+            return sum;
+          }
+
+          @Override
+          public Long extractOutput(Long acc) {
+            return acc;
+          }
+        };
+
+    PCollection<Row> grouped =
+        pipeline
+            .apply(Create.of(r1, r2))
+            .setRowSchema(inputSchema)
+            .apply(Group.<Row>byFieldNames("k").aggregateField("items.v", sumLists, "total"));
+
+    Schema keySchema = Schema.builder().addStringField("k").build();
+    Schema valSchema = Schema.builder().addInt64Field("total").build();
+    Schema outSchema =
+        Schema.builder().addRowField("key", keySchema).addRowField("value", valSchema).build();
+    PAssert.that(grouped)
+        .containsInAnyOrder(
+            Row.withSchema(outSchema)
+                .addValues(
+                    Row.withSchema(keySchema).addValues("g1").build(),
+                    Row.withSchema(valSchema).addValues(60L).build())
+                .build());
+
+    pipeline.run();
+  }
+
   private static Void containsKIterableVs(List<Row> expectedKvs, Iterable<Row> actualKvs) {
     List<Matcher<? super Row>> matchers = new ArrayList<>();
     for (Row expected : expectedKvs) {
