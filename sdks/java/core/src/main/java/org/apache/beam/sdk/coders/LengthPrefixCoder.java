@@ -22,13 +22,13 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.SoftReference;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -43,9 +43,20 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   private static final int MAX_POOLED_BUFFER_SIZE = 64 * 1024;
   private static final int MAX_POOL_DEPTH = 4;
 
-  @SuppressWarnings("type.argument") // object guaranteed to be non-null
-  private static final ThreadLocal<@NonNull BufferPool> BUFFER_POOL =
-      ThreadLocal.withInitial(BufferPool::new);
+  // Held via SoftReference so pooled buffers can be reclaimed under memory pressure and do not
+  // create a strong ThreadLocalMap -> BufferPool -> ClassLoader retention cycle.
+  private static final ThreadLocal<@Nullable SoftReference<BufferPool>> BUFFER_POOL =
+      new ThreadLocal<>();
+
+  private static BufferPool getBufferPool() {
+    @Nullable SoftReference<BufferPool> ref = BUFFER_POOL.get();
+    @Nullable BufferPool pool = (ref != null) ? ref.get() : null;
+    if (pool == null) {
+      pool = new BufferPool();
+      BUFFER_POOL.set(new SoftReference<>(pool));
+    }
+    return pool;
+  }
 
   private static final class BufferPool {
     private @Nullable ReusableByteArrayOutputStream head;
@@ -79,25 +90,22 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
     private int count;
     @Nullable ReusableByteArrayOutputStream next;
 
-    private void ensureCapacity(int minCapacity) {
-      if (minCapacity < 0) {
+    private void ensureCapacity(long minCapacity) {
+      if (minCapacity <= buf.length) {
+        return;
+      }
+      if (minCapacity > Integer.MAX_VALUE) {
         throw new OutOfMemoryError();
       }
-      if (minCapacity - buf.length > 0) {
-        int newCapacity = buf.length << 1;
-        if (newCapacity - minCapacity < 0) {
-          newCapacity = minCapacity;
-        }
-        if (newCapacity - MAX_ARRAY_SIZE > 0) {
-          newCapacity = (minCapacity > MAX_ARRAY_SIZE) ? Integer.MAX_VALUE : MAX_ARRAY_SIZE;
-        }
-        buf = Arrays.copyOf(buf, newCapacity);
-      }
+      long target = Math.max((long) buf.length << 1, minCapacity);
+      int newCapacity =
+          target <= MAX_ARRAY_SIZE ? (int) target : (int) Math.max(minCapacity, MAX_ARRAY_SIZE);
+      buf = Arrays.copyOf(buf, newCapacity);
     }
 
     @Override
     public void write(int b) {
-      ensureCapacity(count + 1);
+      ensureCapacity((long) count + 1L);
       buf[count] = (byte) b;
       count += 1;
     }
@@ -108,7 +116,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
       if (off < 0 || len < 0 || off > b.length - len) {
         throw new IndexOutOfBoundsException();
       }
-      ensureCapacity(count + len);
+      ensureCapacity((long) count + len);
       System.arraycopy(b, off, buf, count, len);
       count += len;
     }
@@ -149,7 +157,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
       valueCoder.encode(value, outStream, Context.NESTED);
       return;
     }
-    BufferPool pool = BUFFER_POOL.get();
+    BufferPool pool = getBufferPool();
     ReusableByteArrayOutputStream bos = pool.acquire();
     try {
       valueCoder.encode(value, bos, Context.OUTER);

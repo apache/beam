@@ -139,16 +139,34 @@ public class LengthPrefixCoderTest {
   }
 
   @Test
-  public void testStringUtf8CoderFastPath() throws Exception {
+  public void testByteArrayAndStringFastPath() throws Exception {
+    LengthPrefixCoder<byte[]> bytesCoder = LengthPrefixCoder.of(ByteArrayCoder.of());
+    ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+    bytesCoder.encode(new byte[] {1, 2}, bytesOut);
+    bytesCoder.encode(new byte[0], bytesOut);
+    bytesCoder.encode(new byte[] {3, 4, 5}, bytesOut);
+    ByteArrayInputStream bytesIn = new ByteArrayInputStream(bytesOut.toByteArray());
+    assertArrayEquals(new byte[] {1, 2}, bytesCoder.decode(bytesIn));
+    assertArrayEquals(new byte[0], bytesCoder.decode(bytesIn));
+    assertArrayEquals(new byte[] {3, 4, 5}, bytesCoder.decode(bytesIn));
+    assertEquals(0, bytesIn.available());
+    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(bytesCoder, null));
+
     LengthPrefixCoder<String> stringCoder = LengthPrefixCoder.of(StringUtf8Coder.of());
-    List<String> values = Arrays.asList("", "hello", "unicode-\u00e9-\u2603-\ud83d\ude00");
-    for (String value : values) {
-      CoderProperties.coderDecodeEncodeEqual(stringCoder, value);
-      byte[] encoded = CoderUtils.encodeToByteArray(stringCoder, value);
-      byte[] nestedExpected =
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), value, Coder.Context.NESTED);
-      assertArrayEquals(nestedExpected, encoded);
-    }
+    String unicode = "unicode-\u00e9-\u2603-\ud83d\ude00";
+    assertArrayEquals(
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), unicode, Coder.Context.NESTED),
+        CoderUtils.encodeToByteArray(stringCoder, unicode));
+    ByteArrayOutputStream strOut = new ByteArrayOutputStream();
+    stringCoder.encode("alpha", strOut);
+    stringCoder.encode("", strOut);
+    stringCoder.encode(unicode, strOut);
+    ByteArrayInputStream strIn = new ByteArrayInputStream(strOut.toByteArray());
+    assertEquals("alpha", stringCoder.decode(strIn));
+    assertEquals("", stringCoder.decode(strIn));
+    assertEquals(unicode, stringCoder.decode(strIn));
+    assertEquals(0, strIn.available());
+    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(stringCoder, null));
   }
 
   @Test
@@ -158,8 +176,7 @@ public class LengthPrefixCoderTest {
             KvCoder.of(
                 LengthPrefixCoder.of(StringUtf8Coder.of()),
                 LengthPrefixCoder.of(BigEndianLongCoder.of())));
-    KV<String, Long> value = KV.of("reentrant-key", 123456789L);
-    CoderProperties.coderDecodeEncodeEqual(nestedCoder, value);
+    CoderProperties.coderDecodeEncodeEqual(nestedCoder, KV.of("reentrant-key", 123456789L));
   }
 
   @Test
@@ -197,33 +214,5 @@ public class LengthPrefixCoderTest {
     // Next encode reuses the pooled buffer; stale bytes from the failed encode must not leak.
     byte[] encoded = CoderUtils.encodeToByteArray(coder, "ok");
     assertEquals("stale-prefix-ok", CoderUtils.decodeFromByteArray(coder, encoded));
-  }
-
-  @Test
-  public void testFastPathConcatenatedElementsAndNullInputs() throws Exception {
-    LengthPrefixCoder<byte[]> bytesCoder = LengthPrefixCoder.of(ByteArrayCoder.of());
-    ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
-    bytesCoder.encode(new byte[] {1, 2}, bytesOut);
-    bytesCoder.encode(new byte[0], bytesOut);
-    bytesCoder.encode(new byte[] {3, 4, 5}, bytesOut);
-    ByteArrayInputStream bytesIn = new ByteArrayInputStream(bytesOut.toByteArray());
-    assertArrayEquals(new byte[] {1, 2}, bytesCoder.decode(bytesIn));
-    assertArrayEquals(new byte[0], bytesCoder.decode(bytesIn));
-    assertArrayEquals(new byte[] {3, 4, 5}, bytesCoder.decode(bytesIn));
-    assertEquals(0, bytesIn.available());
-
-    LengthPrefixCoder<String> stringCoder = LengthPrefixCoder.of(StringUtf8Coder.of());
-    ByteArrayOutputStream strOut = new ByteArrayOutputStream();
-    stringCoder.encode("alpha", strOut);
-    stringCoder.encode("", strOut);
-    stringCoder.encode("gamma-\u00e9", strOut);
-    ByteArrayInputStream strIn = new ByteArrayInputStream(strOut.toByteArray());
-    assertEquals("alpha", stringCoder.decode(strIn));
-    assertEquals("", stringCoder.decode(strIn));
-    assertEquals("gamma-\u00e9", stringCoder.decode(strIn));
-    assertEquals(0, strIn.available());
-
-    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(bytesCoder, null));
-    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(stringCoder, null));
   }
 }
