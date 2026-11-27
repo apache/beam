@@ -935,6 +935,8 @@ def get_type_hints(fn: Any) -> IOTypeHints:
 
   Always returns a valid IOTypeHints object, creating one if necessary.
   """
+  if isinstance(fn, WithTypeHints):
+    return fn.get_type_hints()
   # pylint: disable=protected-access
   if not hasattr(fn, '_type_hints'):
     try:
