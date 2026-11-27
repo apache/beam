@@ -12,9 +12,10 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "autoprefixer": "^9.7.4",
+    "autoprefixer": "^10.6.2",
     "cross-env": "^7.0.2",
-    "postcss-cli": "^7.1.0"
+    "postcss": "^8.5.23",
+    "postcss-cli": "^11.0.1"
   },
   "resolutions": {
     "ansi-regex": "^5.0.1"
