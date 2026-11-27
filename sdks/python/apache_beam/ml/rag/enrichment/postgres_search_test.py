@@ -24,10 +24,12 @@ try:
   from pg8000.exceptions import DatabaseError
   from sqlalchemy import exc as sqlalchemy_exc
 
+  from apache_beam.internal import pickler
   from apache_beam.io.requestresponse import ExponentialBackOffRepeater
   from apache_beam.io.requestresponse import UserCodeQuotaException
   from apache_beam.io.requestresponse import UserCodeTimeoutException
   from apache_beam.ml.rag.enrichment import postgres_search
+  from apache_beam.ml.rag.enrichment.postgres_search import CloudSQLConnectionConfig
   from apache_beam.ml.rag.enrichment.postgres_search import DatabaseTypeAdapter
   from apache_beam.ml.rag.enrichment.postgres_search import ExternalSQLDBConnectionConfig
   from apache_beam.ml.rag.enrichment.postgres_search import PostgresVectorDistance
@@ -343,6 +345,18 @@ class TestBuildQuery(unittest.TestCase):
       _build_query(
           PostgresVectorSearchParameters(table_name='docs'), [_item('x')])
 
+  @parameterized.expand([
+      ('nan', float('nan')),
+      ('inf', float('inf')),
+      ('negative_inf', float('-inf')),
+  ])
+  def test_non_finite_embedding(self, _, value):
+    with self.assertRaisesRegex(ValueError,
+                                'Item x has a dense embedding with NaN'):
+      _build_query(
+          PostgresVectorSearchParameters(table_name='docs'),
+          [_item('x', [1.0, value])])
+
   def test_vector_values_are_floats(self):
     _, params = _build_query(
         PostgresVectorSearchParameters(table_name='docs'),
@@ -377,6 +391,25 @@ class TestPostgresVectorSearchEnrichmentHandler(unittest.TestCase):
             'min_batch_size': 1, 'max_batch_size': 100
         })
 
+  def test_handler_can_be_pickled(self):
+    # Beam pickles the handler, including filter_params_fn, to run it on
+    # workers.
+    params = PostgresVectorSearchParameters(
+        table_name='docs',
+        filter_template="metadata->>'lang' = :lang",
+        filter_params_fn=lambda item: {'lang': item.metadata['lang']})
+    handler = PostgresVectorSearchEnrichmentHandler(
+        _CONNECTION, params, max_batch_size=10)
+    restored = pickler.loads(pickler.dumps(handler))
+
+    self.assertEqual(
+        restored.batch_elements_kwargs(), {
+            'min_batch_size': 1, 'max_batch_size': 10
+        })
+    _, bind_params = _build_query(
+        restored._search_parameters, [_item('a', [1.0], lang='en')])
+    self.assertEqual(bind_params['filter_0_lang'], 'en')
+
   def test_enter_creates_engine_and_exit_disposes_it(self):
     handler = PostgresVectorSearchEnrichmentHandler(
         _CONNECTION, PostgresVectorSearchParameters(table_name='docs'))
@@ -391,6 +424,87 @@ class TestPostgresVectorSearchEnrichmentHandler(unittest.TestCase):
     self.assertTrue(callable(create_engine.call_args.kwargs['creator']))
     self.assertTrue(engine.disposed)
     self.assertIsNone(handler._engine)
+
+  def test_external_connection_does_not_create_cloudsql_connector(self):
+    handler = PostgresVectorSearchEnrichmentHandler(
+        _CONNECTION, PostgresVectorSearchParameters(table_name='docs'))
+    with patch('apache_beam.ml.rag.enrichment.postgres_search.create_engine',
+               return_value=_FakeEngine()), patch(
+                   'apache_beam.ml.rag.enrichment.postgres_search.'
+                   'CloudSQLConnector') as connector_class:
+      with handler:
+        pass
+    connector_class.assert_not_called()
+
+  def test_cloudsql_connector_is_closed_on_exit(self):
+    connection = CloudSQLConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        instance_connection_uri='project:region:instance',
+        user='user',
+        password='password',
+        db_id='db',
+        connector_kwargs={'ip_type': 'private'},
+        connect_kwargs={'timeout': 10})
+    handler = PostgresVectorSearchEnrichmentHandler(
+        connection, PostgresVectorSearchParameters(table_name='docs'))
+    engine = _FakeEngine()
+    with patch('apache_beam.ml.rag.enrichment.postgres_search.create_engine',
+               return_value=engine) as create_engine, patch(
+                   'apache_beam.ml.rag.enrichment.postgres_search.'
+                   'CloudSQLConnector') as connector_class:
+      with handler:
+        # The engine opens connections through the Cloud SQL connector.
+        create_engine.call_args.kwargs['creator']()
+      connector = connector_class.return_value
+      connector_class.assert_called_once_with(
+          refresh_strategy=connection.refresh_strategy, ip_type='private')
+      connector.connect.assert_called_once_with(
+          instance_connection_string='project:region:instance',
+          driver='pg8000',
+          user='user',
+          password='password',
+          db='db',
+          timeout=10)
+      connector.close.assert_called_once_with()
+    self.assertTrue(engine.disposed)
+    self.assertIsNone(handler._cloudsql_connector)
+
+  def test_cloudsql_connector_is_closed_when_dispose_fails(self):
+    connection = CloudSQLConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        instance_connection_uri='project:region:instance')
+    handler = PostgresVectorSearchEnrichmentHandler(
+        connection, PostgresVectorSearchParameters(table_name='docs'))
+
+    class _FailingDisposeEngine(_FakeEngine):
+      def dispose(self):
+        raise RuntimeError('dispose')
+
+    with patch('apache_beam.ml.rag.enrichment.postgres_search.create_engine',
+               return_value=_FailingDisposeEngine()), patch(
+                   'apache_beam.ml.rag.enrichment.postgres_search.'
+                   'CloudSQLConnector') as connector_class:
+      with self.assertRaisesRegex(RuntimeError, 'dispose'):
+        with handler:
+          pass
+      connector_class.return_value.close.assert_called_once_with()
+    self.assertIsNone(handler._engine)
+
+  def test_cloudsql_connector_is_closed_when_enter_fails(self):
+    connection = CloudSQLConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        instance_connection_uri='project:region:instance')
+    handler = PostgresVectorSearchEnrichmentHandler(
+        connection, PostgresVectorSearchParameters(table_name='docs'))
+    with patch('apache_beam.ml.rag.enrichment.postgres_search.create_engine',
+               side_effect=RuntimeError('no driver')), patch(
+                   'apache_beam.ml.rag.enrichment.postgres_search.'
+                   'CloudSQLConnector') as connector_class:
+      with self.assertRaisesRegex(RuntimeError, 'no driver'):
+        handler.__enter__()
+      connector_class.return_value.close.assert_called_once_with()
+    self.assertIsNone(handler._engine)
+    self.assertIsNone(handler._cloudsql_connector)
 
   def test_results_in_input_order(self):
     engine = _FakeEngine([

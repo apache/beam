@@ -23,6 +23,7 @@ tables written by
 :class:`~apache_beam.ml.rag.ingestion.postgres.PostgresVectorWriterConfig`.
 """
 
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
+from google.cloud.sql.connector import Connector as CloudSQLConnector
 from sqlalchemy import create_engine
 from sqlalchemy import exc as sqlalchemy_exc
 from sqlalchemy import text
@@ -83,7 +85,8 @@ class PostgresVectorDistance(Enum):
   always ordered by ascending distance.
   """
   #: Cosine distance (``<=>``), from 0 for vectors with the same direction to
-  #: 2 for opposite ones.
+  #: 2 for opposite ones. A zero vector has no direction, so its distances are
+  #: NaN and its matches are in no particular order.
   COSINE = '<=>'
   #: Euclidean (L2) distance (``<->``).
   L2 = '<->'
@@ -112,6 +115,10 @@ class PostgresVectorSearchParameters:
           filter_params_fn=lambda item: {
               'language': item.metadata['language']
           })
+
+  Table and column names are used unquoted, as in
+  ``PostgresVectorWriterConfig``, so they are case-insensitive and can't be SQL
+  reserved words such as ``user`` or ``order``.
 
   Args:
     table_name: Table to search, optionally qualified by a schema (for
@@ -290,15 +297,44 @@ class PostgresVectorSearchEnrichmentHandler(EnrichmentSourceHandler[InputT,
         'min_batch_size': min_batch_size, 'max_batch_size': max_batch_size
     }
     self._engine = None
+    self._cloudsql_connector = None
     self.join_fn = join_fn
     self.use_custom_types = True
 
   def __enter__(self):
     if self._engine is None:
-      self._engine = create_engine(
-          url=self._connection_config.get_db_url(),
-          creator=self._connection_config.get_connector_handler())
+      try:
+        self._engine = create_engine(
+            url=self._connection_config.get_db_url(),
+            creator=self._create_connection_factory())
+      except BaseException:
+        # __exit__ isn't called when __enter__ fails, so release the Cloud SQL
+        # connector here.
+        self.__exit__(None, None, None)
+        raise
     return self
+
+  def _create_connection_factory(self) -> Callable[[], Any]:
+    config = self._connection_config
+    if not isinstance(config, CloudSQLConnectionConfig):
+      return config.get_connector_handler()
+    # Create the Cloud SQL connector here, rather than through
+    # CloudSQLConnectionConfig.get_connector_handler(), so that __exit__ can
+    # close it and stop its background thread.
+    connector = CloudSQLConnector(
+        refresh_strategy=config.refresh_strategy, **config.connector_kwargs)
+    self._cloudsql_connector = connector
+
+    def connect():
+      return connector.connect(
+          instance_connection_string=config.instance_connection_uri,
+          driver=config.db_adapter.value,
+          user=config.user,
+          password=config.password,
+          db=config.db_id,
+          **config.connect_kwargs)
+
+    return connect
 
   def __call__(
       self,
@@ -325,11 +361,16 @@ class PostgresVectorSearchEnrichmentHandler(EnrichmentSourceHandler[InputT,
     return _group_results(self._search_parameters, items, rows)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
-    if self._engine is not None:
-      try:
+    try:
+      if self._engine is not None:
         self._engine.dispose()
-      finally:
-        self._engine = None
+    finally:
+      self._engine = None
+      if self._cloudsql_connector is not None:
+        try:
+          self._cloudsql_connector.close()
+        finally:
+          self._cloudsql_connector = None
 
   def batch_elements_kwargs(self) -> dict[str, int]:
     """Returns kwargs for beam.BatchElements."""
@@ -379,7 +420,12 @@ def _vector_literal(item: EmbeddableItem) -> str:
     raise ValueError(
         f'Item {item.id} is missing the dense embedding required for vector '
         'search')
-  return '[' + ','.join(repr(float(x)) for x in embedding) + ']'
+  values = [float(x) for x in embedding]
+  if not all(math.isfinite(x) for x in values):
+    # pgvector rejects these, which would fail the query for the whole batch.
+    raise ValueError(
+        f'Item {item.id} has a dense embedding with NaN or infinite values')
+  return '[' + ','.join(repr(x) for x in values) + ']'
 
 
 def _rename_params(template: str, index: int) -> str:

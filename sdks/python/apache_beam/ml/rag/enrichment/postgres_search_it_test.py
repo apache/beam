@@ -98,8 +98,9 @@ class TestPostgresVectorSearchEnrichment(unittest.TestCase):
       for id, embedding, content, metadata in _ROWS:
         connection.execute(
             text(
-                f'INSERT INTO {_TABLE} VALUES (:id, CAST(:embedding AS vector), '
-                ':content, CAST(:metadata AS jsonb))'),
+                f'INSERT INTO {_TABLE} VALUES (:id, '
+                'CAST(:embedding AS vector), :content, '
+                'CAST(:metadata AS jsonb))'),
             {
                 'id': id,
                 'embedding': embedding,
