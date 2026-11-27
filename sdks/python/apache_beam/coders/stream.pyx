@@ -30,6 +30,11 @@ cdef class OutputStream(object):
   #TODO(robertwb): Consider using raw C++ streams.
 
   def __cinit__(self):
+    if type(self) is ByteCountingOutputStream:
+      self.buffer_size = 0
+      self.pos = 0
+      self.data = NULL
+      return
     self.buffer_size = 1024
     self.pos = 0
     self.data = <char*>libc.stdlib.malloc(self.buffer_size)
