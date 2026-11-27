@@ -20,10 +20,14 @@ package org.apache.beam.it.common.utils;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.checkValidProjectId;
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateNewId;
+import static org.apache.beam.it.common.utils.ResourceManagerUtils.generatePadding;
+import static org.apache.beam.it.common.utils.ResourceManagerUtils.generatePassword;
 import static org.apache.beam.it.common.utils.ResourceManagerUtils.generateResourceId;
 import static org.junit.Assert.assertThrows;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Pattern;
 import org.junit.Test;
 
@@ -191,5 +195,27 @@ public class ResourceManagerUtilsTest {
   @Test
   public void testCheckValidProjectIdWhenIdIsValid() {
     checkValidProjectId("'project-id-9'!");
+  }
+
+  @Test
+  public void testGeneratePasswordMeetsCharacterClassAndLengthBounds() {
+    List<Character> specials = Arrays.asList('!', '@', '#');
+    String password = generatePassword(9, 25, 2, 2, 2, specials);
+
+    assertThat(password.length()).isAtLeast(9 + 2 + 2 + 2);
+    assertThat(password.length()).isAtMost(24 + 2 + 2);
+    long lowerCount = password.chars().filter(Character::isLowerCase).count();
+    long upperCount = password.chars().filter(Character::isUpperCase).count();
+    long specialCount = password.chars().filter(ch -> specials.contains((char) ch)).count();
+    assertThat(lowerCount).isEqualTo(2);
+    assertThat(upperCount).isAtLeast(2);
+    assertThat(specialCount).isEqualTo(2);
+  }
+
+  @Test
+  public void testGeneratePaddingReturnsLowercaseAsciiLetter() {
+    char pad = generatePadding();
+    assertThat(pad).isAtLeast('a');
+    assertThat(pad).isAtMost('z');
   }
 }
