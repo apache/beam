@@ -82,6 +82,8 @@ class MetricName(object):
     self.name = name
     self.urn = urn
     self.labels = labels if labels else {}
+    self._cached_fast_name: Optional[str] = None
+    self._cached_hash: Optional[int] = None
 
   def __eq__(self, other):
     return (
@@ -97,17 +99,36 @@ class MetricName(object):
           self.namespace, self.name)
 
   def __hash__(self):
-    return hash((self.namespace, self.name, self.urn) +
-                tuple(self.labels.items()))
+    if self._cached_hash is None:
+      self._cached_hash = hash((self.namespace, self.name, self.urn) +
+                               tuple(self.labels.items()))
+    return self._cached_hash
 
   def fast_name(self):
-    name = self.name or ''
-    namespace = self.namespace or ''
-    urn = self.urn or ''
-    labels = ''
-    if self.labels:
-      labels = '_'.join(['%s=%s' % (k, v) for (k, v) in self.labels.items()])
-    return '%d_%s%s%s%s' % (len(name), name, namespace, urn, labels)
+    if self._cached_fast_name is None:
+      name = self.name or ''
+      namespace = self.namespace or ''
+      urn = self.urn or ''
+      labels = ''
+      if self.labels:
+        labels = '_'.join(['%s=%s' % (k, v) for (k, v) in self.labels.items()])
+      self._cached_fast_name = '%d_%s%s%s%s' % (
+          len(name), name, namespace, urn, labels)
+    return self._cached_fast_name
+
+  def __getstate__(self):
+    return (self.namespace, self.name, self.urn, self.labels)
+
+  def __setstate__(self, state):
+    if isinstance(state, dict):
+      self.namespace = state['namespace']
+      self.name = state['name']
+      self.urn = state['urn']
+      self.labels = state['labels']
+    else:
+      self.namespace, self.name, self.urn, self.labels = state
+    self._cached_fast_name = None
+    self._cached_hash = None
 
 
 class Metric(object):
