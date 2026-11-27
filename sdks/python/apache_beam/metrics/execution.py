@@ -175,12 +175,15 @@ class _TypedMetricName(object):
   def __init__(
       self,
       cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
-      metric_name  # type: Union[str, MetricName]
+      metric_name,  # type: Union[str, MetricName]
+      fast_name=None  # type: Optional[str]
   ):
     # type: (...) -> None
     self.cell_type = cell_type
     self.metric_name = metric_name
-    if isinstance(metric_name, str):
+    if fast_name is not None:
+      self.fast_name = fast_name
+    elif isinstance(metric_name, str):
       self.fast_name = metric_name
     else:
       self.fast_name = metric_name.fast_name()
@@ -198,7 +201,7 @@ class _TypedMetricName(object):
     return '%s %s' % (self.cell_type, self.metric_name)
 
   def __reduce__(self):
-    return _TypedMetricName, (self.cell_type, self.metric_name)
+    return _TypedMetricName, (self.cell_type, self.metric_name, self.fast_name)
 
 
 _DEFAULT = None  # type: Any
@@ -257,32 +260,50 @@ class MetricsContainer(object):
     self.lock = threading.Lock()
     self.metrics = {}  # type: Dict[_TypedMetricName, MetricCell]
 
+  def _get_typed_metric_name(self, cell_type, metric_name):
+    if not isinstance(metric_name, str):
+      try:
+        cache = metric_name._typed_metric_names
+      except AttributeError:
+        cache = metric_name._typed_metric_names = {}
+      typed_name = cache.get(cell_type)
+      if typed_name is None:
+        typed_name = _TypedMetricName(cell_type, metric_name)
+        cache[cell_type] = typed_name
+      return typed_name
+    return _TypedMetricName(cell_type, metric_name)
+
   def get_counter(self, metric_name):
     # type: (MetricName) -> CounterCell
     return cast(
         CounterCell,
-        self.get_metric_cell(_TypedMetricName(CounterCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(CounterCell, metric_name)))
 
   def get_distribution(self, metric_name):
     # type: (MetricName) -> DistributionCell
     return cast(
         DistributionCell,
-        self.get_metric_cell(_TypedMetricName(DistributionCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(DistributionCell, metric_name)))
 
   def get_gauge(self, metric_name):
     # type: (MetricName) -> GaugeCell
     return cast(
         GaugeCell,
-        self.get_metric_cell(_TypedMetricName(GaugeCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(GaugeCell, metric_name)))
 
   def get_string_set(self, metric_name):
     # type: (MetricName) -> StringSetCell
     return cast(
         StringSetCell,
-        self.get_metric_cell(_TypedMetricName(StringSetCell, metric_name)))
+        self.get_metric_cell(
+            self._get_typed_metric_name(StringSetCell, metric_name)))
 
   def get_bounded_trie(self, metric_name):
-    return self.get_metric_cell(_TypedMetricName(BoundedTrieCell, metric_name))
+    return self.get_metric_cell(
+        self._get_typed_metric_name(BoundedTrieCell, metric_name))
 
   def get_metric_cell(self, typed_metric_name):
     # type: (_TypedMetricName) -> MetricCell
