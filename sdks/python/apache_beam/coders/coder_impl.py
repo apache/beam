@@ -1976,6 +1976,10 @@ class RowCoderImpl(StreamCoderImpl):
     self.field_names = [f.name for f in self.schema.fields]
     self.field_nullable = [field.type.nullable for field in self.schema.fields]
     self.constructor = named_tuple_from_schema(schema)
+    self._constructor_is_tuple = (
+        isinstance(self.constructor, type) and
+        issubclass(self.constructor, tuple) and
+        getattr(self.constructor, '_fields', None) == tuple(self.field_names))
     self.encoding_positions = list(range(len(self.schema.fields)))
     if self.schema.encoding_positions_set:
       # should never be duplicate encoding positions.
@@ -2118,10 +2122,12 @@ class RowCoderImpl(StreamCoderImpl):
     while len(sorted_components) < self.num_fields:
       sorted_components.append(None)
 
-    return self.constructor(
-        *(
-            sorted_components if self.encoding_positions_are_trivial else
-            [sorted_components[i] for i in self.encoding_positions]))
+    args = (
+        sorted_components if self.encoding_positions_are_trivial else
+        [sorted_components[i] for i in self.encoding_positions])
+    if self._constructor_is_tuple:
+      return tuple.__new__(self.constructor, args)
+    return self.constructor(*args)
 
   def decode_batch_from_stream(self, dest: Dict[str, np.ndarray], in_stream):
     attrs = self._row_column_encoders(dest)
