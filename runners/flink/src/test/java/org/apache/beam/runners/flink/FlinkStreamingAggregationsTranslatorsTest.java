@@ -17,20 +17,44 @@
  */
 package org.apache.beam.runners.flink;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.core.Is.is;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.PartialReduceBundleOperator;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.joda.time.Duration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -85,5 +109,89 @@ public class FlinkStreamingAggregationsTranslatorsTest {
         "side inputs",
         eligible(options(false, true), global, Collections.singletonList(view)),
         is(false));
+  }
+
+  @Test
+  public void concatenateAsIterableAppendsInPlaceToArrayListAccumulator() {
+    FlinkStreamingAggregationsTranslators.ConcatenateAsIterable<Integer> combineFn =
+        new FlinkStreamingAggregationsTranslators.ConcatenateAsIterable<>();
+
+    Iterable<Integer> acc = combineFn.createAccumulator();
+    Iterable<Integer> afterFirst = combineFn.addInput(acc, 1);
+    Iterable<Integer> afterSecond = combineFn.addInput(afterFirst, 2);
+    Iterable<Integer> afterThird = combineFn.addInput(afterSecond, 3);
+
+    assertThat(afterFirst, sameInstance(acc));
+    assertThat(afterThird, sameInstance(acc));
+    assertThat(combineFn.extractOutput(afterThird), contains(1, 2, 3));
+  }
+
+  @Test
+  public void concatenateAsIterableCopiesNonArrayListAccumulator() {
+    FlinkStreamingAggregationsTranslators.ConcatenateAsIterable<Integer> combineFn =
+        new FlinkStreamingAggregationsTranslators.ConcatenateAsIterable<>();
+
+    Iterable<Integer> merged =
+        combineFn.mergeAccumulators(Arrays.asList(ImmutableList.of(1, 2), ImmutableList.of(3)));
+    Iterable<Integer> updated = combineFn.addInput(merged, 4);
+
+    assertThat(combineFn.extractOutput(updated), contains(1, 2, 3, 4));
+  }
+
+  @Test
+  public void concatenateAsIterablePreGroupsStructuralKeysInPartialReduceOperator()
+      throws Exception {
+    FlinkPipelineOptions opts = options(false, true);
+    opts.setMaxBundleSize(4L);
+
+    Coder<WindowedValue<KV<byte[], Long>>> inputCoder =
+        WindowedValues.getFullCoder(
+            KvCoder.of(ByteArrayCoder.of(), VarLongCoder.of()), GlobalWindow.Coder.INSTANCE);
+    Coder<WindowedValue<KV<byte[], Iterable<Long>>>> accumCoder =
+        WindowedValues.getFullCoder(
+            KvCoder.of(ByteArrayCoder.of(), IterableCoder.of(VarLongCoder.of())),
+            GlobalWindow.Coder.INSTANCE);
+    TupleTag<KV<byte[], Iterable<Long>>> mainTag = new TupleTag<>("main output");
+
+    PartialReduceBundleOperator<byte[], Long, Iterable<Long>, Iterable<Long>> operator =
+        new PartialReduceBundleOperator<>(
+            new FlinkStreamingAggregationsTranslators.ConcatenateAsIterable<>(),
+            "GroupByKey",
+            inputCoder,
+            mainTag,
+            emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                mainTag, accumCoder, new SerializablePipelineOptions(opts)),
+            WindowingStrategy.globalDefault(),
+            emptyMap(),
+            emptyList(),
+            opts);
+
+    List<KV<String, List<Long>>> output = new ArrayList<>();
+    try (OneInputStreamOperatorTestHarness<
+            WindowedValue<KV<byte[], Long>>, WindowedValue<KV<byte[], Iterable<Long>>>>
+        harness = new OneInputStreamOperatorTestHarness<>(operator)) {
+      harness.open();
+      harness.processElement(
+          new StreamRecord<>(WindowedValues.valueInGlobalWindow(KV.of(new byte[] {1, 2}, 10L))));
+      harness.processElement(
+          new StreamRecord<>(WindowedValues.valueInGlobalWindow(KV.of(new byte[] {3}, 99L))));
+      harness.processElement(
+          new StreamRecord<>(WindowedValues.valueInGlobalWindow(KV.of(new byte[] {1, 2}, 20L))));
+      harness.processElement(
+          new StreamRecord<>(WindowedValues.valueInGlobalWindow(KV.of(new byte[] {1, 2}, 30L))));
+
+      for (WindowedValue<KV<byte[], Iterable<Long>>> record : harness.extractOutputValues()) {
+        output.add(
+            KV.of(
+                Arrays.toString(record.getValue().getKey()),
+                Lists.newArrayList(record.getValue().getValue())));
+      }
+    }
+
+    assertThat(
+        output,
+        containsInAnyOrder(
+            KV.of("[1, 2]", Arrays.asList(10L, 20L, 30L)), KV.of("[3]", Arrays.asList(99L))));
   }
 }

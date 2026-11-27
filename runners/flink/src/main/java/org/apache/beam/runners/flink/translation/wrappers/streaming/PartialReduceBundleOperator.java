@@ -28,6 +28,7 @@ import org.apache.beam.runners.flink.translation.functions.HashingFlinkCombineRu
 import org.apache.beam.runners.flink.translation.functions.SortingFlinkCombineRunner;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.flink.api.common.state.ListState;
@@ -53,8 +55,16 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
     extends DoFnOperator<KV<K, InputT>, KV<K, InputT>, KV<K, AccumT>> {
 
   private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
+  private final Coder<K> bundleKeyCoder;
 
-  private Multimap<K, WindowedValue<KV<K, InputT>>> state;
+  /**
+   * Elements of the current bundle, grouped by the structural value of their key (see {@link
+   * Coder#structuralValue}). Keys whose Java {@code equals} is not consistent with their encoding,
+   * such as {@code byte[]}, would otherwise never be grouped, and the pre-combine would emit every
+   * element unchanged.
+   */
+  private Multimap<Object, WindowedValue<KV<K, InputT>>> state;
+
   private transient @Nullable ListState<WindowedValue<KV<K, InputT>>> checkpointedState;
 
   public PartialReduceBundleOperator(
@@ -86,8 +96,27 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
         Collections.emptyMap());
 
     this.combineFn = combineFn;
+    this.bundleKeyCoder = keyCoder(windowedInputCoder);
     this.state = ArrayListMultimap.create();
     this.checkpointedState = null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <K, InputT> Coder<K> keyCoder(
+      Coder<WindowedValue<KV<K, InputT>>> windowedInputCoder) {
+    Preconditions.checkArgument(
+        windowedInputCoder instanceof WindowedValues.WindowedValueCoder,
+        "Expected a WindowedValueCoder, got %s",
+        windowedInputCoder);
+    Coder<KV<K, InputT>> valueCoder =
+        ((WindowedValues.WindowedValueCoder<KV<K, InputT>>) windowedInputCoder).getValueCoder();
+    Preconditions.checkArgument(
+        valueCoder instanceof KvCoder, "Expected a KvCoder, got %s", valueCoder);
+    return ((KvCoder<K, InputT>) valueCoder).getKeyCoder();
+  }
+
+  private void bufferElement(WindowedValue<KV<K, InputT>> element) {
+    state.put(bundleKeyCoder.structuralValue(element.getValue().getKey()), element);
   }
 
   @Override
@@ -111,7 +140,8 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
         reduceRunner = new HashingFlinkCombineRunner<>();
       }
 
-      for (Map.Entry<K, Collection<WindowedValue<KV<K, InputT>>>> e : state.asMap().entrySet()) {
+      for (Map.Entry<Object, Collection<WindowedValue<KV<K, InputT>>>> e :
+          state.asMap().entrySet()) {
         //noinspection unchecked
         reduceRunner.combine(
             new AbstractFlinkCombineRunner.PartialFlinkCombiner<>(combineFn),
@@ -155,7 +185,7 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
 
     if (context.isRestored() && this.checkpointedState != null) {
       for (WindowedValue<KV<K, InputT>> wkv : this.checkpointedState.get()) {
-        this.state.put(wkv.getValue().getKey(), wkv);
+        bufferElement(wkv);
       }
     }
   }
@@ -173,9 +203,9 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
     return new DoFn<KV<K, InputT>, KV<K, AccumT>>() {
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-        WindowedValue<KV<K, InputT>> windowedValue =
-            WindowedValues.of(c.element(), c.timestamp(), window, c.pane());
-        state.put(Objects.requireNonNull(c.element()).getKey(), windowedValue);
+        bufferElement(
+            WindowedValues.of(
+                Objects.requireNonNull(c.element()), c.timestamp(), window, c.pane()));
       }
     };
   }
