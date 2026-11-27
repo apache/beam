@@ -549,6 +549,16 @@ class Validate(beam.PTransform):
     return self
 
 
+def _row_to_dict(row, fields):
+  if isinstance(row, beam.Row):
+    row_dict = row.__dict__
+  elif callable(getattr(row, '_asdict', None)):
+    row_dict = row._asdict()
+  else:
+    return {name: getattr(row, name) for name in fields}
+  return {name: row_dict[name] for name in fields}
+
+
 class _Explode(beam.PTransform):
   """Explodes (aka unnest/flatten) one or more fields producing multiple rows.
 
@@ -611,15 +621,17 @@ class _Explode(beam.PTransform):
 
     def explode_cross_product(base, fields):
       if fields:
-        copy = dict(base)
-        for value in base[fields[0]]:
-          copy[fields[0]] = value
-          yield from explode_cross_product(copy, fields[1:])
+        values = base[fields[0]]
+        if values is not None:
+          copy = dict(base)
+          for value in values:
+            copy[fields[0]] = value
+            yield from explode_cross_product(copy, fields[1:])
       else:
         yield beam.Row(**base)
 
     def explode_zip(base, fields):
-      to_zip = [base[field] for field in fields]
+      to_zip = [() if base[field] is None else base[field] for field in fields]
       copy = dict(base)
       for values in itertools.zip_longest(*to_zip, fillvalue=None):
         for ix, field in enumerate(fields):
@@ -631,15 +643,22 @@ class _Explode(beam.PTransform):
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if cross_product else explode_zip)({
-                name: getattr(row, name)
-                for name in all_fields
-            }, to_explode)))
+            (explode_cross_product if cross_product else explode_zip)(
+                _row_to_dict(row, all_fields), to_explode)))
+
+  def _exploded_field_type(self, typ):
+    beam_typ = convert_to_beam_type(typ)
+    if typehints.is_nullable(beam_typ):
+      beam_typ = typehints.get_concrete_type_from_nullable(beam_typ)
+    elem_type = trivial_inference.element_type(beam_typ)
+    if not self._cross_product and len(self._fields) > 1:
+      return typehints.Optional[elem_type]
+    return elem_type
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
         name,
-        trivial_inference.element_type(typ) if name in self._fields else
+        self._exploded_field_type(typ) if name in self._fields else
         typ) for (name, typ) in named_fields_from_element_type(input_type)])
 
   def with_exception_handling(self, **kwargs):

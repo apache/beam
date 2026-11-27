@@ -46,6 +46,30 @@ public class JavaExplodeTransformProviderTest {
           Schema.Field.of("b", Schema.FieldType.DOUBLE),
           Schema.Field.of("c", Schema.FieldType.STRING));
 
+  private static final Schema ZIP_OUTPUT_SCHEMA =
+      Schema.of(
+          Schema.Field.nullable("a", Schema.FieldType.INT32),
+          Schema.Field.of("b", Schema.FieldType.DOUBLE),
+          Schema.Field.nullable("c", Schema.FieldType.STRING));
+
+  private static final Schema NULLABLE_INPUT_SCHEMA =
+      Schema.of(
+          Schema.Field.nullable("a", Schema.FieldType.iterable(Schema.FieldType.INT32)),
+          Schema.Field.nullable("b", Schema.FieldType.DOUBLE),
+          Schema.Field.nullable("c", Schema.FieldType.array(Schema.FieldType.STRING)));
+
+  private static final Schema NULLABLE_CROSS_OUTPUT_SCHEMA =
+      Schema.of(
+          Schema.Field.of("a", Schema.FieldType.INT32),
+          Schema.Field.nullable("b", Schema.FieldType.DOUBLE),
+          Schema.Field.of("c", Schema.FieldType.STRING));
+
+  private static final Schema NULLABLE_ZIP_OUTPUT_SCHEMA =
+      Schema.of(
+          Schema.Field.nullable("a", Schema.FieldType.INT32),
+          Schema.Field.nullable("b", Schema.FieldType.DOUBLE),
+          Schema.Field.nullable("c", Schema.FieldType.STRING));
+
   private static final List<Row> INPUT_ROWS =
       ImmutableList.of(
           Row.withSchema(INPUT_SCHEMA)
@@ -96,8 +120,82 @@ public class JavaExplodeTransformProviderTest {
 
     PAssert.that(exploded)
         .containsInAnyOrder(
-            Row.withSchema(OUTPUT_SCHEMA).addValues(1, 1.5, "x").build(),
-            Row.withSchema(OUTPUT_SCHEMA).addValues(2, 1.5, "y").build());
+            Row.withSchema(ZIP_OUTPUT_SCHEMA).addValues(1, 1.5, "x").build(),
+            Row.withSchema(ZIP_OUTPUT_SCHEMA).addValues(2, 1.5, "y").build());
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCrossProductWithNullCollections() {
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(NULLABLE_INPUT_SCHEMA)
+                .addValues(ImmutableList.of(1, 2), null, ImmutableList.of("x"))
+                .build(),
+            Row.withSchema(NULLABLE_INPUT_SCHEMA)
+                .addValues(null, 2.5, ImmutableList.of("y"))
+                .build(),
+            Row.withSchema(NULLABLE_INPUT_SCHEMA)
+                .addValues(ImmutableList.of(3), 3.5, null)
+                .build());
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setRowSchema(NULLABLE_INPUT_SCHEMA);
+
+    PCollection<Row> exploded =
+        PCollectionRowTuple.of(JavaExplodeTransformProvider.INPUT_ROWS_TAG, input)
+            .apply(
+                new JavaExplodeTransformProvider()
+                    .from(
+                        JavaExplodeTransformProvider.Configuration.builder()
+                            .setFields(ImmutableList.of("a", "c"))
+                            .setCrossProduct(true)
+                            .build()))
+            .get(JavaExplodeTransformProvider.OUTPUT_ROWS_TAG);
+
+    PAssert.that(exploded)
+        .containsInAnyOrder(
+            Row.withSchema(NULLABLE_CROSS_OUTPUT_SCHEMA).addValues(1, null, "x").build(),
+            Row.withSchema(NULLABLE_CROSS_OUTPUT_SCHEMA).addValues(2, null, "x").build());
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testZipProductWithNullAndUnequalCollections() {
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(NULLABLE_INPUT_SCHEMA)
+                .addValues(ImmutableList.of(1, 2), 1.5, null)
+                .build(),
+            Row.withSchema(NULLABLE_INPUT_SCHEMA)
+                .addValues(null, 2.5, ImmutableList.of("y"))
+                .build(),
+            Row.withSchema(NULLABLE_INPUT_SCHEMA).addValues(null, 3.5, null).build(),
+            Row.withSchema(NULLABLE_INPUT_SCHEMA)
+                .addValues(ImmutableList.of(3), 4.5, ImmutableList.of("z", "w"))
+                .build());
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setRowSchema(NULLABLE_INPUT_SCHEMA);
+
+    PCollection<Row> exploded =
+        PCollectionRowTuple.of(JavaExplodeTransformProvider.INPUT_ROWS_TAG, input)
+            .apply(
+                new JavaExplodeTransformProvider()
+                    .from(
+                        JavaExplodeTransformProvider.Configuration.builder()
+                            .setFields(ImmutableList.of("a", "c"))
+                            .setCrossProduct(false)
+                            .build()))
+            .get(JavaExplodeTransformProvider.OUTPUT_ROWS_TAG);
+
+    PAssert.that(exploded)
+        .containsInAnyOrder(
+            Row.withSchema(NULLABLE_ZIP_OUTPUT_SCHEMA).addValues(1, 1.5, null).build(),
+            Row.withSchema(NULLABLE_ZIP_OUTPUT_SCHEMA).addValues(2, 1.5, null).build(),
+            Row.withSchema(NULLABLE_ZIP_OUTPUT_SCHEMA).addValues(null, 2.5, "y").build(),
+            Row.withSchema(NULLABLE_ZIP_OUTPUT_SCHEMA).addValues(3, 4.5, "z").build(),
+            Row.withSchema(NULLABLE_ZIP_OUTPUT_SCHEMA).addValues(null, 4.5, "w").build());
 
     pipeline.run();
   }

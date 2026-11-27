@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import collections.abc
 import logging
 import typing
 import unittest
@@ -158,6 +159,129 @@ class YamlMappingTest(unittest.TestCase):
               beam.Row(a=3, b='y', c=.125, range=1),
               beam.Row(a=3, b='y', c=.125, range=2),
           ]))
+
+  def test_explode_null_collections(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(id=1, tags=['a', 'b']),
+          beam.Row(id=2, tags=None),
+          beam.Row(id=3, tags=[]),
+      ])
+      elements.element_type = schemas.named_tuple_from_schema(
+          schema_pb2.Schema(fields=[
+              schemas.schema_field('id', int),
+              schemas.schema_field(
+                  'tags', typing.Optional[typing.Sequence[str]]),
+          ]))
+      result = elements | YamlTransform(
+          '''
+          type: Explode
+          config:
+            fields: [tags]
+          ''')
+      self.assertEqual(
+          dict(result.element_type._fields), {'id': np.int64, 'tags': str})
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(id=1, tags='a'),
+              beam.Row(id=1, tags='b'),
+          ]))
+
+  def test_explode_cross_product_with_null_and_method_name_fields(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(count=['x', 'y'], values=[1], items='keep'),
+          beam.Row(count=['z'], values=None, items='drop1'),
+          beam.Row(count=None, values=[2], items='drop2'),
+      ])
+      result = elements | YamlTransform(
+          '''
+          type: Explode
+          config:
+            fields: [count, values]
+            cross_product: true
+          ''')
+      self.assertEqual(
+          dict(result.element_type._fields),
+          {'count': str, 'values': np.int64, 'items': str})
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(count='x', values=1, items='keep'),
+              beam.Row(count='y', values=1, items='keep'),
+          ]))
+
+  def test_explode_zip_null_and_unequal_collections(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([
+          beam.Row(id=1, tags=['a', 'b'], meta=None),
+          beam.Row(id=2, tags=None, meta=[10]),
+          beam.Row(id=3, tags=None, meta=None),
+          beam.Row(id=4, tags=['c'], meta=[20, 30]),
+      ])
+      result = (
+          elements
+          | YamlTransform(
+              '''
+              type: chain
+              transforms:
+                - type: Explode
+                  config:
+                    fields: [tags, meta]
+                    cross_product: false
+                - type: MapToFields
+                  config:
+                    language: python
+                    fields:
+                      id: id
+                      tags: tags
+                      meta: meta
+              '''))
+      self.assertEqual(
+          dict(result.element_type._fields), {
+              'id': np.int64,
+              'tags': beam.typehints.Optional[str],
+              'meta': beam.typehints.Optional[np.int64],
+          })
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(id=1, tags='a', meta=None),
+              beam.Row(id=1, tags='b', meta=None),
+              beam.Row(id=2, tags=None, meta=10),
+              beam.Row(id=4, tags='c', meta=20),
+              beam.Row(id=4, tags=None, meta=30),
+          ]))
+
+  def test_explode_type_inference_preserves_element_types(self):
+    explode_single = yaml_mapping._Explode(fields=['tags'])
+    input_type = schemas.named_tuple_from_schema(
+        schema_pb2.Schema(fields=[
+            schemas.schema_field('id', int),
+            schemas.schema_field('tags', typing.Optional[typing.Sequence[str]]),
+            schemas.schema_field('scores', typing.Sequence[int]),
+        ]))
+    out_single = explode_single.infer_output_type(input_type)
+    self.assertEqual(
+        dict(out_single._fields), {
+            'id': np.int64,
+            'tags': str,
+            'scores': collections.abc.Sequence[np.int64],
+        })
+
+    explode_zip = yaml_mapping._Explode(
+        fields=['tags', 'scores'], cross_product=False)
+    out_zip = explode_zip.infer_output_type(input_type)
+    self.assertEqual(
+        dict(out_zip._fields), {
+            'id': np.int64,
+            'tags': beam.typehints.Optional[str],
+            'scores': beam.typehints.Optional[np.int64],
+        })
 
   def test_validate(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
