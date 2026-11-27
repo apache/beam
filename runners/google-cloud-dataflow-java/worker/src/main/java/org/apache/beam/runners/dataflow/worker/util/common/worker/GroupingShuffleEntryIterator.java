@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.NoSuchElementException;
+import java.util.Observer;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterable;
@@ -42,8 +43,18 @@ import org.slf4j.LoggerFactory;
 public abstract class GroupingShuffleEntryIterator {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleEntryIterator.class);
 
-  /** The iterator through the underlying shuffle records. */
-  private Reiterator<ShuffleEntry> shuffleIterator;
+  /**
+   * The iterator through the underlying shuffle records. Typed as the concrete final {@link
+   * ProgressTrackingReiterator} so hot-path calls stay monomorphic {@code invokevirtual}.
+   */
+  private ProgressTrackingReiterator<ShuffleEntry> shuffleIterator;
+
+  /**
+   * One-entry lookahead populated when a {@link ValuesIterator} reads the first entry of the next
+   * key and fast-forwards this iterator directly past the current key. Already accounted for by the
+   * underlying {@link ProgressTrackerGroup}.
+   */
+  private @Nullable ShuffleEntry nextKeyEntry = null;
 
   private final GroupingShuffleRangeTracker rangeTracker;
 
@@ -104,31 +115,30 @@ public abstract class GroupingShuffleEntryIterator {
     if (isFinished) {
       return false;
     }
-    Reiterator<ShuffleEntry> atCurrentEntry;
-    ShuffleEntry entry;
-    // Skip entries with the same key - we're an iterator over keys, and advancement through
-    // values of the same key happens through ValuesIterable instead.
-    while (true) {
-      if (!shuffleIterator.hasNext()) {
-        return markFinishedAndCommitBytesCounter();
+    ShuffleEntry entry = nextKeyEntry;
+    if (entry != null) {
+      // Consumed from ValuesIterator fast-forward; already known to have a different key than
+      // currentKeyBytes and already reported to the underlying ProgressTrackerGroup.
+      nextKeyEntry = null;
+    } else {
+      // Skip entries with the same key - we're an iterator over keys, and advancement through
+      // values of the same key happens through ValuesIterable instead.
+      while (true) {
+        if (!shuffleIterator.hasNext()) {
+          return markFinishedAndCommitBytesCounter();
+        }
+        entry = shuffleIterator.next();
+        if (!entry.getKey().equals(currentKeyBytes)) {
+          break;
+        }
+        // Note: we can get here only if the ValuesIterable of the preceding key has NOT been
+        // read fully. If it had, then the "fast forward" code path in ValuesIterator
+        // would have triggered instead, updating nextKeyEntry / shuffleIterator to the next key
+        // or EOF.
+        totalByteSizeOfEntriesForCurrentKey += entry.length();
       }
-      // Save an iterator to the current entry, in case it's in a different key
-      // than the previous entry.
-      // If it's in the same key, we just skip it; if it's a new key, we'll need to
-      // start ValuesIterable below from this entry.
-      atCurrentEntry = shuffleIterator.copy();
-      entry = shuffleIterator.next();
-      if (!entry.getKey().equals(currentKeyBytes)) {
-        break;
-      }
-      // Note: we can get here only if the ValuesIterable of the preceding key has NOT been
-      // read fully. If it had, then the "fast forward" code path in ValuesIterable
-      // would have triggered instead, and would prevent this path by setting currentKeyBytes
-      // to null, and we'd have exited the loop via the inequality check above.
-      totalByteSizeOfEntriesForCurrentKey += entry.length();
     }
 
-    // Now "atCurrentEntry" points to "entry", and "entry" is the first entry in the next key.
     ShufflePosition groupStart = entry.getPosition();
     boolean isAtSplitPoint = (groupStart == null) || !groupStart.equals(lastGroupStart);
     if (!rangeTracker.tryReturnRecordAt(isAtSplitPoint, groupStart)) {
@@ -140,11 +150,13 @@ public abstract class GroupingShuffleEntryIterator {
     totalByteSizeOfEntriesForCurrentKey = entry.length();
 
     currentKeyBytes = entry.getKey();
+    // "entry" is the first entry of the new key, already popped from shuffleIterator. Copy the
+    // iterator positioned immediately after "entry" only once after the split check succeeds.
     current =
         new KeyGroupedShuffleEntries(
             entry.getPosition(),
             currentKeyBytes,
-            new ValuesIterable(this, currentKeyBytes, atCurrentEntry));
+            new ValuesIterable(this, currentKeyBytes, entry, shuffleIterator.copy()));
 
     return true;
   }
@@ -153,6 +165,8 @@ public abstract class GroupingShuffleEntryIterator {
     commitBytesRead(totalByteSizeOfEntriesForCurrentKey);
 
     current = null;
+    currentKeyBytes = null;
+    nextKeyEntry = null;
     isFinished = true;
     return false;
   }
@@ -186,25 +200,28 @@ public abstract class GroupingShuffleEntryIterator {
     return rangeTracker;
   }
 
-  private static class ValuesIterable
+  private static final class ValuesIterable
       extends ElementByteSizeObservableIterable<ShuffleEntry, ValuesIterator>
       implements Reiterable<ShuffleEntry> {
     private final GroupingShuffleEntryIterator parent;
     private final ByteString currentKeyBytes;
-    private Reiterator<ShuffleEntry> baseValuesIterator;
+    private final ShuffleEntry firstEntry;
+    private final ProgressTrackingReiterator<ShuffleEntry> baseValuesIterator;
 
     public ValuesIterable(
         GroupingShuffleEntryIterator parent,
         ByteString keyBytes,
-        Reiterator<ShuffleEntry> baseValuesIterator) {
+        ShuffleEntry firstEntry,
+        ProgressTrackingReiterator<ShuffleEntry> baseValuesIterator) {
       this.parent = parent;
       this.currentKeyBytes = keyBytes;
-      this.baseValuesIterator = baseValuesIterator;
+      this.firstEntry = checkNotNull(firstEntry);
+      this.baseValuesIterator = checkNotNull(baseValuesIterator);
     }
 
     @Override
     public ValuesIterator createIterator() {
-      return new ValuesIterator(parent, baseValuesIterator.copy(), currentKeyBytes);
+      return new ValuesIterator(parent, firstEntry, baseValuesIterator.copy(), currentKeyBytes);
     }
   }
 
@@ -212,23 +229,34 @@ public abstract class GroupingShuffleEntryIterator {
    * Provides the {@link Reiterator} used to iterate through the shuffle entries of a
    * KeyGroupedShuffleEntries.
    */
-  private static class ValuesIterator extends ElementByteSizeObservableIterator<ShuffleEntry>
+  private static final class ValuesIterator extends ElementByteSizeObservableIterator<ShuffleEntry>
       implements Reiterator<ShuffleEntry> {
+    private static final byte HAS_NEXT_UNKNOWN = 0;
+    private static final byte HAS_NEXT_TRUE = 1;
+    private static final byte HAS_NEXT_FALSE = -1;
+
     private final GroupingShuffleEntryIterator parent;
-    private final Reiterator<ShuffleEntry> valuesIterator;
+    private @Nullable ShuffleEntry pendingFirstEntry;
+    private @Nullable ProgressTrackingReiterator<ShuffleEntry> valuesIterator;
     private final ProgressTracker<ShuffleEntry> tracker;
     private final ByteString expectedKeyBytes;
 
-    private Boolean cachedHasNext;
+    // Tracks whether any java.util.Observer is attached so the common zero-observer path skips
+    // Observable's synchronized setChanged()/notifyObservers() and Long autoboxing.
+    private volatile boolean hasObservers;
+
+    private byte cachedHasNext = HAS_NEXT_UNKNOWN;
     private long byteSizeRead = 0L;
     private ShuffleEntry current;
 
     public ValuesIterator(
         GroupingShuffleEntryIterator parent,
-        Reiterator<ShuffleEntry> valuesIterator,
+        ShuffleEntry firstEntry,
+        ProgressTrackingReiterator<ShuffleEntry> valuesIterator,
         ByteString expectedKeyBytes) {
       this.parent = parent;
-      this.valuesIterator = valuesIterator;
+      this.pendingFirstEntry = checkNotNull(firstEntry);
+      this.valuesIterator = checkNotNull(valuesIterator);
       this.expectedKeyBytes = checkNotNull(expectedKeyBytes);
       // N.B. The ProgressTrackerGroup captures the reference to the original
       // ValuesIterator for a given values iteration, which happens to be
@@ -242,7 +270,9 @@ public abstract class GroupingShuffleEntryIterator {
           new ProgressTrackerGroup<ShuffleEntry>() {
             @Override
             protected void report(ShuffleEntry entry) {
-              ValuesIterator.this.notifyValueReturned(entry.length());
+              if (ValuesIterator.this.hasObservers) {
+                ValuesIterator.this.notifyValueReturned(entry.length());
+              }
             }
           }.start();
     }
@@ -250,7 +280,8 @@ public abstract class GroupingShuffleEntryIterator {
     private ValuesIterator(
         GroupingShuffleEntryIterator parent, ValuesIterator it, long byteSizeRead) {
       this.parent = parent;
-      this.valuesIterator = it.valuesIterator.copy();
+      this.pendingFirstEntry = it.pendingFirstEntry;
+      this.valuesIterator = it.valuesIterator != null ? it.valuesIterator.copy() : null;
       this.tracker = it.tracker.copy();
       this.expectedKeyBytes = it.expectedKeyBytes;
       this.cachedHasNext = it.cachedHasNext;
@@ -259,27 +290,58 @@ public abstract class GroupingShuffleEntryIterator {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
+    public synchronized void addObserver(Observer o) {
+      super.addObserver(o);
+      hasObservers = countObservers() > 0;
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public synchronized void deleteObserver(Observer o) {
+      super.deleteObserver(o);
+      hasObservers = countObservers() > 0;
+    }
+
+    @Override
+    public synchronized void deleteObservers() {
+      super.deleteObservers();
+      hasObservers = false;
+    }
+
+    @Override
     public boolean hasNext() {
-      if (cachedHasNext != null) {
-        return cachedHasNext;
+      if (cachedHasNext != HAS_NEXT_UNKNOWN) {
+        return cachedHasNext == HAS_NEXT_TRUE;
       }
-      cachedHasNext = advance();
-      return cachedHasNext;
+      boolean hasMore = advance();
+      cachedHasNext = hasMore ? HAS_NEXT_TRUE : HAS_NEXT_FALSE;
+      return hasMore;
     }
 
     @SuppressWarnings("ReferenceEquality")
     private boolean advance() {
-      // Save a copy of the iterator pointing at the next entry, to use below in case we're right
-      // before a key boundary (or end of stream).
-      Reiterator<ShuffleEntry> possibleStartOfNextKey = valuesIterator.copy();
-      if (valuesIterator.hasNext()) {
-        ShuffleEntry entry = valuesIterator.next();
+      ShuffleEntry first = pendingFirstEntry;
+      if (first != null) {
+        // First entry of the key was already validated by GroupingShuffleEntryIterator.advance().
+        pendingFirstEntry = null;
+        byteSizeRead += first.length();
+        tracker.saw(first);
+        current = first;
+        return true;
+      }
+
+      ShuffleEntry nextKeyEntry = null;
+      ProgressTrackingReiterator<ShuffleEntry> iter = valuesIterator;
+      if (iter != null && iter.hasNext()) {
+        ShuffleEntry entry = iter.next();
         if (entry.getKey().equals(expectedKeyBytes)) {
           byteSizeRead += entry.length();
           tracker.saw(entry);
           current = entry;
           return true;
         }
+        nextKeyEntry = entry;
       }
 
       // Fast-forwarding:
@@ -297,20 +359,24 @@ public abstract class GroupingShuffleEntryIterator {
       // and the byte array is not mutated, so a reference equality check is sufficient
       // to guard against two adversary situations:
       // 1) when the parent GroupingShuffleEntryIterator has been advanced to the next key
-      //    between calls to hasNext/next on the current ValuesIterator.
+      //    between calls to hasNext/next on the current ValuesIterator (or finished).
       // 2) when another ValuesIterator produced from the same parent at a different key
       //    has fast-forwarded it to the successor of that key.
       //    (note that if this "antagonist" ValuesIterator was at the same key, then this
       //    codepath may trigger more than once, hence the body of the if statement should
       //    be idempotent)
-      if (expectedKeyBytes == parent.currentKeyBytes) {
-        // Fast-forward the parent's shuffle iterator.
-        parent.shuffleIterator = possibleStartOfNextKey;
+      if (expectedKeyBytes == parent.currentKeyBytes && iter != null) {
+        // Donate iter directly to the parent without an extra copy(): hasNext() immediately caches
+        // HAS_NEXT_FALSE after this returns false, so this ValuesIterator will never advance iter
+        // again (and copy() preserves the exhausted state with valuesIterator == null).
+        parent.nextKeyEntry = nextKeyEntry;
+        parent.shuffleIterator = iter;
         // The parent is also tracking the total byte size read. Since we have been tracking this
         // amount in byteSizeRead, we can just set it to the right value.
         parent.totalByteSizeOfEntriesForCurrentKey = byteSizeRead;
         // We need to do both of these things for the fast-forward to be correct.
       }
+      valuesIterator = null;
 
       return false;
     }
@@ -322,7 +388,7 @@ public abstract class GroupingShuffleEntryIterator {
       }
       checkState(current != null, "current entry should be non-null");
       ShuffleEntry toReturn = current;
-      cachedHasNext = null;
+      cachedHasNext = HAS_NEXT_UNKNOWN;
       current = null;
       return toReturn;
     }

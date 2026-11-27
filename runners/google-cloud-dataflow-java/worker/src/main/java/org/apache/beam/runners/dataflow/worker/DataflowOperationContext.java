@@ -29,6 +29,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker.StepProcessingStats;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -70,6 +72,7 @@ public class DataflowOperationContext implements OperationContext {
   private final MetricsContainer metricsContainer;
   private final ExecutionStateTracker executionStateTracker;
   private final DataflowExecutionStateRegistry executionStateRegistry;
+  private final @Nullable ProcessScope processScope;
 
   DataflowOperationContext(
       CounterFactory counterFactory,
@@ -106,6 +109,30 @@ public class DataflowOperationContext implements OperationContext {
     processTimersState = newExecutionState(ExecutionStateTracker.PROCESS_TIMERS_STATE_NAME);
     finishState = newExecutionState(ExecutionStateTracker.FINISH_STATE_NAME);
     abortState = newExecutionState(ExecutionStateTracker.ABORT_STATE_NAME);
+
+    ProcessScope resolvedScope = null;
+    if (executionStateTracker != null && processElementState != null) {
+      if (executionStateTracker.getClass() == DataflowExecutionStateTracker.class) {
+        DataflowExecutionStateTracker dfTracker =
+            (DataflowExecutionStateTracker) executionStateTracker;
+        if (dfTracker.supportsFastProcessElementTransition()) {
+          if (dfTracker.isStreaming()
+              && processElementState instanceof DataflowExecutionState
+              && processElementState.isProcessElementState) {
+            NameContext stepName = ((DataflowExecutionState) processElementState).getStepName();
+            String userName = stepName != null ? stepName.userName() : null;
+            StepProcessingStats stepStats =
+                userName != null ? dfTracker.getOrCreateStepStats(userName) : null;
+            resolvedScope = new StreamingProcessScope(dfTracker, processElementState, stepStats);
+          } else {
+            resolvedScope = new DirectProcessScope(dfTracker, processElementState);
+          }
+        }
+      } else if (executionStateTracker.supportsDirectTransition()) {
+        resolvedScope = new DirectProcessScope(executionStateTracker, processElementState);
+      }
+    }
+    this.processScope = resolvedScope;
   }
 
   public ExecutionState newExecutionState(String stateName) {
@@ -117,9 +144,18 @@ public class DataflowOperationContext implements OperationContext {
     return enter(startState);
   }
 
+  /**
+   * Enters the {@code process} execution state.
+   *
+   * <p>For allocation-free execution, the returned {@link Closeable} may be reused across
+   * sequential calls on the execution thread. Callers must always pair it via {@code
+   * try-with-resources} (do not abandon an unclosed handle across bundle resets, and do not retain
+   * or re-close a handle after a subsequent {@code enterProcess()} call).
+   */
   @Override
   public Closeable enterProcess() {
-    return enter(processElementState);
+    ProcessScope scope = this.processScope;
+    return scope != null ? scope.enter() : executionStateTracker.enterState(processElementState);
   }
 
   @Override
@@ -155,6 +191,96 @@ public class DataflowOperationContext implements OperationContext {
 
   private Closeable enter(ExecutionState state) {
     return executionStateTracker.enterState(state);
+  }
+
+  private interface ProcessScope extends Closeable {
+    Closeable enter();
+  }
+
+  private static final class DirectProcessScope implements ProcessScope {
+    private final ExecutionStateTracker tracker;
+    private final ExecutionState processElementState;
+    private boolean inUse;
+    private @Nullable ExecutionState previous;
+
+    DirectProcessScope(ExecutionStateTracker tracker, ExecutionState processElementState) {
+      this.tracker = tracker;
+      this.processElementState = processElementState;
+    }
+
+    @Override
+    public Closeable enter() {
+      if (!inUse) {
+        inUse = true;
+        try {
+          previous = tracker.enterStateDirect(processElementState);
+          return this;
+        } catch (Throwable t) {
+          inUse = false;
+          previous = null;
+          throw t;
+        }
+      }
+      return tracker.enterState(processElementState);
+    }
+
+    @Override
+    public void close() {
+      if (!inUse) {
+        return;
+      }
+      ExecutionState prev = previous;
+      previous = null;
+      inUse = false;
+      tracker.exitStateDirect(prev);
+    }
+  }
+
+  private static final class StreamingProcessScope implements ProcessScope {
+    private final DataflowExecutionStateTracker tracker;
+    private final ExecutionState processElementState;
+    private final @Nullable StepProcessingStats stepStats;
+    private boolean inUse;
+    private @Nullable ExecutionState previous;
+
+    StreamingProcessScope(
+        DataflowExecutionStateTracker tracker,
+        ExecutionState processElementState,
+        @Nullable StepProcessingStats stepStats) {
+      this.tracker = tracker;
+      this.processElementState = processElementState;
+      this.stepStats = stepStats;
+    }
+
+    @Override
+    public Closeable enter() {
+      if (!inUse) {
+        inUse = true;
+        try {
+          previous =
+              stepStats != null
+                  ? tracker.enterStreamingProcessDirect(processElementState, stepStats)
+                  : tracker.enterStateDirect(processElementState);
+          return this;
+        } catch (Throwable t) {
+          inUse = false;
+          previous = null;
+          throw t;
+        }
+      }
+      return tracker.enterState(processElementState);
+    }
+
+    @Override
+    public void close() {
+      if (!inUse) {
+        return;
+      }
+      ExecutionState prev = previous;
+      previous = null;
+      inUse = false;
+      tracker.exitStreamingProcessDirect(prev);
+    }
   }
 
   /**

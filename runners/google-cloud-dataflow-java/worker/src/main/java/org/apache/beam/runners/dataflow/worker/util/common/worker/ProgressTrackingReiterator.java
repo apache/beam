@@ -46,6 +46,11 @@ public final class ProgressTrackingReiterator<T> extends ForwardingReiterator<T>
   }
 
   @Override
+  public ProgressTrackingReiterator<T> copy() {
+    return clone();
+  }
+
+  @Override
   protected ProgressTrackingReiterator<T> clone() {
     ProgressTrackingReiterator<T> result = (ProgressTrackingReiterator<T>) super.clone();
     result.tracker = tracker.copy();
