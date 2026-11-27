@@ -34,6 +34,12 @@ type elementHasher interface {
 	Hash(element any, w typex.Window) (uint64, error)
 }
 
+// encodedElementHasher reuses the key and window bytes needed for cache
+// equality. Primitive hashers keep their specialized encodings instead.
+type encodedElementHasher interface {
+	HashEncoded([]byte) uint64
+}
+
 func makeElementHasher(c *coder.Coder, wc *coder.WindowCoder) elementHasher {
 	hasher := &maphash.Hash{}
 	we := MakeWindowEncoder(wc)
@@ -189,6 +195,12 @@ func (h *rowHasher) Hash(element any, w typex.Window) (uint64, error) {
 	return h.hash.Sum64(), nil
 }
 
+func (h *rowHasher) HashEncoded(data []byte) uint64 {
+	h.hash.Reset()
+	h.hash.Write(data)
+	return h.hash.Sum64()
+}
+
 type customEncodedHasher struct {
 	hash  hash.Hash64
 	t     reflect.Type
@@ -205,4 +217,10 @@ func (h *customEncodedHasher) Hash(element any, w typex.Window) (uint64, error) 
 	h.hash.Write(b)
 	h.we.EncodeSingle(w, h.hash)
 	return h.hash.Sum64(), nil
+}
+
+func (h *customEncodedHasher) HashEncoded(data []byte) uint64 {
+	h.hash.Reset()
+	h.hash.Write(data)
+	return h.hash.Sum64()
 }

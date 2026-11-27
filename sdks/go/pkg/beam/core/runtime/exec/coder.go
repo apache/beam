@@ -526,6 +526,8 @@ type lpEncoder struct {
 }
 
 func (c *lpEncoder) Encode(val *FullValue, w io.Writer) error {
+	// A previous call may have failed after writing part of the value.
+	c.buf.Reset()
 	// (1) Call encode
 	if err := c.enc.Encode(val, &c.buf); err != nil {
 		return err
@@ -538,7 +540,6 @@ func (c *lpEncoder) Encode(val *FullValue, w io.Writer) error {
 		return err
 	}
 	_, err := w.Write(data)
-	c.buf.Reset()
 	return err
 }
 

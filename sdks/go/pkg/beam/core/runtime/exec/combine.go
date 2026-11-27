@@ -440,18 +440,30 @@ type liftingCache struct {
 	bufEntry bytes.Buffer
 	fv       FullValue
 
-	keyHash  elementHasher
-	keyCoder ElementEncoder
-	winCoder WindowEncoder
+	keyHash        elementHasher
+	keyCoder       ElementEncoder
+	winCoder       WindowEncoder
+	encodedKeyHash encodedElementHasher
+	// Select the strategy once so primitive keys do not pay for an encoding check.
+	lookupFn func(*FullValue, typex.Window) (uint64, *FullValue, bool, error)
 }
 
 func newLiftingCache(max int, kc *coder.Coder, wc *coder.WindowCoder) *liftingCache {
-	return &liftingCache{
-		cap:      max,
-		keyHash:  makeElementHasher(kc, wc),
-		keyCoder: MakeElementEncoder(kc),
-		winCoder: MakeWindowEncoder(wc),
+	hasher := makeElementHasher(kc, wc)
+	encodedHasher, _ := hasher.(encodedElementHasher)
+	c := &liftingCache{
+		cap:            max,
+		keyHash:        hasher,
+		encodedKeyHash: encodedHasher,
+		keyCoder:       MakeElementEncoder(kc),
+		winCoder:       MakeWindowEncoder(wc),
 	}
+	if encodedHasher != nil {
+		c.lookupFn = c.lookupEncoded
+	} else {
+		c.lookupFn = c.lookupPrimitive
+	}
+	return c
 }
 
 func (c *liftingCache) start() {
@@ -466,6 +478,46 @@ func (c *liftingCache) down() {
 // returning the current hash key, a pre-inserted FullValue to be written to, and whether
 // the value is initialized, and an error if needed.
 func (c *liftingCache) lookup(value *FullValue, w typex.Window) (uint64, *FullValue, bool, error) {
+	return c.lookupFn(value, w)
+}
+
+func (c *liftingCache) lookupEncoded(value *FullValue, w typex.Window) (uint64, *FullValue, bool, error) {
+	if err := c.encodeKey(value, w, &c.bufNew); err != nil {
+		return 0, nil, false, err
+	}
+	key := c.encodedKeyHash.HashEncoded(c.bufNew.Bytes())
+	// Value is a KV so Elm & Elm2 are populated.
+	// Check the cache for an already present accumulator
+
+	ce, notfirst := c.cache[key]
+	// If this is not the first one, lets be sure about it.
+	if notfirst {
+		if err := c.encodeKey(&ce.fv, ce.fv.Windows[0], &c.bufEntry); err != nil {
+			return 0, nil, false, err
+		}
+		for !bytes.Equal(c.bufNew.Bytes(), c.bufEntry.Bytes()) {
+			if ce.overflow == nil {
+				// We haven't found anything that matches, so we overflow.
+				ce.overflow = &cacheVal{}
+				notfirst = false
+				ce = ce.overflow
+				break
+			}
+			ce = ce.overflow
+			if err := c.encodeKey(&ce.fv, ce.fv.Windows[0], &c.bufEntry); err != nil {
+				return 0, nil, false, err
+			}
+		}
+		// This means we have a valid value!
+	} else {
+		// Ensure we have a valid cacheVal in the cache for later...
+		ce = &cacheVal{}
+		c.cache[key] = ce
+	}
+	return key, &ce.fv, notfirst, nil
+}
+
+func (c *liftingCache) lookupPrimitive(value *FullValue, w typex.Window) (uint64, *FullValue, bool, error) {
 	key, err := c.keyHash.Hash(value.Elm, w)
 	if err != nil {
 		return 0, nil, false, err
@@ -503,6 +555,15 @@ func (c *liftingCache) lookup(value *FullValue, w typex.Window) (uint64, *FullVa
 		c.cache[key] = ce
 	}
 	return key, &ce.fv, notfirst, nil
+}
+
+func (c *liftingCache) encodeKey(value *FullValue, w typex.Window, buf *bytes.Buffer) error {
+	buf.Reset()
+	c.fv.Elm = value.Elm
+	if err := c.keyCoder.Encode(&c.fv, buf); err != nil {
+		return err
+	}
+	return c.winCoder.EncodeSingle(w, buf)
 }
 
 // compact reduces the liftingCache down to it's cap, emitting values
