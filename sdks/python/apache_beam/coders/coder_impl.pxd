@@ -276,6 +276,9 @@ cdef class LengthPrefixCoderImpl(StreamCoderImpl):
   cdef CoderImpl _value_coder
 
 
+cdef TimestampCoderImpl _TIMESTAMP_CODER_IMPL
+
+
 cdef class RowColumnEncoder:
   cdef bint encode_to_stream(self, size_t index, OutputStream stream) except -1
   cdef bint decode_from_stream(self, size_t index, InputStream stream) except -1
