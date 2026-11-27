@@ -21,17 +21,38 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 
 class BitConverters {
   private BitConverters() {}
 
   static long readBigEndianLong(InputStream in) throws IOException {
     byte[] buf = new byte[8];
-    ByteStreams.readFully(in, buf);
+    int n = in.read(buf, 0, 8);
+    if (n != 8) {
+      readRemaining(in, buf, n);
+    }
+    return ((buf[0] & 0xFFL) << 56)
+        | ((buf[1] & 0xFFL) << 48)
+        | ((buf[2] & 0xFFL) << 40)
+        | ((buf[3] & 0xFFL) << 32)
+        | ((buf[4] & 0xFFL) << 24)
+        | ((buf[5] & 0xFFL) << 16)
+        | ((buf[6] & 0xFFL) << 8)
+        | (buf[7] & 0xFFL);
+  }
 
-    return Longs.fromByteArray(buf);
+  private static void readRemaining(InputStream in, byte[] buf, int readSoFar) throws IOException {
+    if (readSoFar < 0) {
+      throw new EOFException();
+    }
+    int total = readSoFar;
+    while (total < 8) {
+      int n = in.read(buf, total, 8 - total);
+      if (n < 0) {
+        throw new EOFException();
+      }
+      total += n;
+    }
   }
 
   static int readBigEndianInt(InputStream in) throws IOException {
@@ -59,8 +80,14 @@ class BitConverters {
   }
 
   static void writeBigEndianLong(long value, OutputStream out) throws IOException {
-    byte[] buf = Longs.toByteArray(value);
-    out.write(buf);
+    out.write((int) (value >>> 56) & 0xFF);
+    out.write((int) (value >>> 48) & 0xFF);
+    out.write((int) (value >>> 40) & 0xFF);
+    out.write((int) (value >>> 32) & 0xFF);
+    out.write((int) (value >>> 24) & 0xFF);
+    out.write((int) (value >>> 16) & 0xFF);
+    out.write((int) (value >>> 8) & 0xFF);
+    out.write((int) value & 0xFF);
   }
 
   static void writeBigEndianInt(int value, OutputStream out) throws IOException {

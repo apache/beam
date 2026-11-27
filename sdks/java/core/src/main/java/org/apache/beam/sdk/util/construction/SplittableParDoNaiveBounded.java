@@ -367,7 +367,7 @@ public class SplittableParDoNaiveBounded {
             new OutputBuilderSupplier() {
               @Override
               public <X> WindowedValues.Builder<X> builder(X value) {
-                return WindowedValues.builder(outputReceiver.builder(null)).withValue(value);
+                return WindowedValues.builder(outputReceiver.builder(null), value);
               }
             };
 

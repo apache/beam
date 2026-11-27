@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.Cache;
+import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.fn.harness.state.StateFetchingIterators.CachingStateIterable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterables;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 
 /**
  * An implementation of a bag user state that utilizes the Beam Fn State API to fetch, clear and
@@ -127,6 +129,7 @@ public class BagUserState<T> {
       beamFnStateClient.handle(
           request.toBuilder().setClear(StateClearRequest.getDefaultInstance()));
     }
+    long encodedBytes = 0;
     if (!newValues.isEmpty()) {
       // Batch values up to a arbitrary limit to reduce overhead of write
       // requests. We treat this limit as strict to ensure that large elements
@@ -135,7 +138,12 @@ public class BagUserState<T> {
       for (T newValue : newValues) {
         int previousSize = out.size();
         valueCoder.encode(newValue, out);
-        if (out.size() > BAG_APPEND_BATCHING_LIMIT && previousSize > 0) {
+        int currentSize = out.size();
+        long delta = (long) currentSize - previousSize;
+        if (delta > 0) {
+          encodedBytes = LongMath.saturatedAdd(encodedBytes, delta);
+        }
+        if (currentSize > BAG_APPEND_BATCHING_LIMIT && previousSize > 0) {
           // Respect the batching limit by outputting the previous batch of
           // elements.
           beamFnStateClient.handle(
@@ -143,8 +151,9 @@ public class BagUserState<T> {
                   .setAppend(
                       StateAppendRequest.newBuilder()
                           .setData(out.consumePrefixToByteString(previousSize))));
+          currentSize = out.size();
         }
-        if (out.size() > BAG_APPEND_BATCHING_LIMIT) {
+        if (currentSize > BAG_APPEND_BATCHING_LIMIT) {
           // The last element was over the batching limit by itself. To avoid
           // exceeding runner state limits due to large elements, we output
           // without additional batching.
@@ -160,13 +169,27 @@ public class BagUserState<T> {
       }
     }
 
-    // Modify the underlying cached state depending on the mutations performed
+    // Modify the underlying cached state depending on the mutations performed.
+    // Approximating element weight as encodedBytes + count * REFERENCE_SIZE matches the read path
+    // in DataStreams.DataStreamDecoder#decodeFromChunkBoundaryToChunkBoundary. This avoids jamm
+    // object-graph traversal on every close (tradeoff: object-heavy/compressed coders may report a
+    // lower weight than live Java heap size).
     if (isCleared) {
-      // Note this takes ownership of newValues. This object is no longer used after it has been
-      // closed.
-      oldValues.clearAndAppend(newValues);
-    } else {
-      oldValues.append(newValues);
+      if (newValues.isEmpty()) {
+        oldValues.clearAndAppend(Collections.emptyList());
+      } else {
+        // Note this takes ownership of newValues. This object is no longer used after it has been
+        // closed.
+        oldValues.clearAndAppend(
+            newValues,
+            LongMath.saturatedAdd(
+                encodedBytes, LongMath.saturatedMultiply(newValues.size(), Caches.REFERENCE_SIZE)));
+      }
+    } else if (!newValues.isEmpty()) {
+      oldValues.append(
+          newValues,
+          LongMath.saturatedAdd(
+              encodedBytes, LongMath.saturatedMultiply(newValues.size(), Caches.REFERENCE_SIZE)));
     }
   }
 }

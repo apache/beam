@@ -28,6 +28,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -47,6 +48,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -1158,6 +1162,115 @@ public class MultimapUserStateTest {
       assertThat(userState.keys(), is(emptyIterable()));
       userState.asyncClose();
     }
+  }
+
+  @Test
+  public void testNullKeysAndValuesCachedClose() throws Exception {
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      MultimapUserState<byte[], String> writer =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              NullableCoder.of(ByteArrayCoder.of()),
+              NullableCoder.of(StringUtf8Coder.of()));
+      writer.clear();
+      writer.put(null, null);
+      writer.put(null, "V1");
+      writer.put(A1, "X1");
+      writer.put(Arrays.copyOf(A1, A1.length), "X2");
+      writer.asyncClose();
+    }
+    {
+      MultimapUserState<byte[], String> reader =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              NullableCoder.of(ByteArrayCoder.of()),
+              NullableCoder.of(StringUtf8Coder.of()));
+      assertArrayEquals(
+          new String[] {null, "V1"}, Iterables.toArray(reader.get(null), String.class));
+      assertArrayEquals(
+          new String[] {"X1", "X2"},
+          Iterables.toArray(reader.get(Arrays.copyOf(A1, A1.length)), String.class));
+      reader.asyncClose();
+    }
+  }
+
+  @Test
+  public void testRemoveThenReAddCachedWithoutPriorGet() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            ImmutableMap.of(
+                createMultimapKeyStateKey(),
+                KV.of(ByteArrayCoder.of(), asList(A1, A2)),
+                createMultimapValueStateKey(A1),
+                KV.of(StringUtf8Coder.of(), asList("V1", "V2")),
+                createMultimapValueStateKey(A2),
+                KV.of(StringUtf8Coder.of(), singletonList("W1"))));
+    Cache<?, ?> cache = Caches.eternal();
+    {
+      // Remove A1 then re-add A1 with "V3" without ever loading A1 into persistedValues first,
+      // and remove A2 without re-adding.
+      MultimapUserState<byte[], String> userState =
+          new MultimapUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      userState.remove(A1);
+      userState.put(Arrays.copyOf(A1, A1.length), "V3");
+      userState.put(A1, "V4");
+      userState.remove(A2);
+      userState.asyncClose();
+    }
+    {
+      // Both the re-added A1 values and empty A2 must be served purely from the cache.
+      MultimapUserState<byte[], String> reader =
+          new MultimapUserState<>(
+              cache,
+              requestBuilder -> {
+                throw new IllegalStateException("Unexpected call for test.");
+              },
+              "instructionId",
+              createMultimapKeyStateKey(),
+              ByteArrayCoder.of(),
+              StringUtf8Coder.of());
+      assertArrayEquals(new String[] {"V3", "V4"}, Iterables.toArray(reader.get(A1), String.class));
+      assertThat(reader.get(A2), is(emptyIterable()));
+      reader.asyncClose();
+    }
+  }
+
+  @Test
+  public void testBoundedCacheWeightAndEviction() throws Exception {
+    PipelineOptions opts = PipelineOptionsFactory.create();
+    opts.as(SdkHarnessOptions.class).setMaxCacheMemoryUsageMb(1);
+    Cache<?, ?> cache = Caches.fromOptions(opts);
+    FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(Collections.emptyMap());
+
+    String big = "z".repeat(1200 * 1024);
+    MultimapUserState<byte[], String> state =
+        new MultimapUserState<>(
+            cache,
+            fakeClient,
+            "instructionId",
+            createMultimapKeyStateKey(),
+            ByteArrayCoder.of(),
+            StringUtf8Coder.of());
+    state.clear();
+    state.put(A1, big);
+    state.asyncClose();
+    assertTrue(cache.describeStats().contains("evictions 1"));
   }
 
   private StateKey createMultimapKeyStateKey() throws IOException {

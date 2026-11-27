@@ -214,4 +214,40 @@ public class SchemaUtilsTest {
     String rendered = row.toString();
     assertTrue(rendered, rendered.contains("[]"));
   }
+
+  @Test
+  public void testToPrettyRowStringHandlesEmptyStorageAndNullFields() {
+    Schema emptySchema = Schema.of();
+    assertEquals("{}", Row.withSchema(emptySchema).build().toString());
+
+    Schema flatSchema =
+        Schema.builder()
+            .addNullableStringField("first")
+            .addNullableInt32Field("second")
+            .addNullableStringField("third")
+            .build();
+    // Row.withSchema(nonEmptySchema).build() has empty backing storage (fieldCount == 0).
+    assertEquals("{}", Row.withSchema(flatSchema).build().toString());
+    assertEquals("{}", Row.nullRow(flatSchema).toString());
+
+    Row single = Row.withSchema(flatSchema).addValues(null, 42, null).build();
+    assertEquals("{\n  second: 42\n}", single.toString());
+
+    Row multiWithNull = Row.withSchema(flatSchema).addValues("a", null, "c").build();
+    assertEquals("{\n  first: \"a\",\n  third: \"c\"\n}", multiWithNull.toString());
+
+    Schema outerSchema =
+        Schema.builder()
+            .addNullableRowField("nested_empty", flatSchema)
+            .addNullableRowField("nested_row", flatSchema)
+            .build();
+    Row nested =
+        Row.withSchema(outerSchema)
+            .addValues(
+                Row.nullRow(flatSchema), Row.withSchema(flatSchema).addValues("x", 7, null).build())
+            .build();
+    assertEquals(
+        "{\n  nested_empty: {},\n  nested_row: {\n    first: \"x\",\n    second: 7\n  }\n}",
+        nested.toString());
+  }
 }

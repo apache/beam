@@ -26,8 +26,12 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.joda.time.Instant;
 
 /**
  * A Dataflow-specific version of {@link ElementCounter}. It counts element windows as ElementCount.
@@ -42,8 +46,27 @@ public class DataflowOutputCounter implements ElementCounter {
 
   private static final String MEAN_BYTE_COUNTER_NAME = "-MeanByteCount";
 
-  private OutputObjectAndByteCounter objectAndByteCounter;
-  private Counter<Long, ?> elementCount;
+  // Concrete WindowedValues classes that always contain exactly one window. Checking exact Class
+  // identity avoids HotSpot's _secondary_super_cache ping-pong (JDK-8180450) caused by back-to-back
+  // interface checks (`instanceof SingleWindowedValue` followed by `checkcast WindowedValue` in
+  // SimpleParDoFn.processElement) across concurrent worker threads, while avoiding
+  // TimestampedValueInSingleWindow.getWindows()'s per-element Collections.singletonList allocation.
+  //
+  // TODO: Once Beam is on JDK 24, we can revert to the simpler instanceof call.
+  private static final Class<?> VALUE_IN_GLOBAL_WINDOW_CLASS =
+      WindowedValues.valueInGlobalWindow(null).getClass();
+  private static final Class<?> TIMESTAMPED_VALUE_IN_GLOBAL_WINDOW_CLASS =
+      WindowedValues.timestampedValueInGlobalWindow(null, Instant.EPOCH).getClass();
+  private static final Class<?> TIMESTAMPED_VALUE_IN_SINGLE_WINDOW_CLASS =
+      WindowedValues.of(
+              null,
+              Instant.EPOCH,
+              new IntervalWindow(Instant.EPOCH, Instant.EPOCH),
+              PaneInfo.NO_FIRING)
+          .getClass();
+
+  private final OutputObjectAndByteCounter objectAndByteCounter;
+  private final Counter<Long, ?> elementCount;
   private final boolean isStreaming;
 
   public static DataflowOutputCounter create(
@@ -74,15 +97,38 @@ public class DataflowOutputCounter implements ElementCounter {
     this.objectAndByteCounter =
         new OutputObjectAndByteCounter(elementByteSizeObservable, counterFactory, nameContext);
     this.objectAndByteCounter.countMeanByte(outputName + MEAN_BYTE_COUNTER_NAME);
-    createElementCounter(counterFactory, outputName + ELEMENT_COUNTER_NAME);
+    // TODO: use the name context to name the counter
+    this.elementCount =
+        counterFactory.longSum(CounterName.named(outputName + ELEMENT_COUNTER_NAME));
+  }
+
+  static boolean isKnownGlobalWindowedValue(Object elem) {
+    Class<?> cls = elem.getClass();
+    return cls == TIMESTAMPED_VALUE_IN_GLOBAL_WINDOW_CLASS || cls == VALUE_IN_GLOBAL_WINDOW_CLASS;
+  }
+
+  private static boolean isKnownSingleWindowedValue(Object elem) {
+    Class<?> cls = elem.getClass();
+    return cls == TIMESTAMPED_VALUE_IN_SINGLE_WINDOW_CLASS
+        || cls == TIMESTAMPED_VALUE_IN_GLOBAL_WINDOW_CLASS
+        || cls == VALUE_IN_GLOBAL_WINDOW_CLASS;
   }
 
   @Override
   public void update(Object elem) throws Exception {
     objectAndByteCounter.update(elem);
-    long windowsSize = ((WindowedValue<?>) elem).getWindows().size();
+    if (isKnownSingleWindowedValue(elem)) {
+      elementCount.addValue(1L);
+    } else {
+      updateNonSingleWindow(elem);
+    }
+  }
+
+  private void updateNonSingleWindow(Object elem) {
+    WindowedValue<?> windowedValue = (WindowedValue<?>) elem;
+    long windowsSize = windowedValue.getWindows().size();
     if (windowsSize == 0) {
-      updateEmptyWindows((WindowedValue<?>) elem);
+      updateEmptyWindows(windowedValue);
     } else {
       // Standard WindowedValue.
       elementCount.addValue(windowsSize);
@@ -100,9 +146,13 @@ public class DataflowOutputCounter implements ElementCounter {
         // Iterate through elementWindowsIterable and ignore timers in KeyedWorkItem.
         // Uses lightweight metadata-only iteration without payload deserialization overhead.
         for (WindowedValue<?> element : keyedWorkItem.elementWindowsIterable()) {
-          long elementWindowsSize = element.getWindows().size();
-          // Fan out for windows.
-          totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
+          if (isKnownSingleWindowedValue(element)) {
+            totalElementCount += 1L;
+          } else {
+            long elementWindowsSize = element.getWindows().size();
+            // Fan out for windows.
+            totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
+          }
         }
         elementCount.addValue(totalElementCount);
       } else {
@@ -131,10 +181,5 @@ public class DataflowOutputCounter implements ElementCounter {
   @VisibleForTesting
   static String getMeanByteCounterName(String prefix) {
     return prefix + MEAN_BYTE_COUNTER_NAME;
-  }
-
-  private void createElementCounter(CounterFactory factory, String name) {
-    // TODO: use the name context to name the counter
-    elementCount = factory.longSum(CounterName.named(name));
   }
 }

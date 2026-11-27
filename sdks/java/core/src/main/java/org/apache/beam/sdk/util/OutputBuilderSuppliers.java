@@ -17,21 +17,76 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.Collection;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.joda.time.Instant;
 
 /** Implementations of {@link OutputBuilderSupplier}. */
 @Internal
 public class OutputBuilderSuppliers {
   private OutputBuilderSuppliers() {}
 
+  /**
+   * Returns an {@link OutputBuilderSupplier} that copies metadata from {@code templateValue}
+   * without retaining its OpenTelemetry {@code Context}, avoiding intermediate {@link
+   * WindowedValues.Builder} allocations by delegating directly to {@link
+   * WindowedValues#ofWithCurrentContext(WindowedValue, Object)} and its sibling overloads.
+   *
+   * @param templateValue the non-null template {@link WindowedValue}
+   * @return an {@link OutputBuilderSupplier} backed by {@code templateValue}
+   */
   public static OutputBuilderSupplier supplierForElement(WindowedValue<?> templateValue) {
-    return new OutputBuilderSupplier() {
-      @Override
-      public <T> WindowedValues.Builder<T> builder(T value) {
-        return WindowedValues.builder(templateValue).withValue(value);
-      }
-    };
+    return new ElementOutputBuilderSupplier(templateValue);
+  }
+
+  private static final class ElementOutputBuilderSupplier implements OutputBuilderSupplier {
+    private final WindowedValue<?> templateValue;
+
+    private ElementOutputBuilderSupplier(WindowedValue<?> templateValue) {
+      this.templateValue = checkNotNull(templateValue, "templateValue must not be null");
+    }
+
+    @Override
+    public <T> WindowedValues.Builder<T> builder(T value) {
+      return WindowedValues.builder(templateValue, value);
+    }
+
+    @Override
+    public <T> WindowedValue<T> build(T value) {
+      return WindowedValues.ofWithCurrentContext(templateValue, value);
+    }
+
+    @Override
+    public <T> WindowedValue<T> buildWithTimestamp(T value, Instant timestamp) {
+      return WindowedValues.ofWithCurrentContext(templateValue, value, timestamp);
+    }
+
+    @Override
+    public <T> WindowedValue<T> buildWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      return WindowedValues.ofWithCurrentContext(
+          templateValue, value, timestamp, windows, paneInfo);
+    }
+
+    @Override
+    public <T> WindowedValue<T> buildWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      return WindowedValues.ofWithCurrentContext(
+          templateValue, value, timestamp, windows, paneInfo, valueKind);
+    }
   }
 }

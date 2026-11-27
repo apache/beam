@@ -18,22 +18,31 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.values.RowUtils.CapturingRowCases;
-import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
-import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
-import org.apache.beam.sdk.values.RowUtils.RowPosition;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Utilities for verifying and normalizing {@link Row} / {@link org.apache.beam.sdk.schemas.Schema}
+ * option field values.
+ */
 public abstract class SchemaVerification implements Serializable {
-  public static Object verifyFieldValue(Object value, FieldType type, String fieldName) {
-    Schema schema = Schema.builder().addField(fieldName, type).build();
-    return new RowFieldMatcher()
-        .match(
-            new CapturingRowCases(schema, new FieldOverrides(schema)),
-            type,
-            new RowPosition(FieldAccessDescriptor.withFieldIds(0)),
-            value);
+  /**
+   * Validates and normalizes {@code value} against {@code type} (e.g., copying sliced {@link
+   * java.nio.ByteBuffer}s to {@code byte[]}, converting {@link org.joda.time.base.AbstractInstant}
+   * to {@link org.joda.time.Instant}, and round-tripping {@link
+   * org.apache.beam.sdk.schemas.Schema.LogicalType} values).
+   *
+   * @param value field value to verify (may be {@code null} only when {@code type.getNullable()})
+   * @param type expected {@link FieldType}
+   * @param fieldName field or option name used in exception messages
+   * @return normalized value (may be {@code null} for nullable fields or nullable logical types
+   *     whose conversion returns {@code null})
+   * @throws IllegalArgumentException if {@code value} is {@code null} (or converts to {@code null})
+   *     for a non-nullable field type
+   * @throws ClassCastException if {@code value} is incompatible with {@code type}
+   */
+  public static @Nullable Object verifyFieldValue(
+      @Nullable Object value, FieldType type, String fieldName) {
+    return RowUtils.captureValue(type, value, fieldName);
   }
 }
