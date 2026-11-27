@@ -421,11 +421,16 @@ class ReadAllFromParquet(PTransform):
 class _ParquetUtils(object):
   @staticmethod
   def find_first_row_group_index(pf, start_offset):
-    for i in range(_ParquetUtils.get_number_of_row_groups(pf)):
-      row_group_start_offset = _ParquetUtils.get_offset(pf, i)
-      if row_group_start_offset >= start_offset:
-        return i
-    return -1
+    num_row_groups = _ParquetUtils.get_number_of_row_groups(pf)
+    lo = 0
+    hi = num_row_groups
+    while lo < hi:
+      mid = (lo + hi) // 2
+      if _ParquetUtils.get_offset(pf, mid) < start_offset:
+        lo = mid + 1
+      else:
+        hi = mid
+    return lo if lo < num_row_groups else -1
 
   @staticmethod
   def get_offset(pf, row_group_index):
