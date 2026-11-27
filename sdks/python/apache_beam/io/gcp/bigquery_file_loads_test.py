@@ -409,6 +409,56 @@ class TestPartitionFiles(unittest.TestCase):
 
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   @parameterized.expand([
+      ('load', None, None, {'load'}),
+      ('copy', 80, None, {'load', 'copy'}),
+      (
+          'schema_update',
+          80, ['ALLOW_FIELD_ADDITION'], {'load', 'copy', 'schema_update'}),
+  ])
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
+  def test_bigquery_job_labels(
+      self,
+      unused_name,
+      max_partition_size,
+      schema_update_options,
+      expected_job_types,
+      mock_wrapper):
+    labels = {'environment': 'test'}
+    client = mock_wrapper.return_value
+    job = bigquery_api.JobReference(projectId='project', jobId='load_job')
+    client.perform_load_job.return_value = job
+    client._insert_copy_job.return_value = job
+    client.get_table.return_value.schema = bigquery_api.TableSchema()
+    client.get_job.return_value.configuration.load.schema = (
+        bigquery_tools.get_bq_tableschema(_ELEMENTS_SCHEMA))
+
+    with TestPipeline('FnApiRunner') as p:
+      _ = p | beam.Create(_ELEMENTS) | bigquery.WriteToBigQuery(
+          table='project:dataset.table',
+          schema=_ELEMENTS_SCHEMA,
+          method=bigquery.WriteToBigQuery.Method.FILE_LOADS,
+          custom_gcs_temp_location=self._new_tempdir(),
+          validate=False,
+          max_file_size=45,
+          max_partition_size=max_partition_size,
+          schema_update_options=schema_update_options,
+          bigquery_job_labels=labels)
+
+    load_jobs = client.perform_load_job.call_args_list
+    copy_jobs = client._insert_copy_job.call_args_list
+    job_types = {
+        'schema_update' if 'source_stream' in c.kwargs else 'load'
+        for c in load_jobs
+    }
+    if copy_jobs:
+      job_types.add('copy')
+    self.assertEqual(expected_job_types, job_types)
+    for job_call in load_jobs + copy_jobs:
+      job_labels = job_call.kwargs['job_labels']
+      self.assertEqual('test', job_labels['environment'])
+      self.assertIn('step_name', job_labels)
+
+  @parameterized.expand([
       ('append', BigQueryDisposition.WRITE_APPEND),
       ('truncate', BigQueryDisposition.WRITE_TRUNCATE),
   ])

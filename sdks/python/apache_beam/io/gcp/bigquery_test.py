@@ -1434,6 +1434,7 @@ class TestWriteToBigQuery(unittest.TestCase):
         table=lambda _, side_input: side_input['table'],
         table_side_inputs=(table_record_pcv, ),
         schema=schema,
+        bigquery_job_labels={'environment': 'test'},
         schema_update_options=[
             beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION
         ])
@@ -1480,6 +1481,20 @@ class TestWriteToBigQuery(unittest.TestCase):
         original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
     self.assertEqual(
         original.schema_update_options, deserialized.schema_update_options)
+    self.assertEqual(
+        original.bigquery_job_labels, deserialized.bigquery_job_labels)
+
+  @parameterized.expand([
+      (WriteToBigQuery.Method.STREAMING_INSERTS, ),
+      (WriteToBigQuery.Method.STORAGE_WRITE_API, ),
+  ])
+  def test_bigquery_job_labels_require_file_loads(self, method):
+    p = TestPipeline()
+    with self.assertRaisesRegex(ValueError, 'FILE_LOADS'):
+      _ = p | beam.Create([]) | WriteToBigQuery(
+          table='project:dataset.table',
+          method=method,
+          bigquery_job_labels={'environment': 'test'})
 
   def test_schema_update_options_added_to_file_load_parameters(self):
     additional_bq_parameters = {'timePartitioning': {'type': 'DAY'}}
