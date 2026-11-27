@@ -48,8 +48,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -91,15 +89,6 @@ public class PipelineTranslatorStreamingTest implements Serializable {
   @Test
   public void rejectsUnsupportedStatefulFeatures() throws Exception {
     Object[][] cases = {
-      {
-        kv("o")
-            .apply(
-                ParDo.of(new StatefulDoFn())
-                    .withOutputTags(
-                        new TupleTag<Integer>() {}, TupleTagList.of(new TupleTag<Integer>() {})))
-            .getPipeline(),
-        "Stateful ParDo with additional outputs"
-      },
       {kv("pt").apply(ParDo.of(new ProcessingTimeTimerDoFn())).getPipeline(), "PROCESSING_TIME"},
       {
         kv("spt").apply(ParDo.of(new SyncProcessingTimeTimerDoFn())).getPipeline(),
