@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable.changestreams.it;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import com.google.api.gax.batching.Batcher;
 import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
@@ -32,17 +38,25 @@ import com.google.cloud.bigtable.data.v2.stub.EnhancedBigtableStubSettings;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.BigtableChangeStreamReadSchemaTransformProvider;
+import org.apache.beam.sdk.io.gcp.bigtable.changestreams.BigtableChangeStreamReadSchemaTransformProvider.BigtableChangeStreamReadConfiguration;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.BigtableChangeStreamTestOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -366,6 +380,75 @@ public class BigtableChangeStreamIT {
     pipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void testReadBigtableChangeStreamSchemaTransform() throws InterruptedException {
+
+    pipeline.getOptions().as(StreamingOptions.class).setStreaming(true);
+
+    Thread.sleep(500);
+    Instant startTime = Instant.now();
+    Thread.sleep(500);
+
+    String rowKey = "rowKeySchemaTransform";
+    long timestampMicros = Instant.now().getMillis() * 1000L;
+
+    RowMutationEntry mutation =
+        RowMutationEntry.create(rowKey)
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, timestampMicros, "cell value");
+
+    mutationBatcher.add(mutation);
+    mutationBatcher.flush();
+
+    Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
+
+    BigtableChangeStreamReadConfiguration configuration =
+        BigtableChangeStreamReadConfiguration.builder()
+            .setProjectId(projectId)
+            .setInstanceId(instanceId)
+            .setTableId(tableId)
+            .setAppProfileId(appProfileId)
+            .setMetadataTableTableId(metadataTableId)
+            .setStartAtTimestamp(startTime.toString())
+            .setFlatten(false)
+            .build();
+
+    PCollection<Row> rows =
+        PCollectionRowTuple.empty(pipeline)
+            .apply(
+                new TestSchemaTransformProvider()
+                    .createTransform(configuration, endTime, bigtableClientOverride))
+            .get("output");
+
+    PAssert.that(rows)
+        .satisfies(
+            elements -> {
+              Iterator<Row> iterator = elements.iterator();
+
+              assertTrue(iterator.hasNext());
+              Row row = iterator.next();
+              assertFalse(iterator.hasNext());
+
+              assertArrayEquals(rowKey.getBytes(UTF_8), row.getBytes("key"));
+              assertEquals("USER", row.getString("mutation_type"));
+
+              Collection<Row> entries = row.getArray("entries");
+              assertEquals(1, entries.size());
+
+              Row entry = entries.iterator().next();
+
+              assertEquals("SET_CELL", entry.getString("type"));
+              assertEquals(COLUMN_FAMILY1, entry.getString("family_name"));
+              assertArrayEquals(
+                  COLUMN_QUALIFIER.getBytes(UTF_8), entry.getBytes("column_qualifier"));
+              assertEquals(Long.valueOf(timestampMicros), entry.getInt64("timestamp_micros"));
+              assertArrayEquals("cell value".getBytes(UTF_8), entry.getBytes("value"));
+
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
   private PCollection<MutateRowsRequest.Entry> buildPipeline(Instant startTime, Instant endTime) {
     return pipeline
         .apply(
@@ -388,6 +471,19 @@ public class BigtableChangeStreamIT {
         @Element KV<ByteString, ChangeStreamMutation> element,
         OutputReceiver<MutateRowsRequest.Entry> out) {
       out.output(element.getValue().toRowMutationEntry().toProto());
+    }
+  }
+
+  private static class TestSchemaTransformProvider
+      extends BigtableChangeStreamReadSchemaTransformProvider {
+
+    SchemaTransform createTransform(
+        BigtableChangeStreamReadConfiguration configuration,
+        Instant endTime,
+        BigtableClientIntegrationTestOverride clientOverride) {
+      return from(
+          configuration,
+          read -> BigtableTestUtils.configureChangeStreamForTest(read, endTime, clientOverride));
     }
   }
 }

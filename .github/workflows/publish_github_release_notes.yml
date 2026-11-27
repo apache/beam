@@ -27,7 +27,9 @@ on:
       RELEASE_VERSION:
         description: Release Version to update notes into beam repo 
         required: true
-permissions: read-all
+
+permissions:
+  contents: read
 
 jobs:
   set-properties:
@@ -43,6 +45,8 @@ jobs:
         uses: ./.github/actions/setup-default-test-properties
 
   publish_github_release_notes:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     needs: set-properties
     env:

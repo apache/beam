@@ -30,8 +30,11 @@ import logging
 from collections.abc import Iterable
 from collections.abc import Iterator
 
-import apache_beam as beam
 import torch
+from transformers import AutoModelForMaskedLM
+from transformers import AutoTokenizer
+
+import apache_beam as beam
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
@@ -39,8 +42,6 @@ from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandl
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
-from transformers import AutoModelForMaskedLM
-from transformers import AutoTokenizer
 
 
 def add_mask_to_last_word(text: str) -> tuple[str, str]:
@@ -52,7 +53,7 @@ def tokenize_sentence(
     text_and_mask: tuple[str, str],
     tokenizer: AutoTokenizer) -> tuple[str, dict[str, torch.Tensor]]:
   text, masked_text = text_and_mask
-  tokenized_sentence = tokenizer.encode_plus(masked_text, return_tensors="pt")
+  tokenized_sentence = tokenizer(masked_text, return_tensors="pt")
 
   # Workaround to manually remove batch dim until we have the feature to
   # add optional batching flag.

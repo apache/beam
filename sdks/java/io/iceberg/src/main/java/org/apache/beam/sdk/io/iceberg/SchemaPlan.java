@@ -288,7 +288,8 @@ abstract class SchemaPlan {
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       CommitSchemaUnion.Settings settings) {
     Verdicts verdicts = classifyForCreate(schemas);
-    @Nullable Schema union = foldForCreate(catalog, tableId, verdicts);
+    @Nullable Schema union =
+        foldForCreate(catalog, tableId, verdicts, settings.newTable.properties);
     if (union == null) {
       return Creation.nothingToCreate(verdicts);
     }
@@ -408,15 +409,23 @@ abstract class SchemaPlan {
    * Unions the accepted schemas into one on scratch create transactions that are never committed,
    * seeded by the most common schema; a schema that conflicts with the others moves to {@code
    * incompatible}, leaves {@code toMerge}, and the fold restarts without it. Returns the union, or
-   * null when no schema is left to create from. A REST catalog serves each create transaction as a
-   * stage-create request, so the caller needs table-create permission even in a dry run.
+   * null when no schema is left to create from. The scratch creates get the real create's table
+   * properties, so a configured format-version reaches them. A REST catalog serves each create
+   * transaction as a stage-create request, so the caller needs table-create permission even in a
+   * dry run.
    */
   private static @Nullable Schema foldForCreate(
-      Catalog catalog, TableIdentifier tableId, Verdicts verdicts) {
+      Catalog catalog,
+      TableIdentifier tableId,
+      Verdicts verdicts,
+      @Nullable Map<String, String> properties) {
+    Map<String, String> createProperties =
+        properties != null ? properties : Collections.<String, String>emptyMap();
     List<SchemaToMerge> toMerge = verdicts.toMerge;
     while (!toMerge.isEmpty()) {
       Schema seed = toMerge.get(0).schema;
-      Transaction scratch = catalog.buildTable(tableId, seed).createTransaction();
+      Transaction scratch =
+          catalog.buildTable(tableId, seed).withProperties(createProperties).createTransaction();
       @Nullable Conflict conflict = stageAll(scratch, toMerge.subList(1, toMerge.size()));
       if (conflict == null) {
         return scratch.table().schema();

@@ -21,7 +21,9 @@ from dataclasses import dataclass
 from unittest import mock
 
 try:
+  from anthropic import APIConnectionError
   from anthropic import APIStatusError
+  from anthropic import APITimeoutError
 
   from apache_beam.ml.inference.anthropic_inference import AnthropicModelHandler
   from apache_beam.ml.inference.anthropic_inference import _retry_on_appropriate_error
@@ -93,6 +95,13 @@ class RetryOnErrorTest(unittest.TestCase):
         response=mock.MagicMock(status_code=401, headers={}),
         body=None)
     self.assertFalse(_retry_on_appropriate_error(e))
+
+  def test_retry_on_connection_error(self):
+    request = mock.MagicMock()
+    self.assertTrue(
+        _retry_on_appropriate_error(APIConnectionError(request=request)))
+    self.assertTrue(
+        _retry_on_appropriate_error(APITimeoutError(request=request)))
 
   def test_no_retry_on_non_api_error(self):
     self.assertFalse(_retry_on_appropriate_error(ValueError("oops")))
@@ -167,14 +176,15 @@ class AnthropicModelHandlerTest(unittest.TestCase):
         request_fn=message_from_string,
         api_key='test-key-123')
     handler.create_client()
-    mock_anthropic.assert_called_once_with(api_key='test-key-123')
+    mock_anthropic.assert_called_once_with(
+        api_key='test-key-123', max_retries=0)
 
   @mock.patch('apache_beam.ml.inference.anthropic_inference.Anthropic')
   def test_create_client_from_env(self, mock_anthropic):
     handler = AnthropicModelHandler(
         model_name=_TEST_MODEL, request_fn=message_from_string)
     handler.create_client()
-    mock_anthropic.assert_called_once_with()
+    mock_anthropic.assert_called_once_with(max_retries=0)
 
   def test_request_returns_prediction_results(self):
     handler = AnthropicModelHandler(

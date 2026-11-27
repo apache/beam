@@ -209,6 +209,13 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
           | beam.ParDo(AddIndex()),
           equal_to(expected))
 
+  def test_job_outlives_job_server_timeout(self):
+    # The timeout bounds requests to the job service, not the job itself.
+    options = self.create_options()
+    options.view_as(PortableOptions).job_server_timeout = 1
+    with beam.Pipeline(self.get_runner(), options) as p:
+      _ = p | beam.Create([5]) | beam.Map(time.sleep)
+
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
   def test_sdf_default_truncate_when_bounded(self):

@@ -108,6 +108,10 @@ public class LiveResultView implements LiveResult.Viewer {
       Display display = new Display(terminal, true);
       Attributes original = terminal.enterRawMode();
       terminal.puts(Capability.enter_ca_mode);
+      // Terminals like tmux draw lines from a second character set, which has to be loaded before
+      // the table's lines show up. Cloud Shell runs in tmux, and shows x and q for │ and ─ without
+      // it.
+      terminal.puts(Capability.ena_acs);
       terminal.puts(Capability.keypad_xmit);
       terminal.puts(Capability.cursor_invisible);
       try {

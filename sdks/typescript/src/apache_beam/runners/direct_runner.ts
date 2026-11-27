@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import * as uuid from "uuid";
+import { randomUUID } from "crypto";
 import * as protobufjs from "protobufjs";
 import Long from "long";
 
@@ -104,7 +104,7 @@ class DirectRunner extends Runner {
 
   async runPipeline(p: runnerApi.Pipeline): Promise<PipelineResult> {
     const stateProvider = new InMemoryStateProvider();
-    const stateCacheRef = uuid.v4();
+    const stateCacheRef = randomUUID();
     DirectRunner.inMemoryStatesRefs.set(stateCacheRef, stateProvider);
 
     try {

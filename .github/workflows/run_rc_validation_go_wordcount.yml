@@ -62,19 +62,19 @@ jobs:
       - name: Setup Go Module and Fetch RC
         id: setup_go
         run: |
-          TEMP_DIR="go-rc-test-${{ github.run_id }}"
-          mkdir $TEMP_DIR
-          wget -O $TEMP_DIR/wordcount.go https://raw.githubusercontent.com/apache/beam/refs/heads/master/sdks/go/examples/wordcount/wordcount.go
-          cd $TEMP_DIR
+          TEMP_DIR="go-rc-test-${GITHUB_RUN_ID}"
+          mkdir "$TEMP_DIR"
+          wget -O "$TEMP_DIR/wordcount.go" https://raw.githubusercontent.com/apache/beam/refs/heads/master/sdks/go/examples/wordcount/wordcount.go
+          cd "$TEMP_DIR"
           go mod init rc-test
-          go get github.com/apache/beam/sdks/v2/go/pkg/beam@${{ env.RC_TAG }}
+          go get "github.com/apache/beam/sdks/v2/go/pkg/beam@${RC_TAG}"
           go mod tidy
           echo "work_dir=$TEMP_DIR" >> $GITHUB_OUTPUT # Output relative path
 
       # --- Prism Steps ---
       - name: Download Input File from GCS (Prism)
         working-directory: ./${{ steps.setup_go.outputs.work_dir }}
-        run: gcloud storage cp ${{ env.GCS_INPUT_PATH }} ./kinglear.txt
+        run: gcloud storage cp "${GCS_INPUT_PATH}" ./kinglear.txt
 
       - name: Run Go WordCount with PrismRunner
         working-directory: ./${{ steps.setup_go.outputs.work_dir }}
@@ -107,15 +107,15 @@ jobs:
         run: |
           echo "Using output path: $GCS_OUTPUT_PATH"
           go run wordcount.go \
-            --input ${{ env.GCS_INPUT_PATH }} \
-            --output $GCS_OUTPUT_PATH \
+            --input "${GCS_INPUT_PATH}" \
+            --output "$GCS_OUTPUT_PATH" \
             --runner=DataflowRunner \
-            --project=${{ env.GCP_PROJECT_ID }} \
-            --region=${{ env.GCP_REGION }} \
-            --temp_location=${{ env.GCS_TEMP_LOCATION }} \
-            --staging_location=${{ env.GCS_STAGING_LOCATION }} \
+            --project="${GCP_PROJECT_ID}" \
+            --region="${GCP_REGION}" \
+            --temp_location="${GCS_TEMP_LOCATION}" \
+            --staging_location="${GCS_STAGING_LOCATION}" \
             --environment_type=DOCKER \
-            --environment_config=apache/beam_go_sdk:${{ env.CONTAINER_TAG }}
+            --environment_config="apache/beam_go_sdk:${CONTAINER_TAG}"
 
       - name: Check Dataflow Output in GCS
         working-directory: ./${{ steps.setup_go.outputs.work_dir }} # Added working directory for consistency, though not strictly needed for gcloud storage
@@ -138,6 +138,10 @@ jobs:
       - name: Cleanup Temporary Directory
         if: always() # Ensure cleanup runs even if previous steps fail
         working-directory: ./ # Run from the root workspace dir
+        env:
+          WORK_DIR: ${{ steps.setup_go.outputs.work_dir }}
         run: |
-          echo "Cleaning up temporary directory: ${{ steps.setup_go.outputs.work_dir }}"
-          rm -rf ${{ steps.setup_go.outputs.work_dir }}
+          echo "Cleaning up temporary directory: ${WORK_DIR}"
+          if [[ -n "${WORK_DIR}" && "${WORK_DIR}" == go-rc-test-* ]]; then
+            rm -rf "./${WORK_DIR}"
+          fi

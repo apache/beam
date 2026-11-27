@@ -160,6 +160,27 @@ class LoadCountingModelHandler(base.ModelHandler[int, int, FakeModel]):
     return [model.predict(x) for x in batch]
 
 
+class BlockingLoadModelHandler(base.ModelHandler[int, int, FakeModel]):
+  """load_model() waits until finish_load is set, to test in-flight loads."""
+  def __init__(self):
+    self.load_count = 0
+    self.load_started = threading.Event()
+    self.finish_load = threading.Event()
+
+  def load_model(self):
+    self.load_count += 1
+    self.load_started.set()
+    if not self.finish_load.wait(timeout=60):
+      raise TimeoutError('finish_load was never set')
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    pass
+
+
 class FakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def __init__(
       self,
@@ -389,6 +410,12 @@ class FakeModelHandlerExpectedInferenceArgs(FakeModelHandler):
 
 
 class RunInferenceBaseTest(unittest.TestCase):
+  def tearDown(self):
+    for p in multiprocessing.active_children():
+      if p.is_alive():
+        p.terminate()
+        p.join(timeout=2)
+
   def test_run_inference_impl_simple_examples(self):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
@@ -405,6 +432,21 @@ class RunInferenceBaseTest(unittest.TestCase):
       actual = pcoll | base.RunInference(
           FakeModelHandler(multi_process_shared=True))
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_multi_process_shared_spawns_dedicated_processes(self):
+    worker_pid = os.getpid()
+    dofn = base._RunInferenceDoFn(
+        _PidModelHandler(model_copies=2),
+        FakeClock(),
+        metrics_namespace=None,
+        model_tag='pid_test_' + uuid.uuid4().hex)
+    dofn.setup()
+    results = [dofn.process([i], None, None)[0] for i in range(4)]
+    model_pids = {load_pid for load_pid, _ in results}
+    self.assertEqual(len(model_pids), 2)
+    self.assertNotIn(worker_pid, model_pids)
+    for load_pid, infer_pid in results:
+      self.assertEqual(load_pid, infer_pid)
 
   def test_run_inference_unpicklable_data_multi_process_shared(self):
     with self.assertRaisesRegex(Exception, 'Pickling error encountered'):
@@ -1187,6 +1229,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       assert_that(
           bad_without_error, equal_to(expected_bad), label='assert:failures')
 
+  @pytest.mark.no_xdist
   @unittest.skipIf(
       sys.platform == "win32" or sys.version_info < (3, 11),
       "This test relies on the __del__ lifecycle method, but __del__ does " +
@@ -1201,13 +1244,13 @@ class RunInferenceBaseTest(unittest.TestCase):
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
         # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 15
-        expected_good = [1] * 15
+        examples = [20] + [1] * 20
+        expected_good = [1] * 20
         expected_bad = [20]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
-              0, True, tmp_path)).with_exception_handling(timeout=5)
+              0, True, tmp_path)).with_exception_handling(timeout=9)
 
         assert_that(main, equal_to(expected_good), label='assert:inferences')
 
@@ -2167,6 +2210,125 @@ class RunInferenceBaseTest(unittest.TestCase):
     mm.load('key1')
     self.assertEqual(['key3', 'key1'], list(mm._tag_map.keys()))
 
+  def test_model_handler_manager_retries_failed_load(self):
+    # state=100 makes FakeStatefulModel raise when the model is loaded.
+    mh1 = FakeModelHandler(state=100)
+    mh2 = FakeModelHandler(state=2)
+    mm = base._ModelHandlerManager(mh_map={'key1': mh1, 'key2': mh2})
+    mm.increment_max_models(1)
+    with self.assertRaisesRegex(Exception, 'Oh no'):
+      mm.load('key1')
+    self.assertEqual([], list(mm._tag_map.keys()))
+
+    # The next load of key1 loads the model again and keeps it.
+    mh1._state = 1
+    stats = mm.load('key1')
+    self.assertIsNotNone(stats.load_latency)
+    # Use bad_mh's load function to make sure the model is already stored.
+    bad_mh = FakeModelHandler(state=100)
+    model1 = multi_process_shared.MultiProcessShared(
+        bad_mh.load_model, tag=stats.model_tag).acquire()
+    self.assertEqual(1, model1.predict(10))
+    self.assertIsNone(mm.load('key1').load_latency)
+
+    # Evicting key1 to load key2 works.
+    mm.load('key2')
+    self.assertEqual(['key2'], list(mm._tag_map.keys()))
+
+  def test_model_handler_manager_unknown_key_leaves_no_tag(self):
+    mm = base._ModelHandlerManager(mh_map={'key1': FakeModelHandler(state=1)})
+    with self.assertRaises(KeyError):
+      mm.load('missing')
+    self.assertEqual([], list(mm._tag_map.keys()))
+
+  def test_model_handler_manager_with_max_models_zero_keeps_new_model(self):
+    mm = base._ModelHandlerManager(
+        mh_map={
+            'key1': FakeModelHandler(state=1),
+            'key2': FakeModelHandler(state=2)
+        })
+    mm.increment_max_models(0)
+    tag1 = mm.load('key1').model_tag
+    self.assertEqual({'key1': tag1}, dict(mm._tag_map))
+    self.assertEqual([tag1], list(mm._proxy_map.keys()))
+    tag2 = mm.load('key2').model_tag
+    self.assertEqual({'key2': tag2}, dict(mm._tag_map))
+    self.assertEqual([tag2], list(mm._proxy_map.keys()))
+
+  def _start_blocking_load(self, mm, key):
+    """Starts mm.load(key) on a thread and waits until load_model runs."""
+    mh = mm._mh_map[key]
+    results = []
+    thread = threading.Thread(target=lambda: results.append(mm.load(key)))
+    # Unblock the load even if the test fails, so the thread doesn't wait for
+    # the full timeout.
+    self.addCleanup(mh.finish_load.set)
+    thread.start()
+    self.assertTrue(mh.load_started.wait(timeout=60))
+    return thread, results
+
+  def test_model_handler_manager_concurrent_loads_share_model(self):
+    mh = BlockingLoadModelHandler()
+    mm = base._ModelHandlerManager(mh_map={'key1': mh})
+    thread, results = self._start_blocking_load(mm, 'key1')
+
+    # A second load of the same key while the first one is still loading
+    # returns the same tag instead of loading another copy of the model.
+    tag = mm.load('key1').model_tag
+
+    mh.finish_load.set()
+    thread.join(timeout=60)
+    self.assertEqual(tag, results[0].model_tag)
+    self.assertEqual(1, mh.load_count)
+    self.assertEqual([tag], list(mm._proxy_map.keys()))
+
+  def test_model_handler_manager_evicts_model_that_is_loading(self):
+    mh1 = BlockingLoadModelHandler()
+    mm = base._ModelHandlerManager(
+        mh_map={
+            'key1': mh1, 'key2': FakeModelHandler(state=2)
+        })
+    mm.increment_max_models(1)
+    thread1, results1 = self._start_blocking_load(mm, 'key1')
+
+    # Loading key2 evicts key1 while key1's model is still loading. key2's own
+    # load then waits for key1's load, since models are created one at a time.
+    results2 = []
+    thread2 = threading.Thread(target=lambda: results2.append(mm.load('key2')))
+    thread2.start()
+    deadline = time.time() + 60
+    while 'key1' in mm._tag_map and time.time() < deadline:
+      time.sleep(0.01)
+    self.assertNotIn('key1', mm._tag_map)
+
+    mh1.finish_load.set()
+    thread1.join(timeout=60)
+    thread2.join(timeout=60)
+    self.assertEqual(1, len(results1))
+    self.assertEqual(1, len(results2))
+    tag2 = results2[0].model_tag
+    # key1's model is released when its load finishes, instead of being kept
+    # without an entry in _tag_map.
+    self.assertEqual({'key2': tag2}, dict(mm._tag_map))
+    self.assertEqual([tag2], list(mm._proxy_map.keys()))
+
+  def test_model_handler_manager_updates_model_that_is_loading(self):
+    mh1 = BlockingLoadModelHandler()
+    mm = base._ModelHandlerManager(mh_map={'key1': mh1})
+    thread, _ = self._start_blocking_load(mm, 'key1')
+
+    mm.update_model_handler('key1', 'new/path', 'key1')
+    self.assertEqual({}, dict(mm._tag_map))
+
+    mh1.finish_load.set()
+    thread.join(timeout=60)
+    self.assertEqual({}, dict(mm._tag_map))
+    self.assertEqual({}, mm._proxy_map)
+
+    # The next load uses the updated model handler.
+    mm.load('key1')
+    self.assertEqual(2, mh1.load_count)
+
   def test_keyed_model_handler_max_models_hint_with_handler_copies(self):
     mhs = [
         base.KeyModelMapping([k],
@@ -2226,7 +2388,7 @@ class RunInferenceBaseTest(unittest.TestCase):
   def test_run_inference_watch_file_pattern_side_input_label(self):
     pipeline = TestPipeline()
     # label of the WatchPattern transform.
-    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    side_input_str = 'WatchFilePattern/SelectLatestModel/EmitLatestModel'
     from apache_beam.ml.inference.utils import WatchFilePattern
     file_pattern_side_input = (
         pipeline
@@ -2238,7 +2400,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_watch_file_pattern_keyword_arg_side_input_label(self):
     # label of the WatchPattern transform.
-    side_input_str = 'WatchFilePattern/ApplyGlobalWindow'
+    side_input_str = 'WatchFilePattern/SelectLatestModel/EmitLatestModel'
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result_pcoll = pcoll | base.RunInference(
@@ -3379,6 +3541,31 @@ class ModelManagerTest(unittest.TestCase):
           len(dofn._model.all_models()), 1, 'Expected 1 model for model_v2')
     finally:
       dofn._model.force_reset()
+
+
+class _PidModel:
+  def __init__(self):
+    self.load_pid = os.getpid()
+
+  def predict(self, example: int) -> tuple[int, int]:
+    return (self.load_pid, os.getpid())
+
+
+class _PidModelHandler(base.ModelHandler[int, tuple[int, int], _PidModel]):
+  def __init__(self, model_copies: int = 1):
+    self._model_copies = model_copies
+
+  def load_model(self) -> _PidModel:
+    return _PidModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(el) for el in batch]
+
+  def share_model_across_processes(self) -> bool:
+    return True
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
 
 if __name__ == '__main__':

@@ -621,8 +621,12 @@ class HuggingFaceModelHandlerTensor(ModelHandler[Union['tf.Tensor',
 
 def _default_pipeline_inference_fn(
     batch, pipeline, inference_args) -> Iterable[PredictionResult]:
-  predicitons = pipeline(batch, **inference_args)
-  return predicitons
+  predictions = pipeline(batch, **inference_args)
+  # Some Hugging Face pipelines (e.g. QuestionAnsweringPipeline) return a
+  # single dict instead of a list of dicts when given a single-element batch.
+  if isinstance(predictions, dict) and len(batch) == 1:
+    predictions = [predictions]
+  return predictions
 
 
 class HuggingFacePipelineModelHandler(ModelHandler[str,
