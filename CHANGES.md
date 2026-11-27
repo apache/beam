@@ -152,6 +152,7 @@
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) `WindowFnTestUtils.runWindowFn`, `runWindowFnWithValue` and `set` are deprecated; use `WindowFnTestUtils.assignedWindows` instead ([#18458](https://github.com/apache/beam/issues/18458)).
 
 ## Bugfixes
 
