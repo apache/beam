@@ -27,3 +27,14 @@ func TestFullMetadata(t *testing.T) {
 		t.Errorf("FullMetadata() set FullMetadata = %v, want true", got)
 	}
 }
+
+func TestSchemaChangeEvents(t *testing.T) {
+	dc := debeziumConfig{readSchema: &readFromDebeziumSchema{}}
+	if dc.readSchema.SchemaChangeEvents != nil {
+		t.Fatalf("SchemaChangeEvents = %v by default, want nil", *dc.readSchema.SchemaChangeEvents)
+	}
+	SchemaChangeEvents()(&dc)
+	if got := dc.readSchema.SchemaChangeEvents; got == nil || !*got {
+		t.Errorf("SchemaChangeEvents() set SchemaChangeEvents = %v, want true", got)
+	}
+}

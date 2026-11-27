@@ -149,6 +149,8 @@ public class DebeziumIO {
 
     abstract @Nullable Boolean getFullMetadata();
 
+    abstract @Nullable Boolean getSchemaChangeEvents();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -172,6 +174,8 @@ public class DebeziumIO {
       abstract Builder<T> setOffsetRetainer(OffsetRetainer retainer);
 
       abstract Builder<T> setFullMetadata(Boolean fullMetadata);
+
+      abstract Builder<T> setSchemaChangeEvents(Boolean schemaChangeEvents);
 
       abstract Read<T> build();
     }
@@ -327,24 +331,69 @@ public class DebeziumIO {
     }
 
     /**
-     * Returns the format function to use, taking {@link #withFullMetadata(boolean)} into account.
+     * Adds the schema change payload ({@code databaseName}, {@code schemaName}, {@code ddl}, {@code
+     * ts_ms} and {@code tableChanges}) to schema change events when reading as JSON.
      *
-     * @throws IllegalArgumentException if full metadata is requested but the format function is not
-     *     a {@link SourceRecordJson.SourceRecordJsonMapper}.
+     * <p>This only changes how schema change events are mapped to JSON; it doesn't make the
+     * connector emit them. Debezium emits them by default, but drops them when the connector has
+     * {@code include.schema.changes=false}, as in the class example above. Leave that property
+     * unset or set it to {@code true} to receive them.
+     *
+     * <p>Only applies to {@link DebeziumIO#readAsJson()} / {@link
+     * SourceRecordJson.SourceRecordJsonMapper}; combining it with a custom {@link
+     * #withFormatFunction(SourceRecordMapper)} fails with an {@link IllegalArgumentException} when
+     * the transform is expanded. Default false.
+     *
+     * @param schemaChangeEvents Whether to emit the schema change payload.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withSchemaChangeEvents(boolean schemaChangeEvents) {
+      return toBuilder().setSchemaChangeEvents(schemaChangeEvents).build();
+    }
+
+    /**
+     * Returns the format function to use, taking {@link #withFullMetadata(boolean)} and {@link
+     * #withSchemaChangeEvents(boolean)} into account.
+     *
+     * <p>For a {@link SourceRecordJson.SourceRecordJsonMapper}, a flag that isn't set on this
+     * {@code Read} keeps the mapper's own value, so {@code withFormatFunction(new
+     * SourceRecordJsonMapper(true)).withSchemaChangeEvents(true)} keeps the full metadata. A flag
+     * set on this {@code Read} takes precedence over the mapper's value.
+     *
+     * @throws IllegalArgumentException if full metadata or schema change events are requested but
+     *     the format function is not a {@link SourceRecordJson.SourceRecordJsonMapper}.
      */
     SourceRecordMapper<T> resolveFormatFunction() {
       SourceRecordMapper<T> formatFunction = getFormatFunction();
-      if (!Boolean.TRUE.equals(getFullMetadata())) {
+      @Nullable Boolean fullMetadataFlag = getFullMetadata();
+      @Nullable Boolean schemaChangeEventsFlag = getSchemaChangeEvents();
+      if (!(formatFunction instanceof SourceRecordJson.SourceRecordJsonMapper)) {
+        boolean fullMetadata = Boolean.TRUE.equals(fullMetadataFlag);
+        boolean schemaChangeEvent = Boolean.TRUE.equals(schemaChangeEventsFlag);
+        if (fullMetadata || schemaChangeEvent) {
+          throw new IllegalArgumentException(
+              (fullMetadata ? "withFullMetadata(true)" : "withSchemaChangeEvents(true)")
+                  + " only applies to readAsJson() / SourceRecordJsonMapper");
+        }
         return formatFunction;
       }
-      if (formatFunction instanceof SourceRecordJson.SourceRecordJsonMapper) {
-        @SuppressWarnings("unchecked")
-        SourceRecordMapper<T> fullMetadataMapper =
-            (SourceRecordMapper<T>) new SourceRecordJson.SourceRecordJsonMapper(true);
-        return fullMetadataMapper;
+      SourceRecordJson.SourceRecordJsonMapper currentMapper =
+          (SourceRecordJson.SourceRecordJsonMapper) formatFunction;
+      boolean fullMetadata =
+          fullMetadataFlag != null ? fullMetadataFlag : currentMapper.isFullMetadata();
+      boolean schemaChangeEvents =
+          schemaChangeEventsFlag != null
+              ? schemaChangeEventsFlag
+              : currentMapper.isSchemaChangeEvents();
+      if (fullMetadata == currentMapper.isFullMetadata()
+          && schemaChangeEvents == currentMapper.isSchemaChangeEvents()) {
+        return formatFunction;
       }
-      throw new IllegalArgumentException(
-          "withFullMetadata(true) only applies to readAsJson() / SourceRecordJsonMapper");
+      @SuppressWarnings("unchecked")
+      SourceRecordMapper<T> jsonMapper =
+          (SourceRecordMapper<T>)
+              new SourceRecordJson.SourceRecordJsonMapper(fullMetadata, schemaChangeEvents);
+      return jsonMapper;
     }
 
     protected Schema getRecordSchema() {

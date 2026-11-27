@@ -18,6 +18,7 @@
 package org.apache.beam.io.debezium;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.debezium.schema.SchemaFactory;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.GsonBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonElement;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.annotations.SerializedName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -91,6 +93,26 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * ({@link #loadTransactionEvent}): {@code status}, {@code id}, {@code ts_ms}, {@code event_count}
  * and {@code data_collections}.
  *
+ * <h3>Schema change events</h3>
+ *
+ * <p>The MySQL, Oracle, SQL Server and Db2 connectors emit a schema change event for each DDL
+ * statement they capture, unless the connector has {@code include.schema.changes=false} (Debezium
+ * defaults it to true). These events are also emitted during the initial snapshot: for MySQL, a
+ * {@code DROP TABLE IF EXISTS} and a {@code CREATE TABLE} per captured table, plus database level
+ * statements with an empty {@code tableChanges}. With full metadata, the {@code snapshot} field of
+ * {@code metadata} tells them apart from live schema changes.
+ *
+ * <p>By default, they are mapped like a data change event, with {@code metadata} and a null {@code
+ * before} and {@code after}. When constructed with {@code schemaChangeEvents = true} (see {@link
+ * SourceRecordJsonMapper#SourceRecordJsonMapper(boolean, boolean)} and {@link
+ * DebeziumIO.Read#withSchemaChangeEvents(boolean)}), they keep {@code metadata}, {@code before} and
+ * {@code after} (so full metadata still applies) and gain the schema change payload ({@link
+ * #loadSchemaChangeEvent}): {@code databaseName}, {@code schemaName}, {@code ddl}, {@code ts_ms}
+ * and {@code tableChanges}, which lists each changed table and its columns. For a {@code DROP}, the
+ * entry's {@code table} is null and only its {@code type} and {@code id} are set. The SQL Server
+ * and Db2 connectors don't capture the DDL statement, so for them {@code ddl} is the literal {@code
+ * "N/A"} and {@code tableChanges} describes the change.
+ *
  * <h3>Usage Example</h3>
  *
  * <p>Map each SourceRecord to JSON
@@ -124,6 +146,7 @@ public class SourceRecordJson {
   private final @Nullable Struct value;
   private final @Nullable Event event;
   private final @Nullable TransactionEvent transactionEvent;
+  private final @Nullable SchemaChangeEvent schemaChangeEvent;
   private final Map<String, Object> metadataExtras;
 
   /**
@@ -143,6 +166,21 @@ public class SourceRecordJson {
    *     to {@code metadata}
    */
   public SourceRecordJson(@Nullable SourceRecord sourceRecord, boolean fullMetadata) {
+    this(sourceRecord, fullMetadata, false);
+  }
+
+  /**
+   * Initializer.
+   *
+   * @param sourceRecord retrieved SourceRecord using a supported SourceConnector
+   * @param fullMetadata whether to add {@code op} and the remaining Debezium {@code source} fields
+   *     to {@code metadata}
+   * @param schemaChangeEvents whether to add the schema change payload ({@code databaseName},
+   *     {@code schemaName}, {@code ddl}, {@code ts_ms} and {@code tableChanges}) to schema change
+   *     events
+   */
+  public SourceRecordJson(
+      @Nullable SourceRecord sourceRecord, boolean fullMetadata, boolean schemaChangeEvents) {
     if (sourceRecord == null) {
       throw new IllegalArgumentException();
     }
@@ -152,10 +190,12 @@ public class SourceRecordJson {
     if (this.value == null) {
       this.event = new Event(null, null, null, null);
       this.transactionEvent = null;
+      this.schemaChangeEvent = null;
       this.metadataExtras = Collections.emptyMap();
     } else if (isTransactionMetadataEvent(sourceRecord.keySchema())) {
       this.event = null;
       this.transactionEvent = this.loadTransactionEvent();
+      this.schemaChangeEvent = null;
       this.metadataExtras = Collections.emptyMap();
     } else {
       Event.Metadata metadata = this.loadMetadata();
@@ -165,6 +205,10 @@ public class SourceRecordJson {
 
       this.event = new Event(metadata, before, after, transaction);
       this.transactionEvent = null;
+      this.schemaChangeEvent =
+          schemaChangeEvents && isSchemaChangeEvent(sourceRecord.keySchema())
+              ? this.loadSchemaChangeEvent()
+              : null;
       this.metadataExtras =
           fullMetadata && metadata != null ? this.loadMetadataExtras() : Collections.emptyMap();
     }
@@ -330,6 +374,64 @@ public class SourceRecordJson {
   }
 
   /**
+   * Extracts the payload of a schema change event, emitted for each DDL statement unless the
+   * connector has {@code include.schema.changes=false}.
+   *
+   * @return SchemaChangeEvent
+   */
+  private SchemaChangeEvent loadSchemaChangeEvent() {
+    @Nullable List<SchemaChangeEvent.TableChange> tableChanges = null;
+    @Nullable List<Struct> tableChangeStructs = getArrayOrNull(this.value, "tableChanges");
+    if (tableChangeStructs != null) {
+      tableChanges = new ArrayList<>();
+      for (Struct change : tableChangeStructs) {
+        // Debezium only sets the id of a dropped table, so its table is null.
+        @Nullable Struct table = getStructOrNull(change, "table");
+        tableChanges.add(
+            new SchemaChangeEvent.TableChange(
+                getStringOrNull(change, "type"),
+                getStringOrNull(change, "id"),
+                table == null
+                    ? null
+                    : new SchemaChangeEvent.Table(
+                        getStringOrNull(table, "defaultCharsetName"),
+                        getStringOrNull(table, "comment"),
+                        getArrayOrNull(table, "primaryKeyColumnNames"),
+                        loadSchemaChangeEventColumns(table))));
+      }
+    }
+
+    return new SchemaChangeEvent(
+        getStringOrNull(this.value, "databaseName"),
+        getStringOrNull(this.value, "schemaName"),
+        getStringOrNull(this.value, "ddl"),
+        getInt64OrNull(this.value, "ts_ms"),
+        tableChanges);
+  }
+
+  /**
+   * Extracts the columns of a schema change's table. Each column becomes a map of every field in
+   * the column's schema, in schema order, so all attributes the connector emits are kept.
+   *
+   * @return columns, or null if the table's schema has no columns field
+   */
+  private static @Nullable List<Map<String, Object>> loadSchemaChangeEventColumns(Struct table) {
+    @Nullable List<Struct> columnStructs = getArrayOrNull(table, "columns");
+    if (columnStructs == null) {
+      return null;
+    }
+    List<Map<String, Object>> columns = new ArrayList<>();
+    for (Struct column : columnStructs) {
+      Map<String, Object> fields = new LinkedHashMap<>();
+      for (Field field : column.schema().fields()) {
+        fields.put(field.name(), toJsonFriendly(column.get(field)));
+      }
+      columns.add(fields);
+    }
+    return columns;
+  }
+
+  /**
    * Transforms the extracted data to a JSON string.
    *
    * @return JSON String
@@ -338,12 +440,20 @@ public class SourceRecordJson {
     if (this.transactionEvent != null) {
       return this.transactionEvent.toJson();
     }
-    return this.event.toJson(this.metadataExtras);
+    JsonObject tree = this.event.toJsonTree(this.metadataExtras);
+    if (this.schemaChangeEvent != null) {
+      for (Map.Entry<String, JsonElement> entry :
+          GSON.toJsonTree(this.schemaChangeEvent).getAsJsonObject().entrySet()) {
+        tree.add(entry.getKey(), entry.getValue());
+      }
+    }
+    return GSON.toJson(tree);
   }
 
   /** {@link SourceRecordJson} implementation. */
   public static class SourceRecordJsonMapper implements SourceRecordMapper<String> {
     private final boolean fullMetadata;
+    private final boolean schemaChangeEvents;
 
     /** Creates a mapper that emits the default metadata. */
     public SourceRecordJsonMapper() {
@@ -357,12 +467,34 @@ public class SourceRecordJson {
      *     fields to {@code metadata}
      */
     public SourceRecordJsonMapper(boolean fullMetadata) {
+      this(fullMetadata, false);
+    }
+
+    /**
+     * Creates a mapper.
+     *
+     * @param fullMetadata whether to add {@code op} and the remaining Debezium {@code source}
+     *     fields to {@code metadata}
+     * @param schemaChangeEvents whether to add the schema change payload to schema change events
+     */
+    public SourceRecordJsonMapper(boolean fullMetadata, boolean schemaChangeEvents) {
       this.fullMetadata = fullMetadata;
+      this.schemaChangeEvents = schemaChangeEvents;
+    }
+
+    /** Whether this mapper adds the full Debezium metadata. */
+    boolean isFullMetadata() {
+      return fullMetadata;
+    }
+
+    /** Whether this mapper adds the schema change payload to schema change events. */
+    boolean isSchemaChangeEvents() {
+      return schemaChangeEvents;
     }
 
     @Override
     public String mapSourceRecord(SourceRecord sourceRecord) throws Exception {
-      return new SourceRecordJson(sourceRecord, fullMetadata).toJson();
+      return new SourceRecordJson(sourceRecord, fullMetadata, schemaChangeEvents).toJson();
     }
   }
 
@@ -410,19 +542,30 @@ public class SourceRecordJson {
      * @return JSON String
      */
     String toJson(Map<String, Object> extras) {
+      return GSON.toJson(toJsonTree(extras));
+    }
+
+    /**
+     * Transforms the Event to a JSON tree, appending the given extra keys to {@code metadata} after
+     * {@code table}. The {@code transaction} key is omitted when the record has none.
+     *
+     * @param extras Additional metadata keys, in iteration order
+     * @return JSON tree
+     */
+    JsonObject toJsonTree(Map<String, Object> extras) {
       JsonObject tree = GSON.toJsonTree(this).getAsJsonObject();
       if (transaction == null) {
         tree.remove("transaction");
       }
       if (extras.isEmpty() || metadata == null) {
-        return GSON.toJson(tree);
+        return tree;
       }
       // Gson can't flatten a map into an object, so append the extras to the metadata tree.
       JsonObject metadataJson = tree.getAsJsonObject("metadata");
       for (Map.Entry<String, Object> extra : extras.entrySet()) {
         metadataJson.add(extra.getKey(), GSON.toJsonTree(extra.getValue()));
       }
-      return GSON.toJson(tree);
+      return tree;
     }
 
     /** Depicts the metadata within a SourceRecord. It has valuable fields. */
@@ -585,11 +728,107 @@ public class SourceRecordJson {
   }
 
   /**
+   * Depicts the payload of a schema change SourceRecord, added to its JSON after {@code metadata},
+   * {@code before} and {@code after}.
+   */
+  @SuppressWarnings("unused") // Unused params are validated as JSON
+  static class SchemaChangeEvent implements Serializable {
+
+    private final @Nullable String databaseName;
+    private final @Nullable String schemaName;
+    private final @Nullable String ddl;
+
+    @SerializedName("ts_ms")
+    private final @Nullable Long tsMs;
+
+    private final @Nullable List<TableChange> tableChanges;
+
+    /**
+     * SchemaChangeEvent Initializer.
+     *
+     * @param databaseName Database the DDL statement was applied to
+     * @param schemaName Schema the DDL statement was applied to, null for MySQL
+     * @param ddl DDL statement that changed the schema, the literal {@code "N/A"} for SQL Server
+     *     and Db2
+     * @param tsMs Time the connector processed the event, in milliseconds
+     * @param tableChanges Tables created, altered or dropped by the DDL statement
+     */
+    public SchemaChangeEvent(
+        @Nullable String databaseName,
+        @Nullable String schemaName,
+        @Nullable String ddl,
+        @Nullable Long tsMs,
+        @Nullable List<TableChange> tableChanges) {
+      this.databaseName = databaseName;
+      this.schemaName = schemaName;
+      this.ddl = ddl;
+      this.tsMs = tsMs;
+      this.tableChanges = tableChanges;
+    }
+
+    /** Depicts an entry of the tableChanges field within SourceRecord. */
+    static class TableChange implements Serializable {
+      private final @Nullable String type;
+      private final @Nullable String id;
+      private final @Nullable Table table;
+
+      /**
+       * TableChange Initializer.
+       *
+       * @param type Kind of change: {@code CREATE}, {@code ALTER} or {@code DROP}
+       * @param id Fully qualified table id, for example {@code "inventory"."customers"}
+       * @param table Table definition after the change, null for a {@code DROP}
+       */
+      public TableChange(@Nullable String type, @Nullable String id, @Nullable Table table) {
+        this.type = type;
+        this.id = id;
+        this.table = table;
+      }
+    }
+
+    /** Depicts the table field of a tableChanges entry within SourceRecord. */
+    static class Table implements Serializable {
+      private final @Nullable String defaultCharsetName;
+      private final @Nullable String comment;
+      private final @Nullable List<String> primaryKeyColumnNames;
+      private final @Nullable List<Map<String, Object>> columns;
+
+      /**
+       * Table Initializer.
+       *
+       * @param defaultCharsetName Default character set of the table
+       * @param comment Table comment
+       * @param primaryKeyColumnNames Names of the primary key columns
+       * @param columns Columns of the table, each a map of every field Debezium emits for it
+       */
+      public Table(
+          @Nullable String defaultCharsetName,
+          @Nullable String comment,
+          @Nullable List<String> primaryKeyColumnNames,
+          @Nullable List<Map<String, Object>> columns) {
+        this.defaultCharsetName = defaultCharsetName;
+        this.comment = comment;
+        this.primaryKeyColumnNames = primaryKeyColumnNames;
+        this.columns = columns;
+      }
+    }
+  }
+
+  /**
    * Whether the record is a transaction BEGIN/END event, emitted when {@code
    * provide.transaction.metadata} is enabled. These are identified by their key schema name.
    */
   private static boolean isTransactionMetadataEvent(@Nullable Schema keySchema) {
     return keySchema != null && SCHEMA_TRANSACTION_METADATA_EVENT_KEY_NAME.equals(keySchema.name());
+  }
+
+  /**
+   * Whether the record is a schema change event, emitted for each DDL statement unless {@code
+   * include.schema.changes} is disabled. These are identified by their key schema name, {@code
+   * io.debezium.connector.<connector>.SchemaChangeKey}, for every connector.
+   */
+  private static boolean isSchemaChangeEvent(@Nullable Schema keySchema) {
+    return SchemaFactory.get().isSchemaChangeSchema(keySchema);
   }
 
   /** Returns the string field's value, or null if the struct's schema has no such field. */
@@ -605,5 +844,10 @@ public class SourceRecordJson {
   /** Returns the array field's value, or null if the struct's schema has no such field. */
   private static <T> @Nullable List<T> getArrayOrNull(Struct s, String name) {
     return s.schema().field(name) != null ? s.getArray(name) : null;
+  }
+
+  /** Returns the struct field's value, or null if the struct's schema has no such field. */
+  private static @Nullable Struct getStructOrNull(Struct s, String name) {
+    return s.schema().field(name) != null ? s.getStruct(name) : null;
   }
 }

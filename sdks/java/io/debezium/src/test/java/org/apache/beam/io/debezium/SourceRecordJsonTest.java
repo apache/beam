@@ -22,8 +22,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import io.debezium.schema.SchemaFactory;
+import io.debezium.schema.SchemaNameAdjuster;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonArray;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonObject;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.gson.JsonParser;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -249,6 +256,247 @@ public class SourceRecordJsonTest implements Serializable {
     String json = new SourceRecordJson(buildEnvelopeRecord(postgresSource(), null), true).toJson();
     assertFalse(json.contains("\"op\""));
     assertTrue(json.contains("\"lsn\":37094192"));
+  }
+
+  @Test
+  public void testSchemaChangeEventDisabledKeepsDataChangeShape() throws Exception {
+    SourceRecord record =
+        buildSchemaChangeRecord(
+            "mysql", null, "DROP TABLE inventory.orders", Collections.singletonList(dropOrders()));
+
+    String expectedJson =
+        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.5.2.Final\","
+            + "\"name\":\"n\",\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\","
+            + "\"table\":\"customers\"},\"before\":null,\"after\":null}";
+
+    assertEquals(expectedJson, new SourceRecordJson(record).toJson());
+    assertEquals(expectedJson, new SourceRecordJson(record, false, false).toJson());
+    assertEquals(
+        expectedJson, new SourceRecordJson.SourceRecordJsonMapper().mapSourceRecord(record));
+  }
+
+  @Test
+  public void testSchemaChangeEvent() throws Exception {
+    String ddl =
+        "ALTER TABLE inventory.customers MODIFY COLUMN first_name TEXT "
+            + "CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL";
+    SourceRecord record =
+        buildSchemaChangeRecord("mysql", null, ddl, Collections.singletonList(alterCustomers()));
+
+    String expectedJson =
+        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.5.2.Final\","
+            + "\"name\":\"n\",\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\","
+            + "\"table\":\"customers\"},\"before\":null,\"after\":null,"
+            + "\"databaseName\":\"inventory\",\"schemaName\":null,\"ddl\":\"ALTER TABLE "
+            + "inventory.customers MODIFY COLUMN first_name TEXT CHARACTER SET utf8mb4 COLLATE "
+            + "utf8mb4_0900_ai_ci NOT NULL\",\"ts_ms\":1794617055223,\"tableChanges\":["
+            + "{\"type\":\"ALTER\",\"id\":\"\\\"inventory\\\".\\\"customers\\\"\","
+            + "\"table\":{\"defaultCharsetName\":\"utf8mb4\",\"comment\":null,"
+            + "\"primaryKeyColumnNames\":[\"id\"],\"columns\":["
+            + "{\"name\":\"id\",\"jdbcType\":4,\"nativeType\":null,\"typeName\":\"INT\","
+            + "\"typeExpression\":\"INT\",\"charsetName\":null,\"length\":null,\"scale\":null,"
+            + "\"position\":1,\"optional\":false,\"autoIncremented\":true,\"generated\":true,"
+            + "\"comment\":null,\"defaultValueExpression\":null,\"enumValues\":null},"
+            + "{\"name\":\"first_name\",\"jdbcType\":12,\"nativeType\":null,"
+            + "\"typeName\":\"TEXT\",\"typeExpression\":\"TEXT\",\"charsetName\":\"utf8mb4\","
+            + "\"length\":null,\"scale\":null,\"position\":2,\"optional\":false,"
+            + "\"autoIncremented\":false,\"generated\":false,\"comment\":null,"
+            + "\"defaultValueExpression\":null,\"enumValues\":null}]}}]}";
+
+    assertEquals(expectedJson, new SourceRecordJson(record, false, true).toJson());
+    assertEquals(
+        expectedJson,
+        new SourceRecordJson.SourceRecordJsonMapper(false, true).mapSourceRecord(record));
+  }
+
+  @Test
+  public void testSchemaChangeEventWithFullMetadata() {
+    SourceRecord record =
+        buildSchemaChangeRecord(
+            "mysql", null, "DROP TABLE inventory.orders", Collections.singletonList(dropOrders()));
+
+    JsonObject metadata =
+        parse(new SourceRecordJson(record, true, true).toJson()).getAsJsonObject("metadata");
+
+    assertEquals("true", metadata.get("snapshot").getAsString());
+    assertEquals("mysql-bin.000003", metadata.get("file").getAsString());
+    assertEquals(154L, metadata.get("pos").getAsLong());
+  }
+
+  @Test
+  public void testSchemaChangeEventDropHasNullTable() {
+    SourceRecord record =
+        buildSchemaChangeRecord(
+            "mysql", null, "DROP TABLE inventory.orders", Collections.singletonList(dropOrders()));
+
+    JsonArray tableChanges =
+        parse(new SourceRecordJson(record, false, true).toJson()).getAsJsonArray("tableChanges");
+
+    assertEquals(1, tableChanges.size());
+    JsonObject drop = tableChanges.get(0).getAsJsonObject();
+    assertEquals("DROP", drop.get("type").getAsString());
+    assertEquals("\"inventory\".\"orders\"", drop.get("id").getAsString());
+    assertTrue(drop.get("table").isJsonNull());
+  }
+
+  @Test
+  public void testSchemaChangeEventWithSeveralTableChanges() {
+    SourceRecord record =
+        buildSchemaChangeRecord(
+            "mysql",
+            null,
+            "DROP TABLE inventory.orders; ALTER TABLE inventory.customers ...",
+            Arrays.asList(dropOrders(), alterCustomers()));
+
+    JsonArray tableChanges =
+        parse(new SourceRecordJson(record, false, true).toJson()).getAsJsonArray("tableChanges");
+
+    assertEquals(2, tableChanges.size());
+    assertEquals("DROP", tableChanges.get(0).getAsJsonObject().get("type").getAsString());
+    assertEquals("ALTER", tableChanges.get(1).getAsJsonObject().get("type").getAsString());
+    assertEquals(
+        2,
+        tableChanges
+            .get(1)
+            .getAsJsonObject()
+            .getAsJsonObject("table")
+            .getAsJsonArray("columns")
+            .size());
+  }
+
+  @Test
+  public void testSchemaChangeEventWithEmptyTableChanges() {
+    // A database level statement, as emitted by the MySQL snapshot.
+    SourceRecord record =
+        buildSchemaChangeRecord(
+            "mysql", null, "CREATE DATABASE `inventory`", Collections.emptyList());
+
+    JsonObject json = parse(new SourceRecordJson(record, false, true).toJson());
+
+    assertEquals("CREATE DATABASE `inventory`", json.get("ddl").getAsString());
+    assertEquals(0, json.getAsJsonArray("tableChanges").size());
+  }
+
+  @Test
+  public void testSchemaChangeEventOtherConnectors() {
+    for (String connector : Arrays.asList("oracle", "sqlserver", "db2")) {
+      SourceRecord record =
+          buildSchemaChangeRecord(
+              connector,
+              "INVENTORY",
+              "DROP TABLE INVENTORY.ORDERS",
+              Collections.singletonList(dropOrders()));
+
+      JsonObject json = parse(new SourceRecordJson(record, false, true).toJson());
+
+      assertEquals(connector, "INVENTORY", json.get("schemaName").getAsString());
+      assertEquals(connector, "DROP TABLE INVENTORY.ORDERS", json.get("ddl").getAsString());
+      assertEquals(connector, 1, json.getAsJsonArray("tableChanges").size());
+    }
+  }
+
+  private static JsonObject parse(String json) {
+    return JsonParser.parseString(json).getAsJsonObject();
+  }
+
+  /** Debezium's own schemas for a schema change's {@code tableChanges} entries. */
+  private static final Schema CHANGE_SCHEMA =
+      SchemaFactory.get().schemaHistoryChangeSchema(SchemaNameAdjuster.NO_OP);
+
+  private static final Schema TABLE_SCHEMA = CHANGE_SCHEMA.field("table").schema();
+
+  private static final Schema COLUMN_SCHEMA = TABLE_SCHEMA.field("columns").schema().valueSchema();
+
+  private static Struct dropOrders() {
+    // Debezium only sets the id of a dropped table.
+    return new Struct(CHANGE_SCHEMA).put("type", "DROP").put("id", "\"inventory\".\"orders\"");
+  }
+
+  private static Struct alterCustomers() {
+    Struct idColumn =
+        new Struct(COLUMN_SCHEMA)
+            .put("name", "id")
+            .put("jdbcType", 4)
+            .put("typeName", "INT")
+            .put("typeExpression", "INT")
+            .put("position", 1)
+            .put("optional", false)
+            .put("autoIncremented", true)
+            .put("generated", true);
+    Struct firstNameColumn =
+        new Struct(COLUMN_SCHEMA)
+            .put("name", "first_name")
+            .put("jdbcType", 12)
+            .put("typeName", "TEXT")
+            .put("typeExpression", "TEXT")
+            .put("charsetName", "utf8mb4")
+            .put("position", 2)
+            .put("optional", false)
+            .put("autoIncremented", false)
+            .put("generated", false);
+    Struct table =
+        new Struct(TABLE_SCHEMA)
+            .put("defaultCharsetName", "utf8mb4")
+            .put("primaryKeyColumnNames", Collections.singletonList("id"))
+            .put("columns", Arrays.asList(idColumn, firstNameColumn));
+    return new Struct(CHANGE_SCHEMA)
+        .put("type", "ALTER")
+        .put("id", "\"inventory\".\"customers\"")
+        .put("table", table);
+  }
+
+  /** A MySQL schema change event that alters {@code inventory.customers}. */
+  static SourceRecord buildSchemaChangeRecord() {
+    return buildSchemaChangeRecord(
+        "mysql",
+        null,
+        "ALTER TABLE inventory.customers ...",
+        Collections.singletonList(alterCustomers()));
+  }
+
+  /**
+   * A Debezium-like schema change event of the given connector, keyed by {@code
+   * io.debezium.connector.<connector>.SchemaChangeKey}, with a MySQL-like snapshot source.
+   */
+  private static SourceRecord buildSchemaChangeRecord(
+      String connector, @Nullable String schemaName, String ddl, List<Struct> tableChanges) {
+    Schema keySchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector." + connector + ".SchemaChangeKey")
+            .field("databaseName", Schema.STRING_SCHEMA)
+            .build();
+    Schema sourceSchema =
+        sourceSchemaBuilder()
+            .field("snapshot", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("file", Schema.STRING_SCHEMA)
+            .field("pos", Schema.INT64_SCHEMA)
+            .build();
+    Schema valueSchema =
+        SchemaBuilder.struct()
+            .name("io.debezium.connector." + connector + ".SchemaChangeValue")
+            .field("source", sourceSchema)
+            .field("ts_ms", Schema.INT64_SCHEMA)
+            .field("databaseName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("schemaName", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("ddl", Schema.OPTIONAL_STRING_SCHEMA)
+            .field("tableChanges", SchemaBuilder.array(CHANGE_SCHEMA).build())
+            .build();
+
+    Struct source =
+        sourceStruct(sourceSchema, connector, "inventory")
+            .put("snapshot", "true")
+            .put("file", "mysql-bin.000003")
+            .put("pos", 154L);
+    Struct key = new Struct(keySchema).put("databaseName", "inventory");
+    Struct value =
+        new Struct(valueSchema)
+            .put("source", source)
+            .put("ts_ms", 1794617055223L)
+            .put("databaseName", "inventory")
+            .put("schemaName", schemaName)
+            .put("ddl", ddl)
+            .put("tableChanges", tableChanges);
+    return new SourceRecord(null, null, null, keySchema, key, valueSchema, value);
   }
 
   private static SchemaBuilder sourceSchemaBuilder() {

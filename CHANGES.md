@@ -95,6 +95,7 @@
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
 * (Python) Made `beam.managed.ICEBERG_CDC` public, for reading an Iceberg table's inserts, updates and deletes with `beam.managed.Read` ([#41654](https://github.com/apache/beam/pull/41654)).
+* (Java/Python/Go) DebeziumIO: `readAsJson()` can add the DDL statement and changed tables (`databaseName`, `schemaName`, `ddl`, `ts_ms`, `tableChanges`) to MySQL, Oracle, SQL Server and Db2 schema change events with `withSchemaChangeEvents(true)` (Python `schema_change_events`, Go `SchemaChangeEvents()`). SQL Server and Db2 don't capture the DDL statement, so their `ddl` is `"N/A"`. Off by default, so existing output is unchanged ([#41330](https://github.com/apache/beam/issues/41330)).
 
 ## Improvements
 

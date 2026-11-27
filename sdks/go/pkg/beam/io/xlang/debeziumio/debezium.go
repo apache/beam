@@ -80,6 +80,7 @@ type readFromDebeziumSchema struct {
 	StartOffset          []string
 	OffsetStoragePath    *string
 	FullMetadata         *bool
+	SchemaChangeEvents   *bool
 }
 
 type debeziumConfig struct {
@@ -205,6 +206,23 @@ func FullMetadata() readOption {
 	return func(cfg *debeziumConfig) {
 		b := true
 		cfg.readSchema.FullMetadata = &b
+	}
+}
+
+// SchemaChangeEvents adds databaseName, schemaName, ddl, ts_ms and tableChanges
+// to the schema change records that the MySQL, Oracle, SQL Server and Db2
+// connectors emit for each DDL statement, including during the initial
+// snapshot. They keep metadata, before and after. Debezium emits these records
+// unless include.schema.changes=false.
+//
+// Example:
+//
+//	debeziumio.Read(s, username, password, host, port, debeziumio.MySQL,
+//	                reflectx.String, debeziumio.SchemaChangeEvents())
+func SchemaChangeEvents() readOption {
+	return func(cfg *debeziumConfig) {
+		b := true
+		cfg.readSchema.SchemaChangeEvents = &b
 	}
 }
 

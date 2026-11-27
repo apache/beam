@@ -97,6 +97,8 @@ By default, the JSON `metadata` object holds `connector`, `version`, `name`, `da
 
 With `provide.transaction.metadata=true`, each change event has a `transaction` object (`id`, `total_order`, `data_collection_order`); otherwise the key is absent. The transaction `BEGIN` and `END` events are mapped to `status`, `id`, `ts_ms`, `event_count` and `data_collections`, where the last two are only set on `END`.
 
+The MySQL, Oracle, SQL Server and Db2 connectors emit a schema change event for each DDL statement, since Debezium defaults `include.schema.changes` to `true`. By default, `readAsJson()` maps them like data change events, with `metadata` and a null `before` and `after`. Call `withSchemaChangeEvents(true)` (Python `schema_change_events=True`, Go `SchemaChangeEvents()`) to also add `databaseName`, `schemaName`, `ddl`, `ts_ms` and `tableChanges`. SQL Server and Db2 don't capture the DDL statement, so their `ddl` is the literal `"N/A"`; use `tableChanges` to see what changed. The option is off by default, so the output is unchanged unless you enable it.
+
 ## Quick Example
 
 The following example is how an actual setup would look like using a **MySQL Debezium Connector** and **SourceRecordJsonMapper** as the Serializable Function.
