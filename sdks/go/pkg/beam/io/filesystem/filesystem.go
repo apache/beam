@@ -93,6 +93,33 @@ type Interface interface {
 // The following interfaces are optional for the filesystems, but
 // to support more efficient or composite operations when possible.
 
+// ErrNotSeekable indicates that a filesystem or file cannot provide positional
+// reads. Callers can use sequential reads and buffer the contents instead.
+var ErrNotSeekable = errors.New("filesystem: file is not seekable")
+
+// ReaderAtCloser is a positional reader over one file. ReadAt follows the
+// io.ReaderAt contract and supports concurrent calls without a shared offset.
+// Object stores pin reads to the version opened; local files must not be modified
+// in place while reading. The caller must close the reader before its filesystem.
+type ReaderAtCloser interface {
+	io.ReaderAt
+	io.Closer
+}
+
+// SeekableOpener is an optional capability for efficient positional reads.
+// It does not change the sequential OpenRead contract.
+//
+// On object stores, ReadAt calls generally issue individual range requests.
+// Callers should coalesce small reads and use bounded concurrency to hide request
+// latency.
+type SeekableOpener interface {
+	// OpenSeekable opens filename for positional reads. An error wrapping
+	// ErrNotSeekable means this particular file does not support them. Other
+	// errors, including access or network failures, must be propagated.
+	// ctx must remain valid for subsequent network reads until the reader closes.
+	OpenSeekable(ctx context.Context, filename string) (ReaderAtCloser, error)
+}
+
 // LastModifiedGetter is an interface for getting the last modified time
 // of a file.
 type LastModifiedGetter interface {
