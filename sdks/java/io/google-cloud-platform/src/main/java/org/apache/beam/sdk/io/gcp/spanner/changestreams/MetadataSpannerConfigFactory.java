@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
 
 /**
@@ -122,7 +123,11 @@ public class MetadataSpannerConfigFactory {
 
     ImmutableSet<Code> retryableCodes = primaryConfig.getRetryableCodes();
     if (retryableCodes != null) {
-      config = config.withRetryableCodes(retryableCodes);
+      // Only TransactionRunner can recover an aborted metadata transaction, by running it again.
+      // An RPC retry sends the same aborted transaction until the commit deadline expires.
+      config =
+          config.withRetryableCodes(
+              Sets.difference(retryableCodes, ImmutableSet.of(Code.ABORTED)).immutableCopy());
     }
 
     ValueProvider<RpcPriority> rpcPriority = primaryConfig.getRpcPriority();

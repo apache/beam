@@ -195,7 +195,7 @@ public class SpannerIOReadChangeStreamTest {
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(5))
               .build();
       assertEquals(expectedRetryableCodes, changeStreamSpannerConfig.getRetryableCodes());
-      assertEquals(expectedRetryableCodes, metadataSpannerConfig.getRetryableCodes());
+      assertEquals(ImmutableSet.of(Code.UNAVAILABLE), metadataSpannerConfig.getRetryableCodes());
       assertEquals(
           expectedRetrySettings, changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings());
       assertEquals(
