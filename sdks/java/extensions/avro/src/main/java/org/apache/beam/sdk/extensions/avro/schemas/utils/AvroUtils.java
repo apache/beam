@@ -80,6 +80,7 @@ import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
@@ -1237,6 +1238,12 @@ public class AvroUtils {
           }
           baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
           baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
+        } else if (NanosInstant.IDENTIFIER.equals(identifier)) {
+          // NanosInstant carries nanosecond values like Timestamp.NANOS, but has no
+          // precision argument. Avro has no timestamp-nanos logical type before 1.12,
+          // so the logical type is recorded as a schema property, as for Timestamp.NANOS.
+          baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
+          baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + checkNotNull(fieldType.getLogicalType()).getIdentifier());
@@ -1392,7 +1399,8 @@ public class AvroUtils {
           java.time.Instant instant = (java.time.Instant) value;
           return TimeUnit.SECONDS.toMicros(instant.getEpochSecond())
               + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
-        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+        } else if (Timestamp.IDENTIFIER.equals(identifier)
+            || NanosInstant.IDENTIFIER.equals(identifier)) {
           java.time.Instant instant = (java.time.Instant) value;
           // Use BigInteger to work around long overflows so that epochNanos = Long.MIN_VALUE can be
           // supported. Instant always stores nanos as positive adjustment so the math will silently
@@ -1454,10 +1462,13 @@ public class AvroUtils {
     if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.type.getProp("logicalType"))) {
       if (type.type.getType() == org.apache.avro.Schema.Type.LONG) {
         long nanos = (Long) value;
-        // Check if Beam expects Timestamp logical type
+        // Check if Beam expects a nanosecond timestamp logical type (Timestamp.NANOS
+        // or NanosInstant).
         if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE
-            && org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
-                checkNotNull(fieldType.getLogicalType()).getIdentifier())) {
+            && (org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
+                    checkNotNull(fieldType.getLogicalType()).getIdentifier())
+                || NanosInstant.IDENTIFIER.equals(
+                    checkNotNull(fieldType.getLogicalType()).getIdentifier()))) {
           long seconds = Math.floorDiv(nanos, 1_000_000_000L);
           long nanoAdjustment = Math.floorMod(nanos, 1_000_000_000L);
           return java.time.Instant.ofEpochSecond(seconds, nanoAdjustment);

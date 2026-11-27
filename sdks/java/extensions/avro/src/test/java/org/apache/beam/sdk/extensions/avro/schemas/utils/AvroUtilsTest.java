@@ -53,6 +53,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
@@ -676,6 +677,68 @@ public class AvroUtilsTest {
     Schema expected =
         Schema.builder().addLogicalTypeField("timestampNanos", Timestamp.NANOS).build();
     assertEquals(expected, beamSchema);
+  }
+
+  @Test
+  public void testBeamNanosInstantLogicalTypeToAvroSchema() {
+    Schema beamSchema =
+        Schema.builder().addLogicalTypeField("nanosInstant", new NanosInstant()).build();
+
+    // Expected Avro schema with timestamp-nanos
+    String expectedJson =
+        "{\"type\": \"record\", \"name\": \"topLevelRecord\", "
+            + "\"fields\": [{\"name\": \"nanosInstant\", "
+            + "\"type\": {\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}}]}";
+
+    org.apache.avro.Schema expectedAvroSchema =
+        new org.apache.avro.Schema.Parser().parse(expectedJson);
+
+    assertEquals(expectedAvroSchema, AvroUtils.toAvroSchema(beamSchema));
+  }
+
+  @Test
+  public void testBeamNanosInstantToGenericRecord() {
+    Schema beamSchema =
+        Schema.builder().addLogicalTypeField("nanosInstant", new NanosInstant()).build();
+
+    java.time.Instant instant = java.time.Instant.parse("2000-01-01T01:02:03.123456789Z");
+    Row beamRow = Row.withSchema(beamSchema).addValue(instant).build();
+
+    // Expected nanos since epoch
+    long expectedNanos = TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord avroRecord = AvroUtils.toGenericRecord(beamRow, avroSchema);
+
+    assertEquals(expectedNanos, avroRecord.get("nanosInstant"));
+  }
+
+  @Test
+  public void testNanosInstantRoundTrip() {
+    Schema beamSchema =
+        Schema.builder().addLogicalTypeField("nanosInstant", new NanosInstant()).build();
+
+    // Test various nanosecond precisions
+    java.time.Instant[] testInstants = {
+      java.time.Instant.parse("2000-01-01T00:00:00.000000001Z"), // 1 nano
+      java.time.Instant.parse("2000-01-01T00:00:00.123456789Z"), // full nanos
+      java.time.Instant.parse("2000-01-01T00:00:00.999999999Z"), // max nanos
+      java.time.Instant.ofEpochSecond(0L, Long.MAX_VALUE), // max supported
+      java.time.Instant.parse("1677-09-21T00:12:43.145224192Z"), // min supported by an int64
+    };
+
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+
+    for (java.time.Instant instant : testInstants) {
+      Row originalRow = Row.withSchema(beamSchema).addValue(instant).build();
+      GenericRecord avroRecord = AvroUtils.toGenericRecord(originalRow, avroSchema);
+      Row roundTripRow = AvroUtils.toBeamRowStrict(avroRecord, beamSchema);
+
+      assertEquals(originalRow, roundTripRow);
+      java.time.Instant roundTripInstant =
+          (java.time.Instant) roundTripRow.getValue("nanosInstant");
+      assertEquals(instant, roundTripInstant);
+    }
   }
 
   @Test

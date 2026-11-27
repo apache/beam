@@ -55,6 +55,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.Trunc
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
@@ -116,6 +117,16 @@ public class BigQueryUtilsTest {
 
   private static final Schema ENUM_STRING_TYPE =
       Schema.builder().addNullableField("color", Schema.FieldType.STRING).build();
+
+  private static final Schema NANOS_INSTANT_TYPE =
+      Schema.builder()
+          .addNullableField("nanos_instant", Schema.FieldType.logicalType(new NanosInstant()))
+          .build();
+
+  private static final Row NANOS_INSTANT_ROW =
+      Row.withSchema(NANOS_INSTANT_TYPE)
+          .addValues(java.time.Instant.parse("2024-08-10T16:52:07.123456789Z"))
+          .build();
 
   private static final Schema MAP_TYPE =
       Schema.builder().addStringField("key").addDoubleField("value").build();
@@ -774,6 +785,25 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     assertThat(row, hasEntry("color", "GREEN"));
+  }
+
+  @Test
+  public void testToTableSchema_nanosInstant() {
+    TableSchema schema = toTableSchema(NANOS_INSTANT_TYPE);
+
+    assertThat(schema.getFields().size(), equalTo(1));
+    TableFieldSchema field = schema.getFields().get(0);
+    assertThat(field.getName(), equalTo("nanos_instant"));
+    assertThat(field.getType(), equalTo(StandardSQLTypeName.TIMESTAMP.toString()));
+    assertThat(field.getTimestampPrecision(), equalTo(12L));
+  }
+
+  @Test
+  public void testToTableRow_nanosInstant() {
+    TableRow row = toTableRow().apply(NANOS_INSTANT_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    assertThat(row, hasEntry("nanos_instant", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
@@ -1489,6 +1519,49 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_timestampNanos_variablePrecision() {
     // Test that different decimal place counts are handled
     Schema schema = Schema.builder().addLogicalTypeField("ts", Timestamp.NANOS).build();
+
+    // 3 decimal places
+    Row row3 =
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10 16:52:07.123 UTC"));
+    assertEquals(123000000, ((java.time.Instant) row3.getValue("ts")).getNano());
+
+    // 6 decimal places
+    Row row6 =
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456 UTC"));
+    assertEquals(123456000, ((java.time.Instant) row6.getValue("ts")).getNano());
+
+    // 9 decimal places
+    Row row9 =
+        BigQueryUtils.toBeamRow(
+            schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456789 UTC"));
+    assertEquals(123456789, ((java.time.Instant) row9.getValue("ts")).getNano());
+  }
+
+  @Test
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  public void testToBeamRow_nanosInstant_utcSuffix() {
+    Schema schema = Schema.builder().addLogicalTypeField("ts", new NanosInstant()).build();
+
+    // BigQuery format with " UTC" suffix
+    String timestamp = "2024-08-10 16:52:07.123456789 UTC";
+
+    Row beamRow = BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", timestamp));
+
+    java.time.Instant actual = (java.time.Instant) beamRow.getValue("ts");
+    assertEquals(2024, actual.atZone(java.time.ZoneOffset.UTC).getYear());
+    assertEquals(8, actual.atZone(java.time.ZoneOffset.UTC).getMonthValue());
+    assertEquals(10, actual.atZone(java.time.ZoneOffset.UTC).getDayOfMonth());
+    assertEquals(16, actual.atZone(java.time.ZoneOffset.UTC).getHour());
+    assertEquals(52, actual.atZone(java.time.ZoneOffset.UTC).getMinute());
+    assertEquals(7, actual.atZone(java.time.ZoneOffset.UTC).getSecond());
+    assertEquals(123456789, actual.getNano());
+  }
+
+  @Test
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  public void testToBeamRow_nanosInstant_variablePrecision() {
+    // Test that different decimal place counts are handled
+    Schema schema = Schema.builder().addLogicalTypeField("ts", new NanosInstant()).build();
 
     // 3 decimal places
     Row row3 =

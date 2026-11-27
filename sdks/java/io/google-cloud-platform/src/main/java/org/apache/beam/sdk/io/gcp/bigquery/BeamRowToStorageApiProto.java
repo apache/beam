@@ -44,6 +44,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
@@ -249,6 +250,7 @@ public class BeamRowToStorageApiProto {
           throw new RuntimeException("Unexpected null logical type " + field.getType());
         }
         @Nullable TableFieldSchema.Type type;
+        boolean isNanosTimestamp;
         if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)) {
           int precision =
               Preconditions.checkNotNull(
@@ -258,7 +260,13 @@ public class BeamRowToStorageApiProto {
             throw new RuntimeException(
                 "Unsupported precision for Timestamp logical type " + precision);
           }
-          // Map Timestamp.NANOS logical type to BigQuery TIMESTAMP(12) for nanosecond precision
+          isNanosTimestamp = true;
+        } else {
+          isNanosTimestamp = logicalType.getIdentifier().equals(NanosInstant.IDENTIFIER);
+        }
+        if (isNanosTimestamp) {
+          // Both Timestamp.NANOS and NanosInstant carry nanosecond values, which BigQuery
+          // stores in TIMESTAMP(12) columns.
           type = TableFieldSchema.Type.TIMESTAMP;
           builder.setTimestampPrecision(Int64Value.newBuilder().setValue(12L).build());
         } else {
@@ -388,7 +396,8 @@ public class BeamRowToStorageApiProto {
       if (logicalType == null) {
         throw new RuntimeException("Unexpectedly null logical type " + beamFieldType);
       }
-      if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)) {
+      if (logicalType.getIdentifier().equals(Timestamp.IDENTIFIER)
+          || logicalType.getIdentifier().equals(NanosInstant.IDENTIFIER)) {
         Instant instant = (Instant) value;
         Descriptor timestampPicosDescriptor =
             Preconditions.checkNotNull(fieldDescriptor).getMessageType();

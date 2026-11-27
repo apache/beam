@@ -65,6 +65,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
@@ -343,6 +344,7 @@ public class BigQueryUtils {
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
           .put(SqlTypes.TIMESTAMP.getIdentifier(), StandardSQLTypeName.TIMESTAMP)
+          .put(NanosInstant.IDENTIFIER, StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
@@ -585,12 +587,18 @@ public class BigQueryUtils {
         field.setMode(Mode.REPEATED.toString());
       }
       Schema.LogicalType<?, ?> logicalType = type.getLogicalType();
-      if (logicalType != null && Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
-        int precision = Preconditions.checkArgumentNotNull(logicalType.getArgument());
-        if (precision != 9) {
-          throw new IllegalArgumentException(
-              "Unsupported precision for Timestamp logical type " + precision);
+      if (logicalType != null
+          && (Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())
+              || NanosInstant.IDENTIFIER.equals(logicalType.getIdentifier()))) {
+        if (Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
+          int precision = Preconditions.checkArgumentNotNull(logicalType.getArgument());
+          if (precision != 9) {
+            throw new IllegalArgumentException(
+                "Unsupported precision for Timestamp logical type " + precision);
+          }
         }
+        // Both Timestamp.NANOS and NanosInstant carry nanosecond values, which BigQuery
+        // stores in TIMESTAMP(12) columns.
         field.setType(StandardSQLTypeName.TIMESTAMP.toString()).setTimestampPrecision(12L);
       } else {
         field.setType(toStandardSQLTypeName(type).toString());
@@ -835,7 +843,8 @@ public class BigQueryUtils {
           java.time.format.DateTimeFormatter localDateTimeFormatter =
               (0 == localDateTime.getNano()) ? ISO_LOCAL_DATE_TIME : BIGQUERY_DATETIME_FORMATTER;
           return localDateTimeFormatter.format(localDateTime);
-        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+        } else if (Timestamp.IDENTIFIER.equals(identifier)
+            || NanosInstant.IDENTIFIER.equals(identifier)) {
           return BigQueryAvroUtils.formatTimestamp((java.time.Instant) fieldValue);
         } else if ("Enum".equals(identifier)) {
           return fieldType
@@ -938,7 +947,8 @@ public class BigQueryUtils {
         } catch (NumberFormatException e) {
           return java.time.Instant.parse(jsonBQString);
         }
-      } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
+      } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)
+          || fieldType.isLogicalType(NanosInstant.IDENTIFIER)) {
         if (!jsonBQString.contains("UTC")) {
           BigDecimal bd = new BigDecimal(jsonBQString);
           long seconds = bd.longValue();
