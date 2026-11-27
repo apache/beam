@@ -25,7 +25,6 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,6 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.GetterBasedSchemaProviderV2;
@@ -263,16 +261,132 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
   }
 
   @Override
+  @SuppressWarnings({"unchecked", "rawtypes", "nullness"})
   public @NonNull SchemaUserTypeCreator schemaTypeCreator(
       @NonNull TypeDescriptor<?> targetTypeDescriptor, @NonNull Schema schema) {
-    final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors =
-        schemaFieldDescriptors(targetTypeDescriptor.getRawType(), schema);
-    return params ->
-        restoreThriftObject(targetTypeDescriptor.getRawType(), fieldDescriptors, params);
+    final Class<?> targetClass = targetTypeDescriptor.getRawType();
+    ThriftUserTypeCreator creator = new ThriftUserTypeCreator(targetClass, schema);
+    // Validate constructor and field descriptors eagerly at schema creation time.
+    creator.resolvePlan();
+    return creator;
+  }
+
+  private static final class ThriftCreatorPlan {
+    final java.lang.reflect.Constructor<?> constructor;
+    final TFieldIdEnum[] fields;
+    final byte[] types;
+    final TEnum @Nullable [][] enumConstantsByField;
+
+    ThriftCreatorPlan(
+        java.lang.reflect.Constructor<?> constructor,
+        TFieldIdEnum[] fields,
+        byte[] types,
+        TEnum @Nullable [][] enumConstantsByField) {
+      this.constructor = constructor;
+      this.fields = fields;
+      this.types = types;
+      this.enumConstantsByField = enumConstantsByField;
+    }
+  }
+
+  private static final class ThriftUserTypeCreator implements SchemaUserTypeCreator {
+    private final Class<?> targetClass;
+    private final Schema schema;
+    private transient volatile @Nullable ThriftCreatorPlan cachedPlan;
+
+    ThriftUserTypeCreator(Class<?> targetClass, Schema schema) {
+      this.targetClass = targetClass;
+      this.schema = schema;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes", "nullness"})
+    ThriftCreatorPlan resolvePlan() {
+      ThriftCreatorPlan plan = this.cachedPlan;
+      if (plan != null) {
+        return plan;
+      }
+      final java.lang.reflect.Constructor<?> constructor;
+      try {
+        constructor = targetClass.getDeclaredConstructor();
+      } catch (NoSuchMethodException e) {
+        throw new IllegalStateException(e);
+      }
+      final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors =
+          schemaFieldDescriptors(targetClass, schema);
+      int fieldCount = fieldDescriptors.size();
+      final TFieldIdEnum[] fields = new TFieldIdEnum[fieldCount];
+      final byte[] types = new byte[fieldCount];
+      final TEnum @Nullable [][] enumConstantsByField = new TEnum[fieldCount][];
+      int idx = 0;
+      for (Entry<TFieldIdEnum, FieldMetaData> entry : fieldDescriptors.entrySet()) {
+        fields[idx] = entry.getKey();
+        FieldMetaData meta = entry.getValue();
+        byte type = meta.valueMetaData.type;
+        types[idx] = type;
+        if (type == TType.ENUM) {
+          Class<? extends TEnum> enumClass = ((EnumMetaData) meta.valueMetaData).enumClass;
+          enumConstantsByField[idx] = enumClass.getEnumConstants();
+        }
+        idx++;
+      }
+      plan = new ThriftCreatorPlan(constructor, fields, types, enumConstantsByField);
+      this.cachedPlan = plan;
+      return plan;
+    }
+
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes", "nullness"})
+    public Object create(Object... params) {
+      ThriftCreatorPlan plan = resolvePlan();
+      TFieldIdEnum[] fields = plan.fields;
+      byte[] types = plan.types;
+      TEnum @Nullable [][] enumConstantsByField = plan.enumConstantsByField;
+      int fieldCount = fields.length;
+      if (params.length != fieldCount) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The parameter list: %s does not match the expected fields: %s",
+                Arrays.toString(params), Arrays.toString(fields)));
+      }
+      try {
+        final TBase thrift = (TBase) plan.constructor.newInstance();
+        for (int i = 0; i < fieldCount; i++) {
+          Object value = params[i];
+          if (value == null) {
+            continue;
+          }
+          final Object actualValue;
+          switch (types[i]) {
+            case TType.SET:
+              if (value instanceof java.util.Collection) {
+                actualValue = new java.util.HashSet<>((java.util.Collection<?>) value);
+              } else {
+                java.util.Set<Object> set = new java.util.HashSet<>();
+                for (Object elem : (Iterable<?>) value) {
+                  set.add(elem);
+                }
+                actualValue = set;
+              }
+              break;
+            case TType.ENUM:
+              TEnum[] constants = enumConstantsByField[i];
+              actualValue = constants[(Integer) value];
+              break;
+            default:
+              actualValue = value;
+              break;
+          }
+          thrift.setFieldValue(fields[i], actualValue);
+        }
+        return thrift;
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    }
   }
 
   @SuppressWarnings("nullness")
-  private Map<TFieldIdEnum, FieldMetaData> schemaFieldDescriptors(
+  private static Map<TFieldIdEnum, FieldMetaData> schemaFieldDescriptors(
       Class<?> targetClass, Schema schema) {
     final Map<TFieldIdEnum, FieldMetaData> fieldDescriptors = thriftFieldDescriptors(targetClass);
     final Map<String, TFieldIdEnum> fields =
@@ -288,51 +402,6 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
                 fieldDescriptors::get,
                 ThriftSchema::throwingCombiner,
                 LinkedHashMap::new));
-  }
-
-  private <FieldT extends TFieldIdEnum, T extends TBase<T, FieldT>> T restoreThriftObject(
-      Class<?> targetClass, Map<FieldT, FieldMetaData> fields, Object[] params) {
-    if (params.length != fields.size()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "The parameter list: %s does not match the expected fields: %s",
-              Arrays.toString(params), fields.keySet()));
-    }
-    try {
-      @SuppressWarnings("unchecked")
-      final T thrift = (T) targetClass.getDeclaredConstructor().newInstance();
-      final Iterator<Entry<FieldT, FieldMetaData>> iter = fields.entrySet().iterator();
-      Stream.of(params).forEach(param -> setThriftField(thrift, iter.next(), param));
-      return thrift;
-    } catch (Exception e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  private <FieldT extends TFieldIdEnum, T extends TBase<T, FieldT>> void setThriftField(
-      T thrift, Entry<FieldT, FieldMetaData> fieldDescriptor, Object value) {
-    final FieldT field = fieldDescriptor.getKey();
-    final FieldMetaData descriptor = fieldDescriptor.getValue();
-    if (value != null) {
-      final Object actualValue;
-      switch (descriptor.valueMetaData.type) {
-        case TType.SET:
-          actualValue =
-              StreamSupport.stream(((Iterable<?>) value).spliterator(), false)
-                  .collect(Collectors.toSet());
-          break;
-        case TType.ENUM:
-          final Class<? extends TEnum> enumClass =
-              ((EnumMetaData) descriptor.valueMetaData).enumClass;
-          @SuppressWarnings("nullness") // it's either "nullness" or "unsafe", apparently
-          final TEnum @NonNull [] enumConstants = enumClass.getEnumConstants();
-          actualValue = enumConstants[(Integer) value];
-          break;
-        default:
-          actualValue = value;
-      }
-      thrift.setFieldValue(field, actualValue);
-    }
   }
 
   private <EnumT extends Enum<EnumT> & TEnum> FieldType beamType(FieldValueMetaData metadata) {

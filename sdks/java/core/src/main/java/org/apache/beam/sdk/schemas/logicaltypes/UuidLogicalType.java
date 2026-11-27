@@ -32,6 +32,7 @@ public class UuidLogicalType implements Schema.LogicalType<UUID, Row> {
           .addInt64Field(MOST_SIGNIFICANT_BITS_FIELD_NAME)
           .addInt64Field(LEAST_SIGNIFICANT_BITS_FIELD_NAME)
           .build();
+  private static final FieldType BASE_TYPE = Schema.FieldType.row(UUID_SCHEMA);
 
   @Override
   public String getIdentifier() {
@@ -52,20 +53,26 @@ public class UuidLogicalType implements Schema.LogicalType<UUID, Row> {
 
   @Override
   public FieldType getBaseType() {
-    return Schema.FieldType.row(UUID_SCHEMA);
+    return BASE_TYPE;
   }
 
   @Override
   public Row toBaseType(UUID input) {
-    return Row.withSchema(UUID_SCHEMA)
-        .addValues(input.getMostSignificantBits(), input.getLeastSignificantBits())
-        .build();
+    return Row.attachValues(
+        UUID_SCHEMA, input.getMostSignificantBits(), input.getLeastSignificantBits());
   }
 
   @Override
   public UUID toInputType(Row base) {
-    Long leastSignificantBitsValue = base.getInt64(LEAST_SIGNIFICANT_BITS_FIELD_NAME);
-    Long mostSignificantBitsValue = base.getInt64(MOST_SIGNIFICANT_BITS_FIELD_NAME);
+    Long mostSignificantBitsValue;
+    Long leastSignificantBitsValue;
+    if (UUID_SCHEMA.equals(base.getSchema())) {
+      mostSignificantBitsValue = base.getInt64(0);
+      leastSignificantBitsValue = base.getInt64(1);
+    } else {
+      leastSignificantBitsValue = base.getInt64(LEAST_SIGNIFICANT_BITS_FIELD_NAME);
+      mostSignificantBitsValue = base.getInt64(MOST_SIGNIFICANT_BITS_FIELD_NAME);
+    }
     if (leastSignificantBitsValue == null || mostSignificantBitsValue == null) {
       throw new IllegalStateException(
           String.format(

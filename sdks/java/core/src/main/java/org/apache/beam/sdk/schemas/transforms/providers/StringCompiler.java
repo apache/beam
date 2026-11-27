@@ -50,6 +50,8 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class StringCompiler {
@@ -98,26 +100,42 @@ public class StringCompiler {
     }
   }
 
+  private static final Cache<String, Class<?>> COMPILED_CLASS_CACHE =
+      CacheBuilder.newBuilder().maximumSize(256).build();
+
   // TODO(XXX): swap args?
+  @SuppressWarnings("unchecked")
   public static <T> Class<T> getClass(String name, String source)
       throws CompileException, ClassNotFoundException {
+    String cacheKey = name + '\0' + source;
+    Class<?> cached = COMPILED_CLASS_CACHE.getIfPresent(cacheKey);
+    if (cached != null) {
+      return (Class<T>) cached;
+    }
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-    InMemoryFileManager fileManager =
-        new InMemoryFileManager(compiler.getStandardFileManager(null, null, null));
-    DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-    JavaCompiler.CompilationTask task =
-        compiler.getTask(
-            null,
-            fileManager,
-            diagnostics,
-            ImmutableList.of("-classpath", classpathSupplier.get()),
-            null,
-            Collections.singletonList(new InMemoryFileManager.InputJavaFileObject(name, source)));
-    boolean result = task.call();
-    if (!result) {
-      throw new CompileException(diagnostics);
-    } else {
-      return (Class<T>) fileManager.getClassLoader().loadClass(name);
+    try (InMemoryFileManager fileManager =
+        new InMemoryFileManager(compiler.getStandardFileManager(null, null, null))) {
+      DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+      JavaCompiler.CompilationTask task =
+          compiler.getTask(
+              null,
+              fileManager,
+              diagnostics,
+              ImmutableList.of("-classpath", classpathSupplier.get()),
+              null,
+              Collections.singletonList(new InMemoryFileManager.InputJavaFileObject(name, source)));
+      boolean result = task.call();
+      if (!result) {
+        throw new CompileException(diagnostics);
+      } else {
+        Class<?> loaded = fileManager.getClassLoader().loadClass(name);
+        if (!"__TypeGuesserHelper__".equals(name)) {
+          COMPILED_CLASS_CACHE.put(cacheKey, loaded);
+        }
+        return (Class<T>) loaded;
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to close in-memory compiler file manager", e);
     }
   }
 
@@ -204,21 +222,29 @@ public class StringCompiler {
     }
 
     public ClassLoader getClassLoader() {
+      Map<String, byte[]> classBytesByName = new HashMap<>(outputFileObjects.size());
+      for (Map.Entry<String, OutputJavaFileObject> entry : outputFileObjects.entrySet()) {
+        classBytesByName.put(entry.getKey(), entry.getValue().getBytes());
+      }
       return AccessController.<ClassLoader>doPrivileged(
-          (PrivilegedAction<ClassLoader>)
-              () ->
-                  new SecureClassLoader() {
-                    @Override
-                    protected Class<?> findClass(String name) throws ClassNotFoundException {
-                      OutputJavaFileObject fileObject = outputFileObjects.get(name);
-                      if (fileObject == null) {
-                        throw new ClassNotFoundException(name);
-                      } else {
-                        byte[] classBytes = fileObject.getBytes();
-                        return defineClass(name, classBytes, 0, classBytes.length);
-                      }
-                    }
-                  });
+          (PrivilegedAction<ClassLoader>) () -> new ByteMapClassLoader(classBytesByName));
+    }
+
+    private static final class ByteMapClassLoader extends SecureClassLoader {
+      private final Map<String, byte[]> classBytesByName;
+
+      ByteMapClassLoader(Map<String, byte[]> classBytesByName) {
+        this.classBytesByName = classBytesByName;
+      }
+
+      @Override
+      protected Class<?> findClass(String name) throws ClassNotFoundException {
+        byte[] classBytes = classBytesByName.get(name);
+        if (classBytes == null) {
+          throw new ClassNotFoundException(name);
+        }
+        return defineClass(name, classBytes, 0, classBytes.length);
+      }
     }
 
     @Override

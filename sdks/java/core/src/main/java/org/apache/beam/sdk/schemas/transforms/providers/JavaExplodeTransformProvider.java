@@ -19,11 +19,11 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -36,8 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Booleans;
+import org.apache.beam.sdk.values.RowWithStorage;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Explode.
@@ -162,60 +161,160 @@ public class JavaExplodeTransformProvider
       } else {
         crossProduct = crossProductObj;
       }
-      int numFields = outputSchema.getFields().size();
-      boolean[] toExplode =
-          Booleans.toArray(
-              IntStream.range(0, numFields)
-                  .mapToObj(index -> fields.contains(outputSchema.getField(index).getName()))
-                  .collect(Collectors.toList()));
-      if (crossProduct) {
+      int numFields = outputSchema.getFieldCount();
+      List<Integer> explodeList = new ArrayList<>(fields.size());
+      List<Integer> copyList = new ArrayList<>(numFields);
+      for (int i = 0; i < numFields; i++) {
+        if (fields.contains(outputSchema.getField(i).getName())) {
+          explodeList.add(i);
+        } else {
+          copyList.add(i);
+        }
+      }
+      int[] explodeIndices = new int[explodeList.size()];
+      for (int i = 0; i < explodeList.size(); i++) {
+        explodeIndices[i] = explodeList.get(i);
+      }
+      int[] copyIndices = new int[copyList.size()];
+      for (int i = 0; i < copyList.size(); i++) {
+        copyIndices[i] = copyList.get(i);
+      }
+
+      if (explodeIndices.length == 1) {
+        final int explodeIdx = explodeIndices[0];
         return new DoFn<Row, Row>() {
           @ProcessElement
           public void processElement(@Element Row inputRow, OutputReceiver<Row> out) {
-            emitCrossProduct(inputRow, 0, new Object[numFields], out);
+            Iterable<Object> iterable = inputRow.getIterable(explodeIdx);
+            if (iterable == null) {
+              return;
+            }
+            if (iterable instanceof Collection && ((Collection<?>) iterable).isEmpty()) {
+              return;
+            }
+            Iterator<Object> iter = iterable.iterator();
+            if (!iter.hasNext()) {
+              return;
+            }
+            Object[] template = new Object[numFields];
+            Object[] raw =
+                inputRow instanceof RowWithStorage
+                    ? ((RowWithStorage) inputRow).getRawArray()
+                    : null;
+            for (int c : copyIndices) {
+              template[c] = raw != null ? raw[c] : inputRow.getValue(c);
+            }
+            while (iter.hasNext()) {
+              Object[] rowValues = template.clone();
+              rowValues[explodeIdx] = iter.next();
+              out.output(Row.attachValues(outputSchema, rowValues));
+            }
+          }
+        };
+      }
+
+      if (crossProduct) {
+        return new DoFn<Row, Row>() {
+          @ProcessElement
+          @SuppressWarnings("rawtypes")
+          public void processElement(@Element Row inputRow, OutputReceiver<Row> out) {
+            int k = explodeIndices.length;
+            if (k == 0) {
+              out.output(inputRow);
+              return;
+            }
+            Iterable[] iterables = new Iterable[k];
+            for (int i = 0; i < k; i++) {
+              Iterable<Object> it = inputRow.getIterable(explodeIndices[i]);
+              if (it == null) {
+                return;
+              }
+              if (it instanceof Collection) {
+                if (((Collection<?>) it).isEmpty()) {
+                  return;
+                }
+              } else if (i > 0 && !it.iterator().hasNext()) {
+                return;
+              }
+              iterables[i] = it;
+            }
+            Object[] current = new Object[numFields];
+            Object[] raw =
+                inputRow instanceof RowWithStorage
+                    ? ((RowWithStorage) inputRow).getRawArray()
+                    : null;
+            for (int c : copyIndices) {
+              current[c] = raw != null ? raw[c] : inputRow.getValue(c);
+            }
+            emitCrossProduct(iterables, 0, current, out);
           }
 
+          @SuppressWarnings("rawtypes")
           private void emitCrossProduct(
-              Row inputRow, int index, Object[] current, OutputReceiver<Row> out) {
-            if (index == numFields) {
-              out.output(Row.withSchema(outputSchema).attachValues(ImmutableList.copyOf(current)));
-            } else if (toExplode[index]) {
-              for (Object value : inputRow.getIterable(index)) {
-                current[index] = value;
-                emitCrossProduct(inputRow, index + 1, current, out);
+              Iterable[] iterables, int pos, Object[] current, OutputReceiver<Row> out) {
+            int fieldIdx = explodeIndices[pos];
+            boolean atBottom = pos == explodeIndices.length - 1;
+            for (Object value : iterables[pos]) {
+              current[fieldIdx] = value;
+              if (atBottom) {
+                out.output(Row.attachValues(outputSchema, current.clone()));
+              } else {
+                emitCrossProduct(iterables, pos + 1, current, out);
               }
-            } else {
-              current[index] = inputRow.getValue(index);
-              emitCrossProduct(inputRow, index + 1, current, out);
             }
           }
         };
       } else {
         return new DoFn<Row, Row>() {
           @ProcessElement
+          @SuppressWarnings("rawtypes")
           public void processElement(@Element Row inputRow, OutputReceiver<Row> out) {
-            @SuppressWarnings("rawtypes")
-            Iterator[] iterators = new Iterator[numFields];
-            for (int i = 0; i < numFields; i++) {
-              if (toExplode[i]) {
-                iterators[i] = inputRow.getIterable(i).iterator();
+            int k = explodeIndices.length;
+            if (k == 0) {
+              return;
+            }
+            Iterator[] iterators = new Iterator[k];
+            boolean anyNext = false;
+            for (int i = 0; i < k; i++) {
+              Iterable<Object> it = inputRow.getIterable(explodeIndices[i]);
+              Iterator iter = it == null ? Collections.emptyIterator() : it.iterator();
+              iterators[i] = iter;
+              if (iter.hasNext()) {
+                anyNext = true;
               }
             }
-            while (IntStream.range(0, numFields)
-                .anyMatch(index -> toExplode[index] && iterators[index].hasNext())) {
-              Row.Builder builder = Row.withSchema(outputSchema);
-              for (int i = 0; i < numFields; i++) {
-                if (toExplode[i]) {
-                  if (iterators[i].hasNext()) {
-                    builder.addValue(iterators[i].next());
-                  } else {
-                    builder.addValue(null);
+            if (!anyNext) {
+              return;
+            }
+            Object[] template = new Object[numFields];
+            Object[] raw =
+                inputRow instanceof RowWithStorage
+                    ? ((RowWithStorage) inputRow).getRawArray()
+                    : null;
+            for (int c : copyIndices) {
+              template[c] = raw != null ? raw[c] : inputRow.getValue(c);
+            }
+            while (anyNext) {
+              Object[] rowValues = template.clone();
+              anyNext = false;
+              for (int i = 0; i < k; i++) {
+                Iterator iter = iterators[i];
+                if (iter.hasNext()) {
+                  rowValues[explodeIndices[i]] = iter.next();
+                  if (iter.hasNext()) {
+                    anyNext = true;
                   }
                 } else {
-                  builder.addValue(inputRow.getValue(i));
+                  int fieldIdx = explodeIndices[i];
+                  if (!outputSchema.isFieldNullable(fieldIdx)) {
+                    throw new IllegalArgumentException(
+                        "Cannot set null on non-nullable field "
+                            + outputSchema.getField(fieldIdx).getName());
+                  }
+                  rowValues[fieldIdx] = null;
                 }
               }
-              out.output(builder.build());
+              out.output(Row.attachValues(outputSchema, rowValues));
             }
           }
         };

@@ -22,30 +22,40 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
 import net.bytebuddy.description.type.TypeDescription;
+import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
 import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import net.bytebuddy.implementation.bytecode.Duplication;
 import net.bytebuddy.implementation.bytecode.Removal;
 import net.bytebuddy.implementation.bytecode.StackManipulation;
+import net.bytebuddy.implementation.bytecode.TypeCreation;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
+import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.matcher.ElementMatchers;
+import net.bytebuddy.pool.TypePool;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -55,6 +65,7 @@ import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConstructorCreateInstruction;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstruction;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.TypeDescriptorWithSchema;
 import org.apache.beam.sdk.util.Preconditions;
@@ -207,11 +218,57 @@ public class JavaBeanUtils {
           DynamicType.Builder<FieldValueGetter<ObjectT, ValueT>> builder,
           FieldValueTypeInformation typeInformation,
           TypeConversionsFactory typeConversionsFactory) {
-    return builder
-        .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(typeInformation.getName()))
-        .method(ElementMatchers.named("get"))
-        .intercept(new InvokeGetterInstruction(typeInformation, typeConversionsFactory));
+    builder =
+        builder
+            .method(ElementMatchers.named("name"))
+            .intercept(FixedValue.reference(typeInformation.getName()))
+            .method(ElementMatchers.named("get"))
+            .intercept(new InvokeGetterInstruction(typeInformation, typeConversionsFactory));
+    if (typeConversionsFactory.getClass() == ByteBuddyUtils.DefaultTypeConversionsFactory.class
+        && ByteBuddyUtils.inferredLogicalTypeFor(typeInformation.getRawType()) != null) {
+      builder =
+          builder
+              .implement(ByteBuddyUtils.DirectLogicalTypeGetter.class)
+              .method(ElementMatchers.named("getRaw"))
+              .intercept(new InvokeRawGetterInstruction(typeInformation));
+    }
+    return builder;
+  }
+
+  // Invokes the JavaBean getter directly without logical-type toBaseType conversion.
+  private static class InvokeRawGetterInstruction implements Implementation {
+    private final FieldValueTypeInformation typeInformation;
+
+    InvokeRawGetterInstruction(FieldValueTypeInformation typeInformation) {
+      this.typeInformation = typeInformation;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+        Method method =
+            Preconditions.checkStateNotNull(
+                typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
+        StackManipulation cast =
+            typeInformation.getRawType().isAssignableFrom(method.getReturnType())
+                ? StackManipulation.Trivial.INSTANCE
+                : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                MethodVariableAccess.REFERENCE.loadFrom(1),
+                MethodInvocation.invoke(new ForLoadedMethod(method)),
+                cast,
+                MethodReturn.REFERENCE);
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
   }
 
   // The list of setters for a class is cached, so we only create the classes the first time
@@ -418,6 +475,323 @@ public class JavaBeanUtils {
     }
   }
 
+  // Above this field count, setter-based creator generation falls back to SetterBasedCreatorFactory
+  // to stay well below HotSpot C2's 8KB HugeMethodLimit even when fields require type conversions.
+  private static final int MAX_INLINED_SETTER_CREATOR_FIELDS = 128;
+  private static final int MAX_SETTER_CREATORS_PER_CLASS = 32;
+
+  private static final class SetterCreatorKey {
+    final TypeDescriptorWithSchema<?> typeWithSchema;
+    final Class<?> supplierClass;
+    final Class<?> factoryClass;
+    final int hash;
+
+    SetterCreatorKey(
+        TypeDescriptorWithSchema<?> typeWithSchema, Class<?> supplierClass, Class<?> factoryClass) {
+      this.typeWithSchema = typeWithSchema;
+      this.supplierClass = supplierClass;
+      this.factoryClass = factoryClass;
+      int h = typeWithSchema.hashCode();
+      h = 31 * h + supplierClass.hashCode();
+      h = 31 * h + factoryClass.hashCode();
+      this.hash = h;
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof SetterCreatorKey)) {
+        return false;
+      }
+      SetterCreatorKey that = (SetterCreatorKey) o;
+      return hash == that.hash
+          && supplierClass == that.supplierClass
+          && factoryClass == that.factoryClass
+          && typeWithSchema.equals(that.typeWithSchema);
+    }
+  }
+
+  // Dedicated ClassValue-anchored cache for generated setter creators (separate from
+  // CACHED_CREATORS used by constructor/static creators) so user ClassLoaders are never pinned.
+  private static final ClassValue<ConcurrentHashMap<SetterCreatorKey, SchemaUserTypeCreator>>
+      SETTER_CREATOR_CACHE =
+          new ClassValue<ConcurrentHashMap<SetterCreatorKey, SchemaUserTypeCreator>>() {
+            @Override
+            protected ConcurrentHashMap<SetterCreatorKey, SchemaUserTypeCreator> computeValue(
+                Class<?> type) {
+              return new ConcurrentHashMap<>();
+            }
+          };
+
+  private static boolean isClassAccessibleFromPackage(Class<?> clazz, @Nullable Package fromPkg) {
+    if (clazz.isAnonymousClass() || clazz.isLocalClass() || clazz.isSynthetic()) {
+      return false;
+    }
+    if (clazz.getCanonicalName() == null) {
+      return false;
+    }
+    if (clazz.getEnclosingClass() != null
+        && !clazz.isInterface()
+        && !clazz.isEnum()
+        && !Modifier.isStatic(clazz.getModifiers())) {
+      return false;
+    }
+    for (Class<?> c = clazz; c != null; c = c.getEnclosingClass()) {
+      int m = c.getModifiers();
+      if (Modifier.isPrivate(m) || Modifier.isProtected(m)) {
+        return false;
+      }
+      if (!Modifier.isPublic(m)) {
+        Package cPkg = c.getPackage();
+        if (fromPkg == null || cPkg == null || !fromPkg.getName().equals(cPkg.getName())) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Returns a cached ByteBuddy-generated {@link SchemaUserTypeCreator} that constructs {@code
+   * typeDescriptor} via its accessible no-arg constructor and invokes each setter directly, or
+   * {@code null} if a direct bytecode creator cannot be generated (e.g., inaccessible
+   * class/constructor/setter, default package, or excessive field count).
+   */
+  @Internal
+  public static @Nullable SchemaUserTypeCreator getSetterCreator(
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier setterTypeSupplier,
+      TypeConversionsFactory typeConversionsFactory) {
+    Class<?> clazz = typeDescriptor.getRawType();
+    if (schema.getFieldCount() > MAX_INLINED_SETTER_CREATOR_FIELDS) {
+      return null;
+    }
+    Package pkg = clazz.getPackage();
+    if (pkg == null) {
+      return null;
+    }
+    String pkgName = pkg.getName();
+    if (pkgName.startsWith("java.")
+        || pkgName.startsWith("javax.")
+        || pkgName.startsWith("sun.")
+        || pkgName.startsWith("jdk.")) {
+      return null;
+    }
+    if (Modifier.isAbstract(clazz.getModifiers())
+        || clazz.isInterface()
+        || !isClassAccessibleFromPackage(clazz, pkg)) {
+      return null;
+    }
+    Constructor<?> defaultCtor;
+    try {
+      defaultCtor = clazz.getDeclaredConstructor();
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
+    int ctorMods = defaultCtor.getModifiers();
+    if (Modifier.isPrivate(ctorMods) || Modifier.isProtected(ctorMods)) {
+      return null;
+    }
+    List<FieldValueTypeInformation> setterTypes = setterTypeSupplier.get(typeDescriptor, schema);
+    if (setterTypes.size() != schema.getFieldCount()) {
+      return null;
+    }
+    for (FieldValueTypeInformation info : setterTypes) {
+      Method m = info.getMethod();
+      if (m == null) {
+        return null;
+      }
+      int mMods = m.getModifiers();
+      if (Modifier.isPrivate(mMods) || Modifier.isProtected(mMods) || Modifier.isStatic(mMods)) {
+        return null;
+      }
+      Class<?> declClass = m.getDeclaringClass();
+      if (!isClassAccessibleFromPackage(declClass, pkg)) {
+        return null;
+      }
+      if (!Modifier.isPublic(mMods)) {
+        Package declPkg = declClass.getPackage();
+        if (declPkg == null || !pkgName.equals(declPkg.getName())) {
+          return null;
+        }
+      }
+      Class<?>[] paramTypes = m.getParameterTypes();
+      if (paramTypes.length != 1) {
+        return null;
+      }
+      Class<?> pType = paramTypes[0];
+      while (pType.isArray()) {
+        pType = pType.getComponentType();
+      }
+      if (!pType.isPrimitive() && !isClassAccessibleFromPackage(pType, pkg)) {
+        return null;
+      }
+    }
+    boolean canCache =
+        typeConversionsFactory.getClass() == ByteBuddyUtils.DefaultTypeConversionsFactory.class;
+    if (!canCache) {
+      return tryCreateSetterCreator(clazz, setterTypes, typeConversionsFactory);
+    }
+    ConcurrentHashMap<SetterCreatorKey, SchemaUserTypeCreator> perClassCache =
+        SETTER_CREATOR_CACHE.get(clazz);
+    SetterCreatorKey key =
+        new SetterCreatorKey(
+            TypeDescriptorWithSchema.create(typeDescriptor, schema),
+            setterTypeSupplier.getClass(),
+            typeConversionsFactory.getClass());
+    SchemaUserTypeCreator existing = perClassCache.get(key);
+    if (existing != null) {
+      return existing;
+    }
+    if (perClassCache.size() >= MAX_SETTER_CREATORS_PER_CLASS) {
+      return null;
+    }
+    SchemaUserTypeCreator created =
+        tryCreateSetterCreator(clazz, setterTypes, typeConversionsFactory);
+    if (created == null) {
+      return null;
+    }
+    SchemaUserTypeCreator prev = perClassCache.putIfAbsent(key, created);
+    return prev != null ? prev : created;
+  }
+
+  private static <T> @Nullable SchemaUserTypeCreator tryCreateSetterCreator(
+      Class<T> clazz,
+      List<FieldValueTypeInformation> setterTypes,
+      TypeConversionsFactory typeConversionsFactory) {
+    try {
+      DynamicType.Builder<SchemaUserTypeCreator> builder =
+          BYTE_BUDDY
+              .with(new InjectPackageStrategy(clazz))
+              .subclass(SchemaUserTypeCreator.class)
+              .method(ElementMatchers.named("create"))
+              .intercept(
+                  new SetMethodCreateInstruction(setterTypes, clazz, typeConversionsFactory));
+      ClassLoader targetLoader = ReflectHelpers.findClassLoader(clazz.getClassLoader());
+      TypePool typePool =
+          TypePool.Default.of(
+              new ClassFileLocator.Compound(
+                  ClassFileLocator.ForClassLoader.of(targetLoader),
+                  ClassFileLocator.ForClassLoader.of(JavaBeanUtils.class.getClassLoader())));
+      return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
+          .make(typePool)
+          .load(targetLoader, getClassLoadingStrategy(clazz))
+          .getLoaded()
+          .getDeclaredConstructor()
+          .newInstance();
+    } catch (Exception | LinkageError e) {
+      // Fall back cleanly to SetterBasedCreatorFactory on sealed packages or classloader limits.
+      return null;
+    }
+  }
+
+  private static class SetMethodCreateInstruction implements Implementation {
+    private final List<FieldValueTypeInformation> setterTypes;
+    private final Class<?> beanClass;
+    private final TypeConversionsFactory typeConversionsFactory;
+
+    SetMethodCreateInstruction(
+        List<FieldValueTypeInformation> setterTypes,
+        Class<?> beanClass,
+        TypeConversionsFactory typeConversionsFactory) {
+      this.setterTypes = setterTypes;
+      this.beanClass = beanClass;
+      this.typeConversionsFactory = typeConversionsFactory;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        int baseLocals = 1 + instrumentedMethod.getParameters().size();
+        int tempLocal = baseLocals;
+        boolean usedTemp = false;
+
+        TypeDescription.ForLoadedType loadedType = new TypeDescription.ForLoadedType(beanClass);
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                TypeCreation.of(loadedType),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    loadedType
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()));
+
+        TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
+        for (int i = 0; i < setterTypes.size(); i++) {
+          FieldValueTypeInformation typeInfo = setterTypes.get(i);
+          Method setter =
+              Preconditions.checkStateNotNull(typeInfo.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
+          TypeDescription.ForLoadedType convertedType =
+              new TypeDescription.ForLoadedType((Class<?>) convertType.convert(typeInfo.getType()));
+          StackManipulation readParam =
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  IntegerConstant.forValue(i),
+                  ArrayAccess.REFERENCE.load(),
+                  TypeCasting.to(convertedType));
+          StackManipulation convertedValue;
+          if (typeInfo.getRawType().isPrimitive()
+              || ByteBuddyUtils.isIdentityConversion(
+                  s ->
+                      typeConversionsFactory
+                          .createSetterConversions(s)
+                          .convert(typeInfo.getType()))) {
+            convertedValue =
+                typeConversionsFactory
+                    .createSetterConversions(readParam)
+                    .convert(typeInfo.getType());
+          } else {
+            // Spill param to reusable local once to avoid double aaload/checkcast in null check.
+            usedTemp = true;
+            StackManipulation storeParam =
+                new StackManipulation.Compound(
+                    readParam, MethodVariableAccess.REFERENCE.storeAt(tempLocal));
+            StackManipulation loadParam = MethodVariableAccess.REFERENCE.loadFrom(tempLocal);
+            convertedValue =
+                new StackManipulation.Compound(
+                    storeParam,
+                    typeConversionsFactory
+                        .createSetterConversions(loadParam)
+                        .convert(typeInfo.getType()));
+          }
+          StackManipulation invokeSetter = MethodInvocation.invoke(new ForLoadedMethod(setter));
+          Class<?> returnType = setter.getReturnType();
+          StackManipulation discardReturn =
+              returnType.equals(Void.TYPE)
+                  ? StackManipulation.Trivial.INSTANCE
+                  : Removal.of(new TypeDescription.ForLoadedType(returnType));
+          stackManipulation =
+              new StackManipulation.Compound(
+                  stackManipulation,
+                  Duplication.SINGLE,
+                  convertedValue,
+                  invokeSetter,
+                  discardReturn);
+        }
+        stackManipulation =
+            new StackManipulation.Compound(stackManipulation, MethodReturn.REFERENCE);
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), usedTemp ? baseLocals + 1 : baseLocals);
+      };
+    }
+  }
+
   public static <T, K extends Comparable<? super K>> Comparator<T> comparingNullFirst(
       Function<? super T, ? extends @Nullable K> keyExtractor) {
     return Comparator.comparing(keyExtractor, Comparator.nullsFirst(Comparator.naturalOrder()));
@@ -453,24 +827,45 @@ public class JavaBeanUtils {
                 ? StackManipulation.Trivial.INSTANCE
                 : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
 
-        // StackManipulation that will read the value from the class field.
+        // StackManipulation that reads the value from the getter.
+        Method method =
+            Preconditions.checkStateNotNull(
+                typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
         StackManipulation readValue =
             new StackManipulation.Compound(
                 // Method param is offset 1 (offset 0 is the this parameter).
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // Invoke the getter
-                MethodInvocation.invoke(
-                    new ForLoadedMethod(
-                        Preconditions.checkStateNotNull(
-                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))),
+                MethodInvocation.invoke(new ForLoadedMethod(method)),
                 cast);
 
-        StackManipulation stackManipulation =
-            new StackManipulation.Compound(
-                typeConversionsFactory
-                    .createGetterConversions(readValue)
-                    .convert(typeInformation.getType()),
-                MethodReturn.REFERENCE);
+        StackManipulation stackManipulation;
+        if (!method.getReturnType().isPrimitive()
+            && !ByteBuddyUtils.isIdentityConversion(
+                s ->
+                    typeConversionsFactory
+                        .createGetterConversions(s)
+                        .convert(typeInformation.getType()))) {
+          // Spill non-primitive getter result once so null checks don't invoke the getter twice.
+          int tempLocal = numLocals;
+          numLocals++;
+          StackManipulation loadTemp = MethodVariableAccess.REFERENCE.loadFrom(tempLocal);
+          stackManipulation =
+              new StackManipulation.Compound(
+                  readValue,
+                  MethodVariableAccess.REFERENCE.storeAt(tempLocal),
+                  typeConversionsFactory
+                      .createGetterConversions(loadTemp)
+                      .convert(typeInformation.getType()),
+                  MethodReturn.REFERENCE);
+        } else {
+          stackManipulation =
+              new StackManipulation.Compound(
+                  typeConversionsFactory
+                      .createGetterConversions(readValue)
+                      .convert(typeInformation.getType()),
+                  MethodReturn.REFERENCE);
+        }
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
@@ -521,8 +916,11 @@ public class JavaBeanUtils {
                 // Now update the field and return void.
                 MethodInvocation.invoke(new ForLoadedMethod(method)));
         if (!setterMethodReturnsVoid) {
-          // Discard return type;
-          stackManipulation = new StackManipulation.Compound(stackManipulation, Removal.SINGLE);
+          // Discard return value (handles both 1-slot and 2-slot long/double fluent setters).
+          stackManipulation =
+              new StackManipulation.Compound(
+                  stackManipulation,
+                  Removal.of(new TypeDescription.ForLoadedType(method.getReturnType())));
         }
         stackManipulation = new StackManipulation.Compound(stackManipulation, MethodReturn.VOID);
 

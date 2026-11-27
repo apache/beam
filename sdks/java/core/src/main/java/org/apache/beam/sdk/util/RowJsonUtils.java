@@ -22,8 +22,11 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
@@ -141,9 +144,50 @@ public class RowJsonUtils {
     }
   }
 
+  public static Row jsonToRow(ObjectReader objectReader, String jsonString) {
+    try {
+      return objectReader.readValue(jsonString);
+    } catch (JsonParseException | JsonMappingException jsonException) {
+      throw new UnsupportedRowJsonException("Unable to parse Row", jsonException);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Unable to parse json object: " + jsonString, e);
+    }
+  }
+
+  /**
+   * Parses UTF-8 JSON bytes into a {@link Row} using {@code objectReader}. Enforces strict RFC 8259
+   * UTF-8 validation (malformed UTF-8 byte sequences raise {@link UnsupportedRowJsonException}).
+   */
+  public static Row jsonBytesToRow(ObjectReader objectReader, byte[] jsonBytes) {
+    try {
+      return objectReader.readValue(jsonBytes);
+    } catch (JsonParseException | JsonMappingException jsonException) {
+      throw new UnsupportedRowJsonException("Unable to parse Row", jsonException);
+    } catch (IOException e) {
+      throw new IllegalArgumentException(
+          "Unable to parse json object: " + new String(jsonBytes, StandardCharsets.UTF_8), e);
+    }
+  }
+
   public static String rowToJson(ObjectMapper objectMapper, Row row) {
     try {
       return objectMapper.writeValueAsString(row);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to serialize row: " + row, e);
+    }
+  }
+
+  public static String rowToJson(ObjectWriter objectWriter, Row row) {
+    try {
+      return objectWriter.writeValueAsString(row);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException("Unable to serialize row: " + row, e);
+    }
+  }
+
+  public static byte[] rowToJsonBytes(ObjectWriter objectWriter, Row row) {
+    try {
+      return objectWriter.writeValueAsBytes(row);
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to serialize row: " + row, e);
     }

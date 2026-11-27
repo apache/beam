@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaUtils;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
 /** Represents information about how a DoFn extracts schemas. */
@@ -171,7 +173,9 @@ public abstract class DoFnSchemaInformation implements Serializable {
     private final SerializableFunction<InputT, Row> toRowFunction;
     private final SerializableFunction<Row, OutputT> fromRowFunction;
     private final boolean unbox;
-    private final RowSelector rowSelector;
+    private final boolean selectAll;
+    private final int @Nullable [] directUnboxPath;
+    private final @Nullable RowSelector rowSelector;
 
     private ConversionFunction(
         Schema inputSchema,
@@ -182,7 +186,21 @@ public abstract class DoFnSchemaInformation implements Serializable {
       this.toRowFunction = toRowFunction;
       this.fromRowFunction = fromRowFunction;
       this.unbox = unbox;
-      this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
+      if (selectDescriptor.getAllFields()) {
+        this.selectAll = true;
+        this.directUnboxPath = null;
+        this.rowSelector = null;
+      } else if (unbox) {
+        int[] path = SchemaUtils.tryResolveSingleFieldPath(inputSchema, selectDescriptor);
+        this.selectAll = false;
+        this.directUnboxPath = path;
+        this.rowSelector =
+            path == null ? new RowSelectorContainer(inputSchema, selectDescriptor, true) : null;
+      } else {
+        this.selectAll = false;
+        this.directUnboxPath = null;
+        this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
+      }
     }
 
     public static <InputT, OutputT> ConversionFunction of(
@@ -198,9 +216,16 @@ public abstract class DoFnSchemaInformation implements Serializable {
     @Override
     public OutputT apply(InputT input) {
       Row row = toRowFunction.apply(input);
-      Row selected = rowSelector.select(row);
-      if (unbox) {
-        selected = selected.getRow(0);
+      Row selected;
+      if (selectAll) {
+        selected = (unbox && row != null) ? row.getRow(0) : row;
+      } else if (directUnboxPath != null) {
+        selected = (Row) SchemaUtils.readFieldPath(row, directUnboxPath);
+      } else {
+        selected = rowSelector.select(row);
+        if (unbox && selected != null) {
+          selected = selected.getRow(0);
+        }
       }
       return fromRowFunction.apply(selected);
     }
@@ -215,8 +240,10 @@ public abstract class DoFnSchemaInformation implements Serializable {
     private final SerializableFunction<InputT, Row> toRowFunction;
     private final FieldType primitiveType;
     private final TypeDescriptor<?> primitiveOutputType;
-    private transient SerializableFunction<InputT, OutputT> conversionFunction;
-    private final RowSelector rowSelector;
+    private final int @Nullable [] directPath;
+    private final @Nullable RowSelector rowSelector;
+    private transient volatile @Nullable SerializableFunction<Object, OutputT> conversionFunction;
+    private transient volatile boolean isIdentityConversion;
 
     private UnboxingConversionFunction(
         Schema inputSchema,
@@ -227,7 +254,10 @@ public abstract class DoFnSchemaInformation implements Serializable {
       this.toRowFunction = toRowFunction;
       this.primitiveType = selectOutputSchema.getField(0).getType();
       this.primitiveOutputType = primitiveOutputType;
-      this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
+      int[] path = SchemaUtils.tryResolveSingleFieldPath(inputSchema, selectDescriptor);
+      this.directPath = path;
+      this.rowSelector =
+          path == null ? new RowSelectorContainer(inputSchema, selectDescriptor, true) : null;
     }
 
     public static <InputT> UnboxingConversionFunction of(
@@ -241,20 +271,31 @@ public abstract class DoFnSchemaInformation implements Serializable {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public OutputT apply(InputT input) {
       Row row = toRowFunction.apply(input);
-      Row selected = rowSelector.select(row);
-      return getConversionFunction().apply(selected.getValue(0));
+      Object value;
+      if (directPath != null) {
+        value = SchemaUtils.readFieldPath(row, directPath);
+      } else {
+        value = rowSelector.select(row).getValue(0);
+      }
+      SerializableFunction<Object, OutputT> conv = this.conversionFunction;
+      if (conv == null) {
+        conv = initConversionFunction();
+      }
+      return isIdentityConversion ? (OutputT) value : conv.apply(value);
     }
 
-    private SerializableFunction<InputT, OutputT> getConversionFunction() {
-      if (conversionFunction == null) {
-        conversionFunction =
-            (SerializableFunction<InputT, OutputT>)
-                ConvertHelpers.getConvertPrimitive(
-                    primitiveType, primitiveOutputType, new DefaultTypeConversionsFactory());
-      }
-      return conversionFunction;
+    @SuppressWarnings("unchecked")
+    private SerializableFunction<Object, OutputT> initConversionFunction() {
+      SerializableFunction<?, OutputT> fn =
+          ConvertHelpers.getConvertPrimitive(
+              primitiveType, primitiveOutputType, DefaultTypeConversionsFactory.INSTANCE);
+      isIdentityConversion = SchemaUtils.isIdentityFunction(fn);
+      SerializableFunction<Object, OutputT> typed = (SerializableFunction<Object, OutputT>) fn;
+      this.conversionFunction = typed;
+      return typed;
     }
   }
 }

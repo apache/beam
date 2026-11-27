@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import java.net.MalformedURLException;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -133,43 +135,85 @@ public class JavaFilterTransformProvider
                 this.configuration.getKeep(), keepFn.getOutputType()));
       }
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+      if (!handleErrors) {
+        PCollection<Row> filtered =
+            input
+                .get(INPUT_ROWS_TAG)
+                .apply("Filter", ParDo.of(createSimpleDoFn(keepFn)))
+                .setRowSchema(inputSchema);
+        return PCollectionRowTuple.of(OUTPUT_ROWS_TAG, filtered);
+      }
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
-
       PCollectionTuple pcolls =
           input
               .get(INPUT_ROWS_TAG)
               .apply(
                   "Filter",
-                  ParDo.of(createDoFn(keepFn, errorSchema, handleErrors))
+                  ParDo.of(createErrorHandlingDoFn(keepFn, errorSchema))
                       .withOutputTags(filteredValues, TupleTagList.of(errorValues)));
       pcolls.get(filteredValues).setRowSchema(inputSchema);
       pcolls.get(errorValues).setRowSchema(errorSchema);
 
-      PCollectionRowTuple result =
-          PCollectionRowTuple.of(OUTPUT_ROWS_TAG, pcolls.get(filteredValues));
-      if (handleErrors) {
-        result = result.and(configuration.getErrorHandling().getOutput(), pcolls.get(errorValues));
-      }
-      return result;
+      return PCollectionRowTuple.of(OUTPUT_ROWS_TAG, pcolls.get(filteredValues))
+          .and(configuration.getErrorHandling().getOutput(), pcolls.get(errorValues));
     }
 
     private static final TupleTag<Row> filteredValues = new TupleTag<Row>() {};
     private static final TupleTag<Row> errorValues = new TupleTag<Row>() {};
 
-    private static DoFn<Row, Row> createDoFn(
-        JavaRowUdf keepFn, Schema errorSchema, boolean handleErrors) {
+    private static Function<Row, Object> resolveKeepFn(JavaRowUdf keepFn) {
+      try {
+        return keepFn.getFunction();
+      } catch (Exception exn) {
+        throw new RuntimeException(exn);
+      }
+    }
+
+    private static DoFn<Row, Row> createSimpleDoFn(JavaRowUdf keepFn) {
       return new DoFn<Row, Row>() {
+        private transient Function<Row, Object> fn;
+
+        @Setup
+        public void setup() {
+          this.fn = resolveKeepFn(keepFn);
+        }
+
+        @ProcessElement
+        public void processElement(@Element Row inputRow, OutputReceiver<Row> out) {
+          Function<Row, Object> localFn = this.fn;
+          if (localFn == null) {
+            localFn = resolveKeepFn(keepFn);
+            this.fn = localFn;
+          }
+          if ((boolean) localFn.apply(inputRow)) {
+            out.output(inputRow);
+          }
+        }
+      };
+    }
+
+    private static DoFn<Row, Row> createErrorHandlingDoFn(JavaRowUdf keepFn, Schema errorSchema) {
+      return new DoFn<Row, Row>() {
+        private transient Function<Row, Object> fn;
+
+        @Setup
+        public void setup() {
+          this.fn = resolveKeepFn(keepFn);
+        }
+
         @ProcessElement
         public void processElement(@Element Row inputRow, MultiOutputReceiver out) {
           boolean keep = false;
           try {
-            keep = (boolean) keepFn.getFunction().apply(inputRow);
-          } catch (Exception exn) {
-            if (handleErrors) {
-              out.get(errorValues).output(ErrorHandling.errorRecord(errorSchema, inputRow, exn));
-            } else {
-              throw new RuntimeException(exn);
+            Function<Row, Object> localFn = this.fn;
+            if (localFn == null) {
+              localFn = resolveKeepFn(keepFn);
+              this.fn = localFn;
             }
+            keep = (boolean) localFn.apply(inputRow);
+          } catch (Exception exn) {
+            out.get(errorValues).output(ErrorHandling.errorRecord(errorSchema, inputRow, exn));
+            return;
           }
           if (keep) {
             out.get(filteredValues).output(inputRow);

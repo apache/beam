@@ -30,9 +30,11 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
+import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
@@ -52,8 +54,21 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
   private final GetterBasedSchemaProvider schemaProvider;
   private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
 
+  private static final class ConverterPlan {
+    final @Nullable Function[] fieldConverters;
+    final boolean hasConversions;
+
+    ConverterPlan(@Nullable Function[] fieldConverters, boolean hasConversions) {
+      this.fieldConverters = fieldConverters;
+      this.hasConversions = hasConversions;
+    }
+  }
+
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-  private transient volatile @MonotonicNonNull Function[] fieldConverters;
+  private transient volatile @MonotonicNonNull ConverterPlan converterPlan;
+
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+  private transient volatile @MonotonicNonNull SchemaUserTypeCreator cachedCreator;
 
   public FromRowUsingCreator(
       TypeDescriptor<T> typeDescriptor, GetterBasedSchemaProvider schemaProvider) {
@@ -68,49 +83,85 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
       TypeDescriptor<T> typeDescriptor,
       GetterBasedSchemaProvider schemaProvider,
       Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory,
-      @Nullable Function[] fieldConverters) {
+      @Nullable ConverterPlan converterPlan) {
     this.typeDescriptor = typeDescriptor;
     this.schemaProvider = schemaProvider;
     this.schemaTypeCreatorFactory = schemaTypeCreatorFactory;
-    this.fieldConverters = fieldConverters;
+    this.converterPlan = converterPlan;
   }
 
   @Override
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "ReferenceEquality"})
   public T apply(Row row) {
     if (row == null) {
       return null;
     }
     if (row instanceof RowWithGetters) {
       RowWithGetters rowWithGetters = (RowWithGetters) row;
-      if (rowWithGetters.getGetterTargetType().equals(typeDescriptor)) {
+      TypeDescriptor<?> targetType = rowWithGetters.getGetterTargetType();
+      if (targetType == typeDescriptor || targetType.equals(typeDescriptor)) {
         // Efficient path: simply extract the underlying object instead of creating a new one.
         return (T) rowWithGetters.getGetterTarget();
       }
     }
-    if (fieldConverters == null) {
-      initFieldConverters(row.getSchema());
+    Schema rowSchema = row.getSchema();
+    ConverterPlan plan = this.converterPlan;
+    if (plan == null) {
+      plan = initFieldConverters(rowSchema);
     }
-    checkState(fieldConverters.length == row.getFieldCount(), "Unexpected field count");
+    @Nullable Function[] converters = plan.fieldConverters;
+    int fieldCount = row.getFieldCount();
+    checkState(converters.length == fieldCount, "Unexpected field count");
 
-    Object[] params = new Object[row.getFieldCount()];
-    for (int i = 0; i < row.getFieldCount(); ++i) {
-      params[i] = fieldConverters[i].apply(row.getValue(i));
+    SchemaUserTypeCreator creator = this.cachedCreator;
+    if (creator == null) {
+      creator = schemaTypeCreatorFactory.create(typeDescriptor, rowSchema);
+      this.cachedCreator = creator;
     }
-    SchemaUserTypeCreator creator =
-        schemaTypeCreatorFactory.create(typeDescriptor, row.getSchema());
+
+    if (row instanceof RowWithStorage) {
+      @Nullable Object[] rawArr = ((RowWithStorage) row).getRawArray();
+      if (rawArr != null) {
+        if (!plan.hasConversions) {
+          return (T) creator.create(rawArr);
+        }
+        Object[] params = new Object[fieldCount];
+        for (int i = 0; i < fieldCount; ++i) {
+          Function converter = converters[i];
+          Object val = rawArr[i];
+          params[i] = converter != null ? converter.apply(val) : val;
+        }
+        return (T) creator.create(params);
+      }
+    }
+
+    Object[] params = new Object[fieldCount];
+    if (!plan.hasConversions) {
+      for (int i = 0; i < fieldCount; ++i) {
+        params[i] = row.getValue(i);
+      }
+    } else {
+      for (int i = 0; i < fieldCount; ++i) {
+        Function converter = converters[i];
+        Object val = row.getValue(i);
+        params[i] = converter != null ? converter.apply(val) : val;
+      }
+    }
     return (T) creator.create(params);
   }
 
-  private synchronized void initFieldConverters(Schema schema) {
-    if (fieldConverters == null) {
+  private synchronized ConverterPlan initFieldConverters(Schema schema) {
+    ConverterPlan plan = this.converterPlan;
+    if (plan == null) {
       CachingFactory<List<FieldValueTypeInformation>> typeFactory =
           new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
-      fieldConverters = fieldConverters(typeDescriptor, schema, typeFactory);
+      plan = fieldConverters(typeDescriptor, schema, typeFactory);
+      this.converterPlan = plan;
     }
+    return plan;
   }
 
-  private Function[] fieldConverters(
+  private ConverterPlan fieldConverters(
       TypeDescriptor<?> typeDescriptor,
       Schema schema,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
@@ -118,11 +169,17 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     checkState(
         typeInfos.size() == schema.getFieldCount(),
         "Did not have a matching number of type informations and fields.");
-    Function[] converters = new Function[schema.getFieldCount()];
+    @Nullable Function[] converters = new Function[schema.getFieldCount()];
+    boolean hasConversions = false;
     for (int i = 0; i < converters.length; i++) {
-      converters[i] = fieldConverter(schema.getField(i).getType(), typeInfos.get(i), typeFactory);
+      Function converter =
+          fieldConverter(schema.getField(i).getType(), typeInfos.get(i), typeFactory);
+      converters[i] = converter;
+      if (converter != null) {
+        hasConversions = true;
+      }
     }
-    return converters;
+    return new ConverterPlan(converters, hasConversions);
   }
 
   private static boolean needsConversion(FieldType type) {
@@ -135,26 +192,34 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
             && (needsConversion(type.getMapKeyType()) || needsConversion(type.getMapValueType())));
   }
 
-  private Function fieldConverter(
+  /** Returns a converter for the given field type, or {@code null} when identity suffices. */
+  private @Nullable Function fieldConverter(
       FieldType type,
       FieldValueTypeInformation typeInfo,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
     if (!needsConversion(type)) {
-      return FieldConverter.IDENTITY;
+      return null;
     } else if (TypeName.ROW.equals(type.getTypeName())) {
-      Function[] converters = fieldConverters(typeInfo.getType(), type.getRowSchema(), typeFactory);
+      ConverterPlan nestedPlan =
+          fieldConverters(typeInfo.getType(), type.getRowSchema(), typeFactory);
       return new FromRowUsingCreator(
-          typeInfo.getType(), schemaProvider, schemaTypeCreatorFactory, converters);
+          typeInfo.getType(), schemaProvider, schemaTypeCreatorFactory, nestedPlan);
     } else if (TypeName.ARRAY.equals(type.getTypeName())) {
-      return new ConvertCollection(
-          fieldConverter(type.getCollectionElementType(), typeInfo.getElementType(), typeFactory));
+      Function elementConverter =
+          fieldConverter(type.getCollectionElementType(), typeInfo.getElementType(), typeFactory);
+      return elementConverter == null ? null : new ConvertCollection(elementConverter);
     } else if (TypeName.ITERABLE.equals(type.getTypeName())) {
-      return new ConvertIterable(
-          fieldConverter(type.getCollectionElementType(), typeInfo.getElementType(), typeFactory));
+      Function elementConverter =
+          fieldConverter(type.getCollectionElementType(), typeInfo.getElementType(), typeFactory);
+      return elementConverter == null ? null : new ConvertIterable(elementConverter);
     } else if (TypeName.MAP.equals(type.getTypeName())) {
-      return new ConvertMap(
-          fieldConverter(type.getMapKeyType(), typeInfo.getMapKeyType(), typeFactory),
-          fieldConverter(type.getMapValueType(), typeInfo.getMapValueType(), typeFactory));
+      Function keyConverter =
+          fieldConverter(type.getMapKeyType(), typeInfo.getMapKeyType(), typeFactory);
+      Function valueConverter =
+          fieldConverter(type.getMapValueType(), typeInfo.getMapValueType(), typeFactory);
+      return (keyConverter == null && valueConverter == null)
+          ? null
+          : new ConvertMap(keyConverter, valueConverter);
     } else if (type.isLogicalType(OneOfType.IDENTIFIER)) {
       OneOfType oneOfType = type.getLogicalType(OneOfType.class);
       Schema schema = oneOfType.getOneOfSchema();
@@ -167,13 +232,24 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
                 FieldType caseType = schema.getField(name).getType();
                 FieldValueTypeInformation caseTypeInfo =
                     checkNotNull(typeInfo.getOneOfTypes().get(name));
-                readers.put(id, fieldConverter(caseType, caseTypeInfo, typeFactory));
+                Function converter = fieldConverter(caseType, caseTypeInfo, typeFactory);
+                readers.put(id, converter == null ? FieldConverter.IDENTITY : converter);
               });
       return new ConvertOneOf(oneOfType, readers);
     } else if (type.getTypeName().isLogicalType()) {
+      Class<?> providerClass = schemaProvider.getClass();
+      if ((providerClass == JavaFieldSchema.class
+              || providerClass == JavaBeanSchema.class
+              || providerClass == AutoValueSchema.class)
+          && ByteBuddyUtils.matchesInferredLogicalType(
+              type.getLogicalType(), typeInfo.getRawType())) {
+        // Generated setters accept the Java input type directly via convertLogicalTypeForSetter,
+        // avoiding the toBaseType -> toInputType round-trip allocation.
+        return null;
+      }
       return new ConvertLogicalType<>(type.getLogicalType());
     }
-    return FieldConverter.IDENTITY;
+    return null;
   }
 
   private interface FieldConverter<FieldT, ValueT>
@@ -222,37 +298,81 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
   }
 
   private static class ConvertMap implements FieldConverter<Map, Map> {
-    final Function keyConverter, valueConverter;
+    final @Nullable Function keyConverter;
+    final @Nullable Function valueConverter;
 
-    ConvertMap(Function keyConverter, Function valueConverter) {
+    ConvertMap(@Nullable Function keyConverter, @Nullable Function valueConverter) {
       this.keyConverter = keyConverter;
       this.valueConverter = valueConverter;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Map convert(Map field) {
+      if (keyConverter == null && valueConverter == null) {
+        return field;
+      }
       Map result = Maps.newHashMapWithExpectedSize(field.size());
-      field.forEach((k, v) -> result.put(keyConverter.apply(k), valueConverter.apply(v)));
+      for (Map.Entry<?, ?> entry : ((Map<?, ?>) field).entrySet()) {
+        Object k = entry.getKey();
+        Object v = entry.getValue();
+        result.put(
+            keyConverter != null ? keyConverter.apply(k) : k,
+            valueConverter != null ? valueConverter.apply(v) : v);
+      }
       return result;
     }
   }
 
   private static class ConvertOneOf implements FieldConverter<OneOfType.Value, OneOfType.Value> {
+    private static final int MAX_DENSE_ENUM_ID = 256;
     final OneOfType oneOfType;
     final Map<Integer, Function> converters;
+    final @Nullable Function @Nullable [] denseConverters;
 
     ConvertOneOf(OneOfType oneOfType, Map<Integer, Function> converters) {
       this.oneOfType = oneOfType;
       this.converters = converters;
+      int min = Integer.MAX_VALUE;
+      int max = Integer.MIN_VALUE;
+      for (Integer id : converters.keySet()) {
+        int v = id;
+        if (v < min) {
+          min = v;
+        }
+        if (v > max) {
+          max = v;
+        }
+      }
+      if (min >= 0 && max >= 0 && max < MAX_DENSE_ENUM_ID && !converters.isEmpty()) {
+        Function[] dense = new Function[max + 1];
+        for (Map.Entry<Integer, Function> entry : converters.entrySet()) {
+          dense[entry.getKey()] = entry.getValue();
+        }
+        this.denseConverters = dense;
+      } else {
+        this.denseConverters = null;
+      }
     }
 
     @Override
     public OneOfType.Value convert(OneOfType.Value field) {
       EnumerationType.Value caseType = field.getCaseType();
+      int id = caseType.getValue();
       Function converter =
-          checkStateNotNull(
-              converters.get(caseType.getValue()), "Missing OneOf converter for case %s.");
-      return oneOfType.createValue(caseType, converter.apply(field.getValue()));
+          denseConverters != null
+              ? (id >= 0 && id < denseConverters.length ? denseConverters[id] : null)
+              : converters.get(id);
+      checkStateNotNull(converter, "Missing OneOf converter for case %s.", caseType);
+      if (converter == FieldConverter.IDENTITY) {
+        return field;
+      }
+      Object rawValue = field.getValue();
+      Object converted = converter.apply(rawValue);
+      if (converted == rawValue) {
+        return field;
+      }
+      return oneOfType.createValue(caseType, converted);
     }
   }
 
@@ -268,6 +388,14 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     public ValueT convert(FieldT field) {
       return logicalType.toBaseType(field);
     }
+  }
+
+  TypeDescriptor<T> getTypeDescriptor() {
+    return typeDescriptor;
+  }
+
+  GetterBasedSchemaProvider getSchemaProvider() {
+    return schemaProvider;
   }
 
   @Override

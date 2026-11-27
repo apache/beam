@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.schemas.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,6 +32,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.everit.json.schema.ArraySchema;
 import org.everit.json.schema.BooleanSchema;
 import org.everit.json.schema.NumberSchema;
@@ -89,13 +93,17 @@ import org.json.JSONObject;
  */
 public class JsonUtils {
 
-  /** Returns a {@link SimpleFunction} mapping JSON byte[] arrays to Beam {@link Row}s. */
+  /**
+   * Returns a {@link SimpleFunction} mapping UTF-8 JSON byte[] arrays to Beam {@link Row}s.
+   *
+   * <p>Input bytes are parsed directly as strict RFC 8259 UTF-8; malformed UTF-8 sequences fail
+   * with {@link org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException}.
+   */
   public static SimpleFunction<byte[], Row> getJsonBytesToRowFunction(Schema beamSchema) {
     return new JsonToRowFn<byte[]>(beamSchema) {
       @Override
       public Row apply(byte[] input) {
-        String jsonString = byteArrayToJsonString(input);
-        return RowJsonUtils.jsonToRow(objectMapper, jsonString);
+        return RowJsonUtils.jsonBytesToRow(getReader(), input);
       }
     };
   }
@@ -105,7 +113,7 @@ public class JsonUtils {
     return new JsonToRowFn<String>(beamSchema) {
       @Override
       public Row apply(String jsonString) {
-        return RowJsonUtils.jsonToRow(objectMapper, jsonString);
+        return RowJsonUtils.jsonToRow(getReader(), jsonString);
       }
     };
   }
@@ -115,8 +123,7 @@ public class JsonUtils {
     return new RowToJsonFn<byte[]>(beamSchema) {
       @Override
       public byte[] apply(Row input) {
-        String jsonString = RowJsonUtils.rowToJson(objectMapper, input);
-        return jsonStringToByteArray(jsonString);
+        return RowJsonUtils.rowToJsonBytes(getWriter(), input);
       }
     };
   }
@@ -126,7 +133,7 @@ public class JsonUtils {
     return new RowToJsonFn<String>(beamSchema) {
       @Override
       public String apply(Row input) {
-        return RowJsonUtils.rowToJson(objectMapper, input);
+        return RowJsonUtils.rowToJson(getWriter(), input);
       }
     };
   }
@@ -320,21 +327,45 @@ public class JsonUtils {
 
   private abstract static class JsonToRowFn<T> extends SimpleFunction<T, Row> {
     final RowJson.RowJsonDeserializer deserializer;
-    final ObjectMapper objectMapper;
+
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+    private transient volatile @Nullable ObjectReader objectReader;
 
     private JsonToRowFn(Schema beamSchema) {
-      deserializer = RowJson.RowJsonDeserializer.forSchema(beamSchema);
-      objectMapper = RowJsonUtils.newObjectMapperWith(deserializer);
+      this.deserializer = RowJson.RowJsonDeserializer.forSchema(beamSchema);
+      ObjectMapper mapper = RowJsonUtils.newObjectMapperWith(this.deserializer);
+      this.objectReader = mapper.readerFor(Row.class);
+    }
+
+    final ObjectReader getReader() {
+      ObjectReader reader = objectReader;
+      if (reader == null) {
+        reader = RowJsonUtils.newObjectMapperWith(deserializer).readerFor(Row.class);
+        objectReader = reader;
+      }
+      return reader;
     }
   }
 
   private abstract static class RowToJsonFn<T> extends SimpleFunction<Row, T> {
     final RowJson.RowJsonSerializer serializer;
-    final ObjectMapper objectMapper;
+
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+    private transient volatile @Nullable ObjectWriter objectWriter;
 
     private RowToJsonFn(Schema beamSchema) {
-      serializer = RowJson.RowJsonSerializer.forSchema(beamSchema);
-      objectMapper = RowJsonUtils.newObjectMapperWith(serializer);
+      this.serializer = RowJson.RowJsonSerializer.forSchema(beamSchema);
+      ObjectMapper mapper = RowJsonUtils.newObjectMapperWith(this.serializer);
+      this.objectWriter = mapper.writerFor(Row.class);
+    }
+
+    final ObjectWriter getWriter() {
+      ObjectWriter writer = objectWriter;
+      if (writer == null) {
+        writer = RowJsonUtils.newObjectMapperWith(serializer).writerFor(Row.class);
+        objectWriter = writer;
+      }
+      return writer;
     }
   }
 

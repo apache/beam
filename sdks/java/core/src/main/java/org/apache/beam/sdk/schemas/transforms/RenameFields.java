@@ -19,23 +19,24 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.BitSet;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -43,6 +44,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform for renaming fields inside an existing schema. Top level or nested fields can be
@@ -90,88 +92,204 @@ public class RenameFields {
     }
   }
 
-  private static FieldType renameFieldType(
-      FieldType inputType,
-      Collection<RenamePair> renames,
-      Map<UUID, Schema> renamedSchemasMap,
-      Map<UUID, BitSet> nestedFieldRenamedMap) {
-    if (renames.isEmpty()) {
-      return inputType;
+  /** Precompiled per-field rename plan enabling fast, UUID-free multi-level renaming. */
+  private interface FieldRenamePlan extends Serializable {
+    @Nullable Object apply(@Nullable Object value);
+  }
+
+  @VisibleForTesting
+  static final class RowRenamePlan implements FieldRenamePlan {
+    final Schema outputSchema;
+    final @Nullable FieldRenamePlan @Nullable [] fieldPlans;
+
+    RowRenamePlan(Schema outputSchema, @Nullable FieldRenamePlan @Nullable [] fieldPlans) {
+      this.outputSchema = outputSchema;
+      this.fieldPlans = fieldPlans;
     }
 
-    switch (inputType.getTypeName()) {
-      case ROW:
-        renameSchema(inputType.getRowSchema(), renames, renamedSchemasMap, nestedFieldRenamedMap);
-        return FieldType.row(renamedSchemasMap.get(inputType.getRowSchema().getUUID()));
-      case ARRAY:
-        return FieldType.array(
-            renameFieldType(
-                inputType.getCollectionElementType(),
-                renames,
-                renamedSchemasMap,
-                nestedFieldRenamedMap));
-      case ITERABLE:
-        return FieldType.iterable(
-            renameFieldType(
-                inputType.getCollectionElementType(),
-                renames,
-                renamedSchemasMap,
-                nestedFieldRenamedMap));
-      case MAP:
-        return FieldType.map(
-            renameFieldType(
-                inputType.getMapKeyType(), renames, renamedSchemasMap, nestedFieldRenamedMap),
-            renameFieldType(
-                inputType.getMapValueType(), renames, renamedSchemasMap, nestedFieldRenamedMap));
-      case LOGICAL_TYPE:
-        throw new RuntimeException("RenameFields does not support renaming logical types.");
-      default:
-        return inputType;
+    @Override
+    public @Nullable Object apply(@Nullable Object value) {
+      return value == null ? null : rename((Row) value);
+    }
+
+    Row rename(Row row) {
+      if (row == null) {
+        return null;
+      }
+      if (fieldPlans == null) {
+        if (row instanceof RowWithStorage) {
+          @Nullable Object[] raw = ((RowWithStorage) row).getRawArray();
+          if (raw != null) {
+            return Row.attachValues(outputSchema, raw);
+          }
+          return Row.attachValues(outputSchema, row.getValues());
+        }
+        int n = outputSchema.getFieldCount();
+        Object[] values = new Object[n];
+        for (int i = 0; i < n; i++) {
+          values[i] = row.getValue(i);
+        }
+        return Row.attachValues(outputSchema, values);
+      }
+      int n = outputSchema.getFieldCount();
+      Object[] values = new Object[n];
+      @Nullable Object[] raw =
+          row instanceof RowWithStorage ? ((RowWithStorage) row).getRawArray() : null;
+      for (int i = 0; i < n; i++) {
+        Object val = raw != null ? raw[i] : row.getValue(i);
+        FieldRenamePlan childPlan = fieldPlans[i];
+        values[i] = (childPlan != null && val != null) ? childPlan.apply(val) : val;
+      }
+      return Row.attachValues(outputSchema, values);
     }
   }
 
-  // Apply the user-specified renames to the input schema.
+  private static final class CollectionRenamePlan implements FieldRenamePlan {
+    final FieldRenamePlan elementPlan;
+
+    CollectionRenamePlan(FieldRenamePlan elementPlan) {
+      this.elementPlan = elementPlan;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public @Nullable Object apply(@Nullable Object value) {
+      if (value == null) {
+        return null;
+      }
+      Iterable<Object> iterable = (Iterable<Object>) value;
+      List<Object> renamed =
+          iterable instanceof Collection
+              ? new ArrayList<>(((Collection<?>) iterable).size())
+              : new ArrayList<>();
+      for (Object elem : iterable) {
+        renamed.add(elem == null ? null : elementPlan.apply(elem));
+      }
+      return renamed;
+    }
+  }
+
+  private static final class MapRenamePlan implements FieldRenamePlan {
+    final @Nullable FieldRenamePlan keyPlan;
+    final @Nullable FieldRenamePlan valuePlan;
+
+    MapRenamePlan(@Nullable FieldRenamePlan keyPlan, @Nullable FieldRenamePlan valuePlan) {
+      this.keyPlan = keyPlan;
+      this.valuePlan = valuePlan;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public @Nullable Object apply(@Nullable Object value) {
+      if (value == null) {
+        return null;
+      }
+      Map<Object, Object> inputMap = (Map<Object, Object>) value;
+      Map<Object, Object> out = Maps.newHashMapWithExpectedSize(inputMap.size());
+      for (Map.Entry<Object, Object> entry : inputMap.entrySet()) {
+        Object k = entry.getKey();
+        Object v = entry.getValue();
+        Object outK = (keyPlan != null && k != null) ? keyPlan.apply(k) : k;
+        Object outV = (valuePlan != null && v != null) ? valuePlan.apply(v) : v;
+        out.put(outK, outV);
+      }
+      return out;
+    }
+  }
+
+  private static final class FieldPlanResult {
+    final FieldType fieldType;
+    final @Nullable FieldRenamePlan plan;
+
+    FieldPlanResult(FieldType fieldType, @Nullable FieldRenamePlan plan) {
+      this.fieldType = fieldType;
+      this.plan = plan;
+    }
+  }
+
   @VisibleForTesting
-  static void renameSchema(
-      Schema inputSchema,
-      Collection<RenamePair> renames,
-      Map<UUID, Schema> renamedSchemasMap,
-      Map<UUID, BitSet> nestedFieldRenamedMap) {
-    // The mapping of renames to apply at this level of the schema.
+  static RowRenamePlan buildRenamePlan(Schema inputSchema, Collection<RenamePair> renames) {
     Map<Integer, String> topLevelRenames = Maps.newHashMap();
-    // For nested schemas, collect all applicable renames here.
     Multimap<Integer, RenamePair> nestedRenames = ArrayListMultimap.create();
 
     for (RenamePair rename : renames) {
       FieldAccessDescriptor access = rename.getFieldAccessDescriptor();
       if (!access.fieldIdsAccessed().isEmpty()) {
-        // This references a field at this level of the schema.
         Integer fieldId = Iterables.getOnlyElement(access.fieldIdsAccessed());
         topLevelRenames.put(fieldId, rename.getNewName());
       } else {
-        // This references a nested field.
         Map.Entry<Integer, FieldAccessDescriptor> nestedAccess =
             Iterables.getOnlyElement(access.nestedFieldsById().entrySet());
-        nestedFieldRenamedMap
-            .computeIfAbsent(inputSchema.getUUID(), s -> new BitSet(inputSchema.getFieldCount()))
-            .set(nestedAccess.getKey());
         nestedRenames.put(
             nestedAccess.getKey(), RenamePair.of(nestedAccess.getValue(), rename.getNewName()));
       }
     }
 
+    int fieldCount = inputSchema.getFieldCount();
+    @Nullable FieldRenamePlan[] childPlans = null;
     Schema.Builder builder = Schema.builder();
-    for (int i = 0; i < inputSchema.getFieldCount(); ++i) {
+    for (int i = 0; i < fieldCount; i++) {
       Field field = inputSchema.getField(i);
-      FieldType fieldType = field.getType();
       String newName = topLevelRenames.getOrDefault(i, field.getName());
-      Collection<RenamePair> nestedFieldRenames =
+      Collection<RenamePair> nested =
           nestedRenames.asMap().getOrDefault(i, Collections.emptyList());
-      builder.addField(
-          newName,
-          renameFieldType(fieldType, nestedFieldRenames, renamedSchemasMap, nestedFieldRenamedMap));
+      if (nested.isEmpty()) {
+        builder.addField(field.withName(newName));
+      } else {
+        FieldPlanResult res = buildFieldPlan(field.getType(), nested);
+        builder.addField(field.withName(newName).withType(res.fieldType));
+        if (res.plan != null) {
+          if (childPlans == null) {
+            childPlans = new FieldRenamePlan[fieldCount];
+          }
+          childPlans[i] = res.plan;
+        }
+      }
     }
-    renamedSchemasMap.put(inputSchema.getUUID(), builder.build());
+    return new RowRenamePlan(builder.build(), childPlans);
+  }
+
+  private static FieldPlanResult buildFieldPlan(
+      FieldType inputType, Collection<RenamePair> renames) {
+    if (renames.isEmpty()) {
+      return new FieldPlanResult(inputType, null);
+    }
+    switch (inputType.getTypeName()) {
+      case ROW:
+        RowRenamePlan child = buildRenamePlan(inputType.getRowSchema(), renames);
+        return new FieldPlanResult(
+            FieldType.row(child.outputSchema)
+                .withNullable(inputType.getNullable())
+                .withMetadata(inputType.getAllMetadata()),
+            child);
+      case ARRAY:
+        FieldPlanResult arrElem = buildFieldPlan(inputType.getCollectionElementType(), renames);
+        return new FieldPlanResult(
+            FieldType.array(arrElem.fieldType)
+                .withNullable(inputType.getNullable())
+                .withMetadata(inputType.getAllMetadata()),
+            arrElem.plan == null ? null : new CollectionRenamePlan(arrElem.plan));
+      case ITERABLE:
+        FieldPlanResult iterElem = buildFieldPlan(inputType.getCollectionElementType(), renames);
+        return new FieldPlanResult(
+            FieldType.iterable(iterElem.fieldType)
+                .withNullable(inputType.getNullable())
+                .withMetadata(inputType.getAllMetadata()),
+            iterElem.plan == null ? null : new CollectionRenamePlan(iterElem.plan));
+      case MAP:
+        // FieldAccessDescriptor.resolve resolves nested map renames against the map value schema
+        // only; do not apply value-resolved field IDs to composite map keys.
+        FieldPlanResult valRes = buildFieldPlan(inputType.getMapValueType(), renames);
+        return new FieldPlanResult(
+            FieldType.map(inputType.getMapKeyType(), valRes.fieldType)
+                .withNullable(inputType.getNullable())
+                .withMetadata(inputType.getAllMetadata()),
+            valRes.plan == null ? null : new MapRenamePlan(null, valRes.plan));
+      case LOGICAL_TYPE:
+        throw new RuntimeException("RenameFields does not support renaming logical types.");
+      default:
+        return new FieldPlanResult(inputType, null);
+    }
   }
 
   /** The class implementing the actual PTransform. */
@@ -204,104 +322,31 @@ public class RenameFields {
 
     @Override
     public PCollection<Row> expand(PCollection<T> input) {
-      final Map<UUID, Schema> renamedSchemasMap = Maps.newHashMap();
-      final Map<UUID, BitSet> nestedFieldRenamedMap = Maps.newHashMap();
-
+      Schema inputSchema = input.getSchema();
+      @Nullable SerializableFunction<T, Row> toRowFn =
+          SchemaUtils.isIdentityFunction(input.getToRowFunction())
+              ? null
+              : input.getToRowFunction();
+      if (renames.isEmpty() && toRowFn == null) {
+        @SuppressWarnings("unchecked")
+        PCollection<Row> passthrough = (PCollection<Row>) input;
+        return passthrough;
+      }
       List<RenamePair> resolvedRenames =
-          renames.stream().map(r -> r.resolve(input.getSchema())).collect(Collectors.toList());
-      renameSchema(input.getSchema(), resolvedRenames, renamedSchemasMap, nestedFieldRenamedMap);
-      final Schema outputSchema = renamedSchemasMap.get(input.getSchema().getUUID());
-      final BitSet nestedRenames = nestedFieldRenamedMap.get(input.getSchema().getUUID());
+          renames.stream().map(r -> r.resolve(inputSchema)).collect(Collectors.toList());
+      final RowRenamePlan plan = buildRenamePlan(inputSchema, resolvedRenames);
+      final Schema outputSchema = plan.outputSchema;
       return input
           .apply(
               ParDo.of(
                   new DoFn<T, Row>() {
                     @ProcessElement
-                    public void processElement(@Element Row row, OutputReceiver<Row> o) {
-                      o.output(
-                          renameRow(
-                              row,
-                              outputSchema,
-                              nestedRenames,
-                              renamedSchemasMap,
-                              nestedFieldRenamedMap));
+                    public void processElement(@Element T element, OutputReceiver<Row> o) {
+                      Row row = toRowFn != null ? toRowFn.apply(element) : (Row) element;
+                      o.output(plan.rename(row));
                     }
                   }))
           .setRowSchema(outputSchema);
-    }
-  }
-
-  // TODO(reuvenlax): For better performance, we should reuse functionality in
-  // SelectByteBuddyHelpers to generate
-  // byte code to do the rename. This would allow us to skip walking over the schema on each row.
-  // For now we added
-  // the optimization to skip schema walking if there are no nested renames (as determined by the
-  // nestedFieldRenamedMap).
-  @VisibleForTesting
-  static Row renameRow(
-      Row row,
-      Schema schema,
-      @Nullable BitSet nestedRenames,
-      Map<UUID, Schema> renamedSubSchemasMap,
-      Map<UUID, BitSet> nestedFieldRenamedMap) {
-    if (nestedRenames == null || nestedRenames.isEmpty()) {
-      // Fast path, short circuit subschems.
-      return Row.withSchema(schema).attachValues(row.getValues());
-    } else {
-      List<Object> values = Lists.newArrayListWithCapacity(row.getValues().size());
-      for (int i = 0; i < schema.getFieldCount(); ++i) {
-        if (nestedRenames.get(i)) {
-          values.add(
-              renameFieldValue(
-                  row.getValue(i),
-                  schema.getField(i).getType(),
-                  renamedSubSchemasMap,
-                  nestedFieldRenamedMap));
-        } else {
-          values.add(row.getValue(i));
-        }
-      }
-      return Row.withSchema(schema).attachValues(values);
-    }
-  }
-
-  private static Object renameFieldValue(
-      Object value,
-      FieldType fieldType,
-      Map<UUID, Schema> renamedSubSchemas,
-      Map<UUID, BitSet> nestedFieldRenamed) {
-    switch (fieldType.getTypeName()) {
-      case ARRAY:
-      case ITERABLE:
-        List<Object> renamedValues = Lists.newArrayList();
-        for (Object o : (List) value) {
-          renamedValues.add(
-              renameFieldValue(
-                  o, fieldType.getCollectionElementType(), renamedSubSchemas, nestedFieldRenamed));
-        }
-        return renamedValues;
-      case MAP:
-        Map<Object, Object> renamedMap = Maps.newHashMap();
-        for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
-          renamedMap.put(
-              renameFieldValue(
-                  entry.getKey(), fieldType.getMapKeyType(), renamedSubSchemas, nestedFieldRenamed),
-              renameFieldValue(
-                  entry.getValue(),
-                  fieldType.getMapValueType(),
-                  renamedSubSchemas,
-                  nestedFieldRenamed));
-        }
-        return renamedMap;
-      case ROW:
-        return renameRow(
-            (Row) value,
-            fieldType.getRowSchema(),
-            nestedFieldRenamed.get(fieldType.getRowSchema().getUUID()),
-            renamedSubSchemas,
-            nestedFieldRenamed);
-      default:
-        return value;
     }
   }
 }

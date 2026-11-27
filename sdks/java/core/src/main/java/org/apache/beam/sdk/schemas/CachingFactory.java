@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -37,8 +38,25 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
 public class CachingFactory<CreatedT extends @NonNull Object> implements Factory<CreatedT> {
+  private static final class CachedEntry<T extends @NonNull Object> {
+    final @Nullable TypeDescriptor<?> key;
+    final @Nullable T value;
+
+    CachedEntry(@Nullable TypeDescriptor<?> key, @Nullable T value) {
+      this.key = key;
+      this.value = value;
+    }
+  }
+
+  // Sentinel written once if this CachingFactory observes more than one TypeDescriptor, disabling
+  // the monomorphic fast slot so polymorphic callers do zero allocations and zero volatile writes.
+  private static final CachedEntry<Object> POLYMORPHIC = new CachedEntry<>(null, null);
+
   private transient volatile @MonotonicNonNull ConcurrentHashMap<TypeDescriptor<?>, CreatedT>
       cache = null;
+
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+  private transient volatile @Nullable CachedEntry<CreatedT> lastEntry = null;
 
   private final @NotOnlyInitialized Factory<CreatedT> innerFactory;
 
@@ -60,15 +78,35 @@ public class CachingFactory<CreatedT extends @NonNull Object> implements Factory
   }
 
   @Override
+  @SuppressWarnings({"ReferenceEquality", "unchecked"})
   public CreatedT create(TypeDescriptor<?> typeDescriptor, Schema schema) {
+    CachedEntry<CreatedT> fast = lastEntry;
+    if (fast != null && fast != POLYMORPHIC) {
+      TypeDescriptor<?> k = fast.key;
+      CreatedT v = fast.value;
+      if (k != null && v != null && (k == typeDescriptor || k.equals(typeDescriptor))) {
+        return v;
+      }
+    }
     ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = getCache();
     CreatedT cached = cache.get(typeDescriptor);
     if (cached != null) {
+      if (fast == null) {
+        lastEntry = new CachedEntry<>(typeDescriptor, cached);
+      } else if (fast != POLYMORPHIC) {
+        lastEntry = (CachedEntry<CreatedT>) POLYMORPHIC;
+      }
       return cached;
     }
-    cached = innerFactory.create(typeDescriptor, schema);
-    cache.put(typeDescriptor, cached);
-    return cached;
+    CreatedT created = innerFactory.create(typeDescriptor, schema);
+    CreatedT existing = cache.putIfAbsent(typeDescriptor, created);
+    CreatedT result = existing != null ? existing : created;
+    if (fast == null) {
+      lastEntry = new CachedEntry<>(typeDescriptor, result);
+    } else if (fast != POLYMORPHIC) {
+      lastEntry = (CachedEntry<CreatedT>) POLYMORPHIC;
+    }
+    return result;
   }
 
   @Override

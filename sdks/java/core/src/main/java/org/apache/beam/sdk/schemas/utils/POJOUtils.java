@@ -24,12 +24,15 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription.ForLoadedField;
+import net.bytebuddy.description.modifier.Ownership;
+import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
@@ -49,6 +52,7 @@ import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
 import net.bytebuddy.jar.asm.ClassWriter;
+import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -147,6 +151,11 @@ public class POJOUtils {
         });
   }
 
+  // Maximum fields inlined into a single create(Object[]) method before splitting into chunked
+  // static helpers so wide POJOs stay well below HotSpot C2's 8KB HugeMethodLimit.
+  private static final int MAX_INLINED_CREATOR_FIELDS = 128;
+  private static final int CREATOR_CHUNK_SIZE = 64;
+
   private static <T> SchemaUserTypeCreator createSetFieldCreator(
       Class<T> clazz,
       Schema schema,
@@ -154,11 +163,29 @@ public class POJOUtils {
       TypeConversionsFactory typeConversionsFactory) {
     try {
       DynamicType.Builder<SchemaUserTypeCreator> builder =
-          BYTE_BUDDY
-              .with(new InjectPackageStrategy(clazz))
-              .subclass(SchemaUserTypeCreator.class)
-              .method(ElementMatchers.named("create"))
-              .intercept(new SetFieldCreateInstruction(types, clazz, typeConversionsFactory));
+          BYTE_BUDDY.with(new InjectPackageStrategy(clazz)).subclass(SchemaUserTypeCreator.class);
+      if (types.size() <= MAX_INLINED_CREATOR_FIELDS) {
+        builder =
+            builder
+                .method(ElementMatchers.named("create"))
+                .intercept(new SetFieldCreateInstruction(types, clazz, typeConversionsFactory));
+      } else {
+        int chunkCount = (types.size() + CREATOR_CHUNK_SIZE - 1) / CREATOR_CHUNK_SIZE;
+        for (int c = 0; c < chunkCount; c++) {
+          int start = c * CREATOR_CHUNK_SIZE;
+          int end = Math.min(start + CREATOR_CHUNK_SIZE, types.size());
+          builder =
+              builder
+                  .defineMethod("setChunk" + c, void.class, Visibility.PRIVATE, Ownership.STATIC)
+                  .withParameters(clazz, Object[].class)
+                  .intercept(
+                      new SetFieldChunkInstruction(types, start, end, typeConversionsFactory));
+        }
+        builder =
+            builder
+                .method(ElementMatchers.named("create"))
+                .intercept(new ChunkedSetFieldCreateInstruction(clazz, chunkCount));
+      }
 
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
@@ -326,12 +353,54 @@ public class POJOUtils {
           DynamicType.Builder<FieldValueGetter<@NonNull ObjectT, ValueT>> builder,
           FieldValueTypeInformation typeInformation,
           TypeConversionsFactory typeConversionsFactory) {
-    return builder
-        .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
-        .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(typeInformation.getName()))
-        .method(ElementMatchers.named("get"))
-        .intercept(new ReadFieldInstruction(typeInformation, typeConversionsFactory));
+    builder =
+        builder
+            .method(ElementMatchers.named("name"))
+            .intercept(FixedValue.reference(typeInformation.getName()))
+            .method(ElementMatchers.named("get"))
+            .intercept(new ReadFieldInstruction(typeInformation, typeConversionsFactory));
+    if (typeConversionsFactory.getClass() == ByteBuddyUtils.DefaultTypeConversionsFactory.class
+        && ByteBuddyUtils.inferredLogicalTypeFor(typeInformation.getRawType()) != null) {
+      builder =
+          builder
+              .implement(ByteBuddyUtils.DirectLogicalTypeGetter.class)
+              .method(ElementMatchers.named("getRaw"))
+              .intercept(new ReadRawFieldInstruction(typeInformation));
+    }
+    return builder;
+  }
+
+  // Reads the raw POJO field directly without logical-type toBaseType conversion.
+  private static class ReadRawFieldInstruction implements Implementation {
+    private final FieldValueTypeInformation typeInformation;
+
+    ReadRawFieldInstruction(FieldValueTypeInformation typeInformation) {
+      this.typeInformation = typeInformation;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        int numLocals = 1 + instrumentedMethod.getParameters().size();
+        StackManipulation cast =
+            typeInformation.getRawType().isAssignableFrom(typeInformation.getField().getType())
+                ? StackManipulation.Trivial.INSTANCE
+                : TypeCasting.to(TypeDescription.ForLoadedType.of(typeInformation.getRawType()));
+        StackManipulation stackManipulation =
+            new StackManipulation.Compound(
+                MethodVariableAccess.REFERENCE.loadFrom(1),
+                FieldAccess.forField(new ForLoadedField(typeInformation.getField())).read(),
+                cast,
+                MethodReturn.REFERENCE);
+        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
   }
 
   // Implements a method to read a public field out of an object.
@@ -501,6 +570,112 @@ public class POJOUtils {
             new StackManipulation.Compound(stackManipulation, MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
+        return new Size(size.getMaximalSize(), numLocals);
+      };
+    }
+  }
+
+  // Instantiates a wide POJO and delegates field population to private static chunk helpers.
+  private static final class ChunkedSetFieldCreateInstruction implements Implementation {
+    private final Class<?> pojoClass;
+    private final int chunkCount;
+
+    ChunkedSetFieldCreateInstruction(Class<?> pojoClass, int chunkCount) {
+      this.pojoClass = pojoClass;
+      this.chunkCount = chunkCount;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (mv, implementationContext, instrumentedMethod) -> {
+        String ownerInternal = implementationTarget.getInstrumentedType().getInternalName();
+        String chunkDesc =
+            "(" + net.bytebuddy.jar.asm.Type.getDescriptor(pojoClass) + "[Ljava/lang/Object;)V";
+        // Slots: 0=this, 1=params, 2=pojoInstance
+        // Resolve the zero-arg constructor via ByteBuddy identically to SetFieldCreateInstruction
+        // so missing no-arg constructors fail at generation time with IllegalStateException
+        // (wrapped by createSetFieldCreator into its descriptive RuntimeException).
+        ForLoadedType loadedType = new ForLoadedType(pojoClass);
+        new StackManipulation.Compound(
+                TypeCreation.of(loadedType),
+                Duplication.SINGLE,
+                MethodInvocation.invoke(
+                    loadedType
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
+                        .getOnly()))
+            .apply(mv, implementationContext);
+        mv.visitVarInsn(Opcodes.ASTORE, 2);
+        for (int c = 0; c < chunkCount; c++) {
+          mv.visitVarInsn(Opcodes.ALOAD, 2);
+          mv.visitVarInsn(Opcodes.ALOAD, 1);
+          mv.visitMethodInsn(Opcodes.INVOKESTATIC, ownerInternal, "setChunk" + c, chunkDesc, false);
+        }
+        mv.visitVarInsn(Opcodes.ALOAD, 2);
+        mv.visitInsn(Opcodes.ARETURN);
+        return new Size(2, 3);
+      };
+    }
+  }
+
+  // Populates a slice [start, end) of public POJO fields inside a private static chunk method.
+  private static final class SetFieldChunkInstruction implements Implementation {
+    private final List<FieldValueTypeInformation> typeInformations;
+    private final int start;
+    private final int end;
+    private final TypeConversionsFactory typeConversionsFactory;
+
+    SetFieldChunkInstruction(
+        List<FieldValueTypeInformation> typeInformations,
+        int start,
+        int end,
+        TypeConversionsFactory typeConversionsFactory) {
+      this.typeInformations = typeInformations;
+      this.start = start;
+      this.end = end;
+      this.typeConversionsFactory = typeConversionsFactory;
+    }
+
+    @Override
+    public InstrumentedType prepare(InstrumentedType instrumentedType) {
+      return instrumentedType;
+    }
+
+    @Override
+    public ByteCodeAppender appender(final Target implementationTarget) {
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        // Static method slots: 0=pojoInstance, 1=params
+        int numLocals = 2;
+        TypeConversion<Type> convertType = typeConversionsFactory.createTypeConversion(true);
+        List<StackManipulation> ops = new ArrayList<>((end - start) + 1);
+        for (int i = start; i < end; ++i) {
+          FieldValueTypeInformation typeInformation = typeInformations.get(i);
+          Field field = typeInformation.getField();
+          ForLoadedType convertedType =
+              new ForLoadedType((Class) convertType.convert(typeInformation.getType()));
+          StackManipulation readParameter =
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(1),
+                  IntegerConstant.forValue(i),
+                  ArrayAccess.REFERENCE.load(),
+                  TypeCasting.to(convertedType));
+          ops.add(
+              new StackManipulation.Compound(
+                  MethodVariableAccess.REFERENCE.loadFrom(0),
+                  typeConversionsFactory
+                      .createSetterConversions(readParameter)
+                      .convert(typeInformation.getType()),
+                  FieldAccess.forField(new ForLoadedField(field)).write()));
+        }
+        ops.add(MethodReturn.VOID);
+        StackManipulation.Size size =
+            new StackManipulation.Compound(ops).apply(methodVisitor, implementationContext);
         return new Size(size.getMaximalSize(), numLocals);
       };
     }

@@ -476,11 +476,11 @@ class ProtoByteBuddyUtils {
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
-    Multimap<String, Method> methods = ReflectUtils.getMethodsMap(clazz);
     return (List)
         CACHED_GETTERS.computeIfAbsent(
             ClassWithSchema.create(clazz, schema),
             c -> {
+              Multimap<String, Method> methods = ReflectUtils.getMethodsMap(clazz);
               List<FieldValueTypeInformation> types =
                   fieldValueTypeSupplier.get(TypeDescriptor.of(clazz), schema);
               return types.stream()
@@ -630,9 +630,11 @@ class ProtoByteBuddyUtils {
     Preconditions.checkArgument(iter.hasNext());
     int current = iter.next();
     while (iter.hasNext()) {
-      if (iter.next() > current + 1) {
+      int next = iter.next();
+      if (next != current + 1) {
         return false;
       }
+      current = next;
     }
     return true;
   }
@@ -780,13 +782,10 @@ class ProtoByteBuddyUtils {
 
         // Start the switch block.
         if (isContiguous) {
-          // If the case enum values are not all contiguous (i.e. there are holes), then generate
-          // the slower
-          // TABLESWITCH opcode.
+          // Contiguous case numbers allow the O(1) TABLESWITCH opcode.
           methodVisitor.visitTableSwitchInsn(keys[0], keys[keys.length - 1], defaultLabel, labels);
         } else {
-          // If all the case enum value are contiguous, then generate the faster LOOKUPSWITCH
-          // opcode.
+          // Sparse case numbers with holes require LOOKUPSWITCH.
           methodVisitor.visitLookupSwitchInsn(defaultLabel, keys, labels);
         }
 
@@ -914,12 +913,10 @@ class ProtoByteBuddyUtils {
 
         // Start the switch block.
         if (isContiguous) {
-          // If the case enum values are not all contiguous (i.e. there are holes), then generate
-          // the slower TABLESWITCH opcode.
+          // Contiguous case numbers allow the O(1) TABLESWITCH opcode.
           methodVisitor.visitTableSwitchInsn(keys[0], keys[keys.length - 1], defaultLabel, labels);
         } else {
-          // If all the case enum value are contiguous, then generate the faster LOOKUPSWITCH
-          // opcode.
+          // Sparse case numbers with holes require LOOKUPSWITCH.
           methodVisitor.visitLookupSwitchInsn(defaultLabel, keys, labels);
         }
 
@@ -1070,21 +1067,41 @@ class ProtoByteBuddyUtils {
         .orElse(null);
   }
 
+  // Anchor proto builder creators to the proto message class via ClassValue so user ClassLoaders
+  // are never pinned by static maps.
+  private static final ClassValue<Map<Schema, SchemaUserTypeCreator>> CACHED_BUILDER_CREATORS =
+      new ClassValue<Map<Schema, SchemaUserTypeCreator>>() {
+        @Override
+        protected Map<Schema, SchemaUserTypeCreator> computeValue(Class<?> type) {
+          return Maps.newConcurrentMap();
+        }
+      };
+
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
       SchemaUserTypeCreator getBuilderCreator(
           TypeDescriptor<?> protoTypeDescriptor,
           Schema schema,
           FieldValueTypeSupplier fieldValueTypeSupplier) {
-    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(protoTypeDescriptor.getRawType());
+    Class<?> rawType = protoTypeDescriptor.getRawType();
+    Map<Schema, SchemaUserTypeCreator> perClassCache = CACHED_BUILDER_CREATORS.get(rawType);
+    SchemaUserTypeCreator cached = perClassCache.get(schema);
+    if (cached != null) {
+      return cached;
+    }
+    Class<ProtoBuilderT> builderClass = getProtoGeneratedBuilder(rawType);
     if (builderClass == null) {
       return null;
     }
-    Multimap<String, Method> methods = ReflectUtils.getMethodsMap(builderClass);
-    List<FieldValueSetter<ProtoBuilderT, Object>> setters =
-        schema.getFields().stream()
-            .map(f -> getProtoFieldValueSetter(protoTypeDescriptor, f, methods, builderClass))
-            .collect(Collectors.toList());
-    return createBuilderCreator(protoTypeDescriptor.getRawType(), builderClass, setters, schema);
+    return perClassCache.computeIfAbsent(
+        schema,
+        s -> {
+          Multimap<String, Method> methods = ReflectUtils.getMethodsMap(builderClass);
+          List<FieldValueSetter<ProtoBuilderT, Object>> setters =
+              s.getFields().stream()
+                  .map(f -> getProtoFieldValueSetter(protoTypeDescriptor, f, methods, builderClass))
+                  .collect(Collectors.toList());
+          return createBuilderCreator(rawType, builderClass, setters, s);
+        });
   }
 
   private static <ProtoBuilderT extends MessageLite.Builder>

@@ -93,7 +93,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
         targetTypeDescriptor,
         schema,
         AbstractGetterTypeSupplier.INSTANCE,
-        new DefaultTypeConversionsFactory());
+        DefaultTypeConversionsFactory.INSTANCE);
   }
 
   @Override
@@ -114,7 +114,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
           annotated,
           schema,
           AbstractGetterTypeSupplier.INSTANCE,
-          new DefaultTypeConversionsFactory());
+          DefaultTypeConversionsFactory.INSTANCE);
     }
 
     // Try to find a generated builder class. If one exists, use that to generate a

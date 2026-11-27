@@ -50,7 +50,7 @@ public class ProtoPayloadSerializerProvider implements PayloadSerializerProvider
     }
   }
 
-  private static <T extends Message> void inferAndVerifySchema(
+  private static <T extends Message> Schema inferAndVerifySchema(
       Class<T> protoClass, Schema requiredSchema) {
     @Nonnull
     Schema inferredSchema =
@@ -64,13 +64,17 @@ public class ProtoPayloadSerializerProvider implements PayloadSerializerProvider
                   + "Inferred schema: '%s'",
               requiredSchema, protoClass.getName(), inferredSchema));
     }
+    return inferredSchema;
   }
 
   @Override
   public PayloadSerializer getSerializer(Schema schema, Map<String, Object> tableParams) {
     Class<? extends Message> protoClass = getClass(tableParams);
-    inferAndVerifySchema(protoClass, schema);
+    Schema inferredSchema = inferAndVerifySchema(protoClass, schema);
     SimpleFunction<byte[], Row> toRowFn = ProtoMessageSchema.getProtoBytesToRowFn(protoClass);
+    if (inferredSchema.equals(schema)) {
+      return PayloadSerializer.of(ProtoMessageSchema.getRowToProtoBytesFn(protoClass), toRowFn);
+    }
     return PayloadSerializer.of(
         ProtoMessageSchema.getRowToProtoBytesFn(protoClass),
         bytes -> {

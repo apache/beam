@@ -180,7 +180,8 @@ public class CombineFns {
      * @throws NullPointerException if any key or value in {@code valuesMap} is null
      */
     CoCombineResult(Map<TupleTag<?>, Object> valuesMap) {
-      ImmutableMap.Builder<TupleTag<?>, Object> builder = ImmutableMap.builder();
+      ImmutableMap.Builder<TupleTag<?>, Object> builder =
+          ImmutableMap.builderWithExpectedSize(valuesMap.size());
       for (Entry<TupleTag<?>, Object> entry : valuesMap.entrySet()) {
         if (entry.getValue() != null) {
           builder.put(entry);
@@ -191,6 +192,14 @@ public class CombineFns {
       this.valuesMap = builder.build();
     }
 
+    private CoCombineResult(ImmutableMap<TupleTag<?>, Object> valuesMap) {
+      this.valuesMap = valuesMap;
+    }
+
+    static Object sentinelForNull(@Nullable Object value) {
+      return value != null ? value : NullValue.INSTANCE;
+    }
+
     /**
      * Returns the value represented by the given {@link TupleTag}.
      *
@@ -198,9 +207,10 @@ public class CombineFns {
      */
     @SuppressWarnings("unchecked")
     public @Nullable <V> V get(TupleTag<V> tag) {
-      checkArgument(
-          valuesMap.keySet().contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");
       Object value = valuesMap.get(tag);
+      if (value == null) {
+        throw new IllegalArgumentException("TupleTag " + tag + " is not in the CoCombineResult");
+      }
       if (value == NullValue.INSTANCE) {
         return null;
       } else {
@@ -403,11 +413,13 @@ public class CombineFns {
 
     @Override
     public CoCombineResult extractOutput(Object[] accumulator) {
-      Map<TupleTag<?>, Object> valuesMap = Maps.newHashMap();
+      ImmutableMap.Builder<TupleTag<?>, Object> builder =
+          ImmutableMap.builderWithExpectedSize(combineFnCount);
       for (int i = 0; i < combineFnCount; ++i) {
-        valuesMap.put(outputTags.get(i), combineFns.get(i).extractOutput(accumulator[i]));
+        Object value = combineFns.get(i).extractOutput(accumulator[i]);
+        builder.put(outputTags.get(i), CoCombineResult.sentinelForNull(value));
       }
-      return new CoCombineResult(valuesMap);
+      return new CoCombineResult(builder.build());
     }
 
     @Override

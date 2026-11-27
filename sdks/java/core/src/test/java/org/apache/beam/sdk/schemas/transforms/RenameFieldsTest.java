@@ -19,10 +19,7 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import static junit.framework.TestCase.assertEquals;
 
-import java.util.BitSet;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
@@ -35,7 +32,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -290,11 +286,9 @@ public class RenameFieldsTest {
             .map(r -> r.resolve(schema))
             .collect(Collectors.toList());
 
-    final Map<UUID, Schema> renamedSchemasMap = Maps.newHashMap();
-    final Map<UUID, BitSet> nestedFieldRenamedMap = Maps.newHashMap();
-    RenameFields.renameSchema(schema, renames, renamedSchemasMap, nestedFieldRenamedMap);
+    RenameFields.RowRenamePlan plan = RenameFields.buildRenamePlan(schema, renames);
 
-    assertEquals(expectedSchema, renamedSchemasMap.get(schema.getUUID()));
+    assertEquals(expectedSchema, plan.outputSchema);
 
     Row row =
         Row.withSchema(schema)
@@ -317,13 +311,38 @@ public class RenameFieldsTest {
                     .build())
             .build();
 
-    Row renamedRow =
-        RenameFields.renameRow(
-            row,
-            renamedSchemasMap.get(schema.getUUID()),
-            nestedFieldRenamedMap.get(schema.getUUID()),
-            renamedSchemasMap,
-            nestedFieldRenamedMap);
+    Row renamedRow = plan.rename(row);
     assertEquals(expectedRow, renamedRow);
+  }
+
+  @Test
+  public void testRenameMapWithCompositeRowKeyDoesNotAlterKey() {
+    Schema keySchema = Schema.builder().addStringField("k").addInt32Field("idx").build();
+    Schema valSchema = Schema.builder().addStringField("v1").addInt32Field("v2").build();
+    Schema schema =
+        Schema.builder()
+            .addMapField("m", Schema.FieldType.row(keySchema), Schema.FieldType.row(valSchema))
+            .build();
+    List<RenamePair> renames =
+        ImmutableList.of(RenamePair.of(FieldAccessDescriptor.withFieldNames("m.v1"), "renamed_v1"))
+            .stream()
+            .map(r -> r.resolve(schema))
+            .collect(Collectors.toList());
+
+    RenameFields.RowRenamePlan plan = RenameFields.buildRenamePlan(schema, renames);
+    assertEquals(
+        keySchema, plan.outputSchema.getField("m").getType().getMapKeyType().getRowSchema());
+    Schema expectedValSchema =
+        Schema.builder().addStringField("renamed_v1").addInt32Field("v2").build();
+    assertEquals(
+        expectedValSchema,
+        plan.outputSchema.getField("m").getType().getMapValueType().getRowSchema());
+
+    Row keyRow = Row.withSchema(keySchema).addValues("a", 1).build();
+    Row valRow = Row.withSchema(valSchema).addValues("hello", 2).build();
+    Row inputRow = Row.withSchema(schema).addValue(ImmutableMap.of(keyRow, valRow)).build();
+    Row renamed = plan.rename(inputRow);
+    Row expectedValRow = Row.withSchema(expectedValSchema).addValues("hello", 2).build();
+    assertEquals(ImmutableMap.of(keyRow, expectedValRow), renamed.getMap("m"));
   }
 }

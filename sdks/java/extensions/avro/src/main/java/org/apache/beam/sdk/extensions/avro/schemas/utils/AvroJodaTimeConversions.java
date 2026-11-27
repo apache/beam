@@ -78,7 +78,7 @@ public class AvroJodaTimeConversions {
 
     @Override
     public Integer toInt(LocalTime time, Schema schema, LogicalType type) {
-      return time.millisOfDay().get();
+      return time.getMillisOfDay();
     }
   }
 
@@ -102,7 +102,7 @@ public class AvroJodaTimeConversions {
   public static class LossyTimeMicrosConversion extends TimeMicrosConversion {
     @Override
     public Long toLong(LocalTime time, Schema schema, LogicalType type) {
-      return 1000 * (long) time.millisOfDay().get();
+      return 1000L * time.getMillisOfDay();
     }
   }
 

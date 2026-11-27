@@ -90,7 +90,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
 
     @Override
     public int hashCode() {
-      return System.identityHashCode(this);
+      return GetterTypeSupplier.class.hashCode();
     }
 
     @Override
@@ -102,7 +102,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
   /** {@link FieldValueTypeSupplier} that's based on setter methods. */
   @VisibleForTesting
   public static class SetterTypeSupplier implements FieldValueTypeSupplier {
-    private static final SetterTypeSupplier INSTANCE = new SetterTypeSupplier();
+    static final SetterTypeSupplier INSTANCE = new SetterTypeSupplier();
 
     @Override
     public List<FieldValueTypeInformation> get(TypeDescriptor<?> typeDescriptor) {
@@ -143,7 +143,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
 
     @Override
     public int hashCode() {
-      return System.identityHashCode(this);
+      return SetterTypeSupplier.class.hashCode();
     }
 
     @Override
@@ -176,7 +176,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
         targetTypeDescriptor,
         schema,
         GetterTypeSupplier.INSTANCE,
-        new DefaultTypeConversionsFactory());
+        DefaultTypeConversionsFactory.INSTANCE);
   }
 
   @Override
@@ -196,7 +196,7 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
           annotated,
           schema,
           GetterTypeSupplier.INSTANCE,
-          new DefaultTypeConversionsFactory());
+          DefaultTypeConversionsFactory.INSTANCE);
     }
 
     // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
@@ -208,10 +208,19 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
           constructor,
           schema,
           GetterTypeSupplier.INSTANCE,
-          new DefaultTypeConversionsFactory());
+          DefaultTypeConversionsFactory.INSTANCE);
     }
 
-    // Else try to make a setter-based creator
+    // Else try to use a cached ByteBuddy setter-based creator, falling back to reflection.
+    @Nullable SchemaUserTypeCreator generatedCreator =
+        JavaBeanUtils.getSetterCreator(
+            targetTypeDescriptor,
+            schema,
+            SetterTypeSupplier.INSTANCE,
+            DefaultTypeConversionsFactory.INSTANCE);
+    if (generatedCreator != null) {
+      return generatedCreator;
+    }
     Factory<SchemaUserTypeCreator> setterBasedFactory =
         new SetterBasedCreatorFactory(new JavaBeanSetterFactory());
     return setterBasedFactory.create(targetTypeDescriptor, schema);
@@ -225,13 +234,13 @@ public class JavaBeanSchema extends GetterBasedSchemaProviderV2 {
           targetTypeDescriptor,
           schema,
           SetterTypeSupplier.INSTANCE,
-          new DefaultTypeConversionsFactory());
+          DefaultTypeConversionsFactory.INSTANCE);
     }
   }
 
   @Override
   public int hashCode() {
-    return System.identityHashCode(this);
+    return JavaBeanSchema.class.hashCode();
   }
 
   @Override

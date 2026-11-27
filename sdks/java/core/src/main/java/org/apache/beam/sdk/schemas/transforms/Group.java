@@ -44,7 +44,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -957,9 +956,7 @@ public class Group {
                   new DoFn<KV<Row, Iterable<Row>>, Row>() {
                     @ProcessElement
                     public void process(@Element KV<Row, Iterable<Row>> e, OutputReceiver<Row> o) {
-                      o.output(
-                          Row.withSchema(outputSchema)
-                              .attachValues(Lists.newArrayList(e.getKey(), e.getValue())));
+                      o.output(Row.attachValues(outputSchema, e.getKey(), e.getValue()));
                     }
                   }))
           .setRowSchema(outputSchema);
@@ -1274,18 +1271,20 @@ public class Group {
     PTransform<PCollection<KV<Row, Row>>, PCollection<KV<Row, Row>>> getCombineTransform(
         Schema schema) {
       SchemaAggregateFn.Inner fn = getSchemaAggregateFn().withSchema(schema);
+      Combine.PerKey<Row, Row, Row> combine =
+          getFewKeys() ? Combine.fewKeys(fn) : Combine.perKey(fn);
       @Nullable Fanout fanout = getFanout();
       if (fanout != null) {
         switch (fanout.getKind()) {
           case NUMBER:
-            return Combine.<Row, Row, Row>perKey(fn).withHotKeyFanout(fanout.getNumber());
+            return combine.withHotKeyFanout(fanout.getNumber());
           case FUNCTION:
-            return Combine.<Row, Row, Row>perKey(fn).withHotKeyFanout(fanout.getFunction());
+            return combine.withHotKeyFanout(fanout.getFunction());
           default:
             throw new RuntimeException("Unexpected kind: " + fanout.getKind());
         }
       }
-      return getFewKeys() ? Combine.fewKeys(fn) : Combine.perKey(fn);
+      return combine;
     }
 
     @Override
@@ -1308,9 +1307,7 @@ public class Group {
                     @ProcessElement
                     public void process(@Element KV<Row, Row> element, OutputReceiver<Row> o) {
                       o.output(
-                          Row.withSchema(outputSchema)
-                              .attachValues(
-                                  Lists.newArrayList(element.getKey(), element.getValue())));
+                          Row.attachValues(outputSchema, element.getKey(), element.getValue()));
                     }
                   }))
           .setRowSchema(outputSchema);

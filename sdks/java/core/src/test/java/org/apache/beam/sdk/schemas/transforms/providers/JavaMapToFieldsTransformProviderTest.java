@@ -189,4 +189,71 @@ public class JavaMapToFieldsTransformProviderTest {
                 .build());
     pipeline.run();
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testErrorHandlingRoutesInvalidCompositeUdfOutputToErrors() {
+    Schema inputSchema = Schema.of(Schema.Field.of("x", Schema.FieldType.INT32));
+
+    PCollection<Row> input =
+        pipeline
+            .apply(
+                Create.of(
+                    Row.withSchema(inputSchema).addValues(1).build(),
+                    Row.withSchema(inputSchema).addValues(-1).build()))
+            .setRowSchema(inputSchema);
+
+    PCollectionRowTuple result =
+        PCollectionRowTuple.of(JavaMapToFieldsTransformProvider.INPUT_ROWS_TAG, input)
+            .apply(
+                new JavaMapToFieldsTransformProvider()
+                    .from(
+                        JavaMapToFieldsTransformProvider.Configuration.builder()
+                            .setLanguage("java")
+                            .setFields(
+                                ImmutableMap.of(
+                                    "nums",
+                                    JavaRowUdf.Configuration.builder()
+                                        .setCallable(
+                                            "import java.util.Collections;"
+                                                + "import java.util.List;"
+                                                + "import java.util.function.Function;"
+                                                + "import org.apache.beam.sdk.values.Row;"
+                                                + "public class MaybeBadList implements Function<Row, List<Integer>> {"
+                                                + "  @SuppressWarnings({\"unchecked\", \"rawtypes\"})"
+                                                + "  public List<Integer> apply(Row row) {"
+                                                + "    int x = row.getInt32(\"x\");"
+                                                + "    if (x < 0) {"
+                                                + "      return (List) Collections.singletonList(\"not-an-int\");"
+                                                + "    }"
+                                                + "    return Collections.singletonList(x);"
+                                                + "  }"
+                                                + "}")
+                                        .build()))
+                            .setErrorHandling(ErrorHandling.builder().setOutput("errors").build())
+                            .build()));
+
+    PCollection<Row> ok = result.get(JavaMapToFieldsTransformProvider.OUTPUT_ROWS_TAG);
+    Schema outputSchema = ok.getSchema();
+    PAssert.that(ok)
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema)
+                .withFieldValue("nums", java.util.Collections.singletonList(1))
+                .build());
+
+    PCollection<Row> errors = result.get("errors");
+    PAssert.that(errors)
+        .satisfies(
+            rows -> {
+              int count = 0;
+              for (Row r : rows) {
+                count++;
+                org.junit.Assert.assertEquals(
+                    Row.withSchema(inputSchema).addValues(-1).build(), r.getRow("failed_row"));
+              }
+              org.junit.Assert.assertEquals(1, count);
+              return null;
+            });
+    pipeline.run();
+  }
 }

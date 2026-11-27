@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -67,6 +66,6 @@ public class RowCoder extends SchemaCoder<Row> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(schema);
+    return 31 + schema.hashCode();
   }
 }

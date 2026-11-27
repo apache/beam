@@ -19,7 +19,6 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -162,23 +161,26 @@ public class LoggingTransformProvider
     }
 
     private static DoFn<Row, Row> createDoFn(Level logLevel, String prefix, Schema rowSchema) {
-      SerializableFunction<Row, byte[]> fn = JsonUtils.getRowToJsonBytesFunction(rowSchema);
+      SerializableFunction<Row, String> fn = JsonUtils.getRowToJsonStringsFunction(rowSchema);
       return new DoFn<Row, Row>() {
         @ProcessElement
         public void processElement(@Element Row row, OutputReceiver<Row> out) {
-          String msg = prefix + new String(fn.apply(row), StandardCharsets.UTF_8);
-          // Looks like this is the best we can do.
-          // https://stackoverflow.com/questions/2621701/setting-log-level-of-message-at-runtime-in-slf4j
           switch (logLevel) {
             case DEBUG:
-              LOG.debug("{}", msg);
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("{}{}", prefix, fn.apply(row));
+              }
               break;
             case INFO:
-              LOG.info("{}", msg);
+              if (LOG.isInfoEnabled()) {
+                LOG.info("{}{}", prefix, fn.apply(row));
+              }
               break;
             case ERROR:
             default:
-              LOG.error("{}", msg);
+              if (LOG.isErrorEnabled()) {
+                LOG.error("{}{}", prefix, fn.apply(row));
+              }
           }
           out.output(row);
         }

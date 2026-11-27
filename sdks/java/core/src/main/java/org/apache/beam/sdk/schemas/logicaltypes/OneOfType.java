@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,6 +35,8 @@ import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
+import org.joda.time.ReadableInstant;
 
 /**
  * A logical type representing a union of fields. This logical type is initialized with a set of
@@ -43,9 +47,89 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   public static final String IDENTIFIER = "OneOf";
 
+  private static final int MAX_DENSE_CASE_VALUE = 256;
+
   private final Schema oneOfSchema;
   private final EnumerationType enumerationType;
   private final byte[] schemaProtoRepresentation;
+  private transient volatile @Nullable LookupCache lookupCache;
+
+  private static final class LookupCache {
+    final FieldType baseType;
+    final EnumerationType.Value[] fieldIndexToCase;
+    final FieldType[] fieldIndexToType;
+    final int @Nullable [] denseCaseToFieldIndex;
+    final @Nullable Map<Integer, Integer> sparseCaseToFieldIndex;
+
+    LookupCache(Schema oneOfSchema, EnumerationType enumerationType) {
+      int fieldCount = oneOfSchema.getFieldCount();
+      this.baseType = FieldType.row(oneOfSchema);
+      this.fieldIndexToCase = new EnumerationType.Value[fieldCount];
+      this.fieldIndexToType = new FieldType[fieldCount];
+      int min = Integer.MAX_VALUE;
+      int max = Integer.MIN_VALUE;
+      for (int i = 0; i < fieldCount; i++) {
+        Field field = oneOfSchema.getField(i);
+        EnumerationType.Value caseVal = enumerationType.valueOf(field.getName());
+        fieldIndexToCase[i] = caseVal;
+        fieldIndexToType[i] = field.getType();
+        int iv = caseVal.getValue();
+        if (iv < min) {
+          min = iv;
+        }
+        if (iv > max) {
+          max = iv;
+        }
+      }
+      boolean useDense =
+          fieldCount > 0
+              && min >= 0
+              && max <= MAX_DENSE_CASE_VALUE
+              && max <= Math.max(fieldCount * 2, 64);
+      if (useDense) {
+        int[] dense = new int[max + 1];
+        Arrays.fill(dense, -1);
+        for (int i = 0; i < fieldCount; i++) {
+          dense[fieldIndexToCase[i].getValue()] = i;
+        }
+        this.denseCaseToFieldIndex = dense;
+        this.sparseCaseToFieldIndex = null;
+      } else {
+        Map<Integer, Integer> sparse = new HashMap<>(fieldCount * 2);
+        for (int i = 0; i < fieldCount; i++) {
+          sparse.put(fieldIndexToCase[i].getValue(), i);
+        }
+        this.denseCaseToFieldIndex = null;
+        this.sparseCaseToFieldIndex = sparse;
+      }
+    }
+
+    int getFieldIndex(int caseValue) {
+      if (denseCaseToFieldIndex != null) {
+        if (caseValue >= 0 && caseValue < denseCaseToFieldIndex.length) {
+          int idx = denseCaseToFieldIndex[caseValue];
+          if (idx >= 0) {
+            return idx;
+          }
+        }
+      } else if (sparseCaseToFieldIndex != null) {
+        Integer idx = sparseCaseToFieldIndex.get(caseValue);
+        if (idx != null) {
+          return idx;
+        }
+      }
+      throw new IllegalArgumentException(String.format("Unknown enumeration value %s", caseValue));
+    }
+  }
+
+  private LookupCache getLookupCache() {
+    LookupCache cache = lookupCache;
+    if (cache == null) {
+      cache = new LookupCache(oneOfSchema, enumerationType);
+      lookupCache = cache;
+    }
+    return cache;
+  }
 
   private OneOfType(List<Field> fields) {
     this(fields, null);
@@ -65,6 +149,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
     oneOfSchema = Schema.builder().addFields(nullableFields).build();
     schemaProtoRepresentation =
         SchemaTranslation.schemaToProto(oneOfSchema, false, false).toByteArray();
+    lookupCache = new LookupCache(oneOfSchema, enumerationType);
   }
 
   /** Create an {@link OneOfType} logical type. */
@@ -112,7 +197,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
   @Override
   public FieldType getBaseType() {
-    return FieldType.row(oneOfSchema);
+    return getLookupCache().baseType;
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
@@ -131,35 +216,93 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   }
 
   public FieldType getFieldType(OneOfType.Value oneOneValue) {
-    return oneOfSchema.getField(enumerationType.toString(oneOneValue.getCaseType())).getType();
+    LookupCache cache = getLookupCache();
+    return cache.fieldIndexToType[cache.getFieldIndex(oneOneValue.getCaseType().getValue())];
   }
 
   @Override
   public Row toBaseType(Value input) {
-    EnumerationType.Value caseType = input.getCaseType();
-    int setFieldIndex = oneOfSchema.indexOf(enumerationType.toString(caseType));
-    Row.Builder builder = Row.withSchema(oneOfSchema);
-    for (int i = 0; i < oneOfSchema.getFieldCount(); ++i) {
-      Object value = (i == setFieldIndex) ? input.getValue() : null;
-      builder = builder.addValue(value);
+    LookupCache cache = getLookupCache();
+    int setFieldIndex = cache.getFieldIndex(input.getCaseType().getValue());
+    Object val = input.getValue();
+    FieldType fieldType = cache.fieldIndexToType[setFieldIndex];
+    @Nullable Object coerced = tryFastCoerceScalar(fieldType, val);
+    @Nullable Object[] values = new @Nullable Object[oneOfSchema.getFieldCount()];
+    if (coerced != null) {
+      values[setFieldIndex] = coerced;
+      return Row.attachValues(oneOfSchema, values);
     }
-    return builder.build();
+    values[setFieldIndex] = val;
+    return Row.withSchema(oneOfSchema).addValues(Arrays.asList(values)).build();
+  }
+
+  private static @Nullable Object tryFastCoerceScalar(FieldType fieldType, @Nullable Object val) {
+    if (val == null) {
+      return null;
+    }
+    switch (fieldType.getTypeName()) {
+      case STRING:
+        return val instanceof String ? val : null;
+      case INT64:
+        return val instanceof Long ? val : null;
+      case INT32:
+        return val instanceof Integer ? val : null;
+      case DOUBLE:
+        return val instanceof Double ? val : null;
+      case FLOAT:
+        return val instanceof Float ? val : null;
+      case BOOLEAN:
+        return val instanceof Boolean ? val : null;
+      case BYTE:
+        return val instanceof Byte ? val : null;
+      case INT16:
+        return val instanceof Short ? val : null;
+      case DECIMAL:
+        return val instanceof BigDecimal ? val : null;
+      case BYTES:
+        if (val instanceof byte[]) {
+          return val;
+        }
+        if (val instanceof ByteBuffer) {
+          ByteBuffer bb = ((ByteBuffer) val).slice();
+          byte[] bytes = new byte[bb.remaining()];
+          bb.get(bytes);
+          return bytes;
+        }
+        return null;
+      case DATETIME:
+        if (val instanceof Instant) {
+          return val;
+        }
+        if (val instanceof ReadableInstant) {
+          return ((ReadableInstant) val).toInstant();
+        }
+        return null;
+      default:
+        return null;
+    }
   }
 
   @Override
   public Value toInputType(Row base) {
+    LookupCache cache = getLookupCache();
     EnumerationType.Value caseType = null;
     Object oneOfValue = null;
-    for (int i = 0; i < base.getFieldCount(); ++i) {
+    int fieldCount = base.getFieldCount();
+    for (int i = 0; i < fieldCount; ++i) {
       Object value = base.getValue(i);
       if (value != null) {
-        checkArgument(caseType == null, "More than one field set in union %s", this);
-        caseType = enumerationType.valueOf(oneOfSchema.getField(i).getName());
+        if (caseType != null) {
+          throw new IllegalArgumentException(
+              String.format("More than one field set in union %s", this));
+        }
+        caseType = cache.fieldIndexToCase[i];
         oneOfValue = value;
       }
     }
-    checkArgumentNotNull(caseType, "No value set in union %s", this);
-    checkArgumentNotNull(oneOfValue, "No value set in union %s", this);
+    if (caseType == null || oneOfValue == null) {
+      throw new IllegalArgumentException(String.format("No value set in union %s", this));
+    }
     return createValue(caseType, oneOfValue);
   }
 
@@ -215,7 +358,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
     @Override
     public int hashCode() {
-      return Objects.hash(caseType, value);
+      return 31 * (31 + Objects.hashCode(caseType)) + Objects.hashCode(value);
     }
   }
 }

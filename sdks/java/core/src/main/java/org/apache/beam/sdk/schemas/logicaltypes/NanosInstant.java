@@ -32,7 +32,7 @@ public class NanosInstant extends NanosType<Instant> {
 
   @Override
   public Row toBaseType(Instant input) {
-    return Row.withSchema(schema).addValues(input.getEpochSecond(), input.getNano()).build();
+    return Row.attachValues(schema, input.getEpochSecond(), input.getNano());
   }
 
   @Override

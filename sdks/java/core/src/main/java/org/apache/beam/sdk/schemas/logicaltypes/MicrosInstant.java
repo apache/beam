@@ -45,6 +45,7 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
           .getExtension(RunnerApi.beamUrn);
   // TODO(https://github.com/apache/beam/issues/20540): This should be a constant
   private final Schema schema;
+  private transient volatile Schema.@Nullable FieldType cachedBaseType;
 
   public MicrosInstant() {
     this.schema = Schema.builder().addInt64Field("seconds").addInt32Field("micros").build();
@@ -52,12 +53,13 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
 
   @Override
   public Row toBaseType(Instant input) {
-    if (input.getNano() % 1000 != 0) {
+    int nano = input.getNano();
+    if (nano % 1000 != 0) {
       throw new AssertionError(
           "micros_instant logical type encountered a Java "
               + "Instant with greater than microsecond precision.");
     }
-    return Row.withSchema(schema).addValues(input.getEpochSecond(), input.getNano() / 1000).build();
+    return Row.attachValues(schema, input.getEpochSecond(), nano / 1000);
   }
 
   @Override
@@ -67,7 +69,7 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
             row.getInt64(0), "While trying to convert to Instant: Row missing seconds field"),
         checkArgumentNotNull(
                 row.getInt32(1), "While trying to convert to Instant: Row missing micros field")
-            * 1000);
+            * 1000L);
   }
 
   @Override
@@ -82,6 +84,11 @@ public class MicrosInstant implements Schema.LogicalType<Instant, Row> {
 
   @Override
   public Schema.FieldType getBaseType() {
-    return Schema.FieldType.row(schema);
+    Schema.FieldType baseType = cachedBaseType;
+    if (baseType == null) {
+      baseType = Schema.FieldType.row(schema);
+      cachedBaseType = baseType;
+    }
+    return baseType;
   }
 }

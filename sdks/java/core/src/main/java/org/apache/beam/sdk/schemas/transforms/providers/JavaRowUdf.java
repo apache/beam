@@ -24,7 +24,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -36,9 +37,10 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.StandardOpenOption;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -72,8 +74,11 @@ public class JavaRowUdf implements Serializable {
   // Transient so we don't have to worry about issues serializing these dynamically created classes.
   // While this is lazily computed, it is always computed on class construction, so any errors
   // should still be caught at construction time, and lazily re-computed before any use.
+  private static final ConcurrentHashMap<String, String> DOWNLOADED_JARS =
+      new ConcurrentHashMap<>();
+
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-  private transient Function<Row, Object> function;
+  private transient volatile Function<Row, Object> function;
 
   // Find or implement the inverse of StaticSchemaInference.fieldFromType
   @DefaultSchema(AutoValueSchema.class)
@@ -144,12 +149,23 @@ public class JavaRowUdf implements Serializable {
 
   public Function<Row, Object> getFunction()
       throws MalformedURLException, ReflectiveOperationException, StringCompiler.CompileException {
-    if (function == null) {
-      FunctionAndType functionAndType = createFunction(config, inputSchema);
-      assert functionAndType.outputType.equals(outputType);
-      function = functionAndType.function;
+    Function<Row, Object> fn = function;
+    if (fn == null) {
+      fn = createFunctionOnly(config, inputSchema);
+      function = fn;
     }
-    return function;
+    return fn;
+  }
+
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
+  private static Function<Row, Object> createFunctionOnly(Configuration config, Schema inputSchema)
+      throws ReflectiveOperationException, StringCompiler.CompileException, MalformedURLException {
+    if (!Strings.isNullOrEmpty(config.getExpression())) {
+      return createExpressionFunctionOnly(config.getExpression(), inputSchema);
+    }
+    return createFunction(config, inputSchema).function;
   }
 
   private static class FunctionAndType {
@@ -200,6 +216,76 @@ public class JavaRowUdf implements Serializable {
     }
   }
 
+  private static boolean containsIdentifier(String expression, String name) {
+    int nameLen = name.length();
+    if (nameLen == 0) {
+      return false;
+    }
+    int from = 0;
+    int exprLen = expression.length();
+    while (true) {
+      int idx = expression.indexOf(name, from);
+      if (idx == -1) {
+        return false;
+      }
+      boolean leftBoundary =
+          idx == 0 || !Character.isJavaIdentifierPart(expression.charAt(idx - 1));
+      int end = idx + nameLen;
+      boolean rightBoundary =
+          end == exprLen || !Character.isJavaIdentifierPart(expression.charAt(end));
+      if (leftBoundary && rightBoundary) {
+        return true;
+      }
+      from = idx + 1;
+    }
+  }
+
+  private static Map<String, Type> referencedFieldTypes(String expression, Schema inputSchema) {
+    Map<String, Type> fieldTypes = new LinkedHashMap<>();
+    for (Schema.Field field : inputSchema.getFields()) {
+      String name = field.getName();
+      if (containsIdentifier(expression, name)) {
+        fieldTypes.put(name, typeFromFieldType(field.getType()));
+      }
+    }
+    return fieldTypes;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Function<Row, Object> compileExpressionFunction(
+      String expression, Schema inputSchema, Map<String, Type> fieldTypes)
+      throws StringCompiler.CompileException, ReflectiveOperationException {
+    StringBuilder source = new StringBuilder();
+    source.append("import java.util.function.Function;\n");
+    source.append("import " + Row.class.getTypeName() + ";\n");
+    source.append("public class Eval implements Function<Row, Object> {\n");
+    source.append("  public Object apply(Row __row__) {\n");
+    for (Map.Entry<String, Type> fieldEntry : fieldTypes.entrySet()) {
+      source.append(
+          String.format(
+              "    %s %s = (%s) __row__.getValue(%s);%n",
+              fieldEntry.getValue().getTypeName(),
+              fieldEntry.getKey(),
+              fieldEntry.getValue().getTypeName(),
+              inputSchema.indexOf(fieldEntry.getKey())));
+    }
+    source.append("    return " + expression + ";\n");
+    source.append("  }\n");
+    source.append("}\n");
+    return (Function<Row, Object>) StringCompiler.getInstance("Eval", source.toString());
+  }
+
+  private static Function<Row, Object> createExpressionFunctionOnly(
+      String expression, Schema inputSchema)
+      throws StringCompiler.CompileException, ReflectiveOperationException {
+    if (inputSchema.hasField(expression)) {
+      final int ix = inputSchema.indexOf(expression);
+      return (Row row) -> row.getValue(ix);
+    }
+    Map<String, Type> fieldTypes = referencedFieldTypes(expression, inputSchema);
+    return compileExpressionFunction(expression, inputSchema, fieldTypes);
+  }
+
   private static FunctionAndType createFunctionFromExpression(String expression, Schema inputSchema)
       throws StringCompiler.CompileException, ReflectiveOperationException {
     if (inputSchema.hasField(expression)) {
@@ -207,32 +293,10 @@ public class JavaRowUdf implements Serializable {
       return new FunctionAndType(
           inputSchema.getField(expression).getType(), (Row row) -> row.getValue(ix));
     } else {
-      Map<String, Type> fieldTypes = new HashMap<>();
-      for (Schema.Field field : inputSchema.getFields()) {
-        if (expression.indexOf(field.getName()) != -1) {
-          fieldTypes.put(field.getName(), typeFromFieldType(field.getType()));
-        }
-      }
+      Map<String, Type> fieldTypes = referencedFieldTypes(expression, inputSchema);
       Type type = StringCompiler.guessExpressionType(expression, fieldTypes);
-      StringBuilder source = new StringBuilder();
-      source.append("import java.util.function.Function;\n");
-      source.append("import " + Row.class.getTypeName() + ";\n");
-      source.append("public class Eval implements Function<Row, Object> {\n");
-      source.append("  public Object apply(Row __row__) {\n");
-      for (Map.Entry<String, Type> fieldEntry : fieldTypes.entrySet()) {
-        source.append(
-            String.format(
-                "    %s %s = (%s) __row__.getValue(%s);%n",
-                fieldEntry.getValue().getTypeName(),
-                fieldEntry.getKey(),
-                fieldEntry.getValue().getTypeName(),
-                inputSchema.indexOf(fieldEntry.getKey())));
-      }
-      source.append("    return " + expression + ";\n");
-      source.append("  }\n");
-      source.append("}\n");
       return new FunctionAndType(
-          type, (Function<Row, Object>) StringCompiler.getInstance("Eval", source.toString()));
+          type, compileExpressionFunction(expression, inputSchema, fieldTypes));
     }
   }
 
@@ -254,16 +318,27 @@ public class JavaRowUdf implements Serializable {
   private static FunctionAndType createFunctionFromName(String name, String path)
       throws ReflectiveOperationException, MalformedURLException {
     if (path != null && !new File(path).exists()) {
-      try (ReadableByteChannel inChannel =
-          FileSystems.open(FileSystems.matchNewResource(path, false))) {
-        File tmpJar = File.createTempFile("map-to-fields-" + name, ".jar");
-        try (FileChannel outChannel = FileChannel.open(tmpJar.toPath(), StandardOpenOption.WRITE)) {
-          ByteStreams.copy(inChannel, outChannel);
-        }
-        path = tmpJar.getPath();
-      } catch (IOException exn) {
-        throw new RuntimeException(exn);
-      }
+      final String remotePath = path;
+      path =
+          DOWNLOADED_JARS.compute(
+              remotePath,
+              (p, existing) -> {
+                if (existing != null && new File(existing).exists()) {
+                  return existing;
+                }
+                try (ReadableByteChannel inChannel =
+                    FileSystems.open(FileSystems.matchNewResource(p, false))) {
+                  File tmpJar = File.createTempFile("map-to-fields-", ".jar");
+                  tmpJar.deleteOnExit();
+                  try (FileChannel outChannel =
+                      FileChannel.open(tmpJar.toPath(), StandardOpenOption.WRITE)) {
+                    ByteStreams.copy(inChannel, outChannel);
+                  }
+                  return tmpJar.getPath();
+                } catch (IOException exn) {
+                  throw new RuntimeException(exn);
+                }
+              });
     }
     ClassLoader classLoader =
         path == null
@@ -286,19 +361,33 @@ public class JavaRowUdf implements Serializable {
     } else {
       Class<?> clazz = classLoader.loadClass(className);
       Method method = clazz.getMethod(methodName, Row.class);
-      Object base =
-          Modifier.isStatic(method.getModifiers())
-              ? null
-              : clazz.getDeclaredConstructor().newInstance();
-      return new FunctionAndType(
-          method.getGenericReturnType(),
-          (Row row) -> {
-            try {
-              return method.invoke(base, row);
-            } catch (IllegalAccessException | InvocationTargetException exn) {
-              throw new RuntimeException(exn);
-            }
-          });
+      boolean isStatic = Modifier.isStatic(method.getModifiers());
+      Object base = isStatic ? null : clazz.getDeclaredConstructor().newInstance();
+      Function<Row, Object> fn;
+      try {
+        MethodHandle rawHandle = MethodHandles.lookup().unreflect(method);
+        MethodHandle boundHandle = isStatic ? rawHandle : rawHandle.bindTo(base);
+        fn =
+            (Row row) -> {
+              try {
+                return boundHandle.invoke(row);
+              } catch (RuntimeException | Error e) {
+                throw e;
+              } catch (Throwable exn) {
+                throw new RuntimeException(exn);
+              }
+            };
+      } catch (IllegalAccessException e) {
+        fn =
+            (Row row) -> {
+              try {
+                return method.invoke(base, row);
+              } catch (ReflectiveOperationException exn) {
+                throw new RuntimeException(exn);
+              }
+            };
+      }
+      return new FunctionAndType(method.getGenericReturnType(), fn);
     }
   }
 

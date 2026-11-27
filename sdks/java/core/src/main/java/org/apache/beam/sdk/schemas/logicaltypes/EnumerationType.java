@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -33,13 +30,74 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This {@link LogicalType} represent an enumeration over a fixed set of values. */
 public class EnumerationType implements LogicalType<Value, Integer> {
   public static final String IDENTIFIER = "Enum";
+  private static final int MAX_DENSE_ENUM_VALUE = 256;
+  private static final FieldType ARGUMENT_TYPE = FieldType.map(FieldType.STRING, FieldType.INT32);
+
   final BiMap<String, Integer> enumValues;
   final List<String> values;
+  private transient volatile @Nullable LookupCache lookupCache;
+
+  private static final class LookupCache {
+    final ImmutableMap<String, Value> nameToValue;
+    final @Nullable Value @Nullable [] denseValues;
+    final @Nullable String @Nullable [] denseNames;
+    final @Nullable ImmutableMap<Integer, Value> sparseValues;
+
+    LookupCache(BiMap<String, Integer> enumValues) {
+      int min = Integer.MAX_VALUE;
+      int max = Integer.MIN_VALUE;
+      for (Integer v : enumValues.values()) {
+        int iv = v;
+        if (iv < min) {
+          min = iv;
+        }
+        if (iv > max) {
+          max = iv;
+        }
+      }
+      boolean useDense =
+          !enumValues.isEmpty()
+              && min >= 0
+              && max <= MAX_DENSE_ENUM_VALUE
+              && max <= Math.max(enumValues.size() * 2, 64);
+      @Nullable Value @Nullable [] dVals = useDense ? new @Nullable Value[max + 1] : null;
+      @Nullable String @Nullable [] dNames = useDense ? new @Nullable String[max + 1] : null;
+      ImmutableMap.Builder<String, Value> byName =
+          ImmutableMap.builderWithExpectedSize(enumValues.size());
+      ImmutableMap.Builder<Integer, Value> byId =
+          useDense ? null : ImmutableMap.builderWithExpectedSize(enumValues.size());
+      for (Entry<String, Integer> entry : enumValues.entrySet()) {
+        int id = entry.getValue();
+        Value cached = new Value(id);
+        byName.put(entry.getKey(), cached);
+        if (dVals != null && dNames != null) {
+          dVals[id] = cached;
+          dNames[id] = entry.getKey();
+        } else if (byId != null) {
+          byId.put(id, cached);
+        }
+      }
+      this.nameToValue = byName.build();
+      this.denseValues = dVals;
+      this.denseNames = dNames;
+      this.sparseValues = byId != null ? byId.build() : null;
+    }
+  }
+
+  private LookupCache getLookupCache() {
+    LookupCache cache = lookupCache;
+    if (cache == null) {
+      cache = new LookupCache(enumValues);
+      lookupCache = cache;
+    }
+    return cache;
+  }
 
   private EnumerationType(Map<String, Integer> enumValues) {
     this.enumValues = ImmutableBiMap.copyOf(enumValues);
@@ -48,6 +106,7 @@ public class EnumerationType implements LogicalType<Value, Integer> {
             .sorted(Comparator.comparingInt(e -> e.getValue()))
             .map(Entry::getKey)
             .collect(Collectors.toList());
+    this.lookupCache = new LookupCache(this.enumValues);
   }
 
   /** Create an enumeration type over a set of String->Integer values. */
@@ -76,13 +135,29 @@ public class EnumerationType implements LogicalType<Value, Integer> {
 
   /** Return an {@link Value} corresponding to one of the enumeration strings. */
   public Value valueOf(String stringValue) {
-    return new Value(
-        checkArgumentNotNull(
-            enumValues.get(stringValue), "Unknown enumeration value {}", stringValue));
+    Value value = getLookupCache().nameToValue.get(stringValue);
+    if (value == null) {
+      throw new IllegalArgumentException(
+          String.format("Unknown enumeration value %s", stringValue));
+    }
+    return value;
   }
 
   /** Return an {@link Value} corresponding to one of the enumeration integer values. */
   public Value valueOf(int value) {
+    LookupCache cache = getLookupCache();
+    @Nullable Value @Nullable [] dense = cache.denseValues;
+    if (dense != null && value >= 0 && value < dense.length) {
+      Value cached = dense[value];
+      if (cached != null) {
+        return cached;
+      }
+    } else if (cache.sparseValues != null) {
+      Value cached = cache.sparseValues.get(value);
+      if (cached != null) {
+        return cached;
+      }
+    }
     return new Value(value);
   }
 
@@ -93,7 +168,7 @@ public class EnumerationType implements LogicalType<Value, Integer> {
 
   @Override
   public FieldType getArgumentType() {
-    return FieldType.map(FieldType.STRING, FieldType.INT32);
+    return ARGUMENT_TYPE;
   }
 
   @Override
@@ -121,6 +196,10 @@ public class EnumerationType implements LogicalType<Value, Integer> {
   }
 
   public @Nullable String getEnumName(int number) {
+    @Nullable String @Nullable [] dense = getLookupCache().denseNames;
+    if (dense != null) {
+      return (number >= 0 && number < dense.length) ? dense[number] : null;
+    }
     return enumValues.inverse().get(number);
   }
 
@@ -133,10 +212,12 @@ public class EnumerationType implements LogicalType<Value, Integer> {
   }
 
   public String toString(EnumerationType.Value value) {
-    return checkArgumentNotNull(
-        enumValues.inverse().get(value.getValue()),
-        "Unknown enumeration value {}",
-        value.getValue());
+    String name = getEnumName(value.getValue());
+    if (name == null) {
+      throw new IllegalArgumentException(
+          String.format("Unknown enumeration value %s", value.getValue()));
+    }
+    return name;
   }
 
   @Override
@@ -173,7 +254,7 @@ public class EnumerationType implements LogicalType<Value, Integer> {
 
     @Override
     public int hashCode() {
-      return Objects.hash(value);
+      return 31 + value;
     }
 
     @Override

@@ -23,6 +23,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import javax.annotation.concurrent.GuardedBy;
 import net.bytebuddy.ByteBuddy;
@@ -46,8 +48,10 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -68,6 +72,37 @@ public class ConvertHelpers {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConvertHelpers.class);
   private static final Object lock = new Object();
+  private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
+  private static final Map<ConvertPrimitiveKey, SerializableFunction<?, ?>>
+      CACHED_PRIMITIVE_CONVERTERS = Maps.newConcurrentMap();
+
+  private static final class ConvertPrimitiveKey {
+    final Type expectedInputType;
+    final TypeDescriptor<?> outputType;
+
+    ConvertPrimitiveKey(Type expectedInputType, TypeDescriptor<?> outputType) {
+      this.expectedInputType = expectedInputType;
+      this.outputType = outputType;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof ConvertPrimitiveKey)) {
+        return false;
+      }
+      ConvertPrimitiveKey that = (ConvertPrimitiveKey) o;
+      return Objects.equals(expectedInputType, that.expectedInputType)
+          && Objects.equals(outputType, that.outputType);
+    }
+
+    @Override
+    public int hashCode() {
+      return 31 * Objects.hashCode(expectedInputType) + outputType.hashCode();
+    }
+  }
 
   /** Return value after converting a schema. */
   @SuppressFBWarnings(
@@ -182,18 +217,43 @@ public class ConvertHelpers {
       outputType = TypeDescriptor.of(Primitives.wrap(outputType.getRawType()));
     }
 
+    final TypeDescriptor<?> resolvedOutputType = outputType;
+    // Only cache for the stateless DefaultTypeConversionsFactory so stateful custom factories never
+    // collide in the shared map.
+    if (typeConversionsFactory.getClass() == ByteBuddyUtils.DefaultTypeConversionsFactory.class) {
+      ConvertPrimitiveKey key = new ConvertPrimitiveKey(expectedInputType, resolvedOutputType);
+      return (SerializableFunction<?, OutputT>)
+          CACHED_PRIMITIVE_CONVERTERS.computeIfAbsent(
+              key,
+              k ->
+                  buildConvertPrimitive(
+                      expectedInputType, resolvedOutputType, typeConversionsFactory));
+    }
+    return (SerializableFunction<?, OutputT>)
+        buildConvertPrimitive(expectedInputType, resolvedOutputType, typeConversionsFactory);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static SerializableFunction<?, ?> buildConvertPrimitive(
+      Type expectedInputType,
+      TypeDescriptor<?> resolvedOutputType,
+      TypeConversionsFactory typeConversionsFactory) {
+    if (ByteBuddyUtils.isIdentityConversion(
+        s -> typeConversionsFactory.createSetterConversions(s).convert(resolvedOutputType))) {
+      return SerializableFunctions.identity();
+    }
     TypeDescription.Generic genericType =
         TypeDescription.Generic.Builder.parameterizedType(
-                SerializableFunction.class, expectedInputType, outputType.getType())
+                SerializableFunction.class, expectedInputType, resolvedOutputType.getType())
             .build();
     DynamicType.Builder<SerializableFunction> builder =
-        (DynamicType.Builder<SerializableFunction>) new ByteBuddy().subclass(genericType);
+        (DynamicType.Builder<SerializableFunction>) BYTE_BUDDY.subclass(genericType);
 
     try {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .method(ElementMatchers.named("apply"))
-          .intercept(new ConvertPrimitiveInstruction(outputType, typeConversionsFactory))
+          .intercept(new ConvertPrimitiveInstruction(resolvedOutputType, typeConversionsFactory))
           .make()
           .load(
               ReflectHelpers.findClassLoader(), getClassLoadingStrategy(SerializableFunction.class))

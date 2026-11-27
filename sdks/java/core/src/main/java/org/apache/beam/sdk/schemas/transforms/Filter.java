@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaUtils;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -96,8 +97,6 @@ public class Filter {
 
       abstract SerializableFunction<FieldT, Boolean> getPredicate();
 
-      abstract @Nullable Schema getSelectedSchema();
-
       abstract boolean getSelectsSingleField();
 
       abstract @Nullable Schema getInputSchema();
@@ -111,23 +110,11 @@ public class Filter {
 
         abstract Builder<FieldT> setPredicate(SerializableFunction<FieldT, Boolean> predicate);
 
-        abstract Builder<FieldT> setSelectedSchema(@Nullable Schema selectedSchema);
-
         abstract Builder<FieldT> setSelectsSingleField(boolean unbox);
 
         abstract Builder<FieldT> setInputSchema(@Nullable Schema inputSchema);
 
         abstract FilterDescription<FieldT> build();
-      }
-
-      private transient RowSelector rowSelector;
-
-      public RowSelector getRowSelector() {
-        if (rowSelector == null) {
-          rowSelector =
-              SelectHelpers.getRowSelectorOptimized(getInputSchema(), getFieldAccessDescriptor());
-        }
-        return rowSelector;
       }
     }
 
@@ -184,6 +171,9 @@ public class Filter {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       Schema inputSchema = input.getSchema();
+      if (filters.isEmpty()) {
+        return input;
+      }
       List<FilterDescription> resolvedFilters =
           filters.stream()
               .map(
@@ -191,40 +181,95 @@ public class Filter {
                       f.toBuilder()
                           .setFieldAccessDescriptor(
                               f.getFieldAccessDescriptor().resolve(inputSchema))
-                          .build())
-              .map(
-                  f ->
-                      f.toBuilder()
                           .setInputSchema(inputSchema)
-                          .setSelectedSchema(
-                              SelectHelpers.getOutputSchema(
-                                  inputSchema, f.getFieldAccessDescriptor()))
                           .build())
               .collect(Collectors.toList());
+
+      int count = resolvedFilters.size();
+      int[][] directPaths = new int[count][];
+      boolean[] selectsSingle = new boolean[count];
+      SerializableFunction<Object, Boolean>[] singlePredicates = new SerializableFunction[count];
+      SerializableFunction<Row, Boolean>[] rowPredicates = new SerializableFunction[count];
+      FieldAccessDescriptor[] selectorDescriptors = new FieldAccessDescriptor[count];
+      for (int i = 0; i < count; i++) {
+        FilterDescription f = resolvedFilters.get(i);
+        FieldAccessDescriptor resolved = f.getFieldAccessDescriptor();
+        selectsSingle[i] = f.getSelectsSingleField();
+        if (selectsSingle[i]) {
+          int[] path = SchemaUtils.tryResolveSingleFieldPath(inputSchema, resolved);
+          directPaths[i] = path;
+          singlePredicates[i] = (SerializableFunction<Object, Boolean>) f.getPredicate();
+          if (path == null) {
+            // Validate output schema eagerly at pipeline construction time.
+            SelectHelpers.getOutputSchema(inputSchema, resolved);
+            selectorDescriptors[i] = resolved;
+          }
+        } else {
+          SelectHelpers.getOutputSchema(inputSchema, resolved);
+          rowPredicates[i] = (SerializableFunction<Row, Boolean>) f.getPredicate();
+          selectorDescriptors[i] = resolved;
+        }
+      }
+
+      @Nullable SerializableFunction<T, Row> toRowFn =
+          SchemaUtils.isIdentityFunction(input.getToRowFunction())
+              ? null
+              : input.getToRowFunction();
 
       return input.apply(
           ParDo.of(
               new DoFn<T, T>() {
+                private transient @Nullable RowSelector[] selectors;
+
+                @Setup
+                public void setup() {
+                  initSelectors();
+                }
+
+                private RowSelector[] initSelectors() {
+                  RowSelector[] local = new RowSelector[count];
+                  for (int i = 0; i < count; i++) {
+                    if (selectorDescriptors[i] != null) {
+                      local[i] =
+                          SelectHelpers.getRowSelectorOptimized(
+                              inputSchema, selectorDescriptors[i]);
+                    }
+                  }
+                  this.selectors = local;
+                  return local;
+                }
+
                 @ProcessElement
-                public void process(@Element Row row, OutputReceiver<Row> o) {
-                  for (FilterDescription filter : resolvedFilters) {
-                    Row selected = filter.getRowSelector().select(row);
-                    if (filter.getSelectsSingleField()) {
-                      SerializableFunction<Object, Boolean> predicate =
-                          (SerializableFunction<Object, Boolean>) filter.getPredicate();
-                      if (!predicate.apply(selected.getValue(0))) {
+                public void process(@Element T element, OutputReceiver<T> o) {
+                  RowSelector[] localSelectors = this.selectors;
+                  if (localSelectors == null) {
+                    localSelectors = initSelectors();
+                  }
+                  Row row = toRowFn != null ? toRowFn.apply(element) : (Row) element;
+                  for (int i = 0; i < count; i++) {
+                    if (selectsSingle[i]) {
+                      Object value;
+                      int[] path = directPaths[i];
+                      if (path != null) {
+                        value =
+                            path.length == 1
+                                ? (row == null ? null : row.getValue(path[0]))
+                                : SchemaUtils.readFieldPath(row, path);
+                      } else {
+                        value = localSelectors[i].select(row).getValue(0);
+                      }
+                      if (!singlePredicates[i].apply(value)) {
                         return;
                       }
                     } else {
-                      SerializableFunction<Row, Boolean> predicate =
-                          (SerializableFunction<Row, Boolean>) filter.getPredicate();
-                      if (!predicate.apply(selected)) {
+                      Row selected = localSelectors[i].select(row);
+                      if (!rowPredicates[i].apply(selected)) {
                         return;
                       }
                     }
                   }
-                  // All filters passed. Output the row.
-                  o.output(row);
+                  // All filters passed. Output the original element directly.
+                  o.output(element);
                 }
               }));
     }
