@@ -70,7 +70,6 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -116,7 +115,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code UNAVAILABLE is retried repeatedly until the RPC times out.
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
@@ -147,17 +145,16 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       // The pipeline continues making requests to Spanner to retry the Unavailable errors.
       assertNull(result.waitUntilFinish(Duration.millis(500)));
     } finally {
-      // databaseClient.getDialect does not currently bubble up the correct message.
-      // Instead, the error returned is: "DEADLINE_EXCEEDED: Operation did not complete "
-      // "in the given time"
-      thrown.expectMessage("DEADLINE_EXCEEDED");
+      // readChangeStream() reads the database dialect while the pipeline is constructed, so the
+      // sticky error fails that query and the client surfaces the UNAVAILABLE error.
+      thrown.expect(SpannerException.class);
+      thrown.expectMessage("UNAVAILABLE");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
   }
 
   @Test
-  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code ABORTED is retried repeatedly until it times out.
   public void testAbortedExceptionRetries() throws InterruptedException {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -187,7 +184,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       // The pipeline continues making requests to Spanner to retry the Aborted errors.
       assertNull(result.waitUntilFinish(Duration.millis(500)));
     } finally {
-      thrown.expectMessage("DEADLINE_EXCEEDED");
+      // As above, the sticky error fails the dialect query during pipeline construction.
+      thrown.expect(SpannerException.class);
+      thrown.expectMessage("ABORTED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -221,7 +220,6 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code RESOURCE_EXHAUSTED is retried repeatedly.
   public void testResourceExhaustedRetry() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -242,7 +240,9 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withInclusiveEndAt(endTimestamp));
       pipeline.run().waitUntilFinish();
     } finally {
-      thrown.expectMessage("DEADLINE_EXCEEDED");
+      // As above, the sticky error fails the dialect query during pipeline construction.
+      thrown.expect(SpannerException.class);
+      thrown.expectMessage("RESOURCE_EXHAUSTED");
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.equalTo(0));
     }
@@ -285,16 +285,19 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
-  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   public void testInvalidRecordReceived() {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
 
     mockGetDialect();
+    mockChangeStreamOptions();
     mockTableExists();
     mockGetWatermark(startTimestamp);
+    mockGetPartitionSize(endTimestamp, 0);
     ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
+    mockChangePartitionState(startTimestamp, endTimestamp, "CREATED");
+    mockChangePartitionState(startTimestamp, endTimestamp, "SCHEDULED");
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
         getPartitionResultSet);
@@ -317,10 +320,10 @@ public class SpannerChangeStreamErrorTest implements Serializable {
               .withInclusiveEndAt(endTimestamp));
       pipeline.run().waitUntilFinish();
     } finally {
-      thrown.expect(SpannerException.class);
-      // DatabaseClient.getDialect returns "DEADLINE_EXCEEDED: Operation did not complete in the "
-      // given time" even though we mocked it out.
-      thrown.expectMessage("DEADLINE_EXCEEDED");
+      thrown.expect(PipelineExecutionException.class);
+      thrown.expectMessage("Field not found");
+      assertThat(
+          mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(0));
     }
   }
 
