@@ -877,7 +877,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         return;
       }
 
-      lastReceivedMsSinceEpoch = requestTimeMsSinceEpoch;
+      // Use current reader-thread time for MovingFunction updates so stats()/getWatermark()
+      // ticks that ran while an async pull was in flight never move MovingFunction backwards.
+      long statsTimeMsSinceEpoch = Math.max(requestTimeMsSinceEpoch, now());
+      lastReceivedMsSinceEpoch = statsTimeMsSinceEpoch;
 
       // Capture the received messages.
       for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
@@ -887,11 +890,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
             incomingMessage.ackId(),
             new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
         numReceived++;
-        numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
+        numReceivedRecently.add(statsTimeMsSinceEpoch, 1L);
         minReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
+            statsTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         maxReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
+            statsTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         minUnreadTimestampMsSinceEpoch.add(
             requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
       }
