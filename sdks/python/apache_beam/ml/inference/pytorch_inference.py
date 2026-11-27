@@ -364,7 +364,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
       The number of bytes of data for a batch of Tensors.
     """
-    return sum((el.element_size() for tensor in batch for el in tensor))
+    return sum(tensor.element_size() * tensor.nelement() for tensor in batch)
 
   def get_metrics_namespace(self) -> str:
     """
