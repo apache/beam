@@ -198,6 +198,7 @@
 * (Java) Fixed JmsIO leaving most messages unacknowledged, and so redelivered, on runners that execute unbounded sources as splittable DoFns, such as Dataflow Runner v2. Reporting progress for an unbounded source no longer takes a checkpoint, and finalizing a JmsIO checkpoint, or resuming from it, also acknowledges the earlier checkpoints of the same reader ([#41013](https://github.com/apache/beam/pull/41013)).
 * (Python) Fixed the DataFrame API `idxmin()` and `idxmax()` failing with `ValueError` when a partition is empty, for example after a filter, or when a datetime column has only `NaT` in a partition ([#41662](https://github.com/apache/beam/issues/41662)).
 * (Python) Fixed local file patterns that use `/`, such as `data/*.txt`, matching no files on Windows: `ReadFromText` raised "No files found", and `ReadAllFromText` and `fileio.MatchFiles` returned nothing ([#41618](https://github.com/apache/beam/issues/41618)).
+* (Go) Fixed `window.NewFixedWindows` and `window.NewSlidingWindows` assigning a timestamp before the epoch to a later window that does not contain it: more than one window before the epoch for fixed windows, and any timestamp before the epoch that is not a multiple of the period for sliding windows ([#41725](https://github.com/apache/beam/issues/41725)).
 
 ## Security Fixes
 
