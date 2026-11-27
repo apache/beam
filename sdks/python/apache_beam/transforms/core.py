@@ -24,6 +24,7 @@ import concurrent.futures.process
 import copy
 import inspect
 import logging
+import numbers
 import random
 import sys
 import time
@@ -3678,6 +3679,7 @@ class GroupBy(PTransform):
 
   def expand(self, pcoll):
     input_type = pcoll.element_type or typing.Any
+    key_func = self._key_func()
     # Map(lambda) produces a label formatted like this, but it cannot be
     # changed without breaking update compat. Here, we pin to the transform
     # name used in the 2.68 release to avoid breaking changes when the line
@@ -3685,7 +3687,7 @@ class GroupBy(PTransform):
     return (
         pcoll
         | "Map(<lambda at core.py:3503>)" >>
-        Map(lambda x: (self._key_func()(x), x)).with_output_types(
+        Map(lambda x: (key_func(x), x)).with_output_types(
             typehints.Tuple[self._key_type_hint(input_type), input_type])
         | GroupByKey())
 
@@ -3837,13 +3839,14 @@ class Partition(PTransformWithSideInputs):
     """A DoFn that applies a PartitionFn."""
     def process(self, element, partitionfn, n, *args, **kwargs):
       partition = partitionfn.partition_for(element, n, *args, **kwargs)
-      import numbers
-      if isinstance(partition,
-                    bool) or not isinstance(partition, numbers.Integral):
-        raise ValueError(
-            f"PartitionFn yielded a '{type(partition).__name__}' "
-            "when it should only yield integers")
-      if not 0 <= int(partition) < n:
+      if type(partition) is not int:
+        if isinstance(partition,
+                      bool) or not isinstance(partition, numbers.Integral):
+          raise ValueError(
+              f"PartitionFn yielded a '{type(partition).__name__}' "
+              "when it should only yield integers")
+        partition = int(partition)
+      if not 0 <= partition < n:
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
