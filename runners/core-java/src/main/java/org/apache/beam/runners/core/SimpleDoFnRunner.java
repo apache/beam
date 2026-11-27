@@ -360,6 +360,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
         outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
+
+      @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outputWindowedValue(mainOutputTag, windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        SimpleDoFnRunner.this.outputWindowedValue(tag, windowedValue);
+      }
     }
 
     private final DoFnFinishBundleArgumentProvider.Context context =
@@ -625,6 +635,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
       return elem.getValueKind();
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      return elem;
     }
 
     @Override
@@ -944,6 +959,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("WindowedValue parameters are not supported.");
     }
 
     @Override
@@ -1297,6 +1317,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("WindowedValue parameters are not supported.");
     }
 
     @Override

@@ -567,6 +567,20 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+        return WindowedValues.of(
+            outerContext.element().getKey(),
+            outerContext.timestamp(),
+            window,
+            outerContext.pane(),
+            outerContext.currentRecordId(),
+            outerContext.currentRecordOffset(),
+            outerContext.causedByDrain(),
+            null,
+            outerContext.valueKind());
+      }
+
+      @Override
       public String timerId(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }

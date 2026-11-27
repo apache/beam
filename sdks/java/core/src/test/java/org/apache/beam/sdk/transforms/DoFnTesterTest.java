@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -34,10 +35,16 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -363,6 +370,77 @@ public class DoFnTesterTest {
         assertThat(tester.processBundle(5, 6, 7), contains(3));
         assertThat(tester.processBundle(8, 9), contains(2));
       }
+    }
+  }
+
+  @Test
+  public void testWindowedValueInputAndFinishBundleOutput() throws Exception {
+    Instant ts = new Instant(1234L);
+    IntervalWindow window = new IntervalWindow(ts, ts.plus(Duration.standardSeconds(10)));
+
+    try (DoFnTester<String, String> tester = DoFnTester.of(new WindowedValuePassThroughDoFn())) {
+      tester.startBundle();
+      tester.processWindowedElement("x", ts, window);
+      tester.finishBundle();
+
+      assertThat(
+          tester.peekOutputElementsInWindow(window),
+          contains(TimestampedValue.of("process-x", ts), TimestampedValue.of("finish-x", ts)));
+    }
+  }
+
+  private static class WindowedValuePassThroughDoFn extends DoFn<String, String> {
+    private final List<WindowedValue<String>> buffered = new ArrayList<>();
+
+    @ProcessElement
+    public void processElement(WindowedValue<String> wv, OutputReceiver<String> outputReceiver) {
+      buffered.add(wv);
+      outputReceiver.outputWindowedValue(wv.withValue("process-" + wv.getValue()));
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      PaneInfo pane = PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 1, 0);
+      for (WindowedValue<String> wv : buffered) {
+        c.outputWindowedValue(
+            WindowedValues.of(
+                "finish-" + wv.getValue(),
+                wv.getTimestamp(),
+                wv.getWindows(),
+                pane,
+                "rec-1",
+                42L,
+                CausedByDrain.CAUSED_BY_DRAIN,
+                null,
+                ValueKind.INSERT));
+      }
+      buffered.clear();
+    }
+  }
+
+  @Test
+  public void testFinishBundleOutputWindowedValueRejectsMultipleWindows() throws Exception {
+    try (DoFnTester<String, String> tester = DoFnTester.of(new MultiWindowFinishBundleDoFn())) {
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("single window");
+      tester.startBundle();
+      tester.finishBundle();
+    }
+  }
+
+  private static class MultiWindowFinishBundleDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement() {}
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      Instant ts = new Instant(1000L);
+      IntervalWindow w1 = new IntervalWindow(ts, ts.plus(Duration.standardSeconds(10)));
+      IntervalWindow w2 =
+          new IntervalWindow(
+              ts.plus(Duration.standardSeconds(10)), ts.plus(Duration.standardSeconds(20)));
+      c.outputWindowedValue(
+          WindowedValues.of("x", ts, ImmutableList.of(w1, w2), PaneInfo.NO_FIRING));
     }
   }
 

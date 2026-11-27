@@ -132,6 +132,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -322,6 +323,96 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       .build())
               .getData(),
           fakeClient.getData());
+    }
+
+    @Test
+    public void testWindowedValueInputAndOutputs() throws Exception {
+      TupleTag<String> mainTag = new TupleTag<String>("main") {};
+      TupleTag<String> sideTag = new TupleTag<String>("side") {};
+
+      DoFn<String, String> fn =
+          new DoFn<String, String>() {
+            private final List<WindowedValue<String>> buffered = new ArrayList<>();
+
+            @ProcessElement
+            public void processElement(
+                WindowedValue<String> wv, MultiOutputReceiver outputReceiver) {
+              buffered.add(wv);
+              outputReceiver
+                  .get(mainTag)
+                  .outputWindowedValue(wv.withValue("process-" + wv.getValue()));
+            }
+
+            @FinishBundle
+            public void finishBundle(FinishBundleContext c) {
+              for (WindowedValue<String> wv : buffered) {
+                c.outputWindowedValue(wv.withValue("finish-" + wv.getValue()));
+                c.outputWindowedValue(sideTag, wv.withValue("side-" + wv.getValue()));
+              }
+              buffered.clear();
+            }
+          };
+
+      Pipeline p = Pipeline.create();
+      PCollection<String> inputPCollection = p.apply(Create.of("unused"));
+      PCollectionTuple outputTuple =
+          inputPCollection.apply(
+              TEST_TRANSFORM_ID, ParDo.of(fn).withOutputTags(mainTag, TupleTagList.of(sideTag)));
+
+      SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents, true);
+      String inputPCollectionId = sdkComponents.registerPCollection(inputPCollection);
+      String mainOutputId = sdkComponents.registerPCollection(outputTuple.get(mainTag));
+      String sideOutputId = sdkComponents.registerPCollection(outputTuple.get(sideTag));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .processBundleInstructionId("58")
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
+              .build();
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      List<WindowedValue<String>> sideOutputValues = new ArrayList<>();
+      context.addPCollectionConsumer(
+          mainOutputId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+      context.addPCollectionConsumer(
+          sideOutputId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) sideOutputValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      PaneInfo pane = PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 1, 0);
+      WindowedValue<String> input =
+          WindowedValues.of(
+              "x",
+              new Instant(1234L),
+              GlobalWindow.INSTANCE,
+              pane,
+              "rec-1",
+              42L,
+              CausedByDrain.CAUSED_BY_DRAIN,
+              null,
+              ValueKind.INSERT);
+
+      FnDataReceiver<WindowedValue<?>> mainInput =
+          context.getPCollectionConsumer(inputPCollectionId);
+      mainInput.accept(input);
+
+      assertThat(mainOutputValues, contains(input.withValue("process-x")));
+      mainOutputValues.clear();
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      assertThat(mainOutputValues, contains(input.withValue("finish-x")));
+      assertThat(sideOutputValues, contains(input.withValue("side-x")));
     }
 
     /** Produces a bag user {@link StateKey} for the test PTransform id in the global window. */

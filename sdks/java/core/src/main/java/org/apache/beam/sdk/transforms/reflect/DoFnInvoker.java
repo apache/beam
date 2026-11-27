@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -235,6 +236,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the {@link ValueKind}. */
     ValueKind valueKind(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a reference to the {@link WindowedValue} of the input element. */
+    WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn);
+
     /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
@@ -371,6 +375,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("ValueKind unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("WindowedValue unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -598,6 +608,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
       return delegate.valueKind(doFn);
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      return delegate.windowedValue(doFn);
     }
 
     @Override

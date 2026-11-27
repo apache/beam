@@ -43,12 +43,15 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -645,6 +648,68 @@ public class SimpleDoFnRunnerTest {
                 String.format(
                     "the allowed skew (%s)",
                     PeriodFormat.getDefault().print(Duration.ZERO.toPeriod())))));
+  }
+
+  @Test
+  public void testWindowedValueInputAndOutputs() {
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    TupleTag<String> sideTag = new TupleTag<>("side");
+    ListOutputManager outputManager = new ListOutputManager();
+    List<WindowedValue<String>> buffered = new ArrayList<>();
+
+    DoFn<String, String> fn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void process(WindowedValue<String> wv, OutputReceiver<String> outputReceiver) {
+            buffered.add(wv);
+            outputReceiver.outputWindowedValue(wv.withValue("process-" + wv.getValue()));
+          }
+
+          @FinishBundle
+          public void finishBundle(FinishBundleContext c) {
+            for (WindowedValue<String> wv : buffered) {
+              c.outputWindowedValue(wv.withValue("finish-" + wv.getValue()));
+              c.outputWindowedValue(sideTag, wv.withValue("side-" + wv.getValue()));
+            }
+          }
+        };
+
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            NullSideInputReader.empty(),
+            outputManager,
+            mainTag,
+            TupleTagList.of(sideTag).getAll(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    PaneInfo pane = PaneInfo.createPane(false, true, PaneInfo.Timing.ON_TIME, 1, 0);
+    WindowedValue<String> input =
+        WindowedValues.of(
+            "x",
+            new Instant(1234L),
+            GlobalWindow.INSTANCE,
+            pane,
+            "rec-1",
+            42L,
+            CausedByDrain.CAUSED_BY_DRAIN,
+            null,
+            ValueKind.INSERT);
+
+    runner.startBundle();
+    runner.processElement(input);
+    runner.finishBundle();
+
+    assertThat(
+        outputManager.outputs.get(mainTag),
+        contains(input.withValue("process-x"), input.withValue("finish-x")));
+    assertThat(outputManager.outputs.get(sideTag), contains(input.withValue("side-x")));
   }
 
   static class ThrowingDoFn extends DoFn<String, String> {

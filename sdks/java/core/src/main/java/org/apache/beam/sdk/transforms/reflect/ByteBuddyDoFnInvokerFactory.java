@@ -102,6 +102,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ValueKindP
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorStateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowedValueParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -138,6 +139,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String CURRENT_RECORD_OFFSET_PARAMETER_METHOD = "currentRecordOffset";
   public static final String FIRE_TIMESTAMP_PARAMETER_METHOD = "fireTimestamp";
   public static final String VALUE_KIND_PARAMETER_METHOD = "valueKind";
+  public static final String WINDOWED_VALUE_PARAMETER_METHOD = "windowedValue";
   public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
@@ -1154,6 +1156,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         VALUE_KIND_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(WindowedValueParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        WINDOWED_VALUE_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

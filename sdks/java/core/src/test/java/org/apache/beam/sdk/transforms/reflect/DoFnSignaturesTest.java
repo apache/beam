@@ -88,6 +88,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -1926,5 +1927,29 @@ public class DoFnSignaturesTest {
     DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithTypeVariableValueState.class);
     assertThat(signature.stateDeclarations().get("typeVariableState"), notNullValue());
     expectedLogs.verifyNotLogged("with collection type");
+  }
+
+  @Test
+  public void testWindowedValueParameter() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(WindowedValue<String> wv) {}
+            }.getClass());
+    assertThat(
+        sig.processElement().extraParameters(),
+        Matchers.hasItem(Parameter.windowedValueParameter()));
+  }
+
+  @Test
+  public void testWindowedValueParameterWrongType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("WindowedValue<String>");
+    DoFnSignatures.getSignature(
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void process(WindowedValue<Integer> wv) {}
+        }.getClass());
   }
 }

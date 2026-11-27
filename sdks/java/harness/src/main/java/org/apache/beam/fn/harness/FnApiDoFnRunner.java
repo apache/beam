@@ -1648,12 +1648,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+        outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+      }
+
+      @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outputTo(mainOutputConsumer, windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
         if (consumer == null) {
           throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
         }
-        outputTo(consumer, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputTo(consumer, windowedValue);
       }
     }
 
@@ -1697,6 +1707,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       return stateAccessor.get(view, currentWindow);
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      return currentElement.getWindows().size() == 1
+          ? currentElement
+          : WindowedValues.builder(currentElement).setWindow(currentWindow);
     }
   }
 
@@ -1963,6 +1980,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return currentElement.causedByDrain();
+    }
+
+    @Override
+    public WindowedValue<InputT> windowedValue(DoFn<InputT, OutputT> doFn) {
+      return currentElement;
     }
   }
 
