@@ -124,6 +124,8 @@ _LOGGER = logging.getLogger(__name__)
 _TIME_SHIFT = 1 << 63
 MIN_TIMESTAMP_micros = MIN_TIMESTAMP.micros
 MAX_TIMESTAMP_micros = MAX_TIMESTAMP.micros
+MIN_TIMESTAMP_millis = -(abs(MIN_TIMESTAMP_micros) // 1000)
+MAX_TIMESTAMP_millis = MAX_TIMESTAMP_micros // 1000
 
 IterableStateReader = Callable[[bytes, 'CoderImpl'], Iterable]
 IterableStateWriter = Callable[[Iterable, 'CoderImpl'], bytes]
@@ -1653,6 +1655,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # TODO(lcwik): Remove the timestamp coder field
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
+    self._timestamp_encoded_size = timestamp_coder.estimate_size(
+        Timestamp(0), nested=True)
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
     self._pane_info_coder = PaneInfoCoderImpl()
 
@@ -1686,9 +1690,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(https://github.com/apache/beam/issues/18190): Clean this up once we
     # have a BEAM wide consensus on precision of timestamps.
-    if timestamp <= -(abs(MIN_TIMESTAMP_micros) // 1000):
+    if timestamp <= MIN_TIMESTAMP_millis:
       timestamp = MIN_TIMESTAMP_micros
-    elif timestamp >= MAX_TIMESTAMP_micros // 1000:
+    elif timestamp >= MAX_TIMESTAMP_millis:
       timestamp = MAX_TIMESTAMP_micros
     else:
       timestamp *= 1000
@@ -1711,18 +1715,14 @@ class WindowedValueCoderImpl(StreamCoderImpl):
       # Should never be here.
       # TODO(robertwb): Remove when coders are set correctly.
       return 0, [(value, self._value_coder)]
-    estimated_size = 0
-    observables = []  # type: Observables
-    value_estimated_size, value_observables = (
+    value_estimated_size, observables = (
         self._value_coder.get_estimated_size_and_observables(
             value.value, nested=nested))
-    estimated_size += value_estimated_size
-    observables += value_observables
-    estimated_size += (
-        self._timestamp_coder.estimate_size(value.timestamp, nested=True))
-    estimated_size += (
-        self._windows_coder.estimate_size(value.windows, nested=True))
-    estimated_size += (
+    # Timestamp has a fixed encoded size; reuse the size computed in __init__
+    # to avoid accessing value.timestamp (which lazily allocates a Timestamp).
+    estimated_size = (
+        value_estimated_size + self._timestamp_encoded_size +
+        self._windows_coder.estimate_size(value.windows, nested=True) +
         self._pane_info_coder.estimate_size(value.pane_info, nested=True))
     return estimated_size, observables
 

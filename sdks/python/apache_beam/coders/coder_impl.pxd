@@ -231,6 +231,8 @@ cdef class PaneInfoCoderImpl(StreamCoderImpl):
 cdef libc.stdint.uint64_t _TIME_SHIFT
 cdef libc.stdint.int64_t MIN_TIMESTAMP_micros
 cdef libc.stdint.int64_t MAX_TIMESTAMP_micros
+cdef libc.stdint.int64_t MIN_TIMESTAMP_millis
+cdef libc.stdint.int64_t MAX_TIMESTAMP_millis
 
 
 cdef class _OrderedUnionCoderImpl(StreamCoderImpl):
@@ -249,6 +251,7 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
   cdef CoderImpl _value_coder
   cdef CoderImpl _timestamp_coder
+  cdef int _timestamp_encoded_size
   cdef CoderImpl _windows_coder
   cdef CoderImpl _pane_info_coder
 
