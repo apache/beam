@@ -27,6 +27,7 @@ import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Fixed precision numeric types used to represent jdbc NUMERIC and DECIMAL types. */
 public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
@@ -57,6 +58,7 @@ public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
 
   private final int precision;
   private final int scale;
+  private transient @Nullable MathContext mathContext;
 
   /**
    * Create a FixedPrecisionNumeric instance with specified precision and scale. ``precision=-1``
@@ -99,17 +101,21 @@ public class FixedPrecisionNumeric extends PassThroughLogicalType<BigDecimal> {
 
   @Override
   public BigDecimal toInputType(BigDecimal base) {
-    if (precision != -1) {
-      // check value not causing overflow when precision is fixed.
-      checkArgument(
-          base == null
-              || (base.precision() <= precision && base.scale() <= scale)
-              || base.round(new MathContext(precision)).compareTo(base) == 0,
-          "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
-          precision,
-          (base == null) ? null : base.precision(),
-          scale,
-          (base == null) ? null : base.scale());
+    if (precision != -1 && base != null) {
+      // Check value does not cause overflow when precision is fixed.
+      if (base.precision() > precision || base.scale() > scale) {
+        MathContext mc = mathContext;
+        if (mc == null) {
+          mc = new MathContext(precision);
+          mathContext = mc;
+        }
+        if (base.round(mc).compareTo(base) != 0) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Expected BigDecimal base to be null or have precision <= %s (was %s), scale <= %s (was %s)",
+                  precision, base.precision(), scale, base.scale()));
+        }
+      }
     }
     return base;
   }

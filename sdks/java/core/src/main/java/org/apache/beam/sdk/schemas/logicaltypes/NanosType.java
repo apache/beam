@@ -19,16 +19,19 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Base class for types representing timestamps or durations as nanoseconds. */
 abstract class NanosType<T> implements Schema.LogicalType<T, Row> {
   private final String identifier;
   // TODO(https://github.com/apache/beam/issues/20540): This should be a constant
   protected final Schema schema;
+  private transient Schema.@Nullable FieldType cachedBaseType;
 
   NanosType(String identifier) {
     this.identifier = identifier;
     this.schema = Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
+    this.cachedBaseType = Schema.FieldType.row(this.schema);
   }
 
   @Override
@@ -48,6 +51,11 @@ abstract class NanosType<T> implements Schema.LogicalType<T, Row> {
 
   @Override
   public Schema.FieldType getBaseType() {
-    return Schema.FieldType.row(schema);
+    Schema.FieldType baseType = cachedBaseType;
+    if (baseType == null) {
+      baseType = Schema.FieldType.row(schema);
+      cachedBaseType = baseType;
+    }
+    return baseType;
   }
 }

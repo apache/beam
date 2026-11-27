@@ -32,7 +32,7 @@ public class NanosDuration extends NanosType<Duration> {
 
   @Override
   public Row toBaseType(Duration input) {
-    return Row.withSchema(schema).addValues(input.getSeconds(), input.getNano()).build();
+    return Row.attachValues(schema, input.getSeconds(), input.getNano());
   }
 
   @Override

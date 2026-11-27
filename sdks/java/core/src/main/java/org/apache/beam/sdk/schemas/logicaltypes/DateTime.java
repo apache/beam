@@ -43,6 +43,7 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
   public static final String TIME_FIELD_NAME = "Time";
   public static final Schema DATETIME_SCHEMA =
       Schema.builder().addInt64Field(DATE_FIELD_NAME).addInt64Field(TIME_FIELD_NAME).build();
+  private static final Schema.FieldType BASE_TYPE = Schema.FieldType.row(DATETIME_SCHEMA);
 
   @Override
   public String getIdentifier() {
@@ -63,26 +64,32 @@ public class DateTime implements Schema.LogicalType<LocalDateTime, Row> {
 
   @Override
   public Schema.FieldType getBaseType() {
-    return Schema.FieldType.row(DATETIME_SCHEMA);
+    return BASE_TYPE;
   }
 
   @Override
   public Row toBaseType(LocalDateTime input) {
-    return Row.withSchema(DATETIME_SCHEMA)
-        .addValues(input.toLocalDate().toEpochDay(), input.toLocalTime().toNanoOfDay())
-        .build();
+    return Row.attachValues(
+        DATETIME_SCHEMA, input.toLocalDate().toEpochDay(), input.toLocalTime().toNanoOfDay());
   }
 
   @Override
   public LocalDateTime toInputType(Row base) {
+    Long date;
+    Long time;
+    if (DATETIME_SCHEMA.equals(base.getSchema())) {
+      date = base.getInt64(0);
+      time = base.getInt64(1);
+    } else {
+      date = base.getInt64(DATE_FIELD_NAME);
+      time = base.getInt64(TIME_FIELD_NAME);
+    }
     return LocalDateTime.of(
         LocalDate.ofEpochDay(
             checkArgumentNotNull(
-                base.getInt64(DATE_FIELD_NAME),
-                "While trying to convert to LocalDateTime: Row missing date field")),
+                date, "While trying to convert to LocalDateTime: Row missing date field")),
         LocalTime.ofNanoOfDay(
             checkArgumentNotNull(
-                base.getInt64(TIME_FIELD_NAME),
-                "While trying to convert to LocalDateTime: Row missing time field")));
+                time, "While trying to convert to LocalDateTime: Row missing time field")));
   }
 }
