@@ -469,5 +469,53 @@ public class PubsubUnboundedSourceTest {
     PubsubCheckpoint checkpoint = reader.getCheckpointMark();
     reader.close();
     checkpoint.finalizeCheckpoint();
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+  }
+
+  @Test
+  public void restoredCheckpointFinalizesLiveMessagesAndCatchesUpEarlierCheckpoints()
+      throws Exception {
+    List<IncomingMessage> incoming = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      incoming.add(
+          IncomingMessage.of(
+              com.google.pubsub.v1.PubsubMessage.newBuilder()
+                  .setData(ByteString.copyFromUtf8("data_" + i))
+                  .build(),
+              TIMESTAMP,
+              0,
+              "ackid_" + i,
+              "recordid_" + i));
+    }
+    setupOneMessage(incoming);
+    PubsubReader reader = primSource.createReader(p.getOptions(), null);
+
+    assertTrue(reader.start());
+    // Take cp1 and leave it unfinalized.
+    PubsubCheckpoint cp1 = reader.getCheckpointMark();
+
+    assertTrue(reader.advance());
+    PubsubCheckpoint cp2 = reader.getCheckpointMark();
+    assertEquals(2, reader.numInFlightCheckpoints.get());
+
+    // Restore cp2 via the checkpoint coder and finalize it without finalizing cp1.
+    PubsubCheckpoint restoredCp2 = CoderUtils.clone(primSource.getCheckpointMarkCoder(), cp2);
+    restoredCp2.finalizeCheckpoint();
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+
+    // Read third message, take cp3, close the reader, and resume from a restored copy of cp3.
+    assertTrue(reader.advance());
+    PubsubCheckpoint cp3 = reader.getCheckpointMark();
+    reader.close();
+
+    PubsubCheckpoint restoredCp3 = CoderUtils.clone(primSource.getCheckpointMarkCoder(), cp3);
+    PubsubReader resumed = primSource.createReader(p.getOptions(), restoredCp3);
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+
+    // Subsequent finalize on already-caught-up cp1 is a no-op.
+    cp1.finalizeCheckpoint();
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+
+    resumed.close();
   }
 }

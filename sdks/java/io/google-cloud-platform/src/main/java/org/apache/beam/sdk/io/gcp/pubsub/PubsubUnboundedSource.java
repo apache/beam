@@ -33,12 +33,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,6 +53,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -58,6 +64,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.DeserializeBytesIntoPubsubMessagePayloadOnly;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -77,6 +84,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -219,12 +228,22 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @VisibleForTesting @Nullable String subscriptionPath;
 
     /**
+     * The reader that took this checkpoint and its position among that reader's checkpoints, so a
+     * restored copy can locate the live reader in this JVM.
+     */
+    private final @Nullable String readerId;
+
+    private final long sequence;
+
+    /**
      * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting. If
      * the checkpoint is for restoring: {@literal null}. Not persisted in durable checkpoint.
      * CAUTION: Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called the
      * 'true' active reader may have changed.
      */
     private @Nullable PubsubReader reader;
+
+    private @Nullable PendingCheckpoints pendingCheckpoints;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been passed
@@ -245,8 +264,22 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         @Nullable PubsubReader reader,
         @Nullable List<String> safeToAckIds,
         List<String> notYetReadIds) {
+      this(subscriptionPath, null, 0, reader, null, safeToAckIds, notYetReadIds);
+    }
+
+    PubsubCheckpoint(
+        @Nullable String subscriptionPath,
+        @Nullable String readerId,
+        long sequence,
+        @Nullable PubsubReader reader,
+        @Nullable PendingCheckpoints pendingCheckpoints,
+        @Nullable List<String> safeToAckIds,
+        List<String> notYetReadIds) {
       this.subscriptionPath = subscriptionPath;
+      this.readerId = readerId;
+      this.sequence = sequence;
       this.reader = reader;
+      this.pendingCheckpoints = pendingCheckpoints;
       this.safeToAckIds = safeToAckIds;
       this.notYetReadIds = notYetReadIds;
     }
@@ -263,10 +296,43 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      */
     @Override
     public void finalizeCheckpoint() throws IOException {
-      final PubsubReader reader =
-          checkStateNotNull(this.reader, "Cannot finalize a restored checkpoint");
-      final List<String> safeToAckIds =
-          checkStateNotNull(this.safeToAckIds, "Cannot finalize a restored checkpoint");
+      PendingCheckpoints pending = pendingCheckpoints;
+      if (pending == null && readerId != null) {
+        pending = PendingCheckpoints.LIVE.getIfPresent(readerId);
+      }
+      if (pending != null) {
+        List<PubsubCheckpoint> checkpoints = pending.removeUpTo(sequence);
+        if (checkpoints.isEmpty()) {
+          return;
+        }
+        Set<String> ackIdSet = new LinkedHashSet<>();
+        for (PubsubCheckpoint checkpoint : checkpoints) {
+          if (checkpoint.safeToAckIds != null) {
+            ackIdSet.addAll(checkpoint.safeToAckIds);
+          }
+        }
+        try {
+          PubsubReader liveReader = checkStateNotNull(pending.reader);
+          ackIdsInBatches(liveReader, new ArrayList<>(ackIdSet));
+        } finally {
+          PubsubReader liveReader = checkStateNotNull(pending.reader);
+          for (PubsubCheckpoint checkpoint : checkpoints) {
+            checkpoint.clearAndDecrement(liveReader);
+          }
+          liveReader.maybeCloseClient();
+        }
+        return;
+      }
+
+      final PubsubReader reader = this.reader;
+      final List<String> safeToAckIds = this.safeToAckIds;
+      if (reader == null || safeToAckIds == null) {
+        LOG.debug(
+            "Finalized checkpoint {}#{}: its reader is not in this JVM, nothing to acknowledge",
+            readerId,
+            sequence);
+        return;
+      }
       // Even if the 'true' active reader has changed since the checkpoint was taken
       // we are
       // fine:
@@ -277,26 +343,86 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // effects
       // flow control and stats, neither of which are relevant anymore.
       try {
-        int n = safeToAckIds.size();
-        List<String> batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
-        for (String ackId : safeToAckIds) {
-          batchSafeToAckIds.add(ackId);
-          if (batchSafeToAckIds.size() >= ACK_BATCH_SIZE) {
-            reader.ackBatch(batchSafeToAckIds);
-            n -= batchSafeToAckIds.size();
-            // CAUTION: Don't reuse the same list since ackBatch holds on to it.
-            batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
-          }
-        }
-        if (!batchSafeToAckIds.isEmpty()) {
-          reader.ackBatch(batchSafeToAckIds);
-        }
+        ackIdsInBatches(reader, safeToAckIds);
       } finally {
-        int remainingInFlight = reader.numInFlightCheckpoints.decrementAndGet();
-        checkState(remainingInFlight >= 0, "Miscounted in-flight checkpoints");
+        clearAndDecrement(reader);
         reader.maybeCloseClient();
-        this.reader = null;
-        this.safeToAckIds = null;
+      }
+    }
+
+    private static void ackIdsInBatches(PubsubReader reader, List<String> safeToAckIds)
+        throws IOException {
+      int n = safeToAckIds.size();
+      List<String> batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
+      for (String ackId : safeToAckIds) {
+        batchSafeToAckIds.add(ackId);
+        if (batchSafeToAckIds.size() >= ACK_BATCH_SIZE) {
+          reader.ackBatch(batchSafeToAckIds);
+          n -= batchSafeToAckIds.size();
+          // CAUTION: Don't reuse the same list since ackBatch holds on to it.
+          batchSafeToAckIds = new ArrayList<>(Math.min(n, ACK_BATCH_SIZE));
+        }
+      }
+      if (!batchSafeToAckIds.isEmpty()) {
+        reader.ackBatch(batchSafeToAckIds);
+      }
+    }
+
+    private synchronized void clearAndDecrement(PubsubReader liveReader) {
+      if (this.safeToAckIds == null && this.reader == null) {
+        return;
+      }
+      int remainingInFlight = liveReader.numInFlightCheckpoints.decrementAndGet();
+      checkState(remainingInFlight >= 0, "Miscounted in-flight checkpoints");
+      this.reader = null;
+      this.pendingCheckpoints = null;
+      this.safeToAckIds = null;
+    }
+
+    static final class PendingCheckpoints {
+      private static final Cache<String, PendingCheckpoints> LIVE =
+          CacheBuilder.newBuilder().weakValues().build();
+
+      final String readerId = UUID.randomUUID().toString();
+      volatile @Nullable PubsubReader reader;
+      private final List<PubsubCheckpoint> checkpoints = new ArrayList<>();
+      private long nextSequence;
+
+      PendingCheckpoints() {}
+
+      synchronized void register(PubsubReader reader) {
+        if (this.reader == null) {
+          this.reader = reader;
+          LIVE.put(this.readerId, this);
+        }
+      }
+
+      synchronized long nextSequence() {
+        return nextSequence++;
+      }
+
+      synchronized void add(PubsubCheckpoint checkpoint) {
+        checkpoints.add(checkpoint);
+      }
+
+      synchronized List<PubsubCheckpoint> removeUpTo(long sequence) {
+        List<PubsubCheckpoint> removed = new ArrayList<>();
+        checkpoints.removeIf(
+            checkpoint -> {
+              if (checkpoint.sequence <= sequence) {
+                removed.add(checkpoint);
+                return true;
+              }
+              return false;
+            });
+        return removed;
+      }
+
+      synchronized List<PubsubCheckpoint> removeAll() {
+        LIVE.invalidate(readerId);
+        List<PubsubCheckpoint> removed = new ArrayList<>(checkpoints);
+        checkpoints.clear();
+        return removed;
       }
     }
 
@@ -337,6 +463,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private static final Coder<@Nullable String> SUBSCRIPTION_PATH_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
+    private static final Coder<@Nullable String> READER_ID_CODER =
+        NullableCoder.of(StringUtf8Coder.of());
+    private static final Coder<Long> SEQUENCE_CODER = VarLongCoder.of();
 
     public static <T> PubsubCheckpointCoder<T> of() {
       return new PubsubCheckpointCoder<>();
@@ -348,13 +477,17 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     public void encode(PubsubCheckpoint value, OutputStream outStream) throws IOException {
       SUBSCRIPTION_PATH_CODER.encode(value.subscriptionPath, outStream);
       LIST_CODER.encode(value.notYetReadIds, outStream);
+      READER_ID_CODER.encode(value.readerId, outStream);
+      SEQUENCE_CODER.encode(value.sequence, outStream);
     }
 
     @Override
     public PubsubCheckpoint decode(InputStream inStream) throws IOException {
       @Nullable String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
       List<String> notYetReadIds = LIST_CODER.decode(inStream);
-      return new PubsubCheckpoint(path, null, null, notYetReadIds);
+      @Nullable String readerId = READER_ID_CODER.decode(inStream);
+      long sequence = SEQUENCE_CODER.decode(inStream);
+      return new PubsubCheckpoint(path, readerId, sequence, null, null, null, notYetReadIds);
     }
   }
 
@@ -511,10 +644,17 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * Stats only: Current number of checkpoints in flight. CAUTION: Accessed by both checkpointing
      * and reader threads.
      */
-    private final AtomicInteger numInFlightCheckpoints;
+    @VisibleForTesting final AtomicInteger numInFlightCheckpoints;
+
+    private final PubsubCheckpoint.PendingCheckpoints pendingCheckpoints;
+    private final PubsubOptions options;
+    private final Object closeLock = new Object();
+    private @Nullable ScheduledFuture<?> closeTimeoutFuture;
 
     /** Stats only: Maximum number of checkpoints in flight at any time. */
     private int maxInFlightCheckpoints;
+
+    private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.standardSeconds(60);
 
     private static MovingFunction newFun(Combine.BinaryCombineLongFn function) {
       return new MovingFunction(
@@ -529,6 +669,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     public PubsubReader(PubsubOptions options, PubsubSource outer, SubscriptionPath subscription)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
+      this.options = options;
       this.subscription = subscription;
       pubsubClient =
           new AtomicReference<>(
@@ -563,6 +704,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       numLateMessages = newFun(SUM);
       numInFlightCheckpoints = new AtomicInteger();
       maxInFlightCheckpoints = 0;
+      this.pendingCheckpoints = new PubsubCheckpoint.PendingCheckpoints();
     }
 
     @VisibleForTesting
@@ -944,9 +1086,37 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * no in-flight checkpoints remain, the reader will be closed.
      */
     @Override
+    @SuppressWarnings("FutureReturnValueIgnored")
     public void close() throws IOException {
       active.set(false);
-      maybeCloseClient();
+      synchronized (closeLock) {
+        if (numInFlightCheckpoints.get() == 0) {
+          maybeCloseClient();
+        } else if (closeTimeoutFuture == null) {
+          ScheduledExecutorService executorService =
+              options.as(ExecutorOptions.class).getScheduledExecutorService();
+          closeTimeoutFuture =
+              executorService.schedule(
+                  () -> {
+                    List<PubsubCheckpoint> abandoned = pendingCheckpoints.removeAll();
+                    if (!abandoned.isEmpty()) {
+                      numInFlightCheckpoints.addAndGet(-abandoned.size());
+                      LOG.info(
+                          "Pubsub {} reader closes with {} checkpoint(s) not finalized within {}.",
+                          subscription,
+                          abandoned.size(),
+                          DEFAULT_CLOSE_TIMEOUT);
+                    }
+                    try {
+                      maybeCloseClient();
+                    } catch (IOException e) {
+                      LOG.warn("Error closing Pubsub client after close timeout", e);
+                    }
+                  },
+                  DEFAULT_CLOSE_TIMEOUT.getMillis(),
+                  TimeUnit.MILLISECONDS);
+        }
+      }
     }
 
     /**
@@ -954,13 +1124,20 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * are no outstanding checkpoints.
      */
     private void maybeCloseClient() throws IOException {
-      if (!active.get() && numInFlightCheckpoints.get() == 0) {
-        // The reader has been closed and it has no more outstanding checkpoints. The
-        // client
-        // must be closed so it doesn't leak
-        PubsubClient client = pubsubClient.getAndSet(null);
-        if (client != null) {
-          client.close();
+      synchronized (closeLock) {
+        if (!active.get() && numInFlightCheckpoints.get() <= 0) {
+          if (closeTimeoutFuture != null) {
+            closeTimeoutFuture.cancel(false);
+            closeTimeoutFuture = null;
+          }
+          pendingCheckpoints.removeAll();
+          // The reader has been closed and it has no more outstanding checkpoints. The
+          // client
+          // must be closed so it doesn't leak
+          PubsubClient client = pubsubClient.getAndSet(null);
+          if (client != null) {
+            client.close();
+          }
         }
       }
     }
@@ -1018,6 +1195,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public PubsubCheckpoint getCheckpointMark() {
+      pendingCheckpoints.register(this);
       int cur = numInFlightCheckpoints.incrementAndGet();
       maxInFlightCheckpoints = Math.max(maxInFlightCheckpoints, cur);
       // It's possible for a checkpoint to be taken but never finalized.
@@ -1034,10 +1212,29 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (outer.subscriptionPath == null) {
         // need to include the subscription in case we resume, as it's not stored in the
         // source.
-        return new PubsubCheckpoint(
-            subscription.getPath(), this, snapshotSafeToAckIds, snapshotNotYetReadIds);
+        PubsubCheckpoint checkpoint =
+            new PubsubCheckpoint(
+                subscription.getPath(),
+                pendingCheckpoints.readerId,
+                pendingCheckpoints.nextSequence(),
+                this,
+                pendingCheckpoints,
+                snapshotSafeToAckIds,
+                snapshotNotYetReadIds);
+        pendingCheckpoints.add(checkpoint);
+        return checkpoint;
       }
-      return new PubsubCheckpoint(null, this, snapshotSafeToAckIds, snapshotNotYetReadIds);
+      PubsubCheckpoint checkpoint =
+          new PubsubCheckpoint(
+              null,
+              pendingCheckpoints.readerId,
+              pendingCheckpoints.nextSequence(),
+              this,
+              pendingCheckpoints,
+              snapshotSafeToAckIds,
+              snapshotNotYetReadIds);
+      pendingCheckpoints.add(checkpoint);
+      return checkpoint;
     }
 
     @Override
@@ -1112,6 +1309,16 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         throw new RuntimeException("Unable to subscribe to " + subscriptionPath + ": ", e);
       }
       if (checkpoint != null) {
+        // A runner resumes from a checkpoint only once it is committed, so its messages can be
+        // acknowledged if the reader that took it lives in this JVM.
+        try {
+          checkpoint.finalizeCheckpoint();
+        } catch (IOException e) {
+          LOG.warn(
+              "Pubsub {} cannot finalize resumed checkpoint, ignoring exception.",
+              subscriptionPath,
+              e);
+        }
         // NACK all messages we may have lost.
         try {
           // Will BLOCK until NACKed.
