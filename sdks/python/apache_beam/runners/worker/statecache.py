@@ -29,6 +29,7 @@ import types
 import weakref
 from typing import Any
 from typing import Callable
+from typing import Sequence
 from typing import Union
 
 import objsize
@@ -326,6 +327,35 @@ class StateCache(object):
         self._current_weight -= old_value.weight()
       self._cache[key] = value
       self._current_weight += value.weight()
+      while self._current_weight > self._max_weight:
+        (_, weighted_value) = self._cache.popitem(last=False)
+        self._current_weight -= weighted_value.weight()
+        self._evict_count += 1
+
+  def extend(self, key: Any, elements: Sequence[Any]) -> None:
+    assert self.is_cache_enabled()
+    added_weight = max(0, get_deep_size(*elements)) if elements else 0
+    with self._lock:
+      entry = self._cache.get(key, None)
+      if entry is None or _safe_isinstance(entry, _LoadingValue):
+        # Entry may have been concurrently LRU-evicted, invalidated, or
+        # started reloading by another worker thread while sizing elements
+        # outside the lock.
+        return
+      cached_value = entry.value()
+      if not isinstance(cached_value, list):
+        raise TypeError(
+            'Cached value of type %s is not a list and cannot be extended' %
+            type(cached_value))
+      old_container_shallow = _size_func(cached_value)
+      cached_value.extend(elements)
+      new_container_shallow = _size_func(cached_value)
+      delta_weight = max(
+          0, added_weight + (new_container_shallow - old_container_shallow))
+      new_weight = max(_DEFAULT_WEIGHT, entry.weight() + delta_weight)
+      self._cache.pop(key, None)
+      self._cache[key] = WeightedValue(cached_value, new_weight)
+      self._current_weight += new_weight - entry.weight()
       while self._current_weight > self._max_weight:
         (_, weighted_value) = self._cache.popitem(last=False)
         self._current_weight -= weighted_value.weight()

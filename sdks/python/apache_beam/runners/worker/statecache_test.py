@@ -18,6 +18,7 @@
 """Tests for state caching."""
 # pytype: skip-file
 
+import collections
 import logging
 import re
 import sys
@@ -413,6 +414,51 @@ class StateCacheTest(unittest.TestCase):
     put_cache.put("key", value)
 
     self.assertEqual(get_cache._current_weight, put_cache._current_weight)
+
+  def test_extend_incremental_weight(self):
+    cache = StateCache(5 << 20)
+    initial = [{'k': i, 'v': 'x' * 50} for i in range(10)]
+    cache.put('key', list(initial))
+
+    sized_args = []
+    orig_get_deep_size = objsize.get_deep_size
+
+    def tracking_get_deep_size(*objs, **kwargs):
+      sized_args.append(objs)
+      return orig_get_deep_size(*objs, **kwargs)
+
+    new_elements = [{'k': 10, 'v': 'y' * 50}, {'k': 11, 'v': 'z' * 50}]
+    with unittest.mock.patch.object(objsize,
+                                    'get_deep_size',
+                                    side_effect=tracking_get_deep_size):
+      cache.extend('key', new_elements)
+
+    self.assertEqual(len(sized_args), 1)
+    self.assertEqual(list(sized_args[0]), new_elements)
+    self.assertEqual(cache.peek('key'), initial + new_elements)
+    self.assertEqual(cache._current_weight, get_deep_size(cache.peek('key')))
+
+  def test_extend_non_list_raises_type_error(self):
+    cache = StateCache(5 << 20)
+    for non_list in ((1, 2, 3), collections.deque([1, 2, 3])):
+      cache.put('key', non_list)
+      with self.assertRaises(TypeError):
+        cache.extend('key', [4, 5])
+
+  def test_extend_missing_or_loading_entry_is_noop(self):
+    cache = StateCache(5 << 20)
+    cache.extend('evicted_key', [1, 2])
+    self.assertIsNone(cache.peek('evicted_key'))
+    self.assertEqual(cache._current_weight, 0)
+
+    loading = _LoadingValue()
+    with cache._lock:
+      cache._cache['loading_key'] = loading
+      cache._current_weight += loading.weight()
+    weight_before = cache._current_weight
+    cache.extend('loading_key', [1, 2])
+    self.assertEqual(cache._current_weight, weight_before)
+    self.assertIs(cache._cache['loading_key'], loading)
 
 
 if __name__ == '__main__':

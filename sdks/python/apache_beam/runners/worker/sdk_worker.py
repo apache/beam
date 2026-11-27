@@ -1269,10 +1269,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
         # Materialize provided iterable to ensure reproducible iterations,
         # here and when writing to the state handler below.
         elements = list(elements)
-        cached_value.extend(elements)
-        # Re-insert into the cache the updated value so the updated size is
-        # reflected.
-        self._state_cache.put((cache_key, cache_token), cached_value)
+        self._state_cache.extend((cache_key, cache_token), elements)
 
     # Write to state handler
     futures = []
