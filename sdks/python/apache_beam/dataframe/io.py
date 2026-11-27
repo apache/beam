@@ -687,6 +687,14 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
         tracker.try_claim(tracker.current_restriction().stop)
 
 
+def _split_for_shards(df, num_shards):
+  n = len(df)
+  for i in range(num_shards):
+    piece = df.iloc[i * n // num_shards:(i + 1) * n // num_shards]
+    if len(piece):
+      yield piece
+
+
 class _WriteToPandas(beam.PTransform):
   def __init__(
       self, writer, path, args, kwargs, incremental=False, binary=True):
@@ -709,6 +717,11 @@ class _WriteToPandas(beam.PTransform):
     if num_shards is not None:
       write_to_files_kwargs['shards'] = num_shards
       write_to_files_kwargs['max_writers_per_bundle'] = 0
+      # WriteToFiles assigns shards per element, and each element here is a
+      # whole DataFrame batch, so split the batches to fill every shard.
+      if num_shards > 1:
+        pcoll = pcoll | 'SplitForShards' >> beam.FlatMap(
+            _split_for_shards, num_shards)
     elif max_writers_per_bundle is not None:
       write_to_files_kwargs['max_writers_per_bundle'] = max_writers_per_bundle
 
