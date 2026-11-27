@@ -45,6 +45,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.storage.StorageLevel;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import scala.Tuple2;
 import scala.reflect.ClassTag;
@@ -157,6 +158,11 @@ public abstract class TransformTranslator<
     public <T> void putDataset(
         PCollection<T> pCollection, Dataset<WindowedValue<T>> dataset, boolean cache) {
       state.putDataset(pCollection, dataset, cache);
+    }
+
+    @Override
+    public <T> Dataset<T> cacheDataset(Dataset<T> dataset, StorageLevel level) {
+      return state.cacheDataset(dataset, level);
     }
 
     @Override
