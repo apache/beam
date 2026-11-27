@@ -77,4 +77,13 @@ public interface PubsubOptions
   String getPubsubRootUrl();
 
   void setPubsubRootUrl(String value);
+
+  @Description(
+      "Whether PubsubUnboundedSource queries Cloud Monitoring for subscription "
+          + "num_undelivered_messages to report total backlog records. Requires "
+          + "monitoring.timeSeries.list permission on the subscription project.")
+  @Default.Boolean(false)
+  boolean getPubsubBacklogReportingEnabled();
+
+  void setPubsubBacklogReportingEnabled(boolean value);
 }
