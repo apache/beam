@@ -372,7 +372,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
    * good to experiment. Often multiple marks would be finalized in a batch, it reduce finalization
    * overhead to wait a short while and finalize only the last checkpoint mark.
    */
-  private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
+  private static final java.time.Duration KAFKA_POLL_TIMEOUT = java.time.Duration.ofMillis(1000);
 
   private Duration recordsDequeuePollTimeout;
   private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT_MIN = Duration.millis(1);
@@ -618,7 +618,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         try {
           if (records.isEmpty()) {
             stopwatch.start();
-            records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
+            records = consumer.poll(KAFKA_POLL_TIMEOUT);
             stopwatch.stop();
             for (String kafkaTopic : kafkaTopics) {
               kafkaResults.updateSuccessfulRpcMetrics(
