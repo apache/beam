@@ -45,6 +45,7 @@ mapQualifier: '{}'
             | '{*}'
             ;
 
+// NOTE: Keep in sync with FieldAccessDescriptorParser.isSimpleIdentifier and tryParseSimpleDottedPath.
 IDENTIFIER: [a-zA-Z0-9_$]+ ;
 
 WILDCARD: '*';
