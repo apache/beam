@@ -40,8 +40,9 @@ public class OutputObjectAndByteCounter implements ElementCounter {
   private final ElementByteSizeObservable<Object> elementByteSizeObservable;
   private final CounterFactory counterFactory;
 
-  // Lowest sampling probability: 0.001%.
-  private static final int SAMPLING_TOKEN_UPPER_BOUND = 1000000;
+  /** Default upper bound for adaptive byte-size sampling (lowest probability: 0.001%). */
+  @VisibleForTesting public static final int SAMPLING_TOKEN_UPPER_BOUND = 1000000;
+
   private static final int SAMPLING_CUTOFF = 10;
   private int samplingToken = 0;
 
