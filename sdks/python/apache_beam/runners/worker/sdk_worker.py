@@ -1268,9 +1268,8 @@ class GlobalCachingStateHandler(CachingStateHandler):
 
         # Materialize provided iterable to ensure reproducible iterations,
         # here and when writing to the state handler below.
-        materialized = list(elements)
-        elements = materialized
-        self._state_cache.extend((cache_key, cache_token), materialized)
+        elements = list(elements)
+        self._state_cache.extend((cache_key, cache_token), elements)
 
     # Write to state handler
     futures = []
