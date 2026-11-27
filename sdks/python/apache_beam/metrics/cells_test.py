@@ -32,6 +32,7 @@ from apache_beam.metrics.cells import GaugeData
 from apache_beam.metrics.cells import HistogramCell
 from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.metrics.cells import HistogramData
+from apache_beam.metrics.cells import HistogramResult
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.metrics.cells import _BoundedTrieNode
@@ -519,6 +520,12 @@ class TestHistogramCell(unittest.TestCase):
     self.assertEqual(
         str(d.get_cumulative()),
         'HistogramData(Total count: 3, P99: >=10, P90: >=10, P50: 6)')
+
+  def test_result_p95(self):
+    histogram = Histogram(LinearBucket(0, 1, 10))
+    histogram.record(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+    result = HistogramResult(HistogramData(histogram))
+    self.assertEqual(result.p95, 9.5)
 
 
 if __name__ == '__main__':
