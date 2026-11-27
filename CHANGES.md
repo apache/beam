@@ -92,6 +92,7 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Qdrant enrichment handler added (Python) ([#40628](https://github.com/apache/beam/issues/40628)). `QdrantSearchEnrichmentHandler` supports dense, sparse and hybrid (RRF/DBSF fusion) search with payload filters, and reads collections written by `QdrantWriteConfig`.
+* pgvector enrichment handler added (Python) ([#41713](https://github.com/apache/beam/issues/41713)). `PostgresVectorSearchEnrichmentHandler` runs vector similarity search (cosine, L2 or inner product) with optional filters on PostgreSQL, AlloyDB and Cloud SQL for PostgreSQL, and reads tables written by `PostgresVectorWriterConfig`.
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
 * (Python) Made `beam.managed.ICEBERG_CDC` public, for reading an Iceberg table's inserts, updates and deletes with `beam.managed.Read` ([#41654](https://github.com/apache/beam/pull/41654)).
