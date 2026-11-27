@@ -378,6 +378,58 @@ class SqlJoinQueryTest(unittest.TestCase):
         ValueError, 'The provided equalities do not connect all of'):
       yaml_join._validate_equalities([], dict(f=f_pcoll, q=q_pcoll))
 
+  def test_validate_equalities_dataclass(self):
+    import dataclasses
+    from unittest.mock import MagicMock
+
+    @dataclasses.dataclass
+    class LeftRecord:
+      id: int
+      name: str
+
+    @dataclasses.dataclass
+    class RightRecord:
+      id: int
+      age: int
+
+    left_pcoll = MagicMock()
+    left_pcoll.element_type = LeftRecord
+    right_pcoll = MagicMock()
+    right_pcoll.element_type = RightRecord
+
+    pcolls = {'left': left_pcoll, 'right': right_pcoll}
+
+    # String equality should validate successfully
+    equalities_str = yaml_join._validate_equalities('id', pcolls)
+    self.assertEqual(equalities_str, [{'left': 'id', 'right': 'id'}])
+
+    # Mapping equality should validate successfully
+    equalities_dict = yaml_join._validate_equalities(
+        [{'left': 'id', 'right': 'id'}], pcolls)
+    self.assertEqual(equalities_dict, [{'left': 'id', 'right': 'id'}])
+
+    # Invalid field in dataclass should raise ValueError
+    with self.assertRaisesRegex(
+        ValueError, '"nonexistent" is not a valid field in "left"'):
+      yaml_join._validate_equalities(
+          [{'left': 'nonexistent', 'right': 'id'}], pcolls)
+
+  def test_validate_equalities_untyped(self):
+    from unittest.mock import MagicMock
+    from typing import Any
+
+    left_pcoll = MagicMock()
+    left_pcoll.element_type = Any
+    right_pcoll = MagicMock()
+    right_pcoll.element_type = None
+
+    pcolls = {'left': left_pcoll, 'right': right_pcoll}
+
+    # Should not raise for untyped inputs
+    equalities = yaml_join._validate_equalities(
+        [{'left': 'colA', 'right': 'colB'}], pcolls)
+    self.assertEqual(equalities, [{'left': 'colA', 'right': 'colB'}])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
