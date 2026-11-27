@@ -43,7 +43,12 @@ import org.joda.time.ReadableInstant;
 /** A utility class for testing {@link WindowFn}s. */
 public class WindowFnTestUtils {
 
-  /** Creates a Set of elements to be used as expected output in {@link #runWindowFn}. */
+  /**
+   * Creates a Set of elements to be used as expected output in {@link #runWindowFn}.
+   *
+   * @deprecated use {@link #assignedWindows} and assert on the windows of each timestamp.
+   */
+  @Deprecated
   public static Set<String> set(long... timestamps) {
     Set<String> result = new HashSet<>();
     for (long timestamp : timestamps) {
@@ -55,7 +60,10 @@ public class WindowFnTestUtils {
   /**
    * Runs the {@link WindowFn} over the provided input, returning a map of windows to the timestamps
    * in those windows.
+   *
+   * @deprecated use {@link #assignedWindows} and assert on the windows of each timestamp.
    */
+  @Deprecated
   public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFn(
       WindowFn<T, W> windowFn, List<Long> timestamps) throws Exception {
     List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
@@ -69,7 +77,10 @@ public class WindowFnTestUtils {
    * Runs the {@link WindowFn} over the provided input, returning a map of windows to the timestamps
    * in those windows. This version allows to pass a list of {@link TimestampedValue} in case the
    * values are used to assign windows.
+   *
+   * @deprecated use {@link #assignedWindowsWithValue} and assert on the windows of each element.
    */
+  @Deprecated
   public static <T, W extends BoundedWindow> Map<W, Set<String>> runWindowFnWithValue(
       WindowFn<T, W> windowFn, List<TimestampedValue<T>> timestampedValues) throws Exception {
 

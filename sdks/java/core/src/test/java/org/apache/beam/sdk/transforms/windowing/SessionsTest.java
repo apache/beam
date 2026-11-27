@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.assignedWindows;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -26,14 +25,18 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -47,52 +50,88 @@ import org.junit.runners.JUnit4;
 public class SessionsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  private static IntervalWindow window(long start, long end) {
+    return new IntervalWindow(new Instant(start), new Instant(end));
+  }
+
+  /**
+   * Assigns each timestamp to its session in order, merging after each one as a runner would, and
+   * returns the resulting sessions with the timestamps each holds.
+   */
+  private static Map<IntervalWindow, Set<Long>> mergedSessions(
+      Sessions sessions, long... timestamps) throws Exception {
+    Map<IntervalWindow, Set<Long>> windows = new HashMap<>();
+    for (long timestamp : timestamps) {
+      for (IntervalWindow window : assignedWindows(sessions, timestamp)) {
+        windows.computeIfAbsent(window, w -> new HashSet<>()).add(timestamp);
+      }
+      sessions.mergeWindows(new TestMergeContext(sessions, windows));
+    }
+    return windows;
+  }
+
+  /** Merges the windows Sessions picks, carrying each window's timestamps into the result. */
+  private static class TestMergeContext extends WindowFn<Object, IntervalWindow>.MergeContext {
+    private final Map<IntervalWindow, Set<Long>> windows;
+
+    TestMergeContext(Sessions sessions, Map<IntervalWindow, Set<Long>> windows) {
+      sessions.super();
+      this.windows = windows;
+    }
+
+    @Override
+    public Collection<IntervalWindow> windows() {
+      return new ArrayList<>(windows.keySet());
+    }
+
+    @Override
+    public void merge(Collection<IntervalWindow> toBeMerged, IntervalWindow mergeResult) {
+      Set<Long> merged = new HashSet<>();
+      for (IntervalWindow window : toBeMerged) {
+        merged.addAll(windows.remove(window));
+      }
+      windows.computeIfAbsent(mergeResult, w -> new HashSet<>()).addAll(merged);
+    }
+  }
+
   @Test
   public void testSimple() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(0), new Instant(10)), set(0));
-    expected.put(new IntervalWindow(new Instant(10), new Instant(20)), set(10));
-    expected.put(new IntervalWindow(new Instant(101), new Instant(111)), set(101));
     assertEquals(
-        expected,
-        runWindowFn(Sessions.withGapDuration(Duration.millis(10)), Arrays.asList(0L, 10L, 101L)));
+        ImmutableMap.of(
+            window(0, 10), ImmutableSet.of(0L),
+            window(10, 20), ImmutableSet.of(10L),
+            window(101, 111), ImmutableSet.of(101L)),
+        mergedSessions(Sessions.withGapDuration(Duration.millis(10)), 0, 10, 101));
   }
 
   @Test
   public void testConsecutive() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(1), new Instant(19)), set(1, 2, 5, 9));
-    expected.put(new IntervalWindow(new Instant(100), new Instant(111)), set(100, 101));
     assertEquals(
-        expected,
-        runWindowFn(
-            Sessions.withGapDuration(Duration.millis(10)),
-            Arrays.asList(1L, 2L, 5L, 9L, 100L, 101L)));
+        ImmutableMap.of(
+            window(1, 19), ImmutableSet.of(1L, 2L, 5L, 9L),
+            window(100, 111), ImmutableSet.of(100L, 101L)),
+        mergedSessions(Sessions.withGapDuration(Duration.millis(10)), 1, 2, 5, 9, 100, 101));
   }
 
   @Test
   public void testMerging() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(1), new Instant(40)), set(1, 10, 15, 22, 30));
-    expected.put(new IntervalWindow(new Instant(95), new Instant(111)), set(95, 100, 101));
     assertEquals(
-        expected,
-        runWindowFn(
-            Sessions.withGapDuration(Duration.millis(10)),
-            Arrays.asList(1L, 15L, 30L, 100L, 101L, 95L, 22L, 10L)));
+        ImmutableMap.of(
+            window(1, 40), ImmutableSet.of(1L, 10L, 15L, 22L, 30L),
+            window(95, 111), ImmutableSet.of(95L, 100L, 101L)),
+        mergedSessions(
+            Sessions.withGapDuration(Duration.millis(10)), 1, 15, 30, 100, 101, 95, 22, 10));
   }
 
   @Test
   public void testTimeUnit() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-    expected.put(new IntervalWindow(new Instant(1), new Instant(2000)), set(1, 2, 1000));
-    expected.put(new IntervalWindow(new Instant(5000), new Instant(6001)), set(5000, 5001));
-    expected.put(new IntervalWindow(new Instant(10000), new Instant(11000)), set(10000));
     assertEquals(
-        expected,
-        runWindowFn(
-            Sessions.withGapDuration(Duration.standardSeconds(1)),
-            Arrays.asList(1L, 2L, 1000L, 5000L, 5001L, 10000L)));
+        ImmutableMap.of(
+            window(1, 2000), ImmutableSet.of(1L, 2L, 1000L),
+            window(5000, 6001), ImmutableSet.of(5000L, 5001L),
+            window(10000, 11000), ImmutableSet.of(10000L)),
+        mergedSessions(
+            Sessions.withGapDuration(Duration.standardSeconds(1)), 1, 2, 1000, 5000, 5001, 10000));
   }
 
   @Test

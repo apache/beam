@@ -17,18 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
-import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
+import static org.apache.beam.sdk.testing.WindowFnTestUtils.assignedWindows;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows.MonthsWindows;
 import org.joda.time.DateTime;
@@ -51,32 +45,36 @@ public class CalendarWindowsTest {
     return new DateTime(year, month, day, hours, minutes, DateTimeZone.UTC).toInstant();
   }
 
+  /** Asserts that {@code windowFn} assigns each of {@code timestamps} to exactly {@code window}. */
+  private static void assertWindow(
+      WindowFn<Object, IntervalWindow> windowFn, IntervalWindow window, Instant... timestamps)
+      throws Exception {
+    for (Instant timestamp : timestamps) {
+      assertThat(
+          "windows for timestamp " + timestamp,
+          assignedWindows(windowFn, timestamp.getMillis()),
+          contains(window));
+    }
+  }
+
   @Test
   public void testDays() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-
-    final List<Long> timestamps =
-        Arrays.asList(
-            makeTimestamp(2014, 1, 1, 0, 0).getMillis(),
-            makeTimestamp(2014, 1, 1, 23, 59).getMillis(),
-            makeTimestamp(2014, 1, 2, 0, 0).getMillis(),
-            makeTimestamp(2014, 1, 2, 5, 5).getMillis(),
-            makeTimestamp(2015, 1, 1, 0, 0).getMillis(),
-            makeTimestamp(2015, 1, 1, 5, 5).getMillis());
-
-    expected.put(
+    WindowFn<Object, IntervalWindow> windowFn = CalendarWindows.days(1);
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 1, 1, 0, 0), makeTimestamp(2014, 1, 2, 0, 0)),
-        set(timestamps.get(0), timestamps.get(1)));
-
-    expected.put(
+        makeTimestamp(2014, 1, 1, 0, 0),
+        makeTimestamp(2014, 1, 1, 23, 59));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 1, 2, 0, 0), makeTimestamp(2014, 1, 3, 0, 0)),
-        set(timestamps.get(2), timestamps.get(3)));
-
-    expected.put(
+        makeTimestamp(2014, 1, 2, 0, 0),
+        makeTimestamp(2014, 1, 2, 5, 5));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2015, 1, 1, 0, 0), makeTimestamp(2015, 1, 2, 0, 0)),
-        set(timestamps.get(4), timestamps.get(5)));
-
-    assertEquals(expected, runWindowFn(CalendarWindows.days(1), timestamps));
+        makeTimestamp(2015, 1, 1, 0, 0),
+        makeTimestamp(2015, 1, 1, 5, 5));
   }
 
   @Test
@@ -89,59 +87,43 @@ public class CalendarWindowsTest {
 
   @Test
   public void testWeeks() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-
-    final List<Long> timestamps =
-        Arrays.asList(
-            makeTimestamp(2014, 1, 1, 0, 0).getMillis(),
-            makeTimestamp(2014, 1, 5, 5, 5).getMillis(),
-            makeTimestamp(2014, 1, 8, 0, 0).getMillis(),
-            makeTimestamp(2014, 1, 12, 5, 5).getMillis(),
-            makeTimestamp(2015, 1, 1, 0, 0).getMillis(),
-            makeTimestamp(2015, 1, 6, 5, 5).getMillis());
-
-    expected.put(
+    WindowFn<Object, IntervalWindow> windowFn =
+        CalendarWindows.weeks(1, DateTimeConstants.WEDNESDAY);
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 1, 1, 0, 0), makeTimestamp(2014, 1, 8, 0, 0)),
-        set(timestamps.get(0), timestamps.get(1)));
-
-    expected.put(
+        makeTimestamp(2014, 1, 1, 0, 0),
+        makeTimestamp(2014, 1, 5, 5, 5));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 1, 8, 0, 0), makeTimestamp(2014, 1, 15, 0, 0)),
-        set(timestamps.get(2), timestamps.get(3)));
-
-    expected.put(
+        makeTimestamp(2014, 1, 8, 0, 0),
+        makeTimestamp(2014, 1, 12, 5, 5));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 12, 31, 0, 0), makeTimestamp(2015, 1, 7, 0, 0)),
-        set(timestamps.get(4), timestamps.get(5)));
-
-    assertEquals(
-        expected, runWindowFn(CalendarWindows.weeks(1, DateTimeConstants.WEDNESDAY), timestamps));
+        makeTimestamp(2015, 1, 1, 0, 0),
+        makeTimestamp(2015, 1, 6, 5, 5));
   }
 
   @Test
   public void testMonths() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-
-    final List<Long> timestamps =
-        Arrays.asList(
-            makeTimestamp(2014, 1, 1, 0, 0).getMillis(),
-            makeTimestamp(2014, 1, 31, 5, 5).getMillis(),
-            makeTimestamp(2014, 2, 1, 0, 0).getMillis(),
-            makeTimestamp(2014, 2, 15, 5, 5).getMillis(),
-            makeTimestamp(2015, 1, 1, 0, 0).getMillis(),
-            makeTimestamp(2015, 1, 31, 5, 5).getMillis());
-
-    expected.put(
+    WindowFn<Object, IntervalWindow> windowFn = CalendarWindows.months(1);
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 1, 1, 0, 0), makeTimestamp(2014, 2, 1, 0, 0)),
-        set(timestamps.get(0), timestamps.get(1)));
-
-    expected.put(
+        makeTimestamp(2014, 1, 1, 0, 0),
+        makeTimestamp(2014, 1, 31, 5, 5));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 2, 1, 0, 0), makeTimestamp(2014, 3, 1, 0, 0)),
-        set(timestamps.get(2), timestamps.get(3)));
-
-    expected.put(
+        makeTimestamp(2014, 2, 1, 0, 0),
+        makeTimestamp(2014, 2, 15, 5, 5));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2015, 1, 1, 0, 0), makeTimestamp(2015, 2, 1, 0, 0)),
-        set(timestamps.get(4), timestamps.get(5)));
-
-    assertEquals(expected, runWindowFn(CalendarWindows.months(1), timestamps));
+        makeTimestamp(2015, 1, 1, 0, 0),
+        makeTimestamp(2015, 1, 31, 5, 5));
   }
 
   @Test
@@ -154,64 +136,44 @@ public class CalendarWindowsTest {
 
   @Test
   public void testMultiMonths() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-
-    final List<Long> timestamps =
-        Arrays.asList(
-            makeTimestamp(2014, 3, 5, 0, 0).getMillis(),
-            makeTimestamp(2014, 10, 4, 23, 59).getMillis(),
-            makeTimestamp(2014, 10, 5, 0, 0).getMillis(),
-            makeTimestamp(2015, 3, 1, 0, 0).getMillis(),
-            makeTimestamp(2016, 1, 5, 0, 0).getMillis(),
-            makeTimestamp(2016, 1, 31, 5, 5).getMillis());
-
-    expected.put(
+    WindowFn<Object, IntervalWindow> windowFn =
+        CalendarWindows.months(7).withStartingMonth(2014, 3).beginningOnDay(5);
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 3, 5, 0, 0), makeTimestamp(2014, 10, 5, 0, 0)),
-        set(timestamps.get(0), timestamps.get(1)));
-
-    expected.put(
+        makeTimestamp(2014, 3, 5, 0, 0),
+        makeTimestamp(2014, 10, 4, 23, 59));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2014, 10, 5, 0, 0), makeTimestamp(2015, 5, 5, 0, 0)),
-        set(timestamps.get(2), timestamps.get(3)));
-
-    expected.put(
+        makeTimestamp(2014, 10, 5, 0, 0),
+        makeTimestamp(2015, 3, 1, 0, 0));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2015, 12, 5, 0, 0), makeTimestamp(2016, 7, 5, 0, 0)),
-        set(timestamps.get(4), timestamps.get(5)));
-
-    assertEquals(
-        expected,
-        runWindowFn(
-            CalendarWindows.months(7).withStartingMonth(2014, 3).beginningOnDay(5), timestamps));
+        makeTimestamp(2016, 1, 5, 0, 0),
+        makeTimestamp(2016, 1, 31, 5, 5));
   }
 
   @Test
   public void testYears() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-
-    final List<Long> timestamps =
-        Arrays.asList(
-            makeTimestamp(2000, 5, 5, 0, 0).getMillis(),
-            makeTimestamp(2010, 5, 4, 23, 59).getMillis(),
-            makeTimestamp(2010, 5, 5, 0, 0).getMillis(),
-            makeTimestamp(2015, 3, 1, 0, 0).getMillis(),
-            makeTimestamp(2052, 1, 5, 0, 0).getMillis(),
-            makeTimestamp(2060, 5, 4, 5, 5).getMillis());
-
-    expected.put(
+    WindowFn<Object, IntervalWindow> windowFn =
+        CalendarWindows.years(10).withStartingYear(2000).beginningOnDay(5, 5);
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2000, 5, 5, 0, 0), makeTimestamp(2010, 5, 5, 0, 0)),
-        set(timestamps.get(0), timestamps.get(1)));
-
-    expected.put(
+        makeTimestamp(2000, 5, 5, 0, 0),
+        makeTimestamp(2010, 5, 4, 23, 59));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2010, 5, 5, 0, 0), makeTimestamp(2020, 5, 5, 0, 0)),
-        set(timestamps.get(2), timestamps.get(3)));
-
-    expected.put(
+        makeTimestamp(2010, 5, 5, 0, 0),
+        makeTimestamp(2015, 3, 1, 0, 0));
+    assertWindow(
+        windowFn,
         new IntervalWindow(makeTimestamp(2050, 5, 5, 0, 0), makeTimestamp(2060, 5, 5, 0, 0)),
-        set(timestamps.get(4), timestamps.get(5)));
-
-    assertEquals(
-        expected,
-        runWindowFn(
-            CalendarWindows.years(10).withStartingYear(2000).beginningOnDay(5, 5), timestamps));
+        makeTimestamp(2052, 1, 5, 0, 0),
+        makeTimestamp(2060, 5, 4, 5, 5));
   }
 
   @Test
@@ -224,30 +186,22 @@ public class CalendarWindowsTest {
 
   @Test
   public void testTimeZone() throws Exception {
-    Map<IntervalWindow, Set<String>> expected = new HashMap<>();
-
     DateTimeZone timeZone = DateTimeZone.forID("America/Los_Angeles");
-
-    final List<Long> timestamps =
-        Arrays.asList(
-            new DateTime(2014, 1, 1, 0, 0, timeZone).getMillis(),
-            new DateTime(2014, 1, 1, 23, 59, timeZone).getMillis(),
-            new DateTime(2014, 1, 2, 8, 0, DateTimeZone.UTC).getMillis(),
-            new DateTime(2014, 1, 3, 7, 59, DateTimeZone.UTC).getMillis());
-
-    expected.put(
+    WindowFn<Object, IntervalWindow> windowFn = CalendarWindows.days(1).withTimeZone(timeZone);
+    assertWindow(
+        windowFn,
         new IntervalWindow(
             new DateTime(2014, 1, 1, 0, 0, timeZone).toInstant(),
             new DateTime(2014, 1, 2, 0, 0, timeZone).toInstant()),
-        set(timestamps.get(0), timestamps.get(1)));
-
-    expected.put(
+        new DateTime(2014, 1, 1, 0, 0, timeZone).toInstant(),
+        new DateTime(2014, 1, 1, 23, 59, timeZone).toInstant());
+    assertWindow(
+        windowFn,
         new IntervalWindow(
             new DateTime(2014, 1, 2, 0, 0, timeZone).toInstant(),
             new DateTime(2014, 1, 3, 0, 0, timeZone).toInstant()),
-        set(timestamps.get(2), timestamps.get(3)));
-
-    assertEquals(expected, runWindowFn(CalendarWindows.days(1).withTimeZone(timeZone), timestamps));
+        new DateTime(2014, 1, 2, 8, 0, DateTimeZone.UTC).toInstant(),
+        new DateTime(2014, 1, 3, 7, 59, DateTimeZone.UTC).toInstant());
   }
 
   @Test
