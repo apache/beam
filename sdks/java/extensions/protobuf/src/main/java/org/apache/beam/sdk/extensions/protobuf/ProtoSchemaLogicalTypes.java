@@ -39,7 +39,7 @@ public class ProtoSchemaLogicalTypes {
 
     /** ByteBuddy conversion for Timestamp to NanosInstant base type. */
     public static Row toRow(Timestamp input) {
-      return Row.withSchema(SCHEMA).addValues(input.getSeconds(), input.getNanos()).build();
+      return Row.attachValues(SCHEMA, input.getSeconds(), input.getNanos());
     }
 
     /** ByteBuddy conversion for NanosInstant base type to Timestamp. */
@@ -51,7 +51,7 @@ public class ProtoSchemaLogicalTypes {
   public static class DurationConvert {
     /** ByteBuddy conversion for Duration to NanosDuration base type. */
     public static Row toRow(Duration input) {
-      return Row.withSchema(SCHEMA).addValues(input.getSeconds(), input.getNanos()).build();
+      return Row.attachValues(SCHEMA, input.getSeconds(), input.getNanos());
     }
 
     /** ByteBuddy conversion for NanosDuration base type to Duration. */

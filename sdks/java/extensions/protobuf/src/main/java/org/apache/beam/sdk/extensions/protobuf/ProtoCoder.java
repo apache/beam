@@ -233,6 +233,21 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     ProtobufUtil.verifyDeterministic(this);
   }
 
+  @Override
+  protected long getEncodedElementByteSize(T value) throws Exception {
+    if (value == null) {
+      throw new CoderException("cannot encode a null " + protoMessageClass.getSimpleName());
+    }
+    int serializedSize = value.getSerializedSize();
+    return (long) com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(serializedSize)
+        + serializedSize;
+  }
+
+  @Override
+  public boolean isRegisterByteSizeObserverCheap(T value) {
+    return true;
+  }
+
   /** Returns the Protocol Buffers {@link Message} type this {@link ProtoCoder} supports. */
   public Class<T> getMessageType() {
     return protoMessageClass;
@@ -286,7 +301,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
   // Transient fields that are lazy initialized and then memoized.
   private transient volatile ExtensionRegistry memoizedExtensionRegistry;
-  transient Parser<T> memoizedParser;
+  transient volatile Parser<T> memoizedParser;
 
   /** Private constructor. */
   protected ProtoCoder(Class<T> protoMessageClass, Set<Class<?>> extensionHostClasses) {
@@ -295,34 +310,41 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   /** Get the memoized {@link Parser}, possibly initializing it lazily. */
-  protected synchronized Parser<T> getParser() {
-    if (memoizedParser == null) {
-      try {
-        if (DynamicMessage.class.equals(protoMessageClass)) {
-          throw new IllegalArgumentException(
-              "DynamicMessage is not supported by the ProtoCoder, use the DynamicProtoCoder.");
-        } else {
-          @SuppressWarnings("unchecked")
-          T protoMessageInstance =
-              (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
-          @SuppressWarnings("unchecked")
-          Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
-          memoizedParser = tParser;
+  protected Parser<T> getParser() {
+    Parser<T> parser = memoizedParser;
+    if (parser == null) {
+      synchronized (this) {
+        parser = memoizedParser;
+        if (parser == null) {
+          try {
+            if (DynamicMessage.class.equals(protoMessageClass)) {
+              throw new IllegalArgumentException(
+                  "DynamicMessage is not supported by the ProtoCoder, use the DynamicProtoCoder.");
+            } else {
+              @SuppressWarnings("unchecked")
+              T protoMessageInstance =
+                  (T) protoMessageClass.getMethod("getDefaultInstance").invoke(null);
+              @SuppressWarnings("unchecked")
+              Parser<T> tParser = (Parser<T>) protoMessageInstance.getParserForType();
+              memoizedParser = parser = tParser;
+            }
+          } catch (NoSuchMethodException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Cannot decode %s: it has no static getDefaultInstance() method, so its Parser "
+                        + "cannot be determined. This happens for the raw %s interface, e.g. when "
+                        + "the coder was inferred for a generic 'T extends Message'. Use a "
+                        + "concrete generated message class, DynamicProtoCoder, or call "
+                        + "setCoder().",
+                    protoMessageClass.getName(), Message.class.getName()),
+                e);
+          } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new IllegalArgumentException(e);
+          }
         }
-      } catch (NoSuchMethodException e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot decode %s: it has no static getDefaultInstance() method, so its Parser "
-                    + "cannot be determined. This happens for the raw %s interface, e.g. when the "
-                    + "coder was inferred for a generic 'T extends Message'. Use a concrete "
-                    + "generated message class, DynamicProtoCoder, or call setCoder().",
-                protoMessageClass.getName(), Message.class.getName()),
-            e);
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        throw new IllegalArgumentException(e);
       }
     }
-    return memoizedParser;
+    return parser;
   }
 
   /**

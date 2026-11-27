@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.commons.compress.utils.IOUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,19 +123,30 @@ public class ProtoByteUtils {
   public static SerializableFunction<byte[], Row> getProtoBytesToRowFromSchemaFunction(
       String schemaString, String messageName) {
 
-    Descriptors.Descriptor descriptor = getDescriptorFromProtoSchema(schemaString, messageName);
+    Descriptors.Descriptor initialDescriptor =
+        getDescriptorFromProtoSchema(schemaString, messageName);
 
     ProtoDynamicMessageSchema<DynamicMessage> protoDynamicMessageSchema =
-        ProtoDynamicMessageSchema.forDescriptor(ProtoDomain.buildFrom(descriptor), descriptor);
+        ProtoDynamicMessageSchema.forDescriptor(
+            ProtoDomain.buildFrom(initialDescriptor), initialDescriptor);
     return new SimpleFunction<byte[], Row>() {
+      private transient volatile Descriptors.@Nullable Descriptor cachedDescriptor;
+      private transient volatile @Nullable SerializableFunction<DynamicMessage, Row> cachedToRow;
+
       @Override
       public Row apply(byte[] input) {
         try {
-          Descriptors.Descriptor descriptorFunction =
-              getDescriptorFromProtoSchema(schemaString, messageName);
-          DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptorFunction, input);
-          SerializableFunction<DynamicMessage, Row> res =
-              protoDynamicMessageSchema.getToRowFunction();
+          Descriptors.Descriptor descriptor = cachedDescriptor;
+          if (descriptor == null) {
+            descriptor = getDescriptorFromProtoSchema(schemaString, messageName);
+            cachedDescriptor = descriptor;
+          }
+          DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, input);
+          SerializableFunction<DynamicMessage, Row> res = cachedToRow;
+          if (res == null) {
+            res = protoDynamicMessageSchema.getToRowFunction();
+            cachedToRow = res;
+          }
           return res.apply(dynamicMessage);
         } catch (InvalidProtocolBufferException e) {
           LOG.error("Error parsing to DynamicMessage", e);
@@ -152,19 +164,29 @@ public class ProtoByteUtils {
     @SuppressWarnings("unchecked")
     ProtoDynamicMessageSchema<DynamicMessage> protoDynamicMessageSchema =
         ProtoDynamicMessageSchema.forDescriptor(protoDomain, messageName);
+    List<String> messageElements = Splitter.on('.').splitToList(messageName);
+    final String messageTypeByName = messageElements.get(messageElements.size() - 1);
     return new SimpleFunction<byte[], Row>() {
+      private transient volatile Descriptors.@Nullable Descriptor cachedDescriptor;
+      private transient volatile @Nullable SerializableFunction<DynamicMessage, Row> cachedToRow;
+
       @Override
       public Row apply(byte[] input) {
         try {
-          List<String> messageElements = Splitter.on('.').splitToList(messageName);
-          String messageTypeByName = messageElements.get(messageElements.size() - 1);
-          final Descriptors.Descriptor descriptor =
-              protoDomain
-                  .getFileDescriptor(dynamicProtoDomain.getFileName())
-                  .findMessageTypeByName(messageTypeByName);
+          Descriptors.Descriptor descriptor = cachedDescriptor;
+          if (descriptor == null) {
+            descriptor =
+                protoDomain
+                    .getFileDescriptor(dynamicProtoDomain.getFileName())
+                    .findMessageTypeByName(messageTypeByName);
+            cachedDescriptor = descriptor;
+          }
           DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, input);
-          SerializableFunction<DynamicMessage, Row> res =
-              protoDynamicMessageSchema.getToRowFunction();
+          SerializableFunction<DynamicMessage, Row> res = cachedToRow;
+          if (res == null) {
+            res = protoDynamicMessageSchema.getToRowFunction();
+            cachedToRow = res;
+          }
           return res.apply(dynamicMessage);
         } catch (InvalidProtocolBufferException e) {
           LOG.error("Error parsing to DynamicMessage", e);
@@ -182,10 +204,15 @@ public class ProtoByteUtils {
     ProtoDynamicMessageSchema<DynamicMessage> protoDynamicMessageSchema =
         ProtoDynamicMessageSchema.forDescriptor(ProtoDomain.buildFrom(descriptor), descriptor);
     return new SimpleFunction<Row, byte[]>() {
+      private transient volatile @Nullable SerializableFunction<Row, DynamicMessage> cachedFromRow;
+
       @Override
       public byte[] apply(Row input) {
-        SerializableFunction<Row, DynamicMessage> res =
-            protoDynamicMessageSchema.getFromRowFunction();
+        SerializableFunction<Row, DynamicMessage> res = cachedFromRow;
+        if (res == null) {
+          res = protoDynamicMessageSchema.getFromRowFunction();
+          cachedFromRow = res;
+        }
         return res.apply(input).toByteArray();
       }
     };

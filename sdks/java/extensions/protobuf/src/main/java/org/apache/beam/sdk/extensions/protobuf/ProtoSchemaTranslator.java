@@ -189,66 +189,74 @@ class ProtoSchemaTranslator {
       return existingSchema;
     }
     alreadyVisitedSchemas.put(descriptor, null);
-    /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
-     * are. This is needed to prevent double inclusion of the component fields.*/
-    Set<Integer> oneOfComponentFields = Sets.newHashSet();
-    /* OneOfFieldLocation stores the field number of the first field in the OneOf. Using this, we can use the location
-    of the first field in the OneOf as the location of the entire OneOf.*/
-    Map<Integer, Field> oneOfFieldLocation = Maps.newHashMap();
-    List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
+    boolean completed = false;
+    try {
+      /* OneOfComponentFields refers to the field number in the protobuf where the component subfields
+       * are. This is needed to prevent double inclusion of the component fields.*/
+      Set<Integer> oneOfComponentFields = Sets.newHashSet();
+      /* OneOfFieldLocation stores the field number of the first field in the OneOf. Using this, we can use the location
+      of the first field in the OneOf as the location of the entire OneOf.*/
+      Map<Integer, Field> oneOfFieldLocation = Maps.newHashMap();
+      List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
 
-    // In proto3, an optional field is internally implemented by wrapping it in a synthetic oneof.
-    // The Descriptor.getRealOneOfs() method is then used to retrieve only the "real" oneofs that
-    // you explicitly defined, filtering out these automatically generated ones.
-    // https://github.com/protocolbuffers/protobuf/blob/main/docs/implementing_proto3_presence.md#updating-a-
-    for (OneofDescriptor oneofDescriptor : descriptor.getRealOneofs()) {
-      List<Field> subFields = Lists.newArrayListWithCapacity(oneofDescriptor.getFieldCount());
-      Map<String, Integer> enumIds = Maps.newHashMap();
-      for (FieldDescriptor fieldDescriptor : oneofDescriptor.getFields()) {
-        oneOfComponentFields.add(fieldDescriptor.getNumber());
-        // Store proto field number in a field option.
-        FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
-        subFields.add(
-            withFieldNumber(
-                Field.nullable(fieldDescriptor.getName(), fieldType), fieldDescriptor.getNumber()));
-        Preconditions.checkArgument(
-            enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
+      // In proto3, an optional field is internally implemented by wrapping it in a synthetic oneof.
+      // The Descriptor.getRealOneOfs() method is then used to retrieve only the "real" oneofs that
+      // you explicitly defined, filtering out these automatically generated ones.
+      // https://github.com/protocolbuffers/protobuf/blob/main/docs/implementing_proto3_presence.md#updating-a-
+      for (OneofDescriptor oneofDescriptor : descriptor.getRealOneofs()) {
+        List<Field> subFields = Lists.newArrayListWithCapacity(oneofDescriptor.getFieldCount());
+        Map<String, Integer> enumIds = Maps.newHashMap();
+        for (FieldDescriptor fieldDescriptor : oneofDescriptor.getFields()) {
+          oneOfComponentFields.add(fieldDescriptor.getNumber());
+          // Store proto field number in a field option.
+          FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+          subFields.add(
+              withFieldNumber(
+                  Field.nullable(fieldDescriptor.getName(), fieldType),
+                  fieldDescriptor.getNumber()));
+          Preconditions.checkArgument(
+              enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
+        }
+        FieldType oneOfType = FieldType.logicalType(OneOfType.create(subFields, enumIds));
+        oneOfFieldLocation.put(
+            oneofDescriptor.getFields().get(0).getNumber(),
+            Field.nullable(oneofDescriptor.getName(), oneOfType));
       }
-      FieldType oneOfType = FieldType.logicalType(OneOfType.create(subFields, enumIds));
-      oneOfFieldLocation.put(
-          oneofDescriptor.getFields().get(0).getNumber(),
-          Field.nullable(oneofDescriptor.getName(), oneOfType));
-    }
 
-    for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
-      int fieldDescriptorNumber = fieldDescriptor.getNumber();
-      if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
-        // Store proto field number in metadata.
-        FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
-        fields.add(
-            withFieldNumber(Field.of(fieldDescriptor.getName(), fieldType), fieldDescriptorNumber)
-                .withOptions(getFieldOptions(fieldDescriptor)));
-        /* Note that descriptor.getFields() returns an iterator in the order of the fields in the .proto file, not
-         * in field number order. Therefore we can safely insert the OneOfField at the field of its first component.*/
-      } else {
-        Field oneOfField = oneOfFieldLocation.get(fieldDescriptorNumber);
-        if (oneOfField != null) {
-          fields.add(oneOfField);
+      for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
+        int fieldDescriptorNumber = fieldDescriptor.getNumber();
+        if (!oneOfComponentFields.contains(fieldDescriptorNumber)) {
+          // Store proto field number in metadata.
+          FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+          fields.add(
+              withFieldNumber(Field.of(fieldDescriptor.getName(), fieldType), fieldDescriptorNumber)
+                  .withOptions(getFieldOptions(fieldDescriptor)));
+          /* Note that descriptor.getFields() returns an iterator in the order of the fields in the .proto file, not
+           * in field number order. Therefore we can safely insert the OneOfField at the field of its first component.*/
+        } else {
+          Field oneOfField = oneOfFieldLocation.get(fieldDescriptorNumber);
+          if (oneOfField != null) {
+            fields.add(oneOfField);
+          }
         }
       }
+
+      Schema generatedSchema =
+          Schema.builder()
+              .addFields(fields)
+              .setOptions(
+                  getSchemaOptions(descriptor)
+                      .setOption(
+                          SCHEMA_OPTION_META_TYPE_NAME, FieldType.STRING, descriptor.getFullName()))
+              .build();
+      alreadyVisitedSchemas.put(descriptor, generatedSchema);
+      completed = true;
+      return generatedSchema;
+    } finally {
+      if (!completed) {
+        alreadyVisitedSchemas.remove(descriptor);
+      }
     }
-
-    Schema generatedSchema =
-        Schema.builder()
-            .addFields(fields)
-            .setOptions(
-                getSchemaOptions(descriptor)
-                    .setOption(
-                        SCHEMA_OPTION_META_TYPE_NAME, FieldType.STRING, descriptor.getFullName()))
-            .build();
-    alreadyVisitedSchemas.put(descriptor, generatedSchema);
-
-    return generatedSchema;
   }
 
   private static FieldType beamFieldTypeFromProtoField(

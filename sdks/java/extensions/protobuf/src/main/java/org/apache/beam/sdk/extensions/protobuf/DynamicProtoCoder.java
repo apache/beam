@@ -153,13 +153,19 @@ public class DynamicProtoCoder extends ProtoCoder<DynamicMessage> {
 
   /** Get the memoized {@link Parser}, possibly initializing it lazily. */
   @Override
-  protected synchronized Parser<DynamicMessage> getParser() {
-    if (memoizedParser == null) {
-      DynamicMessage protoMessageInstance =
-          DynamicMessage.newBuilder(domain.getDescriptor(messageName)).build();
-      memoizedParser = protoMessageInstance.getParserForType();
+  protected Parser<DynamicMessage> getParser() {
+    Parser<DynamicMessage> parser = memoizedParser;
+    if (parser == null) {
+      synchronized (this) {
+        parser = memoizedParser;
+        if (parser == null) {
+          DynamicMessage protoMessageInstance =
+              DynamicMessage.newBuilder(domain.getDescriptor(messageName)).build();
+          memoizedParser = parser = protoMessageInstance.getParserForType();
+        }
+      }
     }
-    return memoizedParser;
+    return parser;
   }
 
   /**
