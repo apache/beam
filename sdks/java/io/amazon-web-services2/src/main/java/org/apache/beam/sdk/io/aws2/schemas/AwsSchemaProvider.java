@@ -102,12 +102,49 @@ public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
 
   private static class FromRowWithBuilder<T extends SdkPojo>
       implements SerializableFunction<Row, T> {
+    private static final class BoundSetters {
+      final Schema schema;
+      final SdkBuilderSetter[] setters;
+      final int[] fieldIndices;
+
+      BoundSetters(Schema schema, SdkBuilderSetter[] setters, int[] fieldIndices) {
+        this.schema = schema;
+        this.setters = setters;
+        this.fieldIndices = fieldIndices;
+      }
+    }
+
     private final Class<T> cls;
+    private final TypeDescriptor<T> typeDescriptor;
     private final Factory<List<SdkBuilderSetter>> factory;
+    private transient volatile @Nullable BoundSetters cachedBound;
 
     FromRowWithBuilder(Class<T> cls, Factory<List<SdkBuilderSetter>> factory) {
       this.cls = cls;
+      this.typeDescriptor = TypeDescriptor.of(cls);
       this.factory = factory;
+    }
+
+    @SuppressWarnings({"ReferenceEquality", "nullness"})
+    private BoundSetters getBoundSetters(Schema schema) {
+      BoundSetters bound = cachedBound;
+      if (bound != null && (bound.schema == schema || bound.schema.equals(schema))) {
+        return bound;
+      }
+      List<SdkBuilderSetter> all = factory.create(typeDescriptor, schema);
+      List<SdkBuilderSetter> present = new ArrayList<>(all.size());
+      int[] rawIndices = new int[all.size()];
+      int count = 0;
+      for (SdkBuilderSetter s : all) {
+        if (schema.hasField(s.name())) {
+          present.add(s);
+          rawIndices[count++] = schema.indexOf(s.name());
+        }
+      }
+      int[] indices = java.util.Arrays.copyOf(rawIndices, count);
+      bound = new BoundSetters(schema, present.toArray(new SdkBuilderSetter[0]), indices);
+      cachedBound = bound;
+      return bound;
     }
 
     @Override
@@ -120,12 +157,11 @@ public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
         }
       }
       SdkBuilder<?, T> builder = sdkBuilder(cls);
-      List<SdkBuilderSetter> setters = factory.create(TypeDescriptor.of(cls), row.getSchema());
-      for (SdkBuilderSetter set : setters) {
-        if (!row.getSchema().hasField(set.name())) {
-          continue;
-        }
-        set.set(builder, row.getValue(set.name()));
+      BoundSetters bound = getBoundSetters(row.getSchema());
+      SdkBuilderSetter[] setters = bound.setters;
+      int[] fieldIndices = bound.fieldIndices;
+      for (int i = 0; i < setters.length; i++) {
+        setters[i].set(builder, row.getValue(fieldIndices[i]));
       }
       return builder.build();
     }

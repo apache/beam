@@ -40,7 +40,6 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
-import org.apache.beam.sdk.schemas.CachingFactory;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -348,10 +347,12 @@ public class ArrowConversion {
   public static class RecordBatchRowIterator implements Iterator<Row>, AutoCloseable {
     private static final ArrowValueConverterVisitor valueConverterVisitor =
         new ArrowValueConverterVisitor();
+    private static final TypeDescriptor<Integer> INTEGER_TYPE_DESCRIPTOR =
+        TypeDescriptor.of(Integer.class);
     private final Schema schema;
     private final VectorSchemaRoot vectorSchemaRoot;
-    private final Factory<List<FieldValueGetter<Integer, Object>>> fieldValueGetters;
-    private Integer currRowIndex;
+    private final List<FieldValueGetter<Integer, Object>> fieldValueGetters;
+    private int currRowIndex;
 
     private static class FieldVectorListValueGetterFactory
         implements Factory<List<FieldValueGetter<Integer, Object>>> {
@@ -565,8 +566,8 @@ public class ArrowConversion {
       this.schema = schema;
       this.vectorSchemaRoot = vectorSchemaRoot;
       this.fieldValueGetters =
-          new CachingFactory<>(
-              FieldVectorListValueGetterFactory.of(vectorSchemaRoot.getFieldVectors()));
+          FieldVectorListValueGetterFactory.of(vectorSchemaRoot.getFieldVectors())
+              .create(INTEGER_TYPE_DESCRIPTOR, schema);
       this.currRowIndex = 0;
     }
 
@@ -586,9 +587,8 @@ public class ArrowConversion {
         throw new IllegalStateException("There are no more Rows.");
       }
       Row result =
-          Row.withSchema(schema)
-              .withFieldValueGetters(
-                  this.fieldValueGetters, this.currRowIndex, TypeDescriptor.of(Integer.class));
+          Row.withFieldValueGetters(
+              schema, this.fieldValueGetters, this.currRowIndex, INTEGER_TYPE_DESCRIPTOR);
       this.currRowIndex += 1;
       return result;
     }
