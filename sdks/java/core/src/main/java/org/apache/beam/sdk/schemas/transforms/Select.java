@@ -24,7 +24,6 @@ import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -126,22 +125,34 @@ public class Select {
   }
 
   private static class SelectDoFn<T> extends DoFn<T, Row> {
-    RowSelector rowSelector;
+    private final RowSelectorContainer rowSelectorContainer;
+    private final @Nullable SerializableFunction<T, Row> toRowFunction;
+    private transient @Nullable RowSelector rowSelector;
 
-    // TODO: This should be the same as resolved so that Beam knows which fields
-    // are being accessed. Currently Beam only supports wildcard descriptors.
-    // Once https://github.com/apache/beam/issues/18903 is fixed, fix this.
-    @SuppressWarnings("unused")
-    @FieldAccess("selectFields")
-    final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withAllFields();
+    public SelectDoFn(
+        FieldAccessDescriptor fieldAccessDescriptor,
+        Schema inputSchema,
+        Schema outputSchema,
+        @Nullable SerializableFunction<T, Row> toRowFunction) {
+      this.rowSelectorContainer =
+          new RowSelectorContainer(inputSchema, fieldAccessDescriptor, outputSchema, true);
+      this.toRowFunction = toRowFunction;
+    }
 
-    public SelectDoFn(FieldAccessDescriptor fieldAccessDescriptor, Schema inputSchema) {
-      this.rowSelector = new RowSelectorContainer(inputSchema, fieldAccessDescriptor, true);
+    @Setup
+    public void setup() {
+      this.rowSelector = rowSelectorContainer.getOrCreateSelector();
     }
 
     @ProcessElement
-    public void process(@FieldAccess("selectFields") @Element Row row, OutputReceiver<Row> r) {
-      r.output(rowSelector.select(row));
+    public void process(@Element T element, OutputReceiver<Row> r) {
+      RowSelector selector = this.rowSelector;
+      if (selector == null) {
+        selector = rowSelectorContainer.getOrCreateSelector();
+        this.rowSelector = selector;
+      }
+      Row row = toRowFunction != null ? toRowFunction.apply(element) : (Row) element;
+      r.output(selector.select(row));
     }
   }
 
@@ -191,8 +202,7 @@ public class Select {
       if (outputSchema == null) {
         outputSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
       } else {
-        inputSchema = uniquifyNames(inputSchema);
-        Schema inferredSchema = SelectHelpers.getOutputSchema(inputSchema, resolved);
+        Schema inferredSchema = SelectHelpers.getOutputSchema(uniquifyNames(inputSchema), resolved);
         Preconditions.checkArgument(
             outputSchema.typesEqual(inferredSchema),
             "Types not equal. provided output schema: "
@@ -202,36 +212,49 @@ public class Select {
                 + " from input type: "
                 + input.getSchema());
       }
+      @Nullable SerializableFunction<T, Row> toRowFn =
+          org.apache.beam.sdk.schemas.SchemaUtils.isIdentityFunction(input.getToRowFunction())
+              ? null
+              : input.getToRowFunction();
+      if (resolved.getAllFields() && outputSchema.equals(inputSchema) && toRowFn == null) {
+        @SuppressWarnings("unchecked")
+        PCollection<Row> passthrough = (PCollection<Row>) input;
+        return passthrough;
+      }
       return input
-          .apply(ParDo.of(new SelectDoFn<>(resolved, inputSchema)))
+          .apply(ParDo.of(new SelectDoFn<>(resolved, inputSchema, outputSchema, toRowFn)))
           .setRowSchema(outputSchema);
     }
   }
 
   private static Schema uniquifyNames(Schema schema) {
+    return uniquifyNames(schema, new int[] {0});
+  }
+
+  private static Schema uniquifyNames(Schema schema, int[] counter) {
     Schema.Builder builder = new Schema.Builder();
     for (Field field : schema.getFields()) {
-      builder.addField(UUID.randomUUID().toString(), uniquifyNames(field.getType()));
+      builder.addField("_f" + counter[0]++, uniquifyNames(field.getType(), counter));
     }
     return builder.build();
   }
 
-  private static FieldType uniquifyNames(FieldType fieldType) {
+  private static FieldType uniquifyNames(FieldType fieldType, int[] counter) {
     switch (fieldType.getTypeName()) {
       case ROW:
-        return FieldType.row(uniquifyNames(fieldType.getRowSchema()))
+        return FieldType.row(uniquifyNames(fieldType.getRowSchema(), counter))
             .withNullable(fieldType.getNullable())
             .withMetadata(fieldType.getAllMetadata());
       case ARRAY:
-        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType()))
+        return FieldType.array(uniquifyNames(fieldType.getCollectionElementType(), counter))
             .withNullable(fieldType.getNullable());
       case ITERABLE:
-        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType()))
+        return FieldType.iterable(uniquifyNames(fieldType.getCollectionElementType(), counter))
             .withNullable(fieldType.getNullable());
       case MAP:
         return FieldType.map(
-                uniquifyNames(fieldType.getMapKeyType()),
-                uniquifyNames(fieldType.getMapValueType()))
+                uniquifyNames(fieldType.getMapKeyType(), counter),
+                uniquifyNames(fieldType.getMapValueType(), counter))
             .withNullable(fieldType.getNullable());
       default:
         return fieldType;
@@ -315,8 +338,13 @@ public class Select {
       } else {
         outputSchema = inferredOutputSchema;
       }
+      @Nullable SerializableFunction<T, Row> toRowFn =
+          org.apache.beam.sdk.schemas.SchemaUtils.isIdentityFunction(input.getToRowFunction())
+              ? null
+              : input.getToRowFunction();
       return input
-          .apply(ParDo.of(new SelectDoFn<>(fieldAccessDescriptor, inputSchema)))
+          .apply(
+              ParDo.of(new SelectDoFn<>(fieldAccessDescriptor, inputSchema, outputSchema, toRowFn)))
           .setRowSchema(outputSchema);
     }
   }

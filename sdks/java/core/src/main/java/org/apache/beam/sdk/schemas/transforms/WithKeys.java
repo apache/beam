@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class WithKeys<T> extends PTransform<PCollection<T>, PCollection<KV<Row, T>>> {
   private final FieldAccessDescriptor fieldAccessDescriptor;
@@ -53,22 +54,38 @@ public class WithKeys<T> extends PTransform<PCollection<T>, PCollection<KV<Row, 
     }
     SerializableFunction<T, Row> toRowFunction = input.getToRowFunction();
     SerializableFunction<Row, T> fromRowFunction = input.getFromRowFunction();
+    @Nullable SerializableFunction<T, Row> directToRow =
+        org.apache.beam.sdk.schemas.SchemaUtils.isIdentityFunction(toRowFunction)
+            ? null
+            : toRowFunction;
 
     FieldAccessDescriptor resolved = fieldAccessDescriptor.resolve(schema);
-    RowSelector rowSelector = new RowSelectorContainer(schema, resolved, true);
     Schema keySchema = SelectHelpers.getOutputSchema(schema, resolved);
+    RowSelectorContainer selectorContainer =
+        new RowSelectorContainer(schema, resolved, keySchema, true);
 
     return input
         .apply(
             "selectKeys",
             ParDo.of(
                 new DoFn<T, KV<Row, T>>() {
+                  private transient @Nullable RowSelector rowSelector;
+
+                  @Setup
+                  public void setup() {
+                    this.rowSelector = selectorContainer.getOrCreateSelector();
+                  }
+
                   @ProcessElement
-                  public void process(
-                      @Element Row row, // Beam will convert the element to a row.
-                      @Element T element, // Beam will return the original element.
-                      OutputReceiver<KV<Row, T>> o) {
-                    o.output(KV.of(rowSelector.select(row), element));
+                  @SuppressWarnings({"unchecked", "nullness"})
+                  public void process(@Element T element, OutputReceiver<KV<Row, T>> o) {
+                    RowSelector selector = this.rowSelector;
+                    if (selector == null) {
+                      selector = selectorContainer.getOrCreateSelector();
+                      this.rowSelector = selector;
+                    }
+                    Row row = directToRow != null ? directToRow.apply(element) : (Row) element;
+                    o.output(KV.of(selector.select(row), element));
                   }
                 }))
         .setCoder(
