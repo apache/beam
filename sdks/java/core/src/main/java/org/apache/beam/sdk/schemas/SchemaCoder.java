@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -47,7 +48,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   private final TypeDescriptor<T> typeDescriptor;
   private final SerializableFunction<T, Row> toRowFunction;
   private final SerializableFunction<Row, T> fromRowFunction;
-  private transient @Nullable Coder<Row> delegateCoder;
+  private transient volatile @Nullable Coder<Row> delegateCoder;
 
   protected SchemaCoder(
       Schema schema,
@@ -108,12 +109,14 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   }
 
   private Coder<Row> getDelegateCoder() {
-    if (delegateCoder == null) {
+    Coder<Row> coder = delegateCoder;
+    if (coder == null) {
       // RowCoderGenerator caches based on id, so if a new instance of this RowCoder is
       // deserialized, we don't need to run ByteBuddy again to construct the class.
-      delegateCoder = RowCoderGenerator.generate(schema);
+      coder = RowCoderGenerator.generate(schema);
+      delegateCoder = coder;
     }
-    return delegateCoder;
+    return coder;
   }
 
   @Override
@@ -124,6 +127,19 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   @Override
   public T decode(InputStream inStream) throws IOException {
     return fromRowFunction.apply(getDelegateCoder().decode(inStream));
+  }
+
+  @Override
+  public boolean isRegisterByteSizeObserverCheap(T value) {
+    if (value == null) {
+      return false;
+    }
+    return getDelegateCoder().isRegisterByteSizeObserverCheap(toRowFunction.apply(value));
+  }
+
+  @Override
+  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer) throws Exception {
+    getDelegateCoder().registerByteSizeObserver(toRowFunction.apply(value), observer);
   }
 
   @Override
