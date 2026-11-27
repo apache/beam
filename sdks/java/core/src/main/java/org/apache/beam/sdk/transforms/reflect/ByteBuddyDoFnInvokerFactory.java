@@ -280,8 +280,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       implements DoFnInvoker<InputT, OutputT> {
     protected DoFnT delegate;
 
-    private Map<String, OnTimerInvoker> onTimerInvokers = Maps.newHashMap();
-    private Map<String, OnTimerInvoker> onTimerFamilyInvokers = Maps.newHashMap();
+    private @Nullable Map<String, OnTimerInvoker> onTimerInvokers;
+    private @Nullable Map<String, OnTimerInvoker> onTimerFamilyInvokers;
 
     public DoFnInvokerBase(DoFnT delegate) {
       this.delegate = delegate;
@@ -297,6 +297,9 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
      * DoFnInvokerBase} not by any subclass.
      */
     void addOnTimerInvoker(String timerId, OnTimerInvoker onTimerInvoker) {
+      if (this.onTimerInvokers == null) {
+        this.onTimerInvokers = Maps.newHashMap();
+      }
       this.onTimerInvokers.put(timerId, onTimerInvoker);
     }
 
@@ -307,6 +310,9 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
      * timer ID rather than a generated conditional branch to choose which OnTimerInvoker to invoke.
      */
     void addOnTimerFamilyInvoker(String timerFamilyId, OnTimerInvoker onTimerInvoker) {
+      if (this.onTimerFamilyInvokers == null) {
+        this.onTimerFamilyInvokers = Maps.newHashMap();
+      }
       this.onTimerFamilyInvokers.put(timerFamilyId, onTimerInvoker);
     }
 
@@ -317,8 +323,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable OnTimerInvoker onTimerInvoker =
           timerFamilyId.isEmpty()
-              ? onTimerInvokers.get(timerId)
-              : onTimerFamilyInvokers.get(timerFamilyId);
+              ? (onTimerInvokers != null ? onTimerInvokers.get(timerId) : null)
+              : (onTimerFamilyInvokers != null ? onTimerFamilyInvokers.get(timerFamilyId) : null);
 
       if (onTimerInvoker != null) {
         onTimerInvoker.invokeOnTimer(arguments);
