@@ -247,6 +247,17 @@ message LogicalTypes {
     //     e.g. -1.5s at precision 6 is {seconds: -2, subseconds: 500000}.
     TIMESTAMP = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:logical_type:timestamp:v1"];
+
+    // A URN for Variant type (semi-structured data)
+    //   - Representation type: ROW<metadata: BYTES, value: BYTES>
+    //   - A self-describing semi-structured value (object, array, or
+    //     primitive). metadata and value use the Apache Parquet Variant binary
+    //     encoding, version 1:
+    //     https://github.com/apache/parquet-format/blob/master/VariantEncoding.md
+    //     This is the same encoding used by Apache Iceberg v3, Apache Spark
+    //     and Apache Flink, so values can be exchanged without conversion.
+    VARIANT = 10 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:variant:v1"];
   }
 }
 

@@ -54,6 +54,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
+import org.apache.beam.sdk.schemas.logicaltypes.VariantLogicalType;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -117,6 +118,7 @@ public class SchemaTranslation {
           .put(VariableString.IDENTIFIER, VariableString.class)
           .put(Date.IDENTIFIER, Date.class)
           .put(Timestamp.IDENTIFIER, Timestamp.class)
+          .put(VariantLogicalType.IDENTIFIER, VariantLogicalType.class)
           .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {
