@@ -72,6 +72,15 @@ class HistogramTest(unittest.TestCase):
     histogram2.record(0, 0, 0)
     self.assertAlmostEqual(histogram2.p90(), 0.018, places=3)
 
+  def test_p95(self):
+    histogram1 = Histogram(LinearBucket(0, 0.2, 50))
+    histogram1.record(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+    self.assertEqual(histogram1.p95(), 9.1)
+
+    histogram2 = Histogram(LinearBucket(0, 0.02, 50))
+    histogram2.record(0, 0, 0)
+    self.assertAlmostEqual(histogram2.p95(), 0.019, places=3)
+
   def test_p99(self):
     histogram1 = Histogram(LinearBucket(0, 0.2, 50))
     histogram1.record(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)

@@ -93,6 +93,9 @@ class Histogram(object):
   def p99(self):
     return self.get_linear_interpolation(0.99)
 
+  def p95(self):
+    return self.get_linear_interpolation(0.95)
+
   def p90(self):
     return self.get_linear_interpolation(0.90)
 
