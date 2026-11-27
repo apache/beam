@@ -71,6 +71,7 @@ import org.junit.runners.Parameterized.Parameters;
 public class TableClauseResolutionTest {
   private static final List<List<Object>> QUERY_ROWS = new CopyOnWriteArrayList<>();
   private static final List<KV<String, List<Object>>> WRITES = new CopyOnWriteArrayList<>();
+  private static final List<String> METADATA_COLUMNS = Arrays.asList("_op", "_version");
 
   @Parameters(name = "{0}")
   public static List<String> sessions() {
@@ -189,6 +190,28 @@ public class TableClauseResolutionTest {
             + " InMemoryTable does not support WITH options for writes");
   }
 
+  /** {@link MetadataColumnResolverTest} covers how names bind. */
+  @Test
+  public void changesReadsTheMetadataColumnsThatTheQueryNames() throws Exception {
+    assertEquals(
+        Collections.singletonList(
+            Arrays.asList(
+                1L, "one", changes(ChangeRange.all(), ImmutableMap.of(), METADATA_COLUMNS), 7L)),
+        session.query("SELECT *, c._version FROM CHANGES(orders) AS c WHERE _op = 'INSERT'"));
+  }
+
+  @Test
+  public void unknownColumnsOfChangesFailWithItsMetadataColumns() {
+    assertError(
+        "SELECT _opp FROM CHANGES(orders)",
+        "Column '_opp' not found in any table."
+            + " CHANGES(orders) also has these metadata columns: _op, _version");
+    assertError(
+        "SELECT c._opp FROM CHANGES(orders) AS c",
+        "Column '_opp' not found in table 'c'."
+            + " CHANGES(orders) AS c also has these metadata columns: _op, _version");
+  }
+
   private void assertError(String sql, String message) {
     Exception e = assertThrows(sql, Exception.class, () -> session.execute(sql));
     assertThat(
@@ -214,6 +237,11 @@ public class TableClauseResolutionTest {
 
   private static String changes(ChangeRange changes, Map<String, Object> options) {
     return "changes " + changes + " " + options;
+  }
+
+  private static String changes(
+      ChangeRange changes, Map<String, Object> options, List<String> metadataColumns) {
+    return changes(changes, options) + (metadataColumns.isEmpty() ? "" : " " + metadataColumns);
   }
 
   private static String write(Map<String, Object> options) {
@@ -313,14 +341,21 @@ public class TableClauseResolutionTest {
   /**
    * A table with the single row {@code (1, 'one')}. CHANGES(...) and WITH add a {@code clause}
    * column, which reads fill with a description of them and the hook that took them, and writes
-   * record next to each row.
+   * record next to each row. CHANGES(...) can also read the metadata columns {@code _op}, which is
+   * always 'INSERT', and {@code _version}, which is always 7.
    */
   private static class ClauseTable extends SchemaBaseBeamTable {
     private final @Nullable String clause;
+    private final List<String> metadataColumns;
 
     ClauseTable(Schema schema, @Nullable String clause) {
+      this(schema, clause, Collections.emptyList());
+    }
+
+    ClauseTable(Schema schema, @Nullable String clause, List<String> metadataColumns) {
       super(schema);
       this.clause = clause;
+      this.metadataColumns = metadataColumns;
     }
 
     @Override
@@ -334,8 +369,21 @@ public class TableClauseResolutionTest {
     }
 
     @Override
-    public BeamSqlTable forChanges(ChangeRange changes, Map<String, Object> options) {
-      return withClause(changes(changes, options));
+    public List<String> getChangeMetadataColumns() {
+      return METADATA_COLUMNS;
+    }
+
+    @Override
+    public BeamSqlTable forChanges(
+        ChangeRange changes, Map<String, Object> options, List<String> metadataColumns) {
+      Schema.Builder withColumns =
+          Schema.builder().addFields(schema.getFields()).addStringField("clause");
+      for (String column : metadataColumns) {
+        withColumns.addField(
+            column, column.equals("_op") ? Schema.FieldType.STRING : Schema.FieldType.INT64);
+      }
+      return new ClauseTable(
+          withColumns.build(), changes(changes, options, metadataColumns), metadataColumns);
     }
 
     private ClauseTable withClause(String clause) {
@@ -348,6 +396,9 @@ public class TableClauseResolutionTest {
       Row.Builder row = Row.withSchema(schema).addValues(1L, "one");
       if (clause != null) {
         row.addValue(clause);
+      }
+      for (String column : metadataColumns) {
+        row.addValue(column.equals("_op") ? "INSERT" : 7L);
       }
       return begin.apply(Create.of(row.build()).withRowSchema(schema));
     }

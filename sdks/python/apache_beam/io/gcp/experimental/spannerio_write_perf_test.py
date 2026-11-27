@@ -58,8 +58,8 @@ from apache_beam import FlatMap
 from apache_beam import Map
 from apache_beam import ParDo
 from apache_beam.io import Read
-from apache_beam.io.gcp.experimental.spannerio import _Mutator
 from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
+from apache_beam.io.gcp.experimental.spannerio import _Mutator
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime

@@ -21,6 +21,7 @@
 
 import io
 import os
+import re
 import shutil
 from typing import BinaryIO  # pylint: disable=unused-import
 
@@ -95,6 +96,23 @@ class LocalFileSystem(FileSystem):
     """
     return os.path.dirname(url_or_path)
 
+  def match_files(self, file_metas, pattern):
+    """Filter :class:`FileMetadata` objects by *pattern*.
+
+    On Windows, ``/`` and ``\\`` both separate path components. Listed paths
+    are joined with ``\\``, so both the pattern and the paths are compared
+    with ``\\`` only, and a pattern such as ``data/*.txt`` matches
+    ``data\\a.txt``.
+    """
+    altsep = os.path.altsep
+    if not altsep:
+      return super().match_files(file_metas, pattern)
+    match = re.compile(
+        self.translate_pattern(pattern.replace(altsep, os.sep))).match
+    return (
+        file_metadata for file_metadata in file_metas
+        if match(file_metadata.path.replace(altsep, os.sep)))
+
   def _list(self, dir_or_prefix):
     """List files in a location.
 
@@ -110,13 +128,23 @@ class LocalFileSystem(FileSystem):
     Raises:
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
+    is_cwd = not dir_or_prefix
+    if is_cwd:
+      dir_or_prefix = os.curdir
     if not self.exists(dir_or_prefix):
       return
 
+    curdir_prefix = os.curdir + os.sep
+
     def list_files(root):
       for dirpath, _, files in os.walk(root):
+        if is_cwd:
+          if dirpath == os.curdir:
+            dirpath = ''
+          elif dirpath.startswith(curdir_prefix):
+            dirpath = dirpath[len(curdir_prefix):]
         for filename in files:
-          yield self.join(dirpath, filename)
+          yield self.join(dirpath, filename) if dirpath else filename
 
     try:
       for f in list_files(dir_or_prefix):
@@ -198,6 +226,9 @@ class LocalFileSystem(FileSystem):
       """
       try:
         if os.path.exists(destination):
+          if os.path.samefile(source, destination):
+            raise shutil.SameFileError(
+                '%r and %r are the same file' % (source, destination))
           if os.path.isdir(destination):
             shutil.rmtree(destination)
           else:

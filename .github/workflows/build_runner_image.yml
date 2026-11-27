@@ -29,6 +29,10 @@ on:
 env:
   docker_registry: us-central1-docker.pkg.dev
   docker_repo: apache-beam-testing/beam-github-actions/beam-arc-runner
+
+permissions:
+  contents: read
+
 jobs:
   build-and-version-runner:
     if: github.repository == 'apache/beam'

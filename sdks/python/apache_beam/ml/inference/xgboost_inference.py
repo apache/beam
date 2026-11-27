@@ -24,7 +24,6 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-import datatable
 import numpy
 import pandas
 import scipy
@@ -42,8 +41,7 @@ __all__ = [
     'XGBoostModelHandler',
     'XGBoostModelHandlerNumpy',
     'XGBoostModelHandlerPandas',
-    'XGBoostModelHandlerSciPy',
-    'XGBoostModelHandlerDatatable'
+    'XGBoostModelHandlerSciPy'
 ]
 
 XGBoostInferenceFn = Callable[[
@@ -157,6 +155,9 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
     model_state_bytearray = bytearray(model_state_bytes)
     model.load_model(model_state_bytearray)
     return model
+
+  def update_model_path(self, model_path: Optional[str] = None):
+    self._model_state = model_path if model_path else self._model_state
 
   def get_metrics_namespace(self) -> str:
     return 'BeamML_XGBoost'
@@ -310,65 +311,6 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
     return self._inference_fn(batch, model, inference_args)
 
   def get_num_bytes(self, batch: Sequence[scipy.sparse.csr_matrix]) -> int:
-    """
-    Returns:
-      The number of bytes of data for a batch.
-    """
-    return sum(sys.getsizeof(element) for element in batch)
-
-
-@deprecated(
-    since='2.78.0',
-    extra_message=(
-        'datatable has not had a release since 2023 and has no wheels for '
-        'Python 3.13+. XGBoostModelHandlerDatatable and the datatable '
-        'dependency will be removed in Beam 2.79.0.'))
-class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
-                                                       PredictionResult,
-                                                       Union[xgboost.Booster,
-                                                             xgboost.XGBModel]]
-                                   ):
-  """Implementation of the ModelHandler interface for XGBoost
-  using datatable dataframes as input.
-
-  Example Usage::
-
-      pcoll | RunInference(
-                  XGBoostModelHandlerDatatable(
-                      model_class="XGBoost Model Class",
-                      model_state="my_model_state.json")))
-
-  Args:
-    model_class: class of the XGBoost model that defines the model
-      structure.
-    model_state: path to a json file that contains the model's
-      configuration.
-    inference_fn: the inference function to use during RunInference.
-      default=default_xgboost_inference_fn
-  """
-  def run_inference(
-      self,
-      batch: Sequence[datatable.Frame],
-      model: Union[xgboost.Booster, xgboost.XGBModel],
-      inference_args: Optional[dict[str, Any]] = None
-  ) -> Iterable[PredictionResult]:
-    """Runs inferences on a batch of datatable dataframe.
-
-    Args:
-      batch: A sequence of examples as datatable dataframes. Each
-        row in a dataframe is a single example. The dimensions
-        must match the dimensions of the data used to train
-        the model.
-      model: XGBoost booster or XBGModel (sklearn interface). Must implement
-        predict(X). Where the parameter X is a datatable dataframe.
-      inference_args: Any additional arguments for an inference.
-
-    Returns:
-      An Iterable of type PredictionResult.
-    """
-    return self._inference_fn(batch, model, inference_args)
-
-  def get_num_bytes(self, batch: Sequence[datatable.Frame]) -> int:
     """
     Returns:
       The number of bytes of data for a batch.

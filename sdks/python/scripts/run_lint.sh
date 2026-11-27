@@ -79,7 +79,11 @@ echo -e "Skipping lint for files:\n${FILES_TO_IGNORE}"
 echo -e "Linting modules:\n${MODULE}"
 
 echo "Running ruff..."
-ruff check ${MODULE} --extend-exclude="$FILES_TO_IGNORE"
+# --no-respect-gitignore is required because the Gradle toxTask runs this
+# script from a copy of the SDK placed under a build/ directory, which is
+# matched by the repository's root .gitignore (**/build/**/*). Without this
+# flag ruff silently skips every file under apache_beam/ in CI.
+ruff check ${MODULE} --extend-exclude="$FILES_TO_IGNORE" --no-respect-gitignore
 
 echo "Checking unittest.main..."
 TESTS_MISSING_MAIN=$(

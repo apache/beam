@@ -140,12 +140,16 @@ func getLocalJar(url string) (string, error) {
 }
 
 func validatePath(dest, filename string) (string, error) {
-	destPath := filepath.Join(dest, filename)
+	localName := filepath.FromSlash(filename)
+	if !filepath.IsLocal(localName) {
+		return "", fmt.Errorf("file path %q is outside destination directory %q", filename, dest)
+	}
 	cleanDest := filepath.Clean(dest)
-	cleanPath := filepath.Clean(destPath)
-
-	rel, err := filepath.Rel(cleanDest, cleanPath)
-	if err != nil || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+	if filepath.Clean(localName) == "." {
+		return cleanDest, nil
+	}
+	cleanPath := filepath.Clean(filepath.Join(cleanDest, localName))
+	if !strings.HasPrefix(cleanPath, cleanDest+string(filepath.Separator)) {
 		return "", fmt.Errorf("file path %q is outside destination directory %q", filename, dest)
 	}
 	return cleanPath, nil

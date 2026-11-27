@@ -30,6 +30,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -76,7 +79,9 @@ import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.NullOrder;
+import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortDirection;
 import org.apache.iceberg.SortOrder;
@@ -86,11 +91,14 @@ import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.util.StructLikeSet;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -468,6 +476,74 @@ public class IcebergIOWriteTest implements Serializable {
 
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
+  /** A file's partition must come from its rows, because a partition path can't be read back. */
+  @Test
+  public void testPartitionValues() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Schema schema =
+        Schema.builder()
+            .addLogicalTypeField("date", SqlTypes.DATE)
+            .addNullableStringField("str")
+            .addNullableInt32Field("num")
+            .addLogicalTypeField("ts", SqlTypes.DATETIME)
+            .addByteArrayField("bin")
+            .build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    Table table =
+        warehouse.createTable(
+            tableId,
+            icebergSchema,
+            PartitionSpec.builderFor(icebergSchema)
+                .year("date")
+                .identity("str")
+                .identity("num")
+                .identity("ts")
+                .identity("bin")
+                .build());
+
+    LocalDate date = LocalDate.of(2024, 3, 1);
+    LocalDateTime ts = LocalDateTime.of(2024, 3, 1, 5, 0);
+    byte[] bin = {1, 2, 3};
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(schema).addValues(date, "a b/c", 5, ts, bin).build(),
+            Row.withSchema(schema).addValues(date, null, null, ts, bin).build(),
+            // has the same partition path as the null string above
+            Row.withSchema(schema).addValues(date, "null", null, ts, bin).build());
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    testPipeline
+        .apply(Create.of(rows).withRowSchema(schema))
+        .apply(writeTransform(catalog, tableId));
+    testPipeline.run().waitUntilFinish();
+
+    StructLikeSet expected = StructLikeSet.create(table.spec().partitionType());
+    PartitionKey partitionKey = new PartitionKey(table.spec(), table.schema());
+    InternalRecordWrapper wrapper = new InternalRecordWrapper(table.schema().asStruct());
+    for (Row row : rows) {
+      partitionKey.partition(wrapper.wrap(beamRowToIcebergRecord(table.schema(), row)));
+      expected.add(partitionKey.copy());
+    }
+
+    StructLikeSet written = StructLikeSet.create(table.spec().partitionType());
+    table.refresh();
+    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+      tasks.forEach(task -> written.add(task.file().partition()));
+    }
+    assertEquals(expected, written);
   }
 
   @Test

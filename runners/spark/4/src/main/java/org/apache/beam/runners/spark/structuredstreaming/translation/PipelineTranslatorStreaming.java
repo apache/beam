@@ -47,8 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Pipeline translator for streaming pipelines on Spark 4. It extends the common registry to reuse
- * the stateless single output ParDo, Window.Assign, Flatten, Reshuffle and Combine.GroupedValues
- * translators, which are safe on a streaming Dataset. Unsupported primitives fail at translation.
+ * the stateless ParDo, Window.Assign, Flatten, Reshuffle and Combine.GroupedValues translators,
+ * which are safe on a streaming Dataset. Unsupported primitives fail at translation.
  */
 @Internal
 public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
@@ -103,6 +103,11 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
           "Combine.globally() with a default value (use withoutDefaults())" + NOT_SUPPORTED);
     }
 
+    if (transform instanceof Combine.PerKeyWithHotKeyFanout) {
+      throw new UnsupportedOperationException(
+          "Combine.perKey().withHotKeyFanout()" + NOT_SUPPORTED);
+    }
+
     if (transform instanceof Combine.PerKey || transform instanceof Combine.Globally) {
       return null;
     }
@@ -113,13 +118,6 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       if (!parDo.getSideInputs().isEmpty()) {
         throw new UnsupportedOperationException(
             "ParDo with side inputs (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
-      }
-      if (!parDo.getAdditionalOutputTags().getAll().isEmpty()) {
-        throw new UnsupportedOperationException(
-            "ParDo with additional outputs ("
-                + signature.fnClass().getName()
-                + ")"
-                + NOT_SUPPORTED);
       }
       if (signature.processElement().requiresTimeSortedInput()) {
         throw new UnsupportedOperationException(
@@ -132,6 +130,14 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       checkNoProcessingTimeTimers(parDo.getFn(), signature);
 
       if (signature.usesState() || signature.usesTimers()) {
+        if (!parDo.getAdditionalOutputTags().getAll().isEmpty()) {
+          // BeamStatefulProcessor merges all output tags into the main output.
+          throw new UnsupportedOperationException(
+              "Stateful ParDo with additional outputs ("
+                  + signature.fnClass().getName()
+                  + ")"
+                  + NOT_SUPPORTED);
+        }
         return STATEFUL_PAR_DO;
       }
     }

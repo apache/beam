@@ -37,6 +37,9 @@ concurrency:
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
+permissions:
+  contents: read
+
 jobs:
   run_local_env_install_ubuntu:
     timeout-minutes: 25
@@ -47,7 +50,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+        uses: $/.github/actions/setup-environment-action
         with:
           go-version: default
           python-version: default
@@ -71,7 +74,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup environment
-        uses: ./.github/actions/setup-environment-action
+        uses: $/.github/actions/setup-environment-action
         with:
           go-version: default
           python-version: default

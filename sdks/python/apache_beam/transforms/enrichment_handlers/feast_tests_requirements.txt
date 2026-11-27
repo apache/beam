@@ -15,4 +15,10 @@
 # limitations under the License.
 #
 
-feast[gcp]
+# Install feast without the [gcp] extra because feast[gcp] pins
+# google-cloud-storage<3, which conflicts with Beam's google-cloud-storage>=3,<4
+# requirement and downgrades it in the shared test virtualenv. The remaining GCP
+# client packages are already installed by apache-beam[gcp].
+feast
+fsspec>=2024.1.0
+google-cloud-bigquery[pandas]<4,>=2

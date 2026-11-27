@@ -276,6 +276,29 @@ class JsonUtilsTest(unittest.TestCase):
               'type': 'object', 'properties': {}, 'additionalProperties': False
           })
 
+  def test_json_type_to_beam_type_nullable(self):
+    self.assertEqual(
+        json_utils.json_type_to_beam_type({'type': ['string', 'null']}),
+        schema_pb2.FieldType(atomic_type=schema_pb2.STRING, nullable=True))
+    self.assertEqual(
+        json_utils.json_type_to_beam_type({
+            'type': 'integer', 'nullable': True
+        }),
+        schema_pb2.FieldType(atomic_type=schema_pb2.INT64, nullable=True))
+    nullable_obj = json_utils.json_type_to_beam_type({
+        'type': ['object', 'null'],
+        'properties': {
+            'a': {
+                'type': 'string'
+            }
+        },
+        'required': ['a'],
+    })
+    self.assertTrue(nullable_obj.nullable)
+    self.assertFalse(nullable_obj.row_type.schema.fields[0].type.nullable)
+    with self.assertRaisesRegex(ValueError, 'Unable to convert'):
+      json_utils.json_type_to_beam_type({'type': ['string', 'integer']})
+
 
 if __name__ == '__main__':
   unittest.main()

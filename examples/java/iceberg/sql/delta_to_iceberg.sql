@@ -16,12 +16,14 @@
 
 -- Beam SQL script for initial full-table migration from a Delta Lake table on
 -- GCS to a Google Cloud Lakehouse (BigLake Iceberg REST catalog) table before
--- running DeltaLakeToLakehouseCdcExample for ongoing Change Data Capture (CDC).
+-- running delta_to_iceberg_cdc.sql or DeltaLakeToLakehouseCdcExample for
+-- ongoing Change Data Capture (CDC).
 --
 -- Start the Beam SQL shell using:
 --   DirectRunner: ./scripts/beam-sql.sh --io delta --io iceberg
 --   Dataflow:     ./scripts/beam-sql.sh --runner dataflow --io delta --io iceberg
--- (Or pass -f delta_to_iceberg.sql to execute this script non-interactively.)
+-- (Or pass -f examples/java/iceberg/sql/delta_to_iceberg.sql to execute this
+-- script non-interactively.)
 
 -- 1. Register the source Delta Lake table on GCS
 --    (Matches --deltaTable=gs://my-delta-lake-bucket/delta_lake/employee_data/
@@ -61,10 +63,11 @@ PROPERTIES (
 );
 
 -- 3. Ensure the target namespace and Iceberg table exist in the Lakehouse catalog
+--    (employee_id is NOT NULL because CDC migrations identify rows by it.)
 CREATE DATABASE IF NOT EXISTS lakehouse_catalog.my_namespace;
 
 CREATE EXTERNAL TABLE IF NOT EXISTS lakehouse_catalog.my_namespace.my_iceberg_table (
-  employee_id BIGINT,
+  employee_id BIGINT NOT NULL,
   employee_name VARCHAR,
   employee_role VARCHAR,
   employee_location VARCHAR

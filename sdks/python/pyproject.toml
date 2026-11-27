@@ -82,8 +82,7 @@ exclude = [
     "**/*.ipynb",
     "**/examples/**/*.py",
     "**/examples/**/*.ipynb",
-    "**/portability/api/**/*.py",
-    "**/portability/api/__init__.py",
+    "**/portability/api/**",
 ]
 target-version = "py311"
 src = ["apache_beam"]
@@ -120,6 +119,7 @@ ignore = [
     "PLW0406",  # import-self
     "PLW3301",  # nested-min-max
     "PLR2044",  # empty-comment
+    "PLR0917",  # too many positional arguments
 ]
 
 # Allow fix for all enabled rules (when --fix) is provided.

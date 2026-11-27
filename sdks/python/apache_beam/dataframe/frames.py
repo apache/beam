@@ -1484,6 +1484,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           f"got {op!r}.")
 
     def compute_idx(s):
+      # pandas raises on an empty partition, and on an all-NA one for some
+      # dtypes (e.g. datetime). One NA row is enough for the final step to
+      # give the same result, for skipna=True and skipna=False.
+      if s.isna().all():
+        return s.iloc[:1]
       index = func(s, **kwargs)
       if pd.isna(index):
         return s
@@ -1641,7 +1646,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def var(self, axis, skipna, level, ddof, **kwargs):
     if skipna is None or skipna:
       self = self.dropna()  # pylint: disable=self-cls-assignment
+    return self._var(ddof)
 
+  def _var(self, ddof=1, min_periods=None):
     # See the online, numerically stable formulae at
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
     # and
@@ -1650,22 +1657,30 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       n = len(x)
       m = x.std(ddof=0)**2 * n
       s = x.sum()
-      return pd.DataFrame(dict(m=[m], s=[s], n=[n]))
+      return pd.DataFrame(
+          dict(m=[m], s=[s], n=[n], min=[x.min()], max=[x.max()]))
 
     def combine_moments(data):
       m = s = n = 0.0
+      lo = hi = None
       for datum in data.itertuples():
         if datum.n == 0:
           continue
         elif n == 0:
           m, s, n = datum.m, datum.s, datum.n
+          lo, hi = datum.min, datum.max
         else:
           delta = s / n - datum.s / datum.n
           m += datum.m + delta**2 * n * datum.n / (n + datum.n)
           s += datum.s
           n += datum.n
-      if n <= ddof:
+          lo, hi = min(lo, datum.min), max(hi, datum.max)
+      if n <= ddof or n < (min_periods or 0):
         return float('nan')
+      elif lo == hi:
+        # Combining partitions can leave rounding error in m for a constant
+        # series, e.g. one of 0.1s, so return exactly 0.
+        return 0.0
       else:
         return m / (n - ddof)
 
@@ -1753,9 +1768,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       elif m2 == 0:
         return float(0)
       else:
-        return combined_n * math.sqrt(combined_n - 1) / (combined_n -
-                                                         2) * m3 / (
-                                                             m2**(3 / 2))
+        return n * math.sqrt(n - 1) / (n - 2) * m3 / (m2**(3 / 2))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
@@ -1827,12 +1840,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       elif m2 == 0:
         return float(0)
       else:
-        return (((combined_n + 1) * (combined_n) * (combined_n - 1)) /
-                ((combined_n - 2) *
-                 (combined_n - 3))) * (m4 /
-                                       (m2)**2) - ((3 * (combined_n - 1)**2) /
-                                                   ((combined_n - 2) *
-                                                    (combined_n - 3)))
+        return (((n + 1) * (n) * (n - 1)) /
+                ((n - 2) * (n - 3))) * (m4 / (m2)**2) - ((3 * (n - 1)**2) /
+                                                         ((n - 2) * (n - 3)))
 
     moments = expressions.ComputedExpression(
         'compute_moments',
@@ -1854,8 +1864,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     std_x = self.std()
     std_y = other.std()
     cov = self._cov_aligned(other, min_periods)
+    # Like pandas, a series with no variance has a NaN correlation.
     return cov.apply(
-        lambda cov, std_x, std_y: cov / (std_x * std_y), args=[std_x, std_y])
+        lambda cov, std_x, std_y: cov / (std_x * std_y)
+        if std_x and std_y else float('nan'),
+        args=[std_x, std_y])
 
   @frame_base.with_docs_from(pd.Series)
   @frame_base.args_to_kwargs(pd.Series)
@@ -1891,7 +1904,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
           sx += datum.sx
           sy += datum.sy
           n += datum.n
-      if n < max(2, ddof, min_periods or 0):
+      if n <= ddof or n < (min_periods or 0):
         return float('nan')
       else:
         return c / (n - ddof)
@@ -3082,16 +3095,22 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       columns = list(proxy.columns)
       args = []
       arg_indices = []
+      for col in columns:
+        arg_indices.append((col, col))
+        args.append(self[col].dropna()._var(min_periods=min_periods))
       for col1, col2 in itertools.combinations(columns, 2):
         arg_indices.append((col1, col2))
         args.append(self[col1].corr(self[col2], method=method,
                                     min_periods=min_periods))
       def fill_matrix(*args):
         data = collections.defaultdict(dict)
-        for col in columns:
-          data[col][col] = 1.0
         for ix, (col1, col2) in enumerate(arg_indices):
-          data[col1][col2] = data[col2][col1] = args[ix]
+          if col1 == col2:
+            # The diagonal is NaN for a column with fewer than min_periods
+            # values or no variance, as in pandas.
+            data[col1][col1] = 1.0 if args[ix] > 0 else float('nan')
+          else:
+            data[col1][col2] = data[col2][col1] = args[ix]
         return pd.DataFrame(data, columns=columns, index=columns)
       with expressions.allow_non_parallel_operations(True):
         return frame_base.DeferredFrame.wrap(
@@ -3123,8 +3142,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     arg_indices = []
     for col in columns:
       arg_indices.append((col, col))
-      std = self[col].std(ddof)
-      args.append(std.apply(lambda x: x*x, 'square'))
+      args.append(self[col].dropna()._var(ddof, min_periods))
     for ix, col1 in enumerate(columns):
       for col2 in columns[ix+1:]:
         arg_indices.append((col1, col2))
@@ -4147,7 +4165,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     columns_dtype = self._expr.proxy().columns.dtype
 
     def compute_idx(df):
-      indexes = func(df, **kwargs).unique()
+      # pandas raises on an empty partition, and on an all-NA column for some
+      # dtypes (e.g. datetime). Reduce only the other columns. Each row passed
+      # on holds an NA for every all-NA column, which is enough for the final
+      # step to give the same result, for skipna=True and skipna=False.
+      all_na = df.isna().all()
+      if all_na.all():
+        return df.iloc[:1]
+      if all_na.any():
+        indexes = func(df.loc[:, ~all_na.to_numpy()], **kwargs).unique()
+      else:
+        indexes = func(df, **kwargs).unique()
+      if len(indexes) == 0:
+        # e.g. numeric_only=True and every numeric column is all-NA here.
+        return df.iloc[:1]
       if pd.isna(indexes).any():
         return df
       else:
@@ -4706,14 +4737,36 @@ def _unliftable_agg(meth):
 
     groupby_kwargs = self._kwargs
     project = _maybe_project_func(self._projection)
+
+    def grouped(df):
+      return project(
+          df.groupby(
+              level=list(range(df.index.nlevels)),
+              group_keys=group_keys,
+              **groupby_kwargs))
+
+    grouped_proxy = grouped(self._ungrouped.proxy())
+    proxy = getattr(grouped_proxy, agg_name)(**kwargs)
+    if agg_name == 'skew':
+      # pandas keeps the integer/bool dtype of an empty input, but the skew of
+      # integer/bool data is computed as float64.
+      if isinstance(proxy, pd.DataFrame):
+        proxy = proxy.astype({
+            col: 'float64'
+            for col, dtype in proxy.dtypes.items() if dtype.kind in 'iub'
+        })
+      elif proxy.dtype.kind in 'iub':
+        proxy = proxy.astype('float64')
+    elif agg_name == 'describe':
+      # pandas drops the names (and levels) of the group keys when describing
+      # an empty input.
+      proxy.index = grouped_proxy.size().index[:0]
+
     post_agg = expressions.ComputedExpression(
         agg_name,
-        lambda df: getattr(project(
-            df.groupby(level=list(range(df.index.nlevels)),
-                       group_keys=group_keys,
-                       **groupby_kwargs),
-        ), agg_name)(**kwargs),
+        lambda df: getattr(grouped(df), agg_name)(**kwargs),
         [self._ungrouped],
+        proxy=proxy,
         requires_partition_by=(partitionings.Singleton(reason=(
             "Aggregations grouped by a categorical column are not currently "
             "parallelizable (https://github.com/apache/beam/issues/21827)."

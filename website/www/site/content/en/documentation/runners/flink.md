@@ -80,7 +80,7 @@ to complete any cluster setup. You can simply run your Beam pipeline. Be sure to
 set the Runner to <span class="language-java language-py">`FlinkRunner`</span><span class="language-portable">`PortableRunner`</span>.
 
 To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the
-Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html#setup-download-and-start-flink).
+Flink [Setup Quickstart](https://nightlies.apache.org/flink/flink-docs-stable/docs/getting-started/local_installation/).
 
 ### Dependencies
 
@@ -445,7 +445,7 @@ To find out which version of Flink is compatible with Beam please see the table 
 
 For retrieving the right Flink version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
 
-For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-stable/) can be helpful.
+For more information, the [Flink Documentation](https://nightlies.apache.org/flink/flink-docs-stable/) can be helpful.
 
 ## Beam Capability
 
