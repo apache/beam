@@ -43,6 +43,18 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+_metrics_containers = threading.local()
+
+
+def _metrics_container_for_step(step_name):
+  containers = getattr(_metrics_containers, 'containers', None)
+  if containers is None:
+    containers = _metrics_containers.containers = {}
+  container = containers.get(step_name)
+  if container is None:
+    container = containers[step_name] = MetricsContainer(step_name)
+  return container
+
 
 class _ExecutorService(object):
   """Thread pool for executing tasks in parallel."""
@@ -311,7 +323,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
   def call(self, state_sampler):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_ptransform.side_inputs))
-    metrics_container = MetricsContainer(self._applied_ptransform.full_label)
+    metrics_container = _metrics_container_for_step(
+        self._applied_ptransform.full_label)
+    metrics_container.reset()
     start_state = state_sampler.scoped_state(
         self._applied_ptransform.full_label,
         'start',
