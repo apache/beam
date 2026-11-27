@@ -58,9 +58,21 @@ class BitConverters {
     return (short) ((b1 & 255) << 8 | (b2 & 255));
   }
 
+  // Unrolls the 8 big-endian byte stores into a local byte[8] and invokes out.write(buf, 0, 8)
+  // directly (avoiding Guava Longs.toByteArray's loop and OutputStream.write(byte[]) indirection).
+  // This allows HotSpot C2 Escape Analysis to scalar-replace buf to 0 B/op on monomorphic streams
+  // like ByteStringOutputStream and ByteArrayOutputStreaml.
   static void writeBigEndianLong(long value, OutputStream out) throws IOException {
-    byte[] buf = Longs.toByteArray(value);
-    out.write(buf);
+    byte[] buf = new byte[8];
+    buf[0] = (byte) (value >>> 56);
+    buf[1] = (byte) (value >>> 48);
+    buf[2] = (byte) (value >>> 40);
+    buf[3] = (byte) (value >>> 32);
+    buf[4] = (byte) (value >>> 24);
+    buf[5] = (byte) (value >>> 16);
+    buf[6] = (byte) (value >>> 8);
+    buf[7] = (byte) value;
+    out.write(buf, 0, 8);
   }
 
   static void writeBigEndianInt(int value, OutputStream out) throws IOException {

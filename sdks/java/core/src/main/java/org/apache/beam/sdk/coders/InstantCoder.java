@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
@@ -38,6 +39,8 @@ public class InstantCoder extends AtomicCoder<Instant> {
 
   private static final InstantCoder INSTANCE = new InstantCoder();
   private static final TypeDescriptor<Instant> TYPE_DESCRIPTOR = new TypeDescriptor<Instant>() {};
+  private static final long TIMESTAMP_MIN_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+  private static final long TIMESTAMP_MAX_MILLIS = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
 
   private InstantCoder() {}
 
@@ -74,7 +77,13 @@ public class InstantCoder extends AtomicCoder<Instant> {
     //
     // This deliberately utilizes the well-defined overflow for {@code long} values.
     // See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
-    return new Instant(shiftedMillis + Long.MIN_VALUE);
+    long millis = shiftedMillis + Long.MIN_VALUE;
+    if (millis == TIMESTAMP_MIN_MILLIS) {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    } else if (millis == TIMESTAMP_MAX_MILLIS) {
+      return BoundedWindow.TIMESTAMP_MAX_VALUE;
+    }
+    return new Instant(millis);
   }
 
   @Override

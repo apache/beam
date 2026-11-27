@@ -20,13 +20,22 @@ package org.apache.beam.sdk.coders;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.StreamUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -127,5 +136,83 @@ public class LengthPrefixCoderTest {
         Arrays.equals(userEncoded, decodedToBytes));
     assertArrayEquals(userEncoded, reencodedBytes);
     assertEquals(22L, userDecoded);
+  }
+
+  @Test
+  public void testByteArrayAndStringFastPath() throws Exception {
+    LengthPrefixCoder<byte[]> bytesCoder = LengthPrefixCoder.of(ByteArrayCoder.of());
+    ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+    bytesCoder.encode(new byte[] {1, 2}, bytesOut);
+    bytesCoder.encode(new byte[0], bytesOut);
+    bytesCoder.encode(new byte[] {3, 4, 5}, bytesOut);
+    ByteArrayInputStream bytesIn = new ByteArrayInputStream(bytesOut.toByteArray());
+    assertArrayEquals(new byte[] {1, 2}, bytesCoder.decode(bytesIn));
+    assertArrayEquals(new byte[0], bytesCoder.decode(bytesIn));
+    assertArrayEquals(new byte[] {3, 4, 5}, bytesCoder.decode(bytesIn));
+    assertEquals(0, bytesIn.available());
+    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(bytesCoder, null));
+
+    LengthPrefixCoder<String> stringCoder = LengthPrefixCoder.of(StringUtf8Coder.of());
+    String unicode = "unicode-\u00e9-\u2603-\ud83d\ude00";
+    assertArrayEquals(
+        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), unicode, Coder.Context.NESTED),
+        CoderUtils.encodeToByteArray(stringCoder, unicode));
+    ByteArrayOutputStream strOut = new ByteArrayOutputStream();
+    stringCoder.encode("alpha", strOut);
+    stringCoder.encode("", strOut);
+    stringCoder.encode(unicode, strOut);
+    ByteArrayInputStream strIn = new ByteArrayInputStream(strOut.toByteArray());
+    assertEquals("alpha", stringCoder.decode(strIn));
+    assertEquals("", stringCoder.decode(strIn));
+    assertEquals(unicode, stringCoder.decode(strIn));
+    assertEquals(0, strIn.available());
+    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(stringCoder, null));
+  }
+
+  @Test
+  public void testNestedLengthPrefixCoderReentrancy() throws Exception {
+    LengthPrefixCoder<KV<String, Long>> nestedCoder =
+        LengthPrefixCoder.of(
+            KvCoder.of(
+                LengthPrefixCoder.of(StringUtf8Coder.of()),
+                LengthPrefixCoder.of(BigEndianLongCoder.of())));
+    CoderProperties.coderDecodeEncodeEqual(nestedCoder, KV.of("reentrant-key", 123456789L));
+  }
+
+  @Test
+  public void testLargePayloadExceedingPoolCap() throws Exception {
+    LengthPrefixCoder<KV<byte[], Long>> coder =
+        LengthPrefixCoder.of(KvCoder.of(ByteArrayCoder.of(), BigEndianLongCoder.of()));
+    byte[] large = new byte[128 * 1024];
+    Arrays.fill(large, (byte) 0x5a);
+    CoderProperties.coderDecodeEncodeEqual(coder, KV.of(large, 42L));
+    CoderProperties.coderDecodeEncodeEqual(coder, KV.of(new byte[] {1, 2, 3}, 7L));
+  }
+
+  @Test
+  public void testPooledBufferResetAfterInnerEncodeException() throws Exception {
+    Coder<String> failOnceCoder =
+        new CustomCoder<String>() {
+          @Override
+          public void encode(String value, OutputStream outStream) throws IOException {
+            outStream.write("stale-prefix-".getBytes(StandardCharsets.UTF_8));
+            if ("fail".equals(value)) {
+              throw new CoderException("simulated inner failure");
+            }
+            outStream.write(value.getBytes(StandardCharsets.UTF_8));
+          }
+
+          @Override
+          public String decode(InputStream inStream) throws IOException {
+            return new String(StreamUtils.getBytesWithoutClosing(inStream), StandardCharsets.UTF_8);
+          }
+        };
+    LengthPrefixCoder<String> coder = LengthPrefixCoder.of(failOnceCoder);
+
+    assertThrows(CoderException.class, () -> CoderUtils.encodeToByteArray(coder, "fail"));
+
+    // Next encode reuses the pooled buffer; stale bytes from the failed encode must not leak.
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, "ok");
+    assertEquals("stale-prefix-ok", CoderUtils.decodeFromByteArray(coder, encoded));
   }
 }
