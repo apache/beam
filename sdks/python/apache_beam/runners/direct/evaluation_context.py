@@ -43,6 +43,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.direct.util import TimerFiring
   from apache_beam.runners.direct.util import TransformResult
   from apache_beam.runners.direct.watermark_manager import _TransformWatermarks
+  from apache_beam.typehints.batch import BatchConverter
 
 
 class _ExecutionContext(object):
@@ -385,10 +386,12 @@ class EvaluationContext(object):
         self._transform_keyed_states[applied_ptransform])
 
   def create_bundle(
-      self, output_pcollection: Union[pvalue.PBegin,
-                                      pvalue.PCollection]) -> '_Bundle':
+      self,
+      output_pcollection: Union[pvalue.PBegin, pvalue.PCollection],
+      output_batch_converter: Optional['BatchConverter'] = None) -> '_Bundle':
     """Create an uncommitted bundle for the specified PCollection."""
-    return self._bundle_factory.create_bundle(output_pcollection)
+    return self._bundle_factory.create_bundle(
+        output_pcollection, output_batch_converter)
 
   def create_empty_committed_bundle(
       self, output_pcollection: pvalue.PCollection) -> '_Bundle':
