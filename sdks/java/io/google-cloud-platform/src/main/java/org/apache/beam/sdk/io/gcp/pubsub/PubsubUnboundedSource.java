@@ -1145,8 +1145,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Override
     public boolean requiresDeduping() {
       // We cannot prevent re-offering already read messages after a restore from
-      // checkpoint.
-      return true;
+      // checkpoint, so dedupe unless the pipeline accepts duplicates.
+      return outer.getDeduplicate();
     }
   }
 
@@ -1244,6 +1244,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   /** Whether this source should include the orderingKey from PubSub. */
   private final boolean needsOrderingKey;
 
+  /**
+   * Whether runners that dedupe the output of unbounded sources by record id should do so for this
+   * source.
+   */
+  private final boolean deduplicate;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       @Nullable Clock clock,
@@ -1256,6 +1262,32 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       boolean needsAttributes,
       boolean needsMessageId,
       boolean needsOrderingKey) {
+    this(
+        clock,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        timestampAttribute,
+        idAttribute,
+        needsAttributes,
+        needsMessageId,
+        needsOrderingKey,
+        true);
+  }
+
+  PubsubUnboundedSource(
+      @Nullable Clock clock,
+      PubsubClientFactory pubsubFactory,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      boolean needsAttributes,
+      boolean needsMessageId,
+      boolean needsOrderingKey,
+      boolean deduplicate) {
     checkArgument(
         (topic == null) != (subscription == null),
         "Exactly one of topic and subscription must be given");
@@ -1269,6 +1301,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.needsAttributes = needsAttributes;
     this.needsMessageId = needsMessageId;
     this.needsOrderingKey = needsOrderingKey;
+    this.deduplicate = deduplicate;
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
@@ -1384,6 +1417,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   public boolean getNeedsOrderingKey() {
     return needsOrderingKey;
+  }
+
+  /**
+   * Whether runners that dedupe the output of unbounded sources by record id should do so for this
+   * source.
+   */
+  public boolean getDeduplicate() {
+    return deduplicate;
   }
 
   @Override
