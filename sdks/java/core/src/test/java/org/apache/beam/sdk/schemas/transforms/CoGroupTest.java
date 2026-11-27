@@ -867,6 +867,46 @@ public class CoGroupTest {
     pipeline.run();
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void testBroadcastJoinWithNestedWidenedKeySchema() {
+    Schema mainKeySchema = Schema.builder().addStringField("id").build();
+    Schema sideKeySchema = Schema.builder().addNullableStringField("id").build();
+    Schema mainSchema =
+        Schema.builder().addRowField("k", mainKeySchema).addInt32Field("v1").build();
+    Schema sideSchema =
+        Schema.builder().addRowField("k", sideKeySchema).addStringField("v2").build();
+
+    Row mainRow =
+        Row.withSchema(mainSchema)
+            .addValues(Row.withSchema(mainKeySchema).addValues("a").build(), 10)
+            .build();
+    Row sideRow =
+        Row.withSchema(sideSchema)
+            .addValues(Row.withSchema(sideKeySchema).addValues("a").build(), "matched")
+            .build();
+
+    PCollection<Row> mainPc =
+        pipeline.apply("CreateMain", Create.of(mainRow)).setRowSchema(mainSchema);
+    PCollection<Row> sidePc =
+        pipeline.apply("CreateSide", Create.of(sideRow)).setRowSchema(sideSchema);
+
+    PCollection<Row> joined =
+        PCollectionTuple.of("main", mainPc)
+            .and("side", sidePc)
+            .apply(
+                CoGroup.join("main", By.fieldNames("k"))
+                    .join("side", By.fieldNames("k").withSideInput())
+                    .crossProductJoin());
+
+    Schema expectedSchema =
+        Schema.builder().addRowField("main", mainSchema).addRowField("side", sideSchema).build();
+    PAssert.that(joined)
+        .containsInAnyOrder(Row.withSchema(expectedSchema).addValues(mainRow, sideRow).build());
+
+    pipeline.run();
+  }
+
   private static Void containsJoinedFields(List<Row> expected, Iterable<Row> actual) {
     List<Matcher<? super Row>> matchers = Lists.newArrayList();
     for (Row row : expected) {
