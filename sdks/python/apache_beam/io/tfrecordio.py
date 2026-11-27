@@ -94,6 +94,9 @@ class _TFRecordUtil(object):
 
   Note that masks and length are represented in LittleEndian order.
   """
+  _LEN_STRUCT = struct.Struct('<Q')
+  _CRC_STRUCT = struct.Struct('<I')
+
   @classmethod
   def _masked_crc32c(cls, value, crc32c_fn=_default_crc32c_fn):
     """Compute a masked crc32c checksum for a value.
@@ -124,13 +127,13 @@ class _TFRecordUtil(object):
       file_handle: The file to write to.
       value: A bytes object representing content of the record.
     """
-    encoded_length = struct.pack(b'<Q', len(value))
+    encoded_length = cls._LEN_STRUCT.pack(len(value))
     file_handle.write(
         b''.join([
             encoded_length,
-            struct.pack(b'<I', cls._masked_crc32c(encoded_length)),
+            cls._CRC_STRUCT.pack(cls._masked_crc32c(encoded_length)),
             value,
-            struct.pack(b'<I', cls._masked_crc32c(value))
+            cls._CRC_STRUCT.pack(cls._masked_crc32c(value))
         ]))
 
   @classmethod
@@ -168,7 +171,8 @@ class _TFRecordUtil(object):
       raise ValueError(
           'Not a valid TFRecord. Fewer than %d bytes: %s' %
           (buf_length_expected, codecs.encode(buf, 'hex')))
-    data, data_mask_expected = struct.unpack('<%dsI' % length, buf)
+    data = buf[:-4]
+    data_mask_expected, = cls._CRC_STRUCT.unpack_from(buf, length)
     data_mask_actual = cls._masked_crc32c(data)
     if data_mask_actual != data_mask_expected:
       raise ValueError(
