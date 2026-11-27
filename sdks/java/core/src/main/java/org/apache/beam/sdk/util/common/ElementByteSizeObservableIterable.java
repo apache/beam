@@ -37,9 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class ElementByteSizeObservableIterable<
         V, InputT extends ElementByteSizeObservableIterator<V>>
     implements Iterable<V> {
-  // Encoded as null (0 observers), an Observer instance (1 observer, 0 extra allocation),
-  // or a deduplicated Observer[] array (2+ observers in registration order).
-  private @Nullable Object observers;
+  // Mutually exclusive storage: at most one of singleObserver (1 observer, 0 extra allocation) or
+  // multipleObservers (2+ deduplicated observers in registration order) is non-null.
+  private @Nullable Observer singleObserver;
+  private Observer @Nullable [] multipleObservers;
 
   /** Derived classes override this method to return an iterator for this iterable. */
   protected abstract InputT createIterator();
@@ -56,25 +57,25 @@ public abstract class ElementByteSizeObservableIterable<
     if (observer == null) {
       throw new NullPointerException();
     }
-    Object current = this.observers;
-    if (current == null) {
-      this.observers = observer;
-    } else if (current.getClass() != Observer[].class) {
-      if (observer == current || observer.equals(current)) {
-        return;
-      }
-      this.observers = new Observer[] {(Observer) current, observer};
-    } else {
-      Observer[] arr = (Observer[]) current;
-      for (int i = 0; i < arr.length; i++) {
-        if (observer == arr[i] || observer.equals(arr[i])) {
+    Observer @Nullable [] multi = this.multipleObservers;
+    if (multi != null) {
+      for (int i = 0; i < multi.length; i++) {
+        if (observer == multi[i] || observer.equals(multi[i])) {
           return;
         }
       }
-      Observer[] next = new Observer[arr.length + 1];
-      System.arraycopy(arr, 0, next, 0, arr.length);
-      next[arr.length] = observer;
-      this.observers = next;
+      Observer[] next = new Observer[multi.length + 1];
+      System.arraycopy(multi, 0, next, 0, multi.length);
+      next[multi.length] = observer;
+      this.multipleObservers = next;
+      return;
+    }
+    @Nullable Observer single = this.singleObserver;
+    if (single == null) {
+      this.singleObserver = observer;
+    } else if (observer != single && !observer.equals(single)) {
+      this.multipleObservers = new Observer[] {single, observer};
+      this.singleObserver = null;
     }
   }
 
@@ -88,18 +89,19 @@ public abstract class ElementByteSizeObservableIterable<
   @Override
   public InputT iterator() {
     InputT iterator = createIterator();
-    Object current = this.observers;
-    if (current != null) {
+    @Nullable Observer single = this.singleObserver;
+    if (single != null) {
       // Clear before dispatching so observers can be reclaimed and any re-entrant addObserver()
       // inside iterator.addObserver() is preserved for the next iterator().
-      this.observers = null;
-      if (current.getClass() != Observer[].class) {
-        iterator.addObserver((Observer) current);
-      } else {
-        Observer[] arr = (Observer[]) current;
-        for (int i = 0; i < arr.length; i++) {
-          iterator.addObserver(arr[i]);
-        }
+      this.singleObserver = null;
+      iterator.addObserver(single);
+      return iterator;
+    }
+    Observer @Nullable [] multi = this.multipleObservers;
+    if (multi != null) {
+      this.multipleObservers = null;
+      for (int i = 0; i < multi.length; i++) {
+        iterator.addObserver(multi[i]);
       }
     }
     return iterator;

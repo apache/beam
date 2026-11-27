@@ -48,11 +48,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @NotThreadSafe
 public abstract class ElementByteSizeObservableIterator<V> extends Observable
     implements Iterator<V> {
-  // Encoded as null (0 observers), an Observer instance (1 observer, 0 extra allocation), or an
-  // immutable copy-on-write Observer[] snapshot (length >= 2, ordered by registration). Existing
-  // arrays are never mutated in place, giving lock-free snapshot isolation during notification
-  // with zero per-element snapshot allocation.
-  private @Nullable Object observers;
+  // Mutually exclusive storage: at most one of singleObserver (1 observer, 0 extra allocation) or
+  // multipleObservers (immutable copy-on-write Observer[] snapshot of length >= 2, ordered by
+  // registration) is non-null. Existing arrays are never mutated in place, giving lock-free
+  // snapshot isolation during notification with zero per-element snapshot allocation.
+  private @Nullable Observer singleObserver;
+  private Observer @Nullable [] multipleObservers;
   private boolean changed;
 
   @Override
@@ -61,54 +62,56 @@ public abstract class ElementByteSizeObservableIterator<V> extends Observable
     if (o == null) {
       throw new NullPointerException();
     }
-    Object current = this.observers;
-    if (current == null) {
-      this.observers = o;
+    Observer @Nullable [] multi = this.multipleObservers;
+    if (multi != null) {
+      for (int i = 0; i < multi.length; i++) {
+        if (o == multi[i] || o.equals(multi[i])) {
+          return;
+        }
+      }
+      Observer[] next = new Observer[multi.length + 1];
+      System.arraycopy(multi, 0, next, 0, multi.length);
+      next[multi.length] = o;
+      this.multipleObservers = next;
       return;
     }
-    if (current.getClass() != Observer[].class) {
-      if (o == current || o.equals(current)) {
-        return;
-      }
-      this.observers = new Observer[] {(Observer) current, o};
-      return;
+    @Nullable Observer single = this.singleObserver;
+    if (single == null) {
+      this.singleObserver = o;
+    } else if (o != single && !o.equals(single)) {
+      this.multipleObservers = new Observer[] {single, o};
+      this.singleObserver = null;
     }
-    Observer[] arr = (Observer[]) current;
-    for (int i = 0; i < arr.length; i++) {
-      if (o == arr[i] || o.equals(arr[i])) {
-        return;
-      }
-    }
-    Observer[] next = new Observer[arr.length + 1];
-    System.arraycopy(arr, 0, next, 0, arr.length);
-    next[arr.length] = o;
-    this.observers = next;
   }
 
   @Override
   @SuppressWarnings("UnsynchronizedOverridesSynchronized")
   public void deleteObserver(@Nullable Observer o) {
-    Object current = this.observers;
-    if (current == null || o == null) {
+    if (o == null) {
       return;
     }
-    if (current.getClass() != Observer[].class) {
-      if (o == current || o.equals(current)) {
-        this.observers = null;
+    @Nullable Observer single = this.singleObserver;
+    if (single != null) {
+      if (o == single || o.equals(single)) {
+        this.singleObserver = null;
       }
       return;
     }
-    Observer[] arr = (Observer[]) current;
+    Observer @Nullable [] arr = this.multipleObservers;
+    if (arr == null) {
+      return;
+    }
     int len = arr.length;
     for (int i = 0; i < len; i++) {
       if (o == arr[i] || o.equals(arr[i])) {
         if (len == 2) {
-          this.observers = arr[i == 0 ? 1 : 0];
+          this.singleObserver = arr[i == 0 ? 1 : 0];
+          this.multipleObservers = null;
         } else {
           Observer[] next = new Observer[len - 1];
           System.arraycopy(arr, 0, next, 0, i);
           System.arraycopy(arr, i + 1, next, i, len - i - 1);
-          this.observers = next;
+          this.multipleObservers = next;
         }
         return;
       }
@@ -118,17 +121,18 @@ public abstract class ElementByteSizeObservableIterator<V> extends Observable
   @Override
   @SuppressWarnings("UnsynchronizedOverridesSynchronized")
   public void deleteObservers() {
-    observers = null;
+    singleObserver = null;
+    multipleObservers = null;
   }
 
   @Override
   @SuppressWarnings("UnsynchronizedOverridesSynchronized")
   public int countObservers() {
-    Object current = this.observers;
-    if (current == null) {
-      return 0;
+    if (singleObserver != null) {
+      return 1;
     }
-    return current.getClass() != Observer[].class ? 1 : ((Observer[]) current).length;
+    Observer @Nullable [] multi = this.multipleObservers;
+    return multi == null ? 0 : multi.length;
   }
 
   @Override
@@ -159,18 +163,17 @@ public abstract class ElementByteSizeObservableIterator<V> extends Observable
     if (!changed) {
       return;
     }
-    Object current = this.observers;
+    @Nullable Observer single = this.singleObserver;
+    Observer @Nullable [] multi = this.multipleObservers;
     clearChanged();
-    if (current == null) {
+    if (single != null) {
+      invokeUpdate(single, arg);
       return;
     }
-    if (current.getClass() != Observer[].class) {
-      invokeUpdate((Observer) current, arg);
-      return;
-    }
-    Observer[] snapshot = (Observer[]) current;
-    for (int i = snapshot.length - 1; i >= 0; i--) {
-      invokeUpdate(snapshot[i], arg);
+    if (multi != null) {
+      for (int i = multi.length - 1; i >= 0; i--) {
+        invokeUpdate(multi[i], arg);
+      }
     }
   }
 
@@ -197,27 +200,21 @@ public abstract class ElementByteSizeObservableIterator<V> extends Observable
    * @param byteSize element size in bytes
    */
   protected final void notifyValueReturned(long byteSize) {
-    Object current = this.observers;
+    @Nullable Observer single = this.singleObserver;
+    Observer @Nullable [] multi = this.multipleObservers;
     if (changed) {
       clearChanged();
     }
-    if (current == null) {
-      return;
-    }
-    if (current instanceof ElementByteSizeObserver) {
-      ((ElementByteSizeObserver) current).update(byteSize);
-    } else if (current instanceof PrimitiveByteSizeObserver) {
-      ((PrimitiveByteSizeObserver) current).update(byteSize);
-    } else {
-      notifyValueReturnedSlow(current, byteSize);
-    }
-  }
-
-  private void notifyValueReturnedSlow(Object current, long byteSize) {
-    if (current.getClass() == Observer[].class) {
-      notifyMultipleValueReturned((Observer[]) current, byteSize);
-    } else {
-      ((Observer) current).update(this, byteSize);
+    if (single != null) {
+      if (single instanceof ElementByteSizeObserver) {
+        ((ElementByteSizeObserver) single).update(byteSize);
+      } else if (single instanceof PrimitiveByteSizeObserver) {
+        ((PrimitiveByteSizeObserver) single).update(byteSize);
+      } else {
+        single.update(this, byteSize);
+      }
+    } else if (multi != null) {
+      notifyMultipleValueReturned(multi, byteSize);
     }
   }
 
