@@ -23,10 +23,16 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextKey;
+import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -43,12 +49,14 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -645,6 +653,248 @@ public class SimpleDoFnRunnerTest {
                 String.format(
                     "the allowed skew (%s)",
                     PeriodFormat.getDefault().print(Duration.ZERO.toPeriod())))));
+  }
+
+  @Test
+  public void testProcessElementIsolatesOpenTelemetryContext() {
+    ContextKey<String> testKey = ContextKey.named("beam-test-key");
+    List<String> observedValues = new ArrayList<>();
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    ListOutputManager outputManager = new ListOutputManager();
+    DoFn<String, String> recordingFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String elem, OutputReceiver<String> out) {
+            observedValues.add(Context.current().get(testKey));
+            out.output(elem);
+          }
+        };
+
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            recordingFn,
+            NullSideInputReader.empty(),
+            outputManager,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    // Build an untraced element under Context.root() -> normalized openTelemetryContext is null.
+    WindowedValue<String> untraced;
+    try (Scope ignored = Context.root().makeCurrent()) {
+      untraced =
+          WindowedValues.ofWithCurrentContext(WindowedValues.valueInGlobalWindow("in"), "untraced");
+    }
+    assertNull(untraced.getOpenTelemetryContext());
+
+    Context ambientCtx = Context.root().with(testKey, "ambient");
+    Context elemCtx = Context.root().with(testKey, "element");
+    WindowedValue<String> traced =
+        WindowedValues.of(
+            "traced",
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE,
+            PaneInfo.NO_FIRING,
+            null,
+            null,
+            CausedByDrain.NORMAL,
+            elemCtx,
+            ValueKind.INSERT);
+    WindowedValue<String> explicitRoot =
+        WindowedValues.of(
+            "root",
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE,
+            PaneInfo.NO_FIRING,
+            null,
+            null,
+            CausedByDrain.NORMAL,
+            Context.root(),
+            ValueKind.INSERT);
+
+    // Executing an untraced element while ambientCtx is active must NOT leak ambientCtx.
+    try (Scope ignored = ambientCtx.makeCurrent()) {
+      runner.processElement(untraced);
+      assertSame(ambientCtx, Context.current());
+
+      runner.processElement(traced);
+      assertSame(ambientCtx, Context.current());
+
+      runner.processElement(explicitRoot);
+      assertSame(ambientCtx, Context.current());
+    }
+
+    // Running explicit Context.root() with no attached thread context should also work cleanly.
+    runner.processElement(explicitRoot);
+    assertSame(Context.root(), Context.current());
+
+    assertEquals(4, observedValues.size());
+    assertNull(observedValues.get(0));
+    assertEquals("element", observedValues.get(1));
+    assertNull(observedValues.get(2));
+    assertNull(observedValues.get(3));
+
+    List<WindowedValue<?>> emitted = outputManager.outputs.get(mainTag);
+    assertEquals(4, emitted.size());
+    assertNull(emitted.get(0).getOpenTelemetryContext());
+    assertSame(elemCtx, emitted.get(1).getOpenTelemetryContext());
+    assertNull(emitted.get(2).getOpenTelemetryContext());
+    assertNull(emitted.get(3).getOpenTelemetryContext());
+
+    // ProcessContext.output() must capture a span started inside @ProcessElement even when
+    // the input element had null openTelemetryContext (consistent with OutputReceiver.output).
+    Context childCtx = Context.root().with(testKey, "in-dofn-span");
+    ListOutputManager legacyOut = new ListOutputManager();
+    DoFn<String, String> spanCreatingFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            try (Scope ignored = childCtx.makeCurrent()) {
+              c.output("tagged-" + c.element());
+            }
+          }
+        };
+    DoFnRunner<String, String> legacyRunner =
+        new SimpleDoFnRunner<>(
+            null,
+            spanCreatingFn,
+            NullSideInputReader.empty(),
+            legacyOut,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    legacyRunner.processElement(untraced);
+    assertSame(childCtx, legacyOut.outputs.get(mainTag).get(0).getOpenTelemetryContext());
+  }
+
+  @Test
+  public void testProcessElementOutputPreservesEmptyWindows() throws Exception {
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    ListOutputManager outputManager = new ListOutputManager();
+    DoFn<String, String> doFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            c.output("out:" + c.element());
+          }
+        };
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            doFn,
+            NullSideInputReader.empty(),
+            outputManager,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    // 1. Custom empty-window WindowedValue (models Dataflow ValueInEmptyWindows).
+    WindowedValue<String> emptyWrapper = new EmptyWindowedValue<>("v1", new Instant(1000L));
+    runner.processElement(emptyWrapper);
+
+    // 2. Legacy zero-window stream decoded via FullWindowedValueCoder.
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    org.apache.beam.sdk.coders.InstantCoder.of().encode(new Instant(2000L), baos);
+    baos.write(new byte[] {0, 0, 0, 0}); // numWindows == 0
+    org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder.INSTANCE.encode(
+        PaneInfo.NO_FIRING, baos);
+    org.apache.beam.sdk.coders.StringUtf8Coder.of().encode("v2", baos);
+    WindowedValue<String> decodedZero =
+        WindowedValues.getFullCoder(
+                org.apache.beam.sdk.coders.StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
+            .decode(new java.io.ByteArrayInputStream(baos.toByteArray()));
+    Context activeCtx = Context.root().with(ContextKey.named("k"), "active");
+    try (Scope ignored = activeCtx.makeCurrent()) {
+      runner.processElement(decodedZero);
+    }
+
+    List<WindowedValue<?>> emitted = outputManager.outputs.get(mainTag);
+    assertEquals(2, emitted.size());
+    assertEquals("out:v1", emitted.get(0).getValue());
+    assertEquals(0, emitted.get(0).getWindows().size());
+    assertEquals("out:v2", emitted.get(1).getValue());
+    assertEquals(0, emitted.get(1).getWindows().size());
+  }
+
+  private static final class EmptyWindowedValue<T> implements WindowedValue<T> {
+    private final T value;
+    private final Instant timestamp;
+
+    EmptyWindowedValue(T value, Instant timestamp) {
+      this.value = value;
+      this.timestamp = timestamp;
+    }
+
+    @Override
+    public T getValue() {
+      return value;
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+
+    @Override
+    public java.util.Collection<? extends BoundedWindow> getWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public String getRecordId() {
+      return null;
+    }
+
+    @Override
+    public Context getOpenTelemetryContext() {
+      return null;
+    }
+
+    @Override
+    public Long getRecordOffset() {
+      return null;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return CausedByDrain.NORMAL;
+    }
+
+    @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
+    }
+
+    @Override
+    public Iterable<? extends WindowedValue<T>> explodeWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public <OtherT> WindowedValue<OtherT> withValue(OtherT newValue) {
+      return new EmptyWindowedValue<>(newValue, timestamp);
+    }
   }
 
   static class ThrowingDoFn extends DoFn<String, String> {

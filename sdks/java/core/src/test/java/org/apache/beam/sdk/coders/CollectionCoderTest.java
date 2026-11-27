@@ -20,6 +20,8 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,6 +31,7 @@ import java.util.TreeSet;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -90,5 +93,48 @@ public class CollectionCoderTest {
     TypeDescriptor<Collection<Integer>> expectedTypeDescriptor =
         new TypeDescriptor<Collection<Integer>>() {};
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(expectedTypeDescriptor));
+  }
+
+  @Test
+  public void testSingleElementAndHeaderHelpersMatchWireFormat() throws Exception {
+    CollectionCoder<Integer> coder = CollectionCoder.of(VarIntCoder.of());
+    ByteArrayOutputStream helperOut = new ByteArrayOutputStream();
+    IterableLikeCoder.encodeSingleElement(VarIntCoder.of(), 13, helperOut);
+    ByteArrayOutputStream fullOut = new ByteArrayOutputStream();
+    coder.encode(Collections.singletonList(13), fullOut);
+    assertThat(helperOut.toByteArray(), equalTo(fullOut.toByteArray()));
+
+    ByteArrayInputStream singleIn = new ByteArrayInputStream(fullOut.toByteArray());
+    assertThat(IterableLikeCoder.readSizeHeader(singleIn), equalTo(1));
+    assertThat(VarIntCoder.of().decode(singleIn), equalTo(13));
+
+    ByteArrayOutputStream multiOut = new ByteArrayOutputStream();
+    coder.encode(Arrays.asList(1, 2, 3, 4), multiOut);
+    ByteArrayInputStream multiIn = new ByteArrayInputStream(multiOut.toByteArray());
+    int size = IterableLikeCoder.readSizeHeader(multiIn);
+    assertThat(size, equalTo(4));
+    assertThat(coder.decodeAfterSizeHeader(size, multiIn), equalTo(Arrays.asList(1, 2, 3, 4)));
+
+    long[] helperSize = new long[1];
+    long[] fullSize = new long[1];
+    ElementByteSizeObserver helperObs =
+        new ElementByteSizeObserver() {
+          @Override
+          protected void reportElementSize(long elementByteSize) {
+            helperSize[0] += elementByteSize;
+          }
+        };
+    ElementByteSizeObserver fullObs =
+        new ElementByteSizeObserver() {
+          @Override
+          protected void reportElementSize(long elementByteSize) {
+            fullSize[0] += elementByteSize;
+          }
+        };
+    IterableLikeCoder.registerSingleElementByteSize(VarIntCoder.of(), 13, helperObs);
+    helperObs.advance();
+    coder.registerByteSizeObserver(Collections.singletonList(13), fullObs);
+    fullObs.advance();
+    assertThat(helperSize[0], equalTo(fullSize[0]));
   }
 }
