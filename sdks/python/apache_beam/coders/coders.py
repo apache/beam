@@ -418,6 +418,9 @@ class StrUtf8Coder(Coder):
   def decode(self, value):
     return value.decode('utf-8')
 
+  def _create_impl(self):
+    return coder_impl.StrUtf8CoderImpl()
+
   def is_deterministic(self):
     # type: () -> bool
     return True
