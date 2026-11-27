@@ -35,11 +35,12 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowWithStorage;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimaps;
@@ -146,6 +147,9 @@ public class AddFields {
       // have new nested values. For other fields, the list contains a null value.
       abstract List<AddFieldsInformation> getNestedNewValues();
 
+      // Number of fields from the input schema at this row level (0 for brand-new nested rows).
+      abstract int getExistingFieldCount();
+
       @AutoValue.Builder
       abstract static class Builder {
         abstract AddFieldsInformation.Builder setOutputFieldType(Schema.FieldType outputFieldType);
@@ -155,6 +159,8 @@ public class AddFields {
         abstract AddFieldsInformation.Builder setNestedNewValues(
             List<AddFieldsInformation> nestedNewValues);
 
+        abstract AddFieldsInformation.Builder setExistingFieldCount(int existingFieldCount);
+
         abstract AddFieldsInformation build();
       }
 
@@ -163,11 +169,13 @@ public class AddFields {
       static AddFieldsInformation of(
           Schema.FieldType outputFieldType,
           List<Object> defaultValues,
-          List<AddFieldsInformation> nestedNewValues) {
+          List<AddFieldsInformation> nestedNewValues,
+          int existingFieldCount) {
         return new AutoValue_AddFields_Inner_AddFieldsInformation.Builder()
             .setOutputFieldType(outputFieldType)
             .setDefaultValues(defaultValues)
             .setNestedNewValues(nestedNewValues)
+            .setExistingFieldCount(existingFieldCount)
             .build();
       }
     }
@@ -302,7 +310,10 @@ public class AddFields {
         nestedNewValueList.set(entry.getKey(), entry.getValue());
       }
       return AddFieldsInformation.of(
-          Schema.FieldType.row(schema), newValuesThisLevel, nestedNewValueList);
+          Schema.FieldType.row(schema),
+          newValuesThisLevel,
+          nestedNewValueList,
+          inputSchema.getFieldCount());
     }
 
     private static AddFieldsInformation getAddFieldsInformation(
@@ -343,79 +354,168 @@ public class AddFields {
       return addFieldsInformation.toBuilder().setOutputFieldType(fieldType).build();
     }
 
-    private static Row fillNewFields(Row row, AddFieldsInformation addFieldsInformation) {
-      Schema outputSchema = checkNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
-
-      List<Object> newValues = Lists.newArrayListWithCapacity(outputSchema.getFieldCount());
-      for (int i = 0; i < row.getFieldCount(); ++i) {
-        AddFieldsInformation nested = addFieldsInformation.getNestedNewValues().get(i);
-        if (nested != null) {
-          // New fields were added to nested subfields of this value. Recursively fill them out
-          // before adding to the new row.
-          Object newValue = fillNewFields(row.getValue(i), nested.getOutputFieldType(), nested);
-          newValues.add(newValue);
-        } else {
-          // Nothing changed. Just copy the old value into the new row.
-          newValues.add(row.getValue(i));
-        }
-      }
-      // If there are brand new simple (i.e. have no nested values) fields at this level, then add
-      // the default values for all of them.
-      newValues.addAll(addFieldsInformation.getDefaultValues());
-      // If we are creating new recursive fields, populate new values for them here.
-      for (int i = newValues.size(); i < addFieldsInformation.getNestedNewValues().size(); ++i) {
-        AddFieldsInformation newNestedField = addFieldsInformation.getNestedNewValues().get(i);
-        if (newNestedField != null) {
-          newValues.add(fillNewFields(null, newNestedField.getOutputFieldType(), newNestedField));
-        }
-      }
-
-      return Row.withSchema(outputSchema).attachValues(newValues);
+    /** Precompiled plan for filling added fields without per-row AutoValue copies. */
+    private interface ValueFillPlan extends Serializable {
+      Object fill(@Nullable Object original);
     }
 
-    private static Object fillNewFields(
-        Object original, Schema.FieldType fieldType, AddFieldsInformation addFieldsInformation) {
+    private static final class RowFillPlan implements ValueFillPlan {
+      final Schema outputSchema;
+      final int existingFieldCount;
+      final @Nullable ValueFillPlan @Nullable [] existingNestedPlans;
+      final @Nullable Object[] appendedTail;
+      final int totalFieldCount;
+
+      RowFillPlan(
+          Schema outputSchema,
+          int existingFieldCount,
+          @Nullable ValueFillPlan @Nullable [] existingNestedPlans,
+          @Nullable Object[] appendedTail) {
+        this.outputSchema = outputSchema;
+        this.existingFieldCount = existingFieldCount;
+        this.existingNestedPlans = existingNestedPlans;
+        this.appendedTail = appendedTail;
+        this.totalFieldCount = outputSchema.getFieldCount();
+      }
+
+      @Override
+      public Object fill(@Nullable Object original) {
+        if (original == null) {
+          @Nullable Object[] out = new Object[totalFieldCount];
+          if (appendedTail.length > 0) {
+            System.arraycopy(appendedTail, 0, out, existingFieldCount, appendedTail.length);
+          }
+          return Row.attachValues(outputSchema, out);
+        }
+        return fillRow((Row) original);
+      }
+
+      Row fillRow(Row row) {
+        @Nullable Object[] out = new Object[totalFieldCount];
+        if (existingNestedPlans == null) {
+          if (row instanceof RowWithStorage) {
+            @Nullable Object[] raw = ((RowWithStorage) row).getRawArray();
+            if (raw != null) {
+              System.arraycopy(raw, 0, out, 0, existingFieldCount);
+            } else {
+              for (int i = 0; i < existingFieldCount; i++) {
+                out[i] = row.getValue(i);
+              }
+            }
+          } else {
+            for (int i = 0; i < existingFieldCount; i++) {
+              out[i] = row.getValue(i);
+            }
+          }
+        } else {
+          @Nullable Object[] raw =
+              row instanceof RowWithStorage ? ((RowWithStorage) row).getRawArray() : null;
+          for (int i = 0; i < existingFieldCount; i++) {
+            Object val = raw != null ? raw[i] : row.getValue(i);
+            ValueFillPlan nested = existingNestedPlans[i];
+            out[i] = nested != null ? nested.fill(val) : val;
+          }
+        }
+        if (appendedTail.length > 0) {
+          System.arraycopy(appendedTail, 0, out, existingFieldCount, appendedTail.length);
+        }
+        return Row.attachValues(outputSchema, out);
+      }
+    }
+
+    private static final class CollectionFillPlan implements ValueFillPlan {
+      final ValueFillPlan elementPlan;
+
+      CollectionFillPlan(ValueFillPlan elementPlan) {
+        this.elementPlan = elementPlan;
+      }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public Object fill(@Nullable Object original) {
+        if (original == null) {
+          return Collections.emptyList();
+        }
+        Iterable<Object> iterable = (Iterable<Object>) original;
+        List<Object> filled =
+            iterable instanceof Collection
+                ? new ArrayList<>(((Collection<?>) iterable).size())
+                : new ArrayList<>();
+        for (Object element : iterable) {
+          filled.add(elementPlan.fill(element));
+        }
+        return filled;
+      }
+    }
+
+    private static final class MapFillPlan implements ValueFillPlan {
+      final ValueFillPlan valuePlan;
+
+      MapFillPlan(ValueFillPlan valuePlan) {
+        this.valuePlan = valuePlan;
+      }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public Object fill(@Nullable Object original) {
+        if (original == null) {
+          return Collections.emptyMap();
+        }
+        Map<Object, Object> originalMap = (Map<Object, Object>) original;
+        Map<Object, Object> filledMap = Maps.newHashMapWithExpectedSize(originalMap.size());
+        for (Map.Entry<Object, Object> entry : originalMap.entrySet()) {
+          filledMap.put(entry.getKey(), valuePlan.fill(entry.getValue()));
+        }
+        return filledMap;
+      }
+    }
+
+    private static ValueFillPlan compileFillPlan(
+        Schema.FieldType fieldType, AddFieldsInformation info) {
       switch (fieldType.getTypeName()) {
         case ROW:
-          if (original == null) {
-            original = Row.withSchema(fieldType.getRowSchema()).build();
-          }
-          return fillNewFields((Row) original, addFieldsInformation);
-
+          return compileRowFillPlan(checkNotNull(fieldType.getRowSchema()), info);
         case ARRAY:
         case ITERABLE:
-          if (original == null) {
-            return Collections.emptyList();
-          }
-          Iterable<Object> iterable = (Iterable<Object>) original;
-          List<Object> filledList = new ArrayList<>(Iterables.size(iterable));
-          Schema.FieldType elementType = fieldType.getCollectionElementType();
-          AddFieldsInformation elementAddFieldInformation =
-              addFieldsInformation.toBuilder().setOutputFieldType(elementType).build();
-          for (Object element : iterable) {
-            filledList.add(fillNewFields(element, elementType, elementAddFieldInformation));
-          }
-          return filledList;
-
+          return new CollectionFillPlan(
+              compileFillPlan(fieldType.getCollectionElementType(), info));
         case MAP:
-          if (original == null) {
-            return Collections.emptyMap();
-          }
-          Map<Object, Object> originalMap = (Map<Object, Object>) original;
-          Map<Object, Object> filledMap = Maps.newHashMapWithExpectedSize(originalMap.size());
-          Schema.FieldType mapValueType = fieldType.getMapValueType();
-          AddFieldsInformation mapValueAddFieldInformation =
-              addFieldsInformation.toBuilder().setOutputFieldType(mapValueType).build();
-          for (Map.Entry<Object, Object> entry : originalMap.entrySet()) {
-            filledMap.put(
-                entry.getKey(),
-                fillNewFields(entry.getValue(), mapValueType, mapValueAddFieldInformation));
-          }
-          return filledMap;
-
+          return new MapFillPlan(compileFillPlan(fieldType.getMapValueType(), info));
         default:
           throw new RuntimeException("Unexpected field type");
       }
+    }
+
+    private static RowFillPlan compileRowFillPlan(Schema outputSchema, AddFieldsInformation info) {
+      List<AddFieldsInformation> nestedList = info.getNestedNewValues();
+      List<Object> defaultValues = info.getDefaultValues();
+      int totalFields = outputSchema.getFieldCount();
+      int existingCount = info.getExistingFieldCount();
+      int defaultsCount = defaultValues.size();
+
+      @Nullable ValueFillPlan[] existingPlans = null;
+      for (int i = 0; i < existingCount; i++) {
+        AddFieldsInformation nested = nestedList.get(i);
+        if (nested != null) {
+          if (existingPlans == null) {
+            existingPlans = new ValueFillPlan[existingCount];
+          }
+          existingPlans[i] = compileFillPlan(nested.getOutputFieldType(), nested);
+        }
+      }
+      int tailLen = totalFields - existingCount;
+      @Nullable Object[] tail = new Object[tailLen];
+      for (int i = 0; i < defaultsCount; i++) {
+        tail[i] = defaultValues.get(i);
+      }
+      for (int i = existingCount + defaultsCount; i < totalFields; i++) {
+        AddFieldsInformation newNested = nestedList.get(i);
+        if (newNested != null) {
+          tail[i - existingCount] =
+              compileFillPlan(newNested.getOutputFieldType(), newNested).fill(null);
+        }
+      }
+      return new RowFillPlan(outputSchema, existingCount, existingPlans, tail);
     }
 
     @Override
@@ -423,14 +523,20 @@ public class AddFields {
       final AddFieldsInformation addFieldsInformation =
           getAddFieldsInformation(input.getSchema(), newFields);
       Schema outputSchema = checkNotNull(addFieldsInformation.getOutputFieldType().getRowSchema());
+      final RowFillPlan fillPlan = compileRowFillPlan(outputSchema, addFieldsInformation);
+      @Nullable SerializableFunction<T, Row> toRowFn =
+          org.apache.beam.sdk.schemas.SchemaUtils.isIdentityFunction(input.getToRowFunction())
+              ? null
+              : input.getToRowFunction();
 
       return input
           .apply(
               ParDo.of(
                   new DoFn<T, Row>() {
                     @ProcessElement
-                    public void processElement(@Element Row row, OutputReceiver<Row> o) {
-                      o.output(fillNewFields(row, addFieldsInformation));
+                    public void processElement(@Element T element, OutputReceiver<Row> o) {
+                      Row row = toRowFn != null ? toRowFn.apply(element) : (Row) element;
+                      o.output(fillPlan.fillRow(row));
                     }
                   }))
           .setRowSchema(outputSchema);

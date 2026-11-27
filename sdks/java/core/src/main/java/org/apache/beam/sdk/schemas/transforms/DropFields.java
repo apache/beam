@@ -20,9 +20,10 @@ package org.apache.beam.sdk.schemas.transforms;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -89,16 +90,18 @@ public class DropFields {
       List<String> fieldNamesToSelect = newArrayList();
       Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nestedFieldsToSelect =
           Maps.newHashMap();
+      Set<Integer> droppedFieldIds = new HashSet<>(input.fieldIdsAccessed());
+      Map<Integer, FieldAccessDescriptor.FieldDescriptor> nestedFields =
+          Maps.newHashMapWithExpectedSize(input.getNestedFieldsAccessed().size());
+      for (FieldAccessDescriptor.FieldDescriptor fd : input.getNestedFieldsAccessed().keySet()) {
+        nestedFields.put(fd.getFieldId(), fd);
+      }
       for (int i = 0; i < inputSchema.getFieldCount(); ++i) {
-        if (input.fieldIdsAccessed().contains(i)) {
+        if (droppedFieldIds.contains(i)) {
           // This field is selected, so exclude it from the complement.
           continue;
         }
         Field field = inputSchema.getField(i);
-        Map<Integer, FieldAccessDescriptor.FieldDescriptor> nestedFields =
-            input.getNestedFieldsAccessed().keySet().stream()
-                .collect(Collectors.toMap(k -> k.getFieldId(), k -> k));
-
         FieldAccessDescriptor.FieldDescriptor fieldDescriptor = nestedFields.get(i);
         if (fieldDescriptor != null) {
           // Some subfields are selected, so recursively calculate the complementary subfields to
