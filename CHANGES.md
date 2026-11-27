@@ -94,6 +94,7 @@
 * Qdrant enrichment handler added (Python) ([#40628](https://github.com/apache/beam/issues/40628)). `QdrantSearchEnrichmentHandler` supports dense, sparse and hybrid (RRF/DBSF fusion) search with payload filters, and reads collections written by `QdrantWriteConfig`.
 * Upgraded Iceberg dependency to 1.12.0 ([#40971](https://github.com/apache/beam/issues/40971)).
 * (Java/Python/Go) DebeziumIO: `readAsJson()` now emits Debezium transaction metadata with `provide.transaction.metadata=true` (Python/Go via `connection_properties`) ([#40784](https://github.com/apache/beam/issues/40784)).
+* (Python) Added `with_exception_handling` to `RequestResponseIO` and `Enrichment`, forwarding to `DoFn.with_exception_handling` for dead-letter routing of RPC and join failures ([#41356](https://github.com/apache/beam/issues/41356)).
 * (Python) Made `beam.managed.ICEBERG_CDC` public, for reading an Iceberg table's inserts, updates and deletes with `beam.managed.Read` ([#41654](https://github.com/apache/beam/pull/41654)).
 
 ## Improvements

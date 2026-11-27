@@ -148,6 +148,22 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     self._use_custom_types = (
         source_handler.use_custom_types if hasattr(
             source_handler, 'use_custom_types') else use_custom_types)
+    self._exception_handling_args: Optional[tuple] = None
+
+  def with_exception_handling(self, *args, **kwargs):
+    """Enable dead-letter outputs for failed enrichment lookups and joins.
+
+    Arguments are forwarded to
+    :meth:`apache_beam.transforms.core.DoFn.with_exception_handling`.
+    See that method for accepted parameters such as ``main_tag``,
+    ``dead_letter_tag``, ``exc_class``, and ``timeout``.
+
+    When enabled, ``expand`` returns a dict of tagged
+    :class:`~apache_beam.pvalue.PCollection` objects (good results and
+    failures) instead of a single ``PCollection``.
+    """
+    self._exception_handling_args = (args, kwargs)
+    return self
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
@@ -158,21 +174,49 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     if self._cache:
       self._cache.request_coder = request_coder
 
-    fetched_data = (
-        input_row
-        | "Enrichment-RRIO" >> RequestResponseIO(
-            caller=self._source_handler,
-            timeout=self._timeout,
-            repeater=self._repeater,
-            cache=self._cache,
-            throttler=self._throttler))
+    rrio = RequestResponseIO(
+        caller=self._source_handler,
+        timeout=self._timeout,
+        repeater=self._repeater,
+        cache=self._cache,
+        throttler=self._throttler)
+
+    def _join_element(element):
+      request, response = element
+      if self._use_custom_types:
+        return self._join_fn(request, response)
+      return self._join_fn(request._asdict(), response._asdict())
+
+    if self._exception_handling_args is not None:
+      eh_args, eh_kwargs = self._exception_handling_args
+      main_tag = eh_kwargs.get(
+          'main_tag', eh_args[0] if len(eh_args) > 0 else 'good')
+      dead_letter_tag = eh_kwargs.get(
+          'dead_letter_tag', eh_args[1] if len(eh_args) > 1 else 'bad')
+      rrio_result = (
+          input_row
+          | "Enrichment-RRIO" >> rrio.with_exception_handling(
+              *eh_args, **eh_kwargs))
+      fetched_data = rrio_result[main_tag]
+      rrio_errors = rrio_result[dead_letter_tag]
+
+      # EnrichmentSourceHandler returns a tuple of (request, response).
+      join_result = (
+          fetched_data
+          |
+          "enrichment_join" >> beam.Map(_join_element).with_exception_handling(
+              *eh_args, **eh_kwargs))
+      all_errors = ((rrio_errors, join_result[dead_letter_tag])
+                    | "FlattenEnrichmentErrors" >> beam.Flatten())
+      return {
+          main_tag: join_result[main_tag],
+          dead_letter_tag: all_errors
+      }  # type: ignore[return-value]
+
+    fetched_data = input_row | "Enrichment-RRIO" >> rrio
 
     # EnrichmentSourceHandler returns a tuple of (request,response).
-    return (
-        fetched_data
-        | "enrichment_join" >> beam.Map(
-            lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())
-            if not self._use_custom_types else self._join_fn(x[0], x[1])))
+    return fetched_data | "enrichment_join" >> beam.Map(_join_element)
 
   def with_redis_cache(
       self,

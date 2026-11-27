@@ -328,12 +328,26 @@ class _Call(beam.PTransform[beam.PCollection[RequestT],
     self._should_backoff = should_backoff
     self._repeater = repeater
     self._throttler = throttler
+    self._exception_handling_args: Optional[tuple] = None
+
+  def with_exception_handling(self, *args, **kwargs):
+    """Enable dead-letter outputs for failed calls.
+
+    Arguments are forwarded to
+    :meth:`apache_beam.transforms.core.DoFn.with_exception_handling`.
+    """
+    self._exception_handling_args = (args, kwargs)
+    return self
 
   def expand(
       self,
       requests: beam.PCollection[RequestT]) -> beam.PCollection[ResponseT]:
-    return requests | beam.ParDo(
+    pardo = beam.ParDo(
         _CallDoFn(self._caller, self._timeout, self._repeater, self._throttler))
+    if self._exception_handling_args is not None:
+      eh_args, eh_kwargs = self._exception_handling_args
+      return requests | pardo.with_exception_handling(*eh_args, **eh_kwargs)
+    return requests | pardo
 
 
 class _CallDoFn(beam.DoFn):
@@ -790,6 +804,18 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     self._cache = cache
     self._throttler = throttler
     self._batching_kwargs = self._caller.batch_elements_kwargs()
+    self._exception_handling_args: Optional[tuple] = None
+
+  def with_exception_handling(self, *args, **kwargs):
+    """Enable dead-letter outputs for failed requests.
+
+    Arguments are forwarded to
+    :meth:`apache_beam.transforms.core.DoFn.with_exception_handling`.
+    See that method for accepted parameters such as ``main_tag``,
+    ``dead_letter_tag``, ``exc_class``, and ``timeout``.
+    """
+    self._exception_handling_args = (args, kwargs)
+    return self
 
   def expand(
       self,
@@ -818,24 +844,43 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     if isinstance(self._throttler, DefaultThrottler):
       # DefaultThrottler applies throttling in the DoFn of
       # Call PTransform.
-      responses = (
-          inputs
-          | _Call(
-              caller=self._caller,
-              timeout=self._timeout,
-              should_backoff=self._should_backoff,
-              repeater=self._repeater,
-              throttler=self._throttler))
+      call_transform = _Call(
+          caller=self._caller,
+          timeout=self._timeout,
+          should_backoff=self._should_backoff,
+          repeater=self._repeater,
+          throttler=self._throttler)
     else:
       # No throttling mechanism. The requests are made to the external source
       # as they come.
-      responses = (
-          inputs
-          | _Call(
-              caller=self._caller,
-              timeout=self._timeout,
-              should_backoff=self._should_backoff,
-              repeater=self._repeater))
+      call_transform = _Call(
+          caller=self._caller,
+          timeout=self._timeout,
+          should_backoff=self._should_backoff,
+          repeater=self._repeater)
+
+    errors = None
+    if self._exception_handling_args is not None:
+      eh_args, eh_kwargs = self._exception_handling_args
+      main_tag = eh_kwargs.get(
+          'main_tag', eh_args[0] if len(eh_args) > 0 else 'good')
+      dead_letter_tag = eh_kwargs.get(
+          'dead_letter_tag', eh_args[1] if len(eh_args) > 1 else 'bad')
+      call_result = inputs | call_transform.with_exception_handling(
+          *eh_args, **eh_kwargs)
+      responses = call_result[main_tag]
+      errors = call_result[dead_letter_tag]
+      if self._batching_kwargs:
+        # BatchElements feeds lists into _CallDoFn, so failed records from
+        # DoFn.with_exception_handling are shaped (batch_list, error). Expand
+        # to per-element (request, error) to match the non-batched DLQ shape.
+        errors = (
+            errors
+            | "FlattenBatchErrors" >> beam.FlatMap(
+                lambda x: [(r, x[1])
+                           for r in x[0]] if isinstance(x[0], list) else [x]))
+    else:
+      responses = inputs | call_transform
 
     # if batching is enabled then handle accordingly.
     if self._batching_kwargs:
@@ -844,6 +889,9 @@ class RequestResponseIO(beam.PTransform[beam.PCollection[RequestT],
     if self._cache:
       # write to cache.
       _ = responses | self._cache.get_write()
-      return (cached_responses, responses) | beam.Flatten()
+      responses = (cached_responses, responses) | beam.Flatten()
+
+    if errors is not None:
+      return {main_tag: responses, dead_letter_tag: errors}  # type: ignore[return-value]
 
     return responses
