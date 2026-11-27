@@ -23,9 +23,12 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.toDynamicSplitRequest;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -291,7 +294,22 @@ public class DataflowWorkProgressUpdaterTest {
     // And nothing happened after that.
     verify(workItemStatusClient, Mockito.atLeastOnce()).uniqueWorkId();
     verify(workItemStatusClient, Mockito.atLeastOnce()).getExecutionContext();
+    verify(workItemStatusClient, Mockito.atLeastOnce()).isFinalStateSent();
     verifyNoMoreInteractions(workItemStatusClient);
+  }
+
+  @Test
+  public void workProgressUpdaterSendsLeasePingWhenLeaseRenewalOnly() throws Exception {
+    when(workItemStatusClient.reportLeasePing(isA(Duration.class)))
+        .thenReturn(generateServiceState(null, 1000));
+    progressUpdater.startReportingProgress();
+    progressUpdater.setLeaseRenewalOnly(true);
+    assertTrue(progressUpdater.isLeaseRenewalOnly());
+
+    executor.runNextRunnable();
+    verify(workItemStatusClient).reportLeasePing(isA(Duration.class));
+    verify(workItemStatusClient, never()).reportUpdate(any(), any());
+    progressUpdater.stopReportingProgress();
   }
 
   private WorkItemServiceState generateServiceState(

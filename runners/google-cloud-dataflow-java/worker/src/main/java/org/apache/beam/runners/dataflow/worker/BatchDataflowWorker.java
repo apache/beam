@@ -288,8 +288,7 @@ public class BatchDataflowWorker implements Closeable {
 
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
-      executeWork(worker, progressUpdater);
-      workItemStatusClient.reportSuccess();
+      executeWorkAndReportSuccess(worker, progressUpdater, workItemStatusClient);
       return true;
     } catch (OutOfMemoryError oom) {
       throw oom;
@@ -311,6 +310,7 @@ public class BatchDataflowWorker implements Closeable {
   }
 
   /** Executes the work and report progress. For testing only. */
+  @VisibleForTesting
   void executeWork(DataflowWorkExecutor worker, DataflowWorkProgressUpdater progressUpdater)
       throws Exception {
     progressUpdater.startReportingProgress();
@@ -320,6 +320,37 @@ public class BatchDataflowWorker implements Closeable {
     } finally {
       // stopReportingProgress can throw an exception if the final progress
       // update fails. For correctness, the task must then be marked as failed.
+      progressUpdater.stopReportingProgress();
+    }
+  }
+
+  /**
+   * Executes the work, reports any unreported dynamic split, and reports final success while
+   * keeping progress reporting (and lease renewal) active.
+   *
+   * <p>By keeping the {@link DataflowWorkProgressUpdater} active until {@link
+   * WorkItemStatusClient#reportSuccess} completes, lease renewal heartbeats continue even if bundle
+   * completion or status reporting encounters delays, preventing lease expiration.
+   */
+  @VisibleForTesting
+  void executeWorkAndReportSuccess(
+      DataflowWorkExecutor worker,
+      DataflowWorkProgressUpdater progressUpdater,
+      WorkItemStatusClient workItemStatusClient)
+      throws Exception {
+    progressUpdater.startReportingProgress();
+    try {
+      // Blocks while executing the work.
+      worker.execute();
+      // Ensure any pending dynamic split is reported before sending the final success status.
+      progressUpdater.reportUnreportedSplit();
+      // Switch progress reporting to lightweight lease renewal pings now that compute is complete.
+      progressUpdater.setLeaseRenewalOnly(true);
+      // Report success while progress reporting (and lease renewal) is still active.
+      workItemStatusClient.reportSuccess();
+    } finally {
+      // Stop progress reporting only after work execution and reportSuccess have completed
+      // (or failed).
       progressUpdater.stopReportingProgress();
     }
   }
