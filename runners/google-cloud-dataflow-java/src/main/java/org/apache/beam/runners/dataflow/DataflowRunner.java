@@ -406,7 +406,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           e);
     }
     validator.validateOutputFilePrefixSupported(stagingLocation);
-    warnIfStagingBucketHasTtl(dataflowOptions);
 
     if (!isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
@@ -522,27 +521,55 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return;
     }
     String bucketName = stagingLocation.substring("gs://".length()).split("/", 2)[0];
+    String stagingPrefix = stagingPrefix(stagingLocation, bucketName);
     try {
       Bucket bucket =
           options.getGcsUtil().getBucketWithOptions(GcsPath.fromComponents(bucketName, ""));
-      if (bucket == null) {
-        return;
-      }
       for (LifecycleRule rule : bucket.getLifecycleRules()) {
-        if ("Delete".equals(rule.getAction().getActionType())
-            && rule.getCondition().getAge() != null) {
-          LOG.warn(
-              "The staging bucket {} deletes objects after {} days. "
-                  + "Long-running and streaming pipelines may fail because staged files "
-                  + "can be deleted while they are still needed.",
-              bucketName,
-              rule.getCondition().getAge());
-          return;
+        LifecycleRule.LifecycleAction action = rule.getAction();
+        LifecycleRule.LifecycleCondition condition = rule.getCondition();
+        if (action == null
+            || condition == null
+            || !"Delete".equals(action.getActionType())
+            || condition.getAge() == null
+            || !matchesStagingPrefix(condition.getMatchesPrefix(), stagingPrefix)) {
+          continue;
         }
+        LOG.warn(
+            "The staging location {} is in bucket {}, which has a lifecycle rule that deletes "
+                + "objects after {} days. Long-running and streaming pipelines may fail because "
+                + "staged files can be deleted while they are still needed.",
+            stagingLocation,
+            bucketName,
+            condition.getAge());
+        return;
       }
     } catch (IOException | RuntimeException e) {
       LOG.debug("Unable to check lifecycle rules of staging bucket {}", bucketName, e);
     }
+  }
+
+  private static String stagingPrefix(String stagingLocation, String bucketName) {
+    String prefix = stagingLocation.substring(("gs://" + bucketName).length());
+    if (prefix.startsWith("/")) {
+      prefix = prefix.substring(1);
+    }
+    return prefix.isEmpty() || prefix.endsWith("/") ? prefix : prefix + "/";
+  }
+
+  private static boolean matchesStagingPrefix(List<String> rulePrefixes, String stagingPrefix) {
+    if (rulePrefixes == null || rulePrefixes.isEmpty()) {
+      return true;
+    }
+    for (String rulePrefix : rulePrefixes) {
+      if (rulePrefix == null
+          || rulePrefix.isEmpty()
+          || stagingPrefix.startsWith(rulePrefix)
+          || rulePrefix.startsWith(stagingPrefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static boolean isServiceEndpoint(String endpoint) {
@@ -1406,6 +1433,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Note that `stageArtifacts` has to be called before `resolveArtifact` because
     // `resolveArtifact` updates local paths to staged paths in pipeline proto.
     portablePipelineProto = resolveAnyOfEnvironments(portablePipelineProto);
+    warnIfStagingBucketHasTtl(dataflowOptions);
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);

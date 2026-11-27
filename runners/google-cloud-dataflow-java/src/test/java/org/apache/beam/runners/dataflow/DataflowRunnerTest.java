@@ -50,6 +50,8 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -372,13 +374,15 @@ public class DataflowRunnerTest implements Serializable {
     return mockGcsUtil;
   }
 
-  private static Bucket bucketWithLifecycleRule(String actionType, Integer age) {
+  private static Bucket bucketWithLifecycleRule(
+      String actionType, Integer age, String... prefixes) {
     BucketInfo.LifecycleRule.LifecycleAction action =
         mock(BucketInfo.LifecycleRule.LifecycleAction.class);
     when(action.getActionType()).thenReturn(actionType);
     BucketInfo.LifecycleRule.LifecycleCondition condition =
         mock(BucketInfo.LifecycleRule.LifecycleCondition.class);
     when(condition.getAge()).thenReturn(age);
+    when(condition.getMatchesPrefix()).thenReturn(Arrays.asList(prefixes));
     LifecycleRule rule = mock(LifecycleRule.class);
     when(rule.getAction()).thenReturn(action);
     when(rule.getCondition()).thenReturn(condition);
@@ -1072,6 +1076,67 @@ public class DataflowRunnerTest implements Serializable {
     DataflowRunner.warnIfStagingBucketHasTtl(options);
 
     expectedLogs.verifyWarn("deletes objects after 7 days");
+  }
+
+  @Test
+  public void testWarnIfStagingBucketTtlAppliesToStagingPrefix() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStagingLocation("gs://valid-bucket/staging/");
+    Bucket bucket = bucketWithLifecycleRule("Delete", 7, "staging/");
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyWarn("deletes objects after 7 days");
+  }
+
+  @Test
+  public void testNoWarningIfStagingBucketTtlDoesNotApplyToStagingPrefix() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStagingLocation("gs://valid-bucket/staging/");
+    Bucket bucket = bucketWithLifecycleRule("Delete", 7, "other/");
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyNotLogged("deletes objects after");
+  }
+
+  @Test
+  public void testNoWarningForSimilarStagingPrefix() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setStagingLocation("gs://valid-bucket/staging");
+    Bucket bucket = bucketWithLifecycleRule("Delete", 7, "staging-other/");
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyNotLogged("deletes objects after");
+  }
+
+  @Test
+  public void testNoWarningIfStagingBucketHasNoLifecycleRules() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Bucket bucket = mock(Bucket.class);
+    doReturn(ImmutableList.of()).when(bucket).getLifecycleRules();
+    when(mockGcsUtil.getBucketWithOptions(GcsPath.fromComponents(VALID_BUCKET, "")))
+        .thenReturn(bucket);
+
+    DataflowRunner.warnIfStagingBucketHasTtl(options);
+
+    expectedLogs.verifyNotLogged("deletes objects after");
+  }
+
+  @Test
+  public void testRunnerConstructionDoesNotCheckStagingBucketLifecycle() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+
+    DataflowRunner.fromOptions(options);
+
+    verify(mockGcsUtil, never()).getBucketWithOptions(any(GcsPath.class));
   }
 
   @Test
