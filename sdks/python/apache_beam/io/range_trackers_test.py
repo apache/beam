@@ -29,6 +29,14 @@ from apache_beam.io import range_trackers
 
 
 class OffsetRangeTrackerTest(unittest.TestCase):
+  def test_update_start_offset(self):
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertEqual(100, tracker.start_position())
+    self.assertTrue(tracker.try_claim(150))
+    self.assertEqual(150, tracker.start_position())
+    self.assertTrue(tracker.try_claim(180))
+    self.assertEqual(150, tracker.start_position())
+
   def test_try_return_record_simple_sparse(self):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertTrue(tracker.try_claim(110))
@@ -155,6 +163,8 @@ class OffsetRangeTrackerTest(unittest.TestCase):
   def test_get_fraction_consumed_sparse(self):
     tracker = range_trackers.OffsetRangeTracker(100, 200)
     self.assertEqual(0, tracker.fraction_consumed())
+    self.assertTrue(tracker.try_claim(100))
+    self.assertEqual(0, tracker.fraction_consumed())
     self.assertTrue(tracker.try_claim(110))
     # Consumed positions through 110 = total 10 positions of 100 done.
     self.assertEqual(0.10, tracker.fraction_consumed())
@@ -162,6 +172,17 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertEqual(0.50, tracker.fraction_consumed())
     self.assertTrue(tracker.try_claim(195))
     self.assertEqual(0.95, tracker.fraction_consumed())
+
+  def test_get_fraction_consumed_update_start_offset(self):
+    tracker = range_trackers.OffsetRangeTracker(100, 200)
+    self.assertTrue(tracker.try_claim(150))
+    self.assertEqual(0, tracker.fraction_consumed())
+    self.assertTrue(tracker.try_claim(160))
+    self.assertEqual(0.2, tracker.fraction_consumed())
+    self.assertTrue(tracker.try_claim(180))
+    self.assertEqual(0.6, tracker.fraction_consumed())
+    self.assertTrue(tracker.try_claim(195))
+    self.assertEqual(0.9, tracker.fraction_consumed())
 
   def test_everything_with_unbounded_range(self):
     tracker = range_trackers.OffsetRangeTracker(
