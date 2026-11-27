@@ -456,7 +456,9 @@ public class CoderProperties {
       return count;
     }
 
+    @Override
     public void reset() {
+      super.reset();
       currentSum = 0;
       count = 0;
     }
