@@ -17,20 +17,13 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.TreeMap;
-import java.util.function.Function;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -43,67 +36,67 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @SuppressWarnings("rawtypes")
 public class RowWithGetters<T extends @NonNull Object> extends Row {
+  private static final Object NULL_SENTINEL = new Object();
+
   private final T getterTarget;
   private final TypeDescriptor<?> getterTargetType;
   private final List<FieldValueGetter<T, Object>> getters;
-  private @Nullable Map<Integer, @Nullable Object> cache = null;
+  // Null slot means uncached; NULL_SENTINEL means cached null. AtomicReferenceArray ensures
+  // safe JMM publication of cached collections across concurrent readers.
+  private transient volatile @Nullable AtomicReferenceArray<@Nullable Object> cache = null;
 
   RowWithGetters(
       Schema schema,
       Factory<List<FieldValueGetter<T, Object>>> getterFactory,
       T getterTarget,
       TypeDescriptor<?> getterTargetType) {
+    this(schema, getterFactory.create(getterTargetType, schema), getterTarget, getterTargetType);
+  }
+
+  RowWithGetters(
+      Schema schema,
+      List<FieldValueGetter<T, Object>> getters,
+      T getterTarget,
+      TypeDescriptor<?> getterTargetType) {
     super(schema);
     this.getterTarget = getterTarget;
     this.getterTargetType = getterTargetType;
-    this.getters = getterFactory.create(getterTargetType, schema);
+    this.getters = getters;
   }
 
   @Override
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   public <W> W getValue(int fieldIdx) {
-    Field field = getSchema().getField(fieldIdx);
-    boolean cacheField = cacheFieldType(field);
-
-    if (cacheField && cache == null) {
-      cache = new TreeMap<>();
-    }
-
+    Schema schema = getSchema();
     @Nullable Object fieldValue;
-    if (cacheField) {
-      if (cache == null) {
-        cache = new TreeMap<>();
+    int cacheSlot = schema.getContainerCacheSlot(fieldIdx);
+    if (cacheSlot >= 0) {
+      AtomicReferenceArray<@Nullable Object> localCache = cache;
+      if (localCache == null) {
+        localCache = new AtomicReferenceArray<>(schema.getCacheableContainerCount());
+        cache = localCache;
       }
-      fieldValue =
-          cache.computeIfAbsent(
-              fieldIdx,
-              new Function<Integer, @Nullable Object>() {
-                @Override
-                public @Nullable Object apply(Integer idx) {
-                  FieldValueGetter<T, Object> getter = getters.get(idx);
-                  checkStateNotNull(getter);
-                  return getter.get(getterTarget);
-                }
-              });
+      @Nullable Object cached = localCache.get(cacheSlot);
+      if (cached == null) {
+        FieldValueGetter<T, Object> getter = getters.get(fieldIdx);
+        fieldValue = getter.get(getterTarget);
+        localCache.set(cacheSlot, fieldValue == null ? NULL_SENTINEL : fieldValue);
+      } else {
+        fieldValue = cached == NULL_SENTINEL ? null : cached;
+      }
     } else {
       fieldValue = getters.get(fieldIdx).get(getterTarget);
     }
 
-    if (fieldValue == null && !field.getType().getNullable()) {
-      throw new RuntimeException("Null value set on non-nullable field " + field);
+    if (fieldValue == null && !schema.isFieldNullable(fieldIdx)) {
+      throw new RuntimeException(
+          "Null value set on non-nullable field " + schema.getField(fieldIdx));
     }
     return (W) fieldValue;
   }
 
   public TypeDescriptor<?> getGetterTargetType() {
     return getterTargetType;
-  }
-
-  private boolean cacheFieldType(Field field) {
-    TypeName typeName = field.getType().getTypeName();
-    return typeName.equals(TypeName.MAP)
-        || typeName.equals(TypeName.ARRAY)
-        || typeName.equals(TypeName.ITERABLE);
   }
 
   @Override
@@ -116,8 +109,8 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
   @Override
   public List<@Nullable Object> getValues() {
     List<@Nullable Object> rawValues = new ArrayList<>(getters.size());
-    for (FieldValueGetter getter : getters) {
-      rawValues.add(getter.getRaw(getterTarget));
+    for (int i = 0; i < getters.size(); i++) {
+      rawValues.add(getters.get(i).getRaw(getterTarget));
     }
     return rawValues;
   }
@@ -140,8 +133,13 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
     }
     if (o instanceof RowWithGetters) {
       RowWithGetters other = (RowWithGetters) o;
-      return Objects.equals(getSchema(), other.getSchema())
-          && Objects.equals(getterTarget, other.getterTarget);
+      if (!getSchema().equals(other.getSchema())) {
+        return false;
+      }
+      if (getterTarget == other.getterTarget) {
+        return true;
+      }
+      return super.equals(o);
     } else if (o instanceof Row) {
       return super.equals(o);
     }
@@ -150,6 +148,6 @@ public class RowWithGetters<T extends @NonNull Object> extends Row {
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSchema(), getterTarget);
+    return super.hashCode();
   }
 }

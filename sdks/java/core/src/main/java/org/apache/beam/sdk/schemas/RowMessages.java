@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
 public final class RowMessages {
@@ -90,7 +91,7 @@ public final class RowMessages {
   }
 
   private static <T> byte[] toBytes(Coder<? super T> coder, T message) throws IOException {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream out = new ByteArrayOutputStream(128);
     coder.encode(message, out);
     return out.toByteArray();
   }
@@ -112,7 +113,8 @@ public final class RowMessages {
 
     @Override
     public byte[] apply(Row row) {
-      if (!schema.equivalent(row.getSchema())) {
+      Schema rowSchema = row.getSchema();
+      if (!schema.equals(rowSchema) && !schema.equivalent(rowSchema)) {
         row = switchFieldsOrder(row);
       }
       final T message = fromRowFn.apply(row);
@@ -124,9 +126,13 @@ public final class RowMessages {
     }
 
     private Row switchFieldsOrder(Row row) {
-      Row.Builder convertedRow = Row.withSchema(schema);
-      schema.getFields().forEach(field -> convertedRow.addValue(row.getValue(field.getName())));
-      return convertedRow.build();
+      Schema rowSchema = row.getSchema();
+      int count = schema.getFieldCount();
+      @Nullable Object[] values = new @Nullable Object[count];
+      for (int i = 0; i < count; i++) {
+        values[i] = row.getValue(rowSchema.indexOf(schema.getField(i).getName()));
+      }
+      return Row.withSchema(schema).addValues(java.util.Arrays.asList(values)).build();
     }
   }
 }

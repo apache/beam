@@ -348,7 +348,14 @@ public class SchemaTest {
             "fields",
             "hashCode",
             "uuid",
-            "options");
+            "options",
+            // Derived transient/static metadata caches recomputed lazily per Schema instance.
+            "FLAG_HAS_NULLABLE_FIELDS",
+            "FLAG_HAS_LOGICAL_TYPES",
+            "FLAG_STATIC_ENCODING",
+            "OPTION_STATIC_ENCODING",
+            "metadata",
+            "cachedFieldNames");
 
     // Current attributes in Schema object.
     List<String> currentAttributes =

@@ -17,36 +17,85 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Concrete subclass of {@link Row} that explicitly stores all fields of the row. */
 public class RowWithStorage extends Row {
-  private final List<@Nullable Object> values;
+  private @Nullable List<@Nullable Object> values;
+  private final @Nullable Object @Nullable [] arrayValues;
 
   RowWithStorage(Schema schema, List<@Nullable Object> values) {
     super(schema);
     this.values = values;
+    this.arrayValues = null;
+  }
+
+  RowWithStorage(Schema schema, @Nullable Object[] arrayValues) {
+    super(schema);
+    this.values = null;
+    this.arrayValues = arrayValues;
   }
 
   @Override
-  @SuppressWarnings("TypeParameterUnusedInFormals")
+  @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   public <T extends @Nullable Object> T getValue(int fieldIdx) {
-    if (values.size() > fieldIdx) {
-      return (T) values.get(fieldIdx);
-    } else {
+    @Nullable Object @Nullable [] arr = arrayValues;
+    if (arr != null) {
+      if (fieldIdx >= 0 && fieldIdx < arr.length) {
+        return (T) arr[fieldIdx];
+      }
       throw new IllegalArgumentException("No field at index " + fieldIdx);
     }
+    List<@Nullable Object> list = values;
+    if (list != null && fieldIdx >= 0 && fieldIdx < list.size()) {
+      return (T) list.get(fieldIdx);
+    }
+    throw new IllegalArgumentException("No field at index " + fieldIdx);
+  }
+
+  /**
+   * Returns the backing array directly when this row was created from an array, or {@code null} if
+   * backed by a {@link List}. Callers MUST NOT mutate the returned array.
+   */
+  @Internal
+  public @Nullable Object @Nullable [] getRawArray() {
+    return arrayValues;
   }
 
   @Override
   public List<@Nullable Object> getValues() {
-    return values;
+    List<@Nullable Object> list = values;
+    if (list == null) {
+      @Nullable Object @Nullable [] arr = arrayValues;
+      if (arr == null) {
+        throw new IllegalStateException("RowWithStorage has neither values list nor array");
+      }
+      list = Arrays.asList(arr);
+      values = list;
+    }
+    return list;
   }
 
   @Override
   public int getFieldCount() {
-    return values.size();
+    @Nullable Object @Nullable [] arr = arrayValues;
+    if (arr != null) {
+      return arr.length;
+    }
+    List<@Nullable Object> list = values;
+    return list != null ? list.size() : 0;
+  }
+
+  private void writeObject(ObjectOutputStream out) throws IOException {
+    ObjectOutputStream.PutField fields = out.putFields();
+    fields.put("values", arrayValues != null ? null : values);
+    fields.put("arrayValues", arrayValues);
+    out.writeFields();
   }
 }

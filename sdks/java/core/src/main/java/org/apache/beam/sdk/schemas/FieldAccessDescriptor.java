@@ -90,12 +90,21 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
       public abstract MapQualifier getMap();
 
+      private static final Qualifier LIST_ALL =
+          AutoOneOf_FieldAccessDescriptor_FieldDescriptor_Qualifier.list(ListQualifier.ALL);
+      private static final Qualifier MAP_ALL =
+          AutoOneOf_FieldAccessDescriptor_FieldDescriptor_Qualifier.map(MapQualifier.ALL);
+
       public static Qualifier of(ListQualifier qualifier) {
-        return AutoOneOf_FieldAccessDescriptor_FieldDescriptor_Qualifier.list(qualifier);
+        return qualifier == ListQualifier.ALL
+            ? LIST_ALL
+            : AutoOneOf_FieldAccessDescriptor_FieldDescriptor_Qualifier.list(qualifier);
       }
 
       public static Qualifier of(MapQualifier qualifier) {
-        return AutoOneOf_FieldAccessDescriptor_FieldDescriptor_Qualifier.map(qualifier);
+        return qualifier == MapQualifier.ALL
+            ? MAP_ALL
+            : AutoOneOf_FieldAccessDescriptor_FieldDescriptor_Qualifier.map(qualifier);
       }
     }
 
@@ -157,9 +166,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
         .setNestedFieldsAccessed(Collections.emptyMap());
   }
 
+  private static final FieldAccessDescriptor EMPTY = builder().build();
+  private static final FieldAccessDescriptor ALL_FIELDS = builder().setAllFields(true).build();
+
   // Return a descriptor that accesses all fields in a row.
   public static FieldAccessDescriptor withAllFields() {
-    return builder().setAllFields(true).build();
+    return ALL_FIELDS;
   }
 
   /**
@@ -359,7 +371,7 @@ public abstract class FieldAccessDescriptor implements Serializable {
 
   /** Return an empty {@link FieldAccessDescriptor}. */
   public static FieldAccessDescriptor create() {
-    return builder().build();
+    return EMPTY;
   }
 
   /**
@@ -570,6 +582,11 @@ public abstract class FieldAccessDescriptor implements Serializable {
     // simple case where they are all wildcards. For example, if a is a list of a list of row,
     // the user could select a[*][*].b, however we allow them to simply type a.b for brevity.
     FieldType fieldType = schema.getField(fieldDescriptor.getFieldId()).getType();
+    if (!fieldType.getTypeName().isCollectionType() && !fieldType.getTypeName().isMapType()) {
+      return fieldDescriptor.getQualifiers().isEmpty()
+          ? fieldDescriptor
+          : fieldDescriptor.toBuilder().setQualifiers(Collections.emptyList()).build();
+    }
     Iterator<Qualifier> qualifierIt = fieldDescriptor.getQualifiers().iterator();
     List<Qualifier> qualifiers = Lists.newArrayList();
     while (fieldType.getTypeName().isCollectionType() || fieldType.getTypeName().isMapType()) {

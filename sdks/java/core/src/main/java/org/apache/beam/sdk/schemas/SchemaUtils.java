@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utility functions for schemas. */
 @SuppressWarnings({
@@ -30,6 +36,96 @@ import org.apache.beam.sdk.values.Row;
 })
 public class SchemaUtils {
   private static final String INDENT = "  ";
+  private static final Class<?> IDENTITY_FN_CLASS = SerializableFunctions.identity().getClass();
+
+  /**
+   * Returns {@code true} if {@code fn} is Beam's built-in identity {@link SerializableFunction}
+   * returned by {@link SerializableFunctions#identity()}.
+   */
+  @Internal
+  public static boolean isIdentityFunction(@Nullable SerializableFunction<?, ?> fn) {
+    return fn != null && fn.getClass() == IDENTITY_FN_CLASS;
+  }
+
+  /**
+   * Attempts to resolve a single-field non-wildcard, qualifier-free {@link FieldAccessDescriptor}
+   * into an array of field indices from {@code schema} down to the leaf field, or returns {@code
+   * null} if the descriptor cannot be evaluated via direct indexed traversal.
+   */
+  @Internal
+  public static int @Nullable [] tryResolveSingleFieldPath(
+      Schema schema, FieldAccessDescriptor resolved) {
+    if (resolved.getAllFields()) {
+      return null;
+    }
+    Schema current = schema;
+    FieldAccessDescriptor cur = resolved;
+    List<Integer> path = new ArrayList<>(4);
+    while (true) {
+      Map<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> nested =
+          cur.getNestedFieldsAccessed();
+      if (!cur.getFieldsAccessed().isEmpty()) {
+        if (!nested.isEmpty() || cur.getFieldsAccessed().size() != 1) {
+          return null;
+        }
+        FieldAccessDescriptor.FieldDescriptor fd = cur.getFieldsAccessed().iterator().next();
+        if (!fd.getQualifiers().isEmpty()) {
+          return null;
+        }
+        Integer id = fd.getFieldId();
+        if (id == null || id < 0 || id >= current.getFieldCount()) {
+          return null;
+        }
+        path.add(id);
+        int[] arr = new int[path.size()];
+        for (int i = 0; i < arr.length; i++) {
+          arr[i] = path.get(i);
+        }
+        return arr;
+      }
+      if (nested.size() != 1) {
+        return null;
+      }
+      Map.Entry<FieldAccessDescriptor.FieldDescriptor, FieldAccessDescriptor> entry =
+          nested.entrySet().iterator().next();
+      FieldAccessDescriptor.FieldDescriptor fd = entry.getKey();
+      if (!fd.getQualifiers().isEmpty()) {
+        return null;
+      }
+      Integer id = fd.getFieldId();
+      if (id == null || id < 0 || id >= current.getFieldCount()) {
+        return null;
+      }
+      FieldType ft = current.getField(id).getType();
+      if (ft.getTypeName() != Schema.TypeName.ROW || ft.getRowSchema() == null) {
+        return null;
+      }
+      path.add(id);
+      current = ft.getRowSchema();
+      cur = entry.getValue();
+      if (cur.getAllFields()) {
+        return null;
+      }
+    }
+  }
+
+  /** Evaluates a direct index path produced by {@link #tryResolveSingleFieldPath}. */
+  @Internal
+  public static @Nullable Object readFieldPath(@Nullable Row row, int[] path) {
+    if (row == null) {
+      return null;
+    }
+    Row current = row;
+    int last = path.length - 1;
+    for (int i = 0; i < last; i++) {
+      Object next = current.getValue(path[i]);
+      if (next == null) {
+        return null;
+      }
+      current = (Row) next;
+    }
+    return current.getValue(path[last]);
+  }
 
   /**
    * Given two schema that have matching types, return a nullable-widened schema.
@@ -382,32 +478,30 @@ public class SchemaUtils {
   }
 
   static String toPrettyRowString(Row row, String prefix) {
-    long nonNullFieldCount = row.getValues().stream().filter(Objects::nonNull).count();
-    if (nonNullFieldCount == 0) {
-      return "{}";
-    }
-
+    Schema schema = row.getSchema();
+    int fieldCount = schema.getFieldCount();
     String nextPrefix = prefix + INDENT;
-    StringBuilder sb = new StringBuilder();
-    sb.append("{\n");
-    long nonNullFieldIndex = 0;
-    for (Schema.Field field : row.getSchema().getFields()) {
-      String fieldName = field.getName();
-      Object fieldValue = row.getValue(fieldName);
+    StringBuilder sb = null;
+    for (int i = 0; i < fieldCount; i++) {
+      Object fieldValue = row.getValue(i);
       if (fieldValue == null) {
         continue;
       }
+      Schema.Field field = schema.getField(i);
+      if (sb == null) {
+        sb = new StringBuilder("{\n");
+      } else {
+        sb.append(",\n");
+      }
       sb.append(nextPrefix)
-          .append(fieldName)
+          .append(field.getName())
           .append(": ")
           .append(toPrettyFieldValueString(field.getType(), fieldValue, nextPrefix));
-      if (nonNullFieldIndex++ < nonNullFieldCount - 1) {
-        sb.append(",\n");
-      } else {
-        sb.append("\n");
-      }
     }
-    sb.append(prefix).append("}");
+    if (sb == null) {
+      return "{}";
+    }
+    sb.append('\n').append(prefix).append('}');
     return sb.toString();
   }
 }

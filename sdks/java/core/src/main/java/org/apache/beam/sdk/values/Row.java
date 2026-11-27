@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -108,9 +108,23 @@ public abstract class Row implements Serializable {
 
   /** Return a list of data values. Any LogicalType values are returned as base values. * */
   public List<Object> getBaseValues() {
-    return IntStream.range(0, getFieldCount())
-        .mapToObj(i -> getBaseValue(i))
-        .collect(Collectors.toList());
+    int count = getFieldCount();
+    Schema s = getSchema();
+    if (!s.hasLogicalTypes()) {
+      if (this instanceof RowWithStorage) {
+        return new ArrayList<>(getValues());
+      }
+      List<Object> result = new ArrayList<>(count);
+      for (int i = 0; i < count; i++) {
+        result.add(getValue(i));
+      }
+      return result;
+    }
+    List<Object> result = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      result.add(getBaseValue(i));
+    }
+    return result;
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
@@ -332,7 +346,13 @@ public abstract class Row implements Serializable {
    */
   public @Nullable ReadableDateTime getDateTime(int idx) {
     ReadableInstant instant = getValue(idx);
-    return instant == null ? null : new DateTime(instant).withZone(instant.getZone());
+    if (instant == null) {
+      return null;
+    }
+    if (instant instanceof DateTime) {
+      return (DateTime) instant;
+    }
+    return new DateTime(instant.getMillis(), instant.getZone());
   }
 
   /**
@@ -432,12 +452,18 @@ public abstract class Row implements Serializable {
     }
     Row other = (Row) o;
 
-    if (!Objects.equals(getSchema(), other.getSchema())) {
+    Schema localSchema = getSchema();
+    Schema otherSchema = other.getSchema();
+    if (!Objects.equals(localSchema, otherSchema)) {
       return false;
     }
 
-    for (int i = 0; i < getFieldCount(); i++) {
-      if (!Equals.deepEquals(getValue(i), other.getValue(i), getSchema().getField(i).getType())) {
+    int count = getFieldCount();
+    if (count != other.getFieldCount()) {
+      return false;
+    }
+    for (int i = 0; i < count; i++) {
+      if (!Equals.deepEquals(getValue(i), other.getValue(i), localSchema.getField(i).getType())) {
         return false;
       }
     }
@@ -447,9 +473,11 @@ public abstract class Row implements Serializable {
 
   @Override
   public int hashCode() {
+    Schema localSchema = getSchema();
+    int count = getFieldCount();
     int h = 1;
-    for (int i = 0; i < getFieldCount(); i++) {
-      h = 31 * h + Equals.deepHashCode(getValue(i), getSchema().getField(i).getType());
+    for (int i = 0; i < count; i++) {
+      h = 31 * h + Equals.deepHashCode(getValue(i), localSchema.getField(i).getType());
     }
 
     return h;
@@ -457,45 +485,57 @@ public abstract class Row implements Serializable {
 
   public static class Equals {
     public static boolean deepEquals(Object a, Object b, Schema.FieldType fieldType) {
+      if (a == b) {
+        return true;
+      }
       if (a == null || b == null) {
-        return a == b;
-      } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-        Schema.LogicalType<Object, Object> logicalType =
-            (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
-        return deepEquals(
-            SchemaUtils.toLogicalBaseType(logicalType, a),
-            SchemaUtils.toLogicalBaseType(logicalType, b),
-            logicalType.getBaseType());
-      } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
-        return Arrays.equals((byte[]) a, (byte[]) b);
-      } else if (fieldType.getTypeName() == TypeName.ARRAY) {
-        return deepEqualsForCollection(
-            (Collection<Object>) a, (Collection<Object>) b, fieldType.getCollectionElementType());
-      } else if (fieldType.getTypeName() == TypeName.ITERABLE) {
-        return deepEqualsForIterable(
-            (Iterable<Object>) a, (Iterable<Object>) b, fieldType.getCollectionElementType());
-      } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
-        return deepEqualsForMap(
-            (Map<Object, Object>) a, (Map<Object, Object>) b, fieldType.getMapValueType());
-      } else {
-        return Objects.equals(a, b);
+        return false;
+      }
+      switch (fieldType.getTypeName()) {
+        case LOGICAL_TYPE:
+          Schema.LogicalType<Object, Object> logicalType =
+              (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+          return deepEquals(
+              SchemaUtils.toLogicalBaseType(logicalType, a),
+              SchemaUtils.toLogicalBaseType(logicalType, b),
+              logicalType.getBaseType());
+        case BYTES:
+          return Arrays.equals((byte[]) a, (byte[]) b);
+        case ARRAY:
+          return deepEqualsForCollection(
+              (Collection<Object>) a, (Collection<Object>) b, fieldType.getCollectionElementType());
+        case ITERABLE:
+          return deepEqualsForIterable(
+              (Iterable<Object>) a, (Iterable<Object>) b, fieldType.getCollectionElementType());
+        case MAP:
+          return deepEqualsForMap(
+              (Map<Object, Object>) a, (Map<Object, Object>) b, fieldType.getMapValueType());
+        default:
+          return a.equals(b);
       }
     }
 
     public static int deepHashCode(Object a, Schema.FieldType fieldType) {
       if (a == null) {
         return 0;
-      } else if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE) {
-        return deepHashCode(a, fieldType.getLogicalType().getBaseType());
-      } else if (fieldType.getTypeName() == Schema.TypeName.BYTES) {
-        return Arrays.hashCode((byte[]) a);
-      } else if (fieldType.getTypeName().isCollectionType()) {
-        return deepHashCodeForIterable((Iterable<Object>) a, fieldType.getCollectionElementType());
-      } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
-        return deepHashCodeForMap(
-            (Map<Object, Object>) a, fieldType.getMapKeyType(), fieldType.getMapValueType());
-      } else {
-        return Objects.hashCode(a);
+      }
+      switch (fieldType.getTypeName()) {
+        case LOGICAL_TYPE:
+          Schema.LogicalType<Object, Object> logicalType =
+              (Schema.LogicalType<Object, Object>) fieldType.getLogicalType();
+          return deepHashCode(
+              SchemaUtils.toLogicalBaseType(logicalType, a), logicalType.getBaseType());
+        case BYTES:
+          return Arrays.hashCode((byte[]) a);
+        case ARRAY:
+        case ITERABLE:
+          return deepHashCodeForIterable(
+              (Iterable<Object>) a, fieldType.getCollectionElementType());
+        case MAP:
+          return deepHashCodeForMap(
+              (Map<Object, Object>) a, fieldType.getMapKeyType(), fieldType.getMapValueType());
+        default:
+          return a.hashCode();
       }
     }
 
@@ -589,57 +629,64 @@ public abstract class Row implements Serializable {
   /** Convert Row to String. */
   public String toString(boolean includeFieldNames) {
     StringBuilder builder = new StringBuilder();
-    builder.append("Row: ");
-    builder.append(System.lineSeparator());
-    for (int i = 0; i < getSchema().getFieldCount(); ++i) {
-      Schema.Field field = getSchema().getField(i);
-      if (includeFieldNames) {
-        builder.append(field.getName() + ":");
-      }
-      builder.append(toString(field.getType(), getValue(i), includeFieldNames));
-      builder.append(System.lineSeparator());
-    }
+    appendToString(builder, includeFieldNames);
     return builder.toString();
   }
 
-  private String toString(Schema.FieldType fieldType, Object value, boolean includeFieldNames) {
-    if (value == null) {
-      return "<null>";
+  private void appendToString(StringBuilder builder, boolean includeFieldNames) {
+    Schema s = getSchema();
+    String lineSep = System.lineSeparator();
+    builder.append("Row: ").append(lineSep);
+    int fieldCount = s.getFieldCount();
+    for (int i = 0; i < fieldCount; ++i) {
+      Schema.Field field = s.getField(i);
+      if (includeFieldNames) {
+        builder.append(field.getName()).append(':');
+      }
+      appendFieldValueToString(builder, field.getType(), getValue(i), includeFieldNames);
+      builder.append(lineSep);
     }
-    StringBuilder builder = new StringBuilder();
+  }
+
+  private static void appendFieldValueToString(
+      StringBuilder builder, Schema.FieldType fieldType, Object value, boolean includeFieldNames) {
+    if (value == null) {
+      builder.append("<null>");
+      return;
+    }
     switch (fieldType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
-        builder.append("[");
+        builder.append('[');
         for (Object element : (Iterable<?>) value) {
-          builder.append(
-              toString(fieldType.getCollectionElementType(), element, includeFieldNames));
+          appendFieldValueToString(
+              builder, fieldType.getCollectionElementType(), element, includeFieldNames);
           builder.append(", ");
         }
-        builder.append("]");
+        builder.append(']');
         break;
       case MAP:
-        builder.append("{");
+        builder.append('{');
         for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
-          builder.append("(");
-          builder.append(toString(fieldType.getMapKeyType(), entry.getKey(), includeFieldNames));
+          builder.append('(');
+          appendFieldValueToString(
+              builder, fieldType.getMapKeyType(), entry.getKey(), includeFieldNames);
           builder.append(", ");
-          builder.append(
-              toString(fieldType.getMapValueType(), entry.getValue(), includeFieldNames));
+          appendFieldValueToString(
+              builder, fieldType.getMapValueType(), entry.getValue(), includeFieldNames);
           builder.append("), ");
         }
-        builder.append("}");
+        builder.append('}');
         break;
       case BYTES:
         builder.append(Arrays.toString((byte[]) value));
         break;
       case ROW:
-        builder.append(((Row) value).toString(includeFieldNames));
+        ((Row) value).appendToString(builder, includeFieldNames);
         break;
       default:
         builder.append(value);
     }
-    return builder.toString();
   }
 
   /**
@@ -816,12 +863,10 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    // Values are attached. No verification is done, and no conversions are done. LogicalType values
-    // must be specified as the base type. This method should be used with great care, as no
-    // validation is done. If
-    // incorrect values are passed in, it could result in strange errors later in the pipeline. This
-    // method is largely
-    // used internal to Beam.
+    // Values are attached without validation or conversion. LogicalType values must match the
+    // LogicalType's InputT (not BaseT). This method should be used with great care, as no
+    // validation is done. If incorrect values are passed in, it could result in errors later in
+    // the pipeline. Largely used internal to Beam.
     @Internal
     public Row attachValues(List<@Nullable Object> attachedValues) {
       checkState(this.values.isEmpty());
@@ -829,7 +874,8 @@ public abstract class Row implements Serializable {
     }
 
     public Row attachValues(@Nullable Object... values) {
-      return attachValues(Arrays.asList(values));
+      checkState(this.values.isEmpty());
+      return new RowWithStorage(schema, values);
     }
 
     public int nextFieldId() {
@@ -890,6 +936,53 @@ public abstract class Row implements Serializable {
         values -> Row.withSchema(schema).addValues(values).build());
   }
 
+  /**
+   * Direct internal factory that attaches a backing array to a {@link RowWithStorage} without
+   * creating a throwaway {@link Builder} or {@code Arrays$ArrayList} wrapper. Values are NOT
+   * validated or converted; callers MUST NOT mutate the passed array afterwards.
+   */
+  @Internal
+  public static Row attachValues(Schema schema, @Nullable Object... values) {
+    return new RowWithStorage(schema, values);
+  }
+
+  /**
+   * Direct internal factory that attaches a backing {@link List} to a {@link RowWithStorage}
+   * without creating a throwaway {@link Builder}. Values are NOT validated or converted.
+   */
+  @Internal
+  public static Row attachValues(Schema schema, List<@Nullable Object> values) {
+    return new RowWithStorage(schema, values);
+  }
+
+  /**
+   * Direct internal factory creating a {@link RowWithGetters} using a {@link Factory}, bypassing
+   * {@link Builder} allocation.
+   */
+  @Internal
+  public static <T extends @NonNull Object> Row withFieldValueGetters(
+      Schema schema,
+      Factory<List<FieldValueGetter<T, Object>>> fieldValueGetterFactory,
+      T getterTarget,
+      TypeDescriptor<?> getterTargetType) {
+    checkState(getterTarget != null, "getters require withGetterTarget.");
+    return new RowWithGetters<>(schema, fieldValueGetterFactory, getterTarget, getterTargetType);
+  }
+
+  /**
+   * Direct internal factory creating a {@link RowWithGetters} with a pre-resolved getter list,
+   * bypassing both {@link Builder} allocation and {@link Factory} cache lookup.
+   */
+  @Internal
+  public static <T extends @NonNull Object> Row withFieldValueGetters(
+      Schema schema,
+      List<FieldValueGetter<T, Object>> getters,
+      T getterTarget,
+      TypeDescriptor<?> getterTargetType) {
+    checkState(getterTarget != null, "getters require withGetterTarget.");
+    return new RowWithGetters<>(schema, getters, getterTarget, getterTargetType);
+  }
+
   /** Creates a new record filled with nulls. */
   public static Row nullRow(Schema schema) {
     return Row.withSchema(schema)
@@ -899,50 +992,50 @@ public abstract class Row implements Serializable {
 
   /** Returns an equivalent {@link Row} with fields lexicographically sorted by their name. */
   public Row sorted() {
-    Schema sortedSchema = getSchema().sorted();
-    return sortedSchema.getFields().stream()
-        .map(
-            field -> {
-              if (field.getType().getRowSchema() != null) {
-                Row innerRow = getValue(field.getName());
-                if (innerRow != null) {
-                  return innerRow.sorted();
-                }
-              }
-              return (Object) getValue(field.getName());
-            })
-        .collect(Row.toRow(sortedSchema));
+    Schema sourceSchema = getSchema();
+    Schema sortedSchema = sourceSchema.sorted();
+    int count = sortedSchema.getFieldCount();
+    @Nullable Object[] outValues = new Object[count];
+    for (int i = 0; i < count; i++) {
+      Schema.Field field = sortedSchema.getField(i);
+      Object val = getValue(sourceSchema.indexOf(field.getName()));
+      if (val != null && field.getType().getRowSchema() != null) {
+        val = ((Row) val).sorted();
+      }
+      outValues[i] = val;
+    }
+    return new RowWithStorage(sortedSchema, outValues);
   }
 
   /** Returns an equivalent {@link Row} with `snake_case` field names. */
   public Row toSnakeCase() {
-    return getSchema().getFields().stream()
-        .map(
-            field -> {
-              if (field.getType().getRowSchema() != null) {
-                Row innerRow = getValue(field.getName());
-                if (innerRow != null) {
-                  return innerRow.toSnakeCase();
-                }
-              }
-              return (Object) getValue(field.getName());
-            })
-        .collect(toRow(getSchema().toSnakeCase()));
+    Schema sourceSchema = getSchema();
+    Schema targetSchema = sourceSchema.toSnakeCase();
+    int count = sourceSchema.getFieldCount();
+    @Nullable Object[] outValues = new Object[count];
+    for (int i = 0; i < count; i++) {
+      Object val = getValue(i);
+      if (val != null && sourceSchema.getField(i).getType().getRowSchema() != null) {
+        val = ((Row) val).toSnakeCase();
+      }
+      outValues[i] = val;
+    }
+    return new RowWithStorage(targetSchema, outValues);
   }
 
   /** Returns an equivalent {@link Row} with `lowerCamelCase` field names. */
   public Row toCamelCase() {
-    return getSchema().getFields().stream()
-        .map(
-            field -> {
-              if (field.getType().getRowSchema() != null) {
-                Row innerRow = getValue(field.getName());
-                if (innerRow != null) {
-                  return innerRow.toCamelCase();
-                }
-              }
-              return (Object) getValue(field.getName());
-            })
-        .collect(toRow(getSchema().toCamelCase()));
+    Schema sourceSchema = getSchema();
+    Schema targetSchema = sourceSchema.toCamelCase();
+    int count = sourceSchema.getFieldCount();
+    @Nullable Object[] outValues = new Object[count];
+    for (int i = 0; i < count; i++) {
+      Object val = getValue(i);
+      if (val != null && sourceSchema.getField(i).getType().getRowSchema() != null) {
+        val = ((Row) val).toCamelCase();
+      }
+      outValues[i] = val;
+    }
+    return new RowWithStorage(targetSchema, outValues);
   }
 }
