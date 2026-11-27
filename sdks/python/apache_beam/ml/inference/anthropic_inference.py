@@ -232,11 +232,14 @@ class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
       max_batch_weight: optional. the maximum total weight of a batch.
       element_size_fn: optional. a function that returns the size
         (weight) of an element.
+      **kwargs: 'env_vars' can be used to set environment variables before
+        creating the client. Other arguments are passed to RemoteModelHandler
+        (e.g. num_retries, throttle_delay_secs, rate_limiter).
     """
     _validate_batching_args(
         max_batch_weight=max_batch_weight, element_size_fn=element_size_fn)
     self._batching_kwargs = {}
-    self._env_vars = kwargs.get('env_vars', {})
+    self._env_vars = kwargs.pop('env_vars', {})
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
     if max_batch_size is not None:

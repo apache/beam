@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import os
 import unittest
 
 try:
@@ -75,6 +76,24 @@ class ModelHandlerArgConditions(unittest.TestCase):
         project="testproject",
         location="us-central1",
         private=True)
+
+  def test_env_vars(self):
+    import unittest.mock as mock
+
+    with mock.patch.object(VertexAIModelHandlerJSON, '_retrieve_endpoint'):
+      with mock.patch('google.cloud.aiplatform.init'):
+        handler = VertexAIModelHandlerJSON(
+            endpoint_id="1",
+            project="testproject",
+            location="us-central1",
+            env_vars={'FOO': 'bar'},
+            num_retries=2)
+    self.assertEqual(handler.num_retries, 2)
+
+    with mock.patch.dict(os.environ):
+      os.environ.pop('FOO', None)
+      handler.set_environment_vars()
+      self.assertEqual(os.environ.get('FOO'), 'bar')
 
 
 class RetrieveEndpointErrorMessageTest(unittest.TestCase):
