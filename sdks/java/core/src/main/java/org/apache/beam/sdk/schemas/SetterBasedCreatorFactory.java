@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Factory} that uses a default constructor and a list of setters to construct a {@link
@@ -37,25 +39,48 @@ class SetterBasedCreatorFactory implements Factory<SchemaUserTypeCreator> {
 
   @Override
   public SchemaUserTypeCreator create(TypeDescriptor<?> typeDescriptor, Schema schema) {
-    List<FieldValueSetter> setters = setterFactory.create(typeDescriptor, schema);
-    return new SchemaUserTypeCreator() {
-      @Override
-      public Object create(Object... params) {
-        Object object;
-        try {
-          object = typeDescriptor.getRawType().getDeclaredConstructor().newInstance();
-        } catch (NoSuchMethodException
-            | IllegalAccessException
-            | InvocationTargetException
-            | InstantiationException e) {
-          throw new RuntimeException("Failed to instantiate object ", e);
-        }
-        for (int i = 0; i < params.length; ++i) {
-          FieldValueSetter setter = setters.get(i);
-          setter.set(object, params[i]);
-        }
-        return object;
+    List<FieldValueSetter> setterList = setterFactory.create(typeDescriptor, schema);
+    FieldValueSetter[] setters = setterList.toArray(new FieldValueSetter[0]);
+    return new SetterBasedCreator(typeDescriptor, setters);
+  }
+
+  /** Serializable creator caching the reflected no-arg constructor in a transient field. */
+  private static final class SetterBasedCreator implements SchemaUserTypeCreator {
+    private final TypeDescriptor<?> typeDescriptor;
+    private final FieldValueSetter[] setters;
+    private transient volatile @Nullable Constructor<?> cachedCtor;
+
+    SetterBasedCreator(TypeDescriptor<?> typeDescriptor, FieldValueSetter[] setters) {
+      this.typeDescriptor = typeDescriptor;
+      this.setters = setters;
+      try {
+        this.cachedCtor = typeDescriptor.getRawType().getDeclaredConstructor();
+      } catch (NoSuchMethodException e) {
+        // Preserve deferred failure inside create() for compatibility with lazy callers/tests.
+        this.cachedCtor = null;
       }
-    };
+    }
+
+    @Override
+    public Object create(Object... params) {
+      Object object;
+      try {
+        Constructor<?> ctor = cachedCtor;
+        if (ctor == null) {
+          ctor = typeDescriptor.getRawType().getDeclaredConstructor();
+          cachedCtor = ctor;
+        }
+        object = ctor.newInstance();
+      } catch (NoSuchMethodException
+          | IllegalAccessException
+          | InvocationTargetException
+          | InstantiationException e) {
+        throw new RuntimeException("Failed to instantiate object ", e);
+      }
+      for (int i = 0; i < params.length; ++i) {
+        setters[i].set(object, params[i]);
+      }
+      return object;
+    }
   }
 }

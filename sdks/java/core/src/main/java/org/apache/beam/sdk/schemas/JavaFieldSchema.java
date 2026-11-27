@@ -122,7 +122,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
         targetTypeDescriptor,
         schema,
         JavaFieldTypeSupplier.INSTANCE,
-        new DefaultTypeConversionsFactory());
+        DefaultTypeConversionsFactory.INSTANCE);
   }
 
   @Override
@@ -142,7 +142,7 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
           annotated,
           schema,
           JavaFieldTypeSupplier.INSTANCE,
-          new DefaultTypeConversionsFactory());
+          DefaultTypeConversionsFactory.INSTANCE);
     }
 
     // If a Constructor was tagged with @SchemaCreate, invoke that constructor.
@@ -154,13 +154,13 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
           constructor,
           schema,
           JavaFieldTypeSupplier.INSTANCE,
-          new DefaultTypeConversionsFactory());
+          DefaultTypeConversionsFactory.INSTANCE);
     }
 
     return POJOUtils.getSetFieldCreator(
         targetTypeDescriptor,
         schema,
         JavaFieldTypeSupplier.INSTANCE,
-        new DefaultTypeConversionsFactory());
+        DefaultTypeConversionsFactory.INSTANCE);
   }
 }

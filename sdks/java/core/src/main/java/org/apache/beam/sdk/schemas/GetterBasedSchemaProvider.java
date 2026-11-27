@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -117,11 +119,13 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     return schemaTypeCreator(targetTypeDescriptor.getRawType(), schema);
   }
 
-  private class ToRowWithValueGetters<T extends @NonNull Object>
-      implements SerializableFunction<T, Row> {
+  class ToRowWithValueGetters<T extends @NonNull Object> implements SerializableFunction<T, Row> {
     private final Schema schema;
     private final Factory<List<FieldValueGetter<T, Object>>> getterFactory;
     private final TypeDescriptor getterTargetType;
+
+    @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
+    private transient volatile @Nullable List<FieldValueGetter<T, Object>> cachedGetters;
 
     public ToRowWithValueGetters(Schema schema, TypeDescriptor getterTargetType) {
       this.schema = schema;
@@ -140,11 +144,24 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
     @Override
     public Row apply(T input) {
-      return Row.withSchema(schema).withFieldValueGetters(getterFactory, input, getterTargetType);
+      List<FieldValueGetter<T, Object>> getters = cachedGetters;
+      if (getters == null) {
+        getters = getterFactory.create(getterTargetType, schema);
+        cachedGetters = getters;
+      }
+      return Row.withFieldValueGetters(schema, getters, input, getterTargetType);
     }
 
-    private GetterBasedSchemaProvider getOuter() {
+    GetterBasedSchemaProvider getOuter() {
       return GetterBasedSchemaProvider.this;
+    }
+
+    Schema getSchema() {
+      return schema;
+    }
+
+    TypeDescriptor getTargetType() {
+      return getterTargetType;
     }
 
     @Override
@@ -187,7 +204,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
   @Override
   public int hashCode() {
-    return super.hashCode();
+    return getClass().hashCode();
   }
 
   @Override
@@ -304,7 +321,14 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
         return new GetOneOf(base, converters, oneOfType);
       } else if (typeName.isLogicalType()) {
-        return new GetLogicalInputType(base, Verify.verifyNotNull(type.getLogicalType()));
+        LogicalType<?, ?> logicalType = Verify.verifyNotNull(type.getLogicalType());
+        if (base instanceof ByteBuddyUtils.DirectLogicalTypeGetter
+            && getterReturnType != null
+            && ByteBuddyUtils.matchesInferredLogicalType(
+                logicalType, getterReturnType.getRawType())) {
+          return new GetRawPassThrough<>(base);
+        }
+        return new GetLogicalInputType(base, logicalType);
       }
       return base;
     }
@@ -318,6 +342,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       final Schema schema;
       final Factory<List<FieldValueGetter<V, Object>>> factory;
       final @Nullable TypeDescriptor<?> valueType;
+      transient volatile @Nullable List<FieldValueGetter<V, Object>> cachedGetters;
 
       GetRow(
           FieldValueGetter<T, V> getter,
@@ -332,12 +357,17 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
 
       @Override
       Object convert(V value) {
-        return Row.withSchema(schema)
-            .withFieldValueGetters(
-                factory,
-                value,
-                Optional.ofNullable(valueType)
-                    .orElse((TypeDescriptor) TypeDescriptor.of(value.getClass())));
+        TypeDescriptor<?> typeDescriptor = valueType;
+        if (typeDescriptor != null) {
+          List<FieldValueGetter<V, Object>> getters = cachedGetters;
+          if (getters == null) {
+            getters = factory.create(typeDescriptor, schema);
+            cachedGetters = getters;
+          }
+          return Row.withFieldValueGetters(schema, getters, value, typeDescriptor);
+        }
+        return Row.withFieldValueGetters(
+            schema, factory, value, TypeDescriptor.of(value.getClass()));
       }
     }
 
@@ -360,11 +390,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     static class GetCollection<T extends @NonNull Object> extends Converter<T, Collection> {
-      final FieldValueGetter converter;
+      final org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function convertFn;
 
+      @SuppressWarnings("nullness")
       GetCollection(FieldValueGetter<T, Collection> getter, FieldValueGetter converter) {
         super(getter);
-        this.converter = converter;
+        this.convertFn = converter::get;
       }
 
       @Override
@@ -374,25 +405,26 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
           // For performance reasons if the input is a list, make sure that we produce a list.
           // Otherwise, Row forwarding is forced to physically copy the collection into a new List
           // object.
-          return Lists.transform((List) collection, converter::get);
+          return Lists.transform((List) collection, convertFn);
         } else {
-          return Collections2.transform(collection, converter::get);
+          return Collections2.transform(collection, convertFn);
         }
       }
     }
 
     static class GetIterable<T extends @NonNull Object> extends Converter<T, Iterable> {
-      final FieldValueGetter converter;
+      final org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function convertFn;
 
+      @SuppressWarnings("nullness")
       GetIterable(FieldValueGetter<T, Iterable> getter, FieldValueGetter converter) {
         super(getter);
-        this.converter = converter;
+        this.convertFn = converter::get;
       }
 
       @Override
       @SuppressWarnings({"nullness"})
       Object convert(Iterable value) {
-        return Iterables.transform(value, converter::get);
+        return Iterables.transform(value, convertFn);
       }
     }
 
@@ -400,6 +432,8 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
         extends Converter<T, Map<@Nullable K1, @Nullable V1>> {
       final FieldValueGetter<@NonNull K1, K2> keyConverter;
       final FieldValueGetter<@NonNull V1, V2> valueConverter;
+      final boolean convertKey;
+      final boolean convertValue;
 
       GetMap(
           FieldValueGetter<T, Map<@Nullable K1, @Nullable V1>> getter,
@@ -408,17 +442,49 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
         super(getter);
         this.keyConverter = keyConverter;
         this.valueConverter = valueConverter;
+        this.convertKey = keyConverter != IDENTITY;
+        this.convertValue = valueConverter != IDENTITY;
       }
 
       @Override
+      @SuppressWarnings("unchecked")
       Map<@Nullable K2, @Nullable V2> convert(Map<@Nullable K1, @Nullable V1> value) {
+        if (!convertKey && !convertValue) {
+          return (Map<@Nullable K2, @Nullable V2>) value;
+        }
         Map<@Nullable K2, @Nullable V2> returnMap = Maps.newHashMapWithExpectedSize(value.size());
         for (Map.Entry<@Nullable K1, @Nullable V1> entry : value.entrySet()) {
-          returnMap.put(
-              Optional.ofNullable(entry.getKey()).map(keyConverter::get).orElse(null),
-              Optional.ofNullable(entry.getValue()).map(valueConverter::get).orElse(null));
+          @Nullable K1 k = entry.getKey();
+          @Nullable V1 v = entry.getValue();
+          @Nullable K2 outKey = (k == null || !convertKey) ? (K2) k : keyConverter.get(k);
+          @Nullable V2 outValue = (v == null || !convertValue) ? (V2) v : valueConverter.get(v);
+          returnMap.put(outKey, outValue);
         }
         return returnMap;
+      }
+    }
+
+    static class GetRawPassThrough<T extends @NonNull Object>
+        implements FieldValueGetter<T, Object> {
+      final FieldValueGetter<T, ?> getter;
+
+      GetRawPassThrough(FieldValueGetter<T, ?> getter) {
+        this.getter = getter;
+      }
+
+      @Override
+      public @Nullable Object get(T object) {
+        return getter.getRaw(object);
+      }
+
+      @Override
+      public @Nullable Object getRaw(T object) {
+        return getter.getRaw(object);
+      }
+
+      @Override
+      public String name() {
+        return getter.name();
       }
     }
 
@@ -438,9 +504,12 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     }
 
     static class GetOneOf<T extends @NonNull Object> extends Converter<T, OneOfType.Value> {
+      private static final int MAX_DENSE_ENUM_ID = 256;
       final OneOfType oneOfType;
       final Map<Integer, FieldValueGetter<@NonNull Object, Object>> converters;
+      final @Nullable FieldValueGetter<@NonNull Object, Object> @Nullable [] denseConverters;
 
+      @SuppressWarnings({"unchecked", "rawtypes"})
       GetOneOf(
           FieldValueGetter<T, OneOfType.Value> getter,
           Map<Integer, FieldValueGetter<@NonNull Object, Object>> converters,
@@ -448,23 +517,54 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
         super(getter);
         this.converters = converters;
         this.oneOfType = oneOfType;
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        for (Integer id : converters.keySet()) {
+          int v = id;
+          if (v < min) {
+            min = v;
+          }
+          if (v > max) {
+            max = v;
+          }
+        }
+        if (min >= 0 && max >= 0 && max < MAX_DENSE_ENUM_ID && !converters.isEmpty()) {
+          @Nullable FieldValueGetter<@NonNull Object, Object>[] dense =
+              new FieldValueGetter[max + 1];
+          for (Map.Entry<Integer, FieldValueGetter<@NonNull Object, Object>> entry :
+              converters.entrySet()) {
+            dense[entry.getKey()] = entry.getValue();
+          }
+          this.denseConverters = dense;
+        } else {
+          this.denseConverters = null;
+        }
       }
 
       @Override
       Object convert(OneOfType.Value value) {
         EnumerationType.Value caseType = value.getCaseType();
-
-        @NonNull FieldValueGetter<@NonNull Object, Object> converter =
-            checkStateNotNull(
-                converters.get(caseType.getValue()),
-                "Missing OneOf converter for case %s.",
-                caseType);
-
+        int id = caseType.getValue();
+        @Nullable FieldValueGetter<@NonNull Object, Object> converter;
+        @Nullable FieldValueGetter<@NonNull Object, Object> @Nullable [] dense = denseConverters;
+        if (dense != null) {
+          converter = (id >= 0 && id < dense.length) ? dense[id] : null;
+        } else {
+          converter = converters.get(id);
+        }
+        @NonNull FieldValueGetter<@NonNull Object, Object> nonNullConverter =
+            checkStateNotNull(converter, "Missing OneOf converter for case %s.", caseType);
+        Object rawValue = value.getValue();
+        if (nonNullConverter == IDENTITY) {
+          return value;
+        }
         Object convertedValue =
             checkStateNotNull(
-                converter.get(value.getValue()),
+                nonNullConverter.get(rawValue),
                 "Bug! converting a non-null value in a OneOf resulted in null result value");
-
+        if (convertedValue == rawValue) {
+          return value;
+        }
         return oneOfType.createValue(caseType, convertedValue);
       }
     }

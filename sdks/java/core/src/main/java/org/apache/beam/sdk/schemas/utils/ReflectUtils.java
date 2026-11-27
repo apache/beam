@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
@@ -76,7 +77,10 @@ public class ReflectUtils {
   }
 
   private static final Map<Class<?>, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
-  private static final Map<Class<?>, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
+  private static final Map<Class<?>, Optional<Method>> ANNOTATED_CREATE_METHODS =
+      Maps.newConcurrentMap();
+  private static final Map<Class<?>, Optional<Constructor<?>>> ANNOTATED_CONSTRUCTORS =
+      Maps.newConcurrentMap();
   private static final Map<Class<?>, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
 
   /**
@@ -112,35 +116,41 @@ public class ReflectUtils {
   }
 
   public static @Nullable Constructor getAnnotatedConstructor(Class<?> clazz) {
-    return Arrays.stream(clazz.getDeclaredConstructors())
-        .filter(m -> !Modifier.isPrivate(m.getModifiers()))
-        .filter(m -> !Modifier.isProtected(m.getModifiers()))
-        .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
-        .findFirst()
+    return ANNOTATED_CONSTRUCTORS
+        .computeIfAbsent(
+            clazz,
+            c ->
+                Arrays.stream(c.getDeclaredConstructors())
+                    .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+                    .filter(m -> !Modifier.isProtected(m.getModifiers()))
+                    .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
+                    .findFirst())
         .orElse(null);
   }
 
   public static @Nullable Method getAnnotatedCreateMethod(Class<?> clazz) {
-    return ANNOTATED_CONSTRUCTORS.computeIfAbsent(
-        clazz,
-        c -> {
-          Method method =
-              Arrays.stream(clazz.getDeclaredMethods())
-                  .filter(m -> !Modifier.isPrivate(m.getModifiers()))
-                  .filter(m -> !Modifier.isProtected(m.getModifiers()))
-                  .filter(m -> Modifier.isStatic(m.getModifiers()))
-                  .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
-                  .findFirst()
-                  .orElse(null);
-          if (method != null && !clazz.isAssignableFrom(method.getReturnType())) {
-            throw new InvalidParameterException(
-                "A method marked with SchemaCreate in class "
-                    + clazz
-                    + " does not return a type assignable to "
-                    + clazz);
-          }
-          return method;
-        });
+    return ANNOTATED_CREATE_METHODS
+        .computeIfAbsent(
+            clazz,
+            c -> {
+              Method method =
+                  Arrays.stream(c.getDeclaredMethods())
+                      .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+                      .filter(m -> !Modifier.isProtected(m.getModifiers()))
+                      .filter(m -> Modifier.isStatic(m.getModifiers()))
+                      .filter(m -> m.getAnnotation(SchemaCreate.class) != null)
+                      .findFirst()
+                      .orElse(null);
+              if (method != null && !c.isAssignableFrom(method.getReturnType())) {
+                throw new InvalidParameterException(
+                    "A method marked with SchemaCreate in class "
+                        + c
+                        + " does not return a type assignable to "
+                        + c);
+              }
+              return Optional.ofNullable(method);
+            })
+        .orElse(null);
   }
 
   // Get all public, non-static, non-transient fields.

@@ -62,10 +62,12 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFa
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.InjectPackageStrategy;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversion;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
+import org.apache.beam.sdk.schemas.utils.ReflectUtils.TypeDescriptorWithSchema;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
@@ -225,10 +227,72 @@ public class AutoValueUtils {
     return true;
   }
 
+  // Anchor AutoValue builder creator caches to the user class via ClassValue so user ClassLoaders
+  // can be garbage collected cleanly, and key by supplier class + TypeDescriptor + Schema.
+  private static final class BuilderCreatorKey {
+    final TypeDescriptorWithSchema<?> typeWithSchema;
+    final Class<?> supplierClass;
+    final int hash;
+
+    BuilderCreatorKey(TypeDescriptorWithSchema<?> typeWithSchema, Class<?> supplierClass) {
+      this.typeWithSchema = typeWithSchema;
+      this.supplierClass = supplierClass;
+      this.hash = 31 * typeWithSchema.hashCode() + supplierClass.hashCode();
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof BuilderCreatorKey)) {
+        return false;
+      }
+      BuilderCreatorKey that = (BuilderCreatorKey) o;
+      return hash == that.hash
+          && supplierClass == that.supplierClass
+          && typeWithSchema.equals(that.typeWithSchema);
+    }
+  }
+
+  private static final ClassValue<Map<BuilderCreatorKey, Optional<SchemaUserTypeCreator>>>
+      CACHED_BUILDER_CREATORS =
+          new ClassValue<Map<BuilderCreatorKey, Optional<SchemaUserTypeCreator>>>() {
+            @Override
+            protected Map<BuilderCreatorKey, Optional<SchemaUserTypeCreator>> computeValue(
+                Class<?> type) {
+              return Maps.newConcurrentMap();
+            }
+          };
+
   /**
    * Try to find an accessible builder class for creating an AutoValue class. Otherwise return null.
    */
   public static @Nullable SchemaUserTypeCreator getBuilderCreator(
+      TypeDescriptor<?> typeDescriptor,
+      Schema schema,
+      FieldValueTypeSupplier fieldValueTypeSupplier) {
+    Map<BuilderCreatorKey, Optional<SchemaUserTypeCreator>> perClassCache =
+        CACHED_BUILDER_CREATORS.get(typeDescriptor.getRawType());
+    BuilderCreatorKey key =
+        new BuilderCreatorKey(
+            TypeDescriptorWithSchema.create(typeDescriptor, schema),
+            fieldValueTypeSupplier.getClass());
+    return perClassCache
+        .computeIfAbsent(
+            key,
+            k ->
+                Optional.ofNullable(
+                    buildBuilderCreator(typeDescriptor, schema, fieldValueTypeSupplier)))
+        .orElse(null);
+  }
+
+  private static @Nullable SchemaUserTypeCreator buildBuilderCreator(
       TypeDescriptor<?> typeDescriptor,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier) {

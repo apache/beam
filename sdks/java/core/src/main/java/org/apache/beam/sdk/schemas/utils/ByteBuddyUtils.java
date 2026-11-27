@@ -49,6 +49,9 @@ import net.bytebuddy.NamingStrategy.SuffixingRandom.BaseNameResolver;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedConstructor;
 import net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import net.bytebuddy.description.modifier.FieldManifestation;
+import net.bytebuddy.description.modifier.Ownership;
+import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.PackageDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -66,6 +69,7 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner.Typing;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
 import net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
+import net.bytebuddy.implementation.bytecode.constant.ClassConstant;
 import net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
 import net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
@@ -84,8 +88,12 @@ import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.Date;
+import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Time;
+import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -144,10 +152,18 @@ public class ByteBuddyUtils {
       SqlTypes.UUID;
 
   /**
+   * Marker interface implemented by generated {@link FieldValueGetter}s whose {@link
+   * FieldValueGetter#getRaw} directly returns an immutable JSR-310 or {@link UUID} value without
+   * round-tripping through {@link LogicalType#toBaseType}.
+   */
+  @Internal
+  public interface DirectLogicalTypeGetter {}
+
+  /**
    * Returns the {@link Schema.LogicalType} that {@link StaticSchemaInference} infers for the given
    * Java raw type, or {@code null} if no JSR-310 / UUID inference applies.
    */
-  static @Nullable LogicalType<?, ?> inferredLogicalTypeFor(Class<?> rawType) {
+  public static @Nullable LogicalType<?, ?> inferredLogicalTypeFor(Class<?> rawType) {
     if (LocalDate.class.equals(rawType)) {
       return JAVA_LOCAL_DATE_LOGICAL_TYPE;
     } else if (LocalTime.class.equals(rawType)) {
@@ -160,6 +176,44 @@ public class ByteBuddyUtils {
       return JAVA_UUID_LOGICAL_TYPE;
     }
     return null;
+  }
+
+  /**
+   * Returns {@code true} when {@code logicalType} is the exact built-in logical type inferred for
+   * {@code javaRawType}, enabling zero-copy pass-through without {@code toBaseType}/{@code
+   * toInputType} round-trips.
+   */
+  public static boolean matchesInferredLogicalType(
+      @Nullable LogicalType<?, ?> logicalType, Class<?> javaRawType) {
+    if (logicalType == null) {
+      return false;
+    }
+    Class<?> lc = logicalType.getClass();
+    if (LocalDate.class.equals(javaRawType)) {
+      return lc == Date.class;
+    } else if (LocalTime.class.equals(javaRawType)) {
+      return lc == Time.class;
+    } else if (LocalDateTime.class.equals(javaRawType)) {
+      return lc == DateTime.class;
+    } else if (java.time.Instant.class.equals(javaRawType)) {
+      return lc == NanosInstant.class;
+    } else if (UUID.class.equals(javaRawType)) {
+      return lc == UuidLogicalType.class;
+    }
+    return false;
+  }
+
+  /**
+   * Accepts either an already-converted Java logical-type input value (passing it through with zero
+   * allocation) or its base representation (converting via {@link LogicalType#toInputType}).
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static Object convertLogicalTypeForSetter(
+      LogicalType logicalType, Class<?> targetClass, Object value) {
+    if (targetClass.isInstance(value)) {
+      return value;
+    }
+    return logicalType.toInputType(value);
   }
 
   /** Maps a Java raw type to the static field name in {@link ByteBuddyUtils} that holds it. */
@@ -321,7 +375,93 @@ public class ByteBuddyUtils {
     TypeConversion<StackManipulation> createSetterConversions(StackManipulation readValue);
   }
 
+  /** Unique probe sentinel used to detect whether a {@link TypeConversion} is an identity. */
+  static final StackManipulation IDENTITY_PROBE =
+      new StackManipulation() {
+        @Override
+        public boolean isValid() {
+          return true;
+        }
+
+        @Override
+        public Size apply(MethodVisitor methodVisitor, Context context) {
+          throw new UnsupportedOperationException("IDENTITY_PROBE must never be emitted");
+        }
+      };
+
+  /**
+   * Cached Guava identity function used for map key/value pairs where one side needs no conversion.
+   */
+  public static final Function<Object, Object> IDENTITY_FUNCTION = input -> input;
+
+  private static final ClassValue<Object @Nullable []> ENUM_CONSTANTS_CACHE =
+      new ClassValue<Object @Nullable []>() {
+        @Override
+        protected Object @Nullable [] computeValue(Class<?> type) {
+          return type.getEnumConstants();
+        }
+      };
+
+  /** Returns the enum constant at {@code ordinal} without cloning {@code $VALUES}. */
+  public static Object enumConstantForOrdinal(Class<?> enumClass, int ordinal) {
+    Object[] constants = Preconditions.checkStateNotNull(ENUM_CONSTANTS_CACHE.get(enumClass));
+    if (ordinal < 0 || ordinal >= constants.length) {
+      throw new IllegalArgumentException(
+          "Unknown enum ordinal " + ordinal + " for " + enumClass.getName());
+    }
+    return constants[ordinal];
+  }
+
+  /** Returns {@code iterable} as a {@link List} without copying if it already is one. */
+  public static <T> List<T> ensureList(Iterable<T> iterable) {
+    if (iterable instanceof List) {
+      return (List<T>) iterable;
+    }
+    return Lists.newArrayList(iterable);
+  }
+
+  /** Returns {@code iterable} as an {@link ArrayList} without copying if it already is one. */
+  public static <T> ArrayList<T> ensureArrayList(Iterable<T> iterable) {
+    if (iterable instanceof ArrayList) {
+      return (ArrayList<T>) iterable;
+    }
+    return Lists.newArrayList(iterable);
+  }
+
+  /** Eagerly transforms {@code iterable} into a pre-sized {@link ArrayList} in a single pass. */
+  public static <FromT, DestT> ArrayList<DestT> transformToArrayList(
+      Iterable<FromT> iterable, Function<FromT, DestT> function) {
+    if (iterable instanceof Collection) {
+      Collection<FromT> col = (Collection<FromT>) iterable;
+      ArrayList<DestT> result = new ArrayList<>(col.size());
+      if (col instanceof List && col instanceof java.util.RandomAccess) {
+        List<FromT> list = (List<FromT>) col;
+        for (int i = 0, n = list.size(); i < n; i++) {
+          result.add(function.apply(list.get(i)));
+        }
+      } else {
+        for (FromT item : col) {
+          result.add(function.apply(item));
+        }
+      }
+      return result;
+    }
+    ArrayList<DestT> result = new ArrayList<>();
+    for (FromT item : iterable) {
+      result.add(function.apply(item));
+    }
+    return result;
+  }
+
+  static boolean isIdentityConversion(
+      java.util.function.Function<StackManipulation, StackManipulation> convert) {
+    return convert.apply(IDENTITY_PROBE) == IDENTITY_PROBE;
+  }
+
   public static class DefaultTypeConversionsFactory implements TypeConversionsFactory {
+    public static final DefaultTypeConversionsFactory INSTANCE =
+        new DefaultTypeConversionsFactory();
+
     @Override
     public TypeConversion<Type> createTypeConversion(boolean returnRawTypes) {
       return new ConvertType(returnRawTypes);
@@ -543,10 +683,12 @@ public class ByteBuddyUtils {
 
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
 
+  private static final String FUNCTION_INSTANCE_FIELD = "INSTANCE";
+
   // When processing a container (e.g. List<T>) we need to recursively process the element type.
-  // This function
-  // generates a subclass of Function that can be used to recursively transform each element of the
-  // container.
+  // This function generates a subclass of Function that can be used to recursively transform each
+  // element of the container, exposing a public static INSTANCE field to avoid per-element
+  // allocations.
   static Class<?> createCollectionTransformFunction(
       Type fromType, Type toType, Function<StackManipulation, StackManipulation> convertElement) {
     // Generate a TypeDescription for the class we want to generate.
@@ -560,6 +702,35 @@ public class ByteBuddyUtils {
             BYTE_BUDDY
                 .with(new InjectPackageStrategy((Class) fromType))
                 .subclass(functionGenericType)
+                .defineField(
+                    FUNCTION_INSTANCE_FIELD,
+                    Function.class,
+                    Visibility.PUBLIC,
+                    Ownership.STATIC,
+                    FieldManifestation.FINAL)
+                .initializer(
+                    (methodVisitor, implementationContext, instrumentedMethod) -> {
+                      TypeDescription instrumentedType =
+                          implementationContext.getInstrumentedType();
+                      StackManipulation init =
+                          new StackManipulation.Compound(
+                              TypeCreation.of(instrumentedType),
+                              Duplication.SINGLE,
+                              MethodInvocation.invoke(
+                                  instrumentedType
+                                      .getDeclaredMethods()
+                                      .filter(ElementMatchers.isDefaultConstructor())
+                                      .getOnly()),
+                              FieldAccess.forField(
+                                      instrumentedType
+                                          .getDeclaredFields()
+                                          .filter(ElementMatchers.named(FUNCTION_INSTANCE_FIELD))
+                                          .getOnly())
+                                  .write());
+                      StackManipulation.Size size =
+                          init.apply(methodVisitor, implementationContext);
+                      return new ByteCodeAppender.Size(size.getMaximalSize(), 0);
+                    })
                 .method(ElementMatchers.named("apply"))
                 .intercept(
                     new Implementation() {
@@ -598,9 +769,26 @@ public class ByteBuddyUtils {
         .getLoaded();
   }
 
+  private static StackManipulation loadFunctionInstance(ForLoadedType functionType) {
+    return FieldAccess.forField(
+            functionType
+                .getDeclaredFields()
+                .filter(ElementMatchers.named(FUNCTION_INSTANCE_FIELD))
+                .getOnly())
+        .read();
+  }
+
+  private static StackManipulation loadIdentityFunction() {
+    return FieldAccess.forField(
+            BYTE_BUDDY_UTILS_TYPE
+                .getDeclaredFields()
+                .filter(ElementMatchers.named("IDENTITY_FUNCTION"))
+                .getOnly())
+        .read();
+  }
+
   // A function to transform a container, special casing List and Collection types. This is used in
-  // byte-buddy
-  // generated code.
+  // byte-buddy generated code.
   public static <FromT, DestT> Iterable<DestT> transformContainer(
       Iterable<FromT> iterable, Function<FromT, DestT> function) {
     if (iterable instanceof List) {
@@ -614,22 +802,14 @@ public class ByteBuddyUtils {
 
   static StackManipulation createTransformingContainer(
       ForLoadedType functionType, StackManipulation readValue) {
-    StackManipulation stackManipulation =
-        new Compound(
-            readValue,
-            TypeCreation.of(functionType),
-            Duplication.SINGLE,
-            MethodInvocation.invoke(
-                functionType
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                    .getOnly()),
-            MethodInvocation.invoke(
-                BYTE_BUDDY_UTILS_TYPE
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.named("transformContainer"))
-                    .getOnly()));
-    return stackManipulation;
+    return new Compound(
+        readValue,
+        loadFunctionInstance(functionType),
+        MethodInvocation.invoke(
+            BYTE_BUDDY_UTILS_TYPE
+                .getDeclaredMethods()
+                .filter(ElementMatchers.named("transformContainer"))
+                .getOnly()));
   }
 
   public static <K1, V1, K2, V2> TransformingMap<K1, V1, K2, V2> getTransformingMap(
@@ -648,7 +828,7 @@ public class ByteBuddyUtils {
                 Maps.newTreeMap(); // We don't support copying the comparator. Makes no sense if key
         // is changing.
       } else {
-        delegateMap = Maps.newHashMap();
+        delegateMap = Maps.newHashMapWithExpectedSize(sourceMap.size());
       }
       for (Map.Entry<K1, V1> entry : sourceMap.entrySet()) {
         delegateMap.put(keyFunction.apply(entry.getKey()), valueFunction.apply(entry.getValue()));
@@ -721,16 +901,18 @@ public class ByteBuddyUtils {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof TransformingMap)) {
-        return false;
+      if (o instanceof TransformingMap) {
+        return Objects.equals(delegateMap, ((TransformingMap<?, ?, ?, ?>) o).delegateMap);
       }
-      TransformingMap<?, ?, ?, ?> that = (TransformingMap<?, ?, ?, ?>) o;
-      return Objects.equals(delegateMap, that.delegateMap);
+      if (o instanceof Map) {
+        return delegateMap.equals(o);
+      }
+      return false;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(delegateMap);
+      return delegateMap.hashCode();
     }
 
     @Override
@@ -755,11 +937,14 @@ public class ByteBuddyUtils {
     }
 
     protected TypeConversionsFactory getFactory() {
-      return new DefaultTypeConversionsFactory();
+      return DefaultTypeConversionsFactory.INSTANCE;
     }
 
     @Override
     protected StackManipulation convertArray(TypeDescriptor<?> type) {
+      if (readValue == IDENTITY_PROBE) {
+        return StackManipulation.Illegal.INSTANCE;
+      }
       // Generate the following code:
       // return isComponentTypePrimitive ? Arrays.asList(ArrayUtils.toObject(value))
       //     : Arrays.asList(value);
@@ -795,10 +980,13 @@ public class ByteBuddyUtils {
                       .filter(ElementMatchers.isStatic().and(ElementMatchers.named("asList")))
                       .getOnly()));
 
-      // Generate a SerializableFunction to convert the element-type objects.
+      // Generate a Function to convert the element-type objects only when conversion is
+      // non-identity.
       StackManipulation stackManipulation;
       final TypeDescriptor<?> finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
-      if (!finalComponentType.hasUnresolvedParameters()) {
+      if (!finalComponentType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createGetterConversions(s).convert(finalComponentType))) {
         Type convertedComponentType =
             getFactory().createTypeConversion(true).convert(componentType);
         ForLoadedType functionType =
@@ -818,10 +1006,15 @@ public class ByteBuddyUtils {
     protected StackManipulation convertIterable(TypeDescriptor<?> type) {
       TypeDescriptor<?> componentType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getIterableComponentType(type));
-      Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
-
       final TypeDescriptor<?> finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
-      if (!finalComponentType.hasUnresolvedParameters()) {
+      if (!finalComponentType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createGetterConversions(s).convert(finalComponentType))) {
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        Type convertedComponentType =
+            getFactory().createTypeConversion(true).convert(componentType);
         ForLoadedType functionType =
             new ForLoadedType(
                 createCollectionTransformFunction(
@@ -839,9 +1032,15 @@ public class ByteBuddyUtils {
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
       TypeDescriptor<?> componentType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getIterableComponentType(type));
-      Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
       final TypeDescriptor<?> finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
-      if (!finalComponentType.hasUnresolvedParameters()) {
+      if (!finalComponentType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createGetterConversions(s).convert(finalComponentType))) {
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        Type convertedComponentType =
+            getFactory().createTypeConversion(true).convert(componentType);
         ForLoadedType functionType =
             new ForLoadedType(
                 createCollectionTransformFunction(
@@ -859,9 +1058,15 @@ public class ByteBuddyUtils {
     protected StackManipulation convertList(TypeDescriptor<?> type) {
       TypeDescriptor<?> componentType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getIterableComponentType(type));
-      Type convertedComponentType = getFactory().createTypeConversion(true).convert(componentType);
       final TypeDescriptor<?> finalComponentType = ReflectUtils.boxIfPrimitive(componentType);
-      if (!finalComponentType.hasUnresolvedParameters()) {
+      if (!finalComponentType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createGetterConversions(s).convert(finalComponentType))) {
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        Type convertedComponentType =
+            getFactory().createTypeConversion(true).convert(componentType);
         ForLoadedType functionType =
             new ForLoadedType(
                 createCollectionTransformFunction(
@@ -880,41 +1085,48 @@ public class ByteBuddyUtils {
       final TypeDescriptor<?> keyType = ReflectUtils.getMapType(type, 0);
       final TypeDescriptor<?> valueType = ReflectUtils.getMapType(type, 1);
 
-      Type convertedKeyType = getFactory().createTypeConversion(true).convert(keyType);
-      Type convertedValueType = getFactory().createTypeConversion(true).convert(valueType);
-
       if (!keyType.hasUnresolvedParameters() && !valueType.hasUnresolvedParameters()) {
-        ForLoadedType keyFunctionType =
-            new ForLoadedType(
-                createCollectionTransformFunction(
-                    keyType.getRawType(),
-                    convertedKeyType,
-                    (s) -> getFactory().createGetterConversions(s).convert(keyType)));
-        ForLoadedType valueFunctionType =
-            new ForLoadedType(
-                createCollectionTransformFunction(
-                    valueType.getRawType(),
-                    convertedValueType,
-                    (s) -> getFactory().createGetterConversions(s).convert(valueType)));
+        boolean keyIdentity =
+            isIdentityConversion(s -> getFactory().createGetterConversions(s).convert(keyType));
+        boolean valueIdentity =
+            isIdentityConversion(s -> getFactory().createGetterConversions(s).convert(valueType));
+        if (keyIdentity && valueIdentity) {
+          return readValue;
+        }
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        StackManipulation loadKeyFn;
+        if (keyIdentity) {
+          loadKeyFn = loadIdentityFunction();
+        } else {
+          Type convertedKeyType = getFactory().createTypeConversion(true).convert(keyType);
+          ForLoadedType keyFunctionType =
+              new ForLoadedType(
+                  createCollectionTransformFunction(
+                      keyType.getRawType(),
+                      convertedKeyType,
+                      (s) -> getFactory().createGetterConversions(s).convert(keyType)));
+          loadKeyFn = loadFunctionInstance(keyFunctionType);
+        }
+        StackManipulation loadValueFn;
+        if (valueIdentity) {
+          loadValueFn = loadIdentityFunction();
+        } else {
+          Type convertedValueType = getFactory().createTypeConversion(true).convert(valueType);
+          ForLoadedType valueFunctionType =
+              new ForLoadedType(
+                  createCollectionTransformFunction(
+                      valueType.getRawType(),
+                      convertedValueType,
+                      (s) -> getFactory().createGetterConversions(s).convert(valueType)));
+          loadValueFn = loadFunctionInstance(valueFunctionType);
+        }
         StackManipulation stackManipulation =
             new Compound(
                 readValue,
-                TypeCreation.of(keyFunctionType),
-                Duplication.SINGLE,
-                MethodInvocation.invoke(
-                    keyFunctionType
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                        .getOnly()),
-                TypeCreation.of(valueFunctionType),
-                Duplication.SINGLE,
-                MethodInvocation.invoke(
-                    valueFunctionType
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                        .getOnly()),
+                loadKeyFn,
+                loadValueFn,
                 MethodInvocation.invoke(
                     BYTE_BUDDY_UTILS_TYPE
                         .getDeclaredMethods()
@@ -1112,11 +1324,14 @@ public class ByteBuddyUtils {
     }
 
     protected TypeConversionsFactory getFactory() {
-      return new DefaultTypeConversionsFactory();
+      return DefaultTypeConversionsFactory.INSTANCE;
     }
 
     @Override
     protected StackManipulation convertArray(TypeDescriptor<?> type) {
+      if (readValue == IDENTITY_PROBE) {
+        return StackManipulation.Illegal.INSTANCE;
+      }
       // Generate the following code:
       // T[] toArray = (T[]) value.toArray(new T[0]);
       // return isPrimitive ? toArray : ArrayUtils.toPrimitive(toArray);
@@ -1135,7 +1350,9 @@ public class ByteBuddyUtils {
       Type rowElementType = getFactory().createTypeConversion(false).convert(componentType);
       final TypeDescriptor<?> arrayElementType = ReflectUtils.boxIfPrimitive(componentType);
       StackManipulation readTransformedValue = readValue;
-      if (!arrayElementType.hasUnresolvedParameters()) {
+      if (!arrayElementType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createSetterConversions(s).convert(arrayElementType))) {
         ForLoadedType conversionFunction =
             new ForLoadedType(
                 createCollectionTransformFunction(
@@ -1191,8 +1408,13 @@ public class ByteBuddyUtils {
     protected StackManipulation convertIterable(TypeDescriptor<?> type) {
       final TypeDescriptor<?> iterableElementType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getIterableComponentType(type));
-      Type rowElementType = getFactory().createTypeConversion(false).convert(iterableElementType);
-      if (!iterableElementType.hasUnresolvedParameters()) {
+      if (!iterableElementType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createSetterConversions(s).convert(iterableElementType))) {
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        Type rowElementType = getFactory().createTypeConversion(false).convert(iterableElementType);
         ForLoadedType conversionFunction =
             new ForLoadedType(
                 createCollectionTransformFunction(
@@ -1211,9 +1433,14 @@ public class ByteBuddyUtils {
     protected StackManipulation convertCollection(TypeDescriptor<?> type) {
       final TypeDescriptor<?> collectionElementType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getIterableComponentType(type));
-      Type rowElementType = getFactory().createTypeConversion(false).convert(collectionElementType);
-
-      if (!collectionElementType.hasUnresolvedParameters()) {
+      if (!collectionElementType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createSetterConversions(s).convert(collectionElementType))) {
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        Type rowElementType =
+            getFactory().createTypeConversion(false).convert(collectionElementType);
         ForLoadedType conversionFunction =
             new ForLoadedType(
                 createCollectionTransformFunction(
@@ -1230,32 +1457,45 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertList(TypeDescriptor<?> type) {
+      if (readValue == IDENTITY_PROBE) {
+        return StackManipulation.Illegal.INSTANCE;
+      }
       final TypeDescriptor<?> collectionElementType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getIterableComponentType(type));
-      Type rowElementType = getFactory().createTypeConversion(false).convert(collectionElementType);
-
-      StackManipulation readTrasformedValue = readValue;
-      if (!collectionElementType.hasUnresolvedParameters()) {
+      if (!collectionElementType.hasUnresolvedParameters()
+          && !isIdentityConversion(
+              s -> getFactory().createSetterConversions(s).convert(collectionElementType))) {
+        Type rowElementType =
+            getFactory().createTypeConversion(false).convert(collectionElementType);
         ForLoadedType conversionFunction =
             new ForLoadedType(
                 createCollectionTransformFunction(
                     TypeDescriptor.of(rowElementType).getRawType(),
                     collectionElementType.getRawType(),
                     (s) -> getFactory().createSetterConversions(s).convert(collectionElementType)));
-        readTrasformedValue = createTransformingContainer(conversionFunction, readValue);
+        StackManipulation transformedList =
+            new Compound(
+                readValue,
+                loadFunctionInstance(conversionFunction),
+                MethodInvocation.invoke(
+                    BYTE_BUDDY_UTILS_TYPE
+                        .getDeclaredMethods()
+                        .filter(ElementMatchers.named("transformToArrayList"))
+                        .getOnly()));
+        return new ShortCircuitReturnNull(readValue, transformedList);
       }
-      // TODO: Don't copy if already a list!
-      StackManipulation transformedList =
+      // If the element conversion is identity, only wrap/copy when the runtime value is not
+      // already of the required List/ArrayList type.
+      String helperName = type.getRawType().equals(List.class) ? "ensureList" : "ensureArrayList";
+      StackManipulation ensured =
           new Compound(
-              readTrasformedValue,
+              readValue,
               MethodInvocation.invoke(
-                  new ForLoadedType(Lists.class)
+                  BYTE_BUDDY_UTILS_TYPE
                       .getDeclaredMethods()
-                      .filter(
-                          ElementMatchers.named("newArrayList")
-                              .and(ElementMatchers.takesArguments(Iterable.class)))
+                      .filter(ElementMatchers.named(helperName))
                       .getOnly()));
-      return new ShortCircuitReturnNull(readValue, transformedList);
+      return new ShortCircuitReturnNull(readValue, ensured);
     }
 
     @Override
@@ -1264,54 +1504,81 @@ public class ByteBuddyUtils {
           Preconditions.checkArgumentNotNull(ReflectUtils.getMapType(type, 0));
       final TypeDescriptor<?> valueElementType =
           Preconditions.checkArgumentNotNull(ReflectUtils.getMapType(type, 1));
-      Type rowKeyType = getFactory().createTypeConversion(false).convert(keyElementType);
-      Type rowValueType = getFactory().createTypeConversion(false).convert(valueElementType);
 
-      StackManipulation readTrasformedValue = readValue;
       if (!keyElementType.hasUnresolvedParameters()
           && !valueElementType.hasUnresolvedParameters()) {
-        ForLoadedType keyConversionFunction =
-            new ForLoadedType(
-                createCollectionTransformFunction(
-                    TypeDescriptor.of(rowKeyType).getRawType(),
-                    keyElementType.getRawType(),
-                    (s) -> getFactory().createSetterConversions(s).convert(keyElementType)));
-        ForLoadedType valueConversionFunction =
-            new ForLoadedType(
-                createCollectionTransformFunction(
-                    TypeDescriptor.of(rowValueType).getRawType(),
-                    valueElementType.getRawType(),
-                    (s) -> getFactory().createSetterConversions(s).convert(valueElementType)));
-        readTrasformedValue =
+        boolean keyIdentity =
+            isIdentityConversion(
+                s -> getFactory().createSetterConversions(s).convert(keyElementType));
+        boolean valueIdentity =
+            isIdentityConversion(
+                s -> getFactory().createSetterConversions(s).convert(valueElementType));
+        if (keyIdentity && valueIdentity) {
+          return readValue;
+        }
+        if (readValue == IDENTITY_PROBE) {
+          return StackManipulation.Illegal.INSTANCE;
+        }
+        StackManipulation loadKeyFn;
+        if (keyIdentity) {
+          loadKeyFn = loadIdentityFunction();
+        } else {
+          Type rowKeyType = getFactory().createTypeConversion(false).convert(keyElementType);
+          ForLoadedType keyConversionFunction =
+              new ForLoadedType(
+                  createCollectionTransformFunction(
+                      TypeDescriptor.of(rowKeyType).getRawType(),
+                      keyElementType.getRawType(),
+                      (s) -> getFactory().createSetterConversions(s).convert(keyElementType)));
+          loadKeyFn = loadFunctionInstance(keyConversionFunction);
+        }
+        StackManipulation loadValueFn;
+        if (valueIdentity) {
+          loadValueFn = loadIdentityFunction();
+        } else {
+          Type rowValueType = getFactory().createTypeConversion(false).convert(valueElementType);
+          ForLoadedType valueConversionFunction =
+              new ForLoadedType(
+                  createCollectionTransformFunction(
+                      TypeDescriptor.of(rowValueType).getRawType(),
+                      valueElementType.getRawType(),
+                      (s) -> getFactory().createSetterConversions(s).convert(valueElementType)));
+          loadValueFn = loadFunctionInstance(valueConversionFunction);
+        }
+        StackManipulation transformedMap =
             new Compound(
                 readValue,
-                TypeCreation.of(keyConversionFunction),
-                Duplication.SINGLE,
-                MethodInvocation.invoke(
-                    keyConversionFunction
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                        .getOnly()),
-                TypeCreation.of(valueConversionFunction),
-                Duplication.SINGLE,
-                MethodInvocation.invoke(
-                    valueConversionFunction
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                        .getOnly()),
+                loadKeyFn,
+                loadValueFn,
                 MethodInvocation.invoke(
                     BYTE_BUDDY_UTILS_TYPE
                         .getDeclaredMethods()
                         .filter(ElementMatchers.named("getTransformingMap"))
                         .getOnly()));
+        return new ShortCircuitReturnNull(readValue, transformedMap);
       }
-      return new ShortCircuitReturnNull(readValue, readTrasformedValue);
+      return readValue;
     }
 
     @Override
     protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
+      // Fast path: when target is org.joda.time.Instant or ReadableInstant, call toInstant()
+      // which returns `this` with zero allocation when value is already an Instant.
+      Class<?> rawType = type.getRawType();
+      if (rawType.equals(Instant.class) || rawType.equals(ReadableInstant.class)) {
+        StackManipulation toInstant =
+            new Compound(
+                readValue,
+                TypeCasting.to(READABLE_INSTANT_TYPE),
+                MethodInvocation.invoke(
+                    READABLE_INSTANT_TYPE
+                        .getDeclaredMethods()
+                        .filter(
+                            ElementMatchers.named("toInstant")
+                                .and(ElementMatchers.takesArguments(0)))
+                        .getOnly()));
+        return new ShortCircuitReturnNull(readValue, toInstant);
+      }
       // The setter might be called with a different subclass of ReadableInstant than the one stored
       // in this POJO. We must extract the value passed into the setter and copy it into an instance
       // that the POJO can accept.
@@ -1443,49 +1710,38 @@ public class ByteBuddyUtils {
     protected StackManipulation convertEnum(TypeDescriptor<?> type) {
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
 
-      // Convert the stored ordinal back to the Java enum constant.
+      // Look up enum constant via cached ClassValue<Object[]> to avoid cloning $VALUES per call.
       StackManipulation stackManipulation =
           new Compound(
-              // Call EnumType::values() to get an array of all enum constants.
-              MethodInvocation.invoke(
-                  loadedType
-                      .getDeclaredMethods()
-                      .filter(
-                          ElementMatchers.named("values")
-                              .and(
-                                  ElementMatchers.isStatic()
-                                      .and(ElementMatchers.takesArguments(0))))
-                      .getOnly()),
-              // Read the integer enum value.
+              ClassConstant.of(loadedType),
               readValue,
-              // Unbox Integer -> int before accessing the array.
               Assigner.DEFAULT.assign(
                   INTEGER_TYPE.asBoxed().asGenericType(),
                   INTEGER_TYPE.asUnboxed().asGenericType(),
                   Typing.STATIC),
-              // Access the array to return the Java enum type.
-              ArrayAccess.REFERENCE.load());
+              MethodInvocation.invoke(
+                  BYTE_BUDDY_UTILS_TYPE
+                      .getDeclaredMethods()
+                      .filter(ElementMatchers.named("enumConstantForOrdinal"))
+                      .getOnly()),
+              TypeCasting.to(loadedType));
       return new ShortCircuitReturnNull(readValue, stackManipulation);
     }
 
     @Override
     protected StackManipulation convertLogicalType(TypeDescriptor<?> type) {
-      // Equivalent code: return (JavaType) STATIC_LOGICAL_TYPE.toInputType(value);
-      // FromRowUsingCreator already converted the row's input-type value (e.g. LocalDate)
-      // to the LogicalType's base value (e.g. Long) before invoking the generated creator,
-      // so we receive the base type here and need to project back to the POJO field's
-      // Java type.
+      // Accepts either the Java input type directly (when FromRowUsingCreator skips toBaseType)
+      // or the LogicalType's base representation (for direct caller compatibility).
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       StackManipulation stackManipulation =
           new Compound(
               loadLogicalType(type.getRawType()),
+              ClassConstant.of(loadedType),
               readValue,
               MethodInvocation.invoke(
-                  LOGICAL_TYPE_TYPE
+                  BYTE_BUDDY_UTILS_TYPE
                       .getDeclaredMethods()
-                      .filter(
-                          ElementMatchers.named("toInputType")
-                              .and(ElementMatchers.takesArguments(1)))
+                      .filter(ElementMatchers.named("convertLogicalTypeForSetter"))
                       .getOnly()),
               TypeCasting.to(loadedType));
       return new ShortCircuitReturnNull(readValue, stackManipulation);
