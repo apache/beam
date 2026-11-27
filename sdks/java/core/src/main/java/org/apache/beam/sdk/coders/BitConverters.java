@@ -27,10 +27,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Lon
 class BitConverters {
   private BitConverters() {}
 
-  // Deliberately allocates a local byte[8] instead of using a ThreadLocal scratch buffer:
-  // HotSpot C2 scalar-replaces the local array on monomorphic streams (making ThreadLocal lookup
-  // significantly slower), and even under megamorphic stream dispatch the ThreadLocal overhead
-  // outweighs the small young-GC savings.
   static long readBigEndianLong(InputStream in) throws IOException {
     byte[] buf = new byte[8];
     ByteStreams.readFully(in, buf);
@@ -65,8 +61,7 @@ class BitConverters {
   // Unrolls the 8 big-endian byte stores into a local byte[8] and invokes out.write(buf, 0, 8)
   // directly (avoiding Guava Longs.toByteArray's loop and OutputStream.write(byte[]) indirection).
   // This allows HotSpot C2 Escape Analysis to scalar-replace buf to 0 B/op on monomorphic streams
-  // like ByteStringOutputStream and ByteArrayOutputStream without ThreadLocal lookup overhead or
-  // reentrancy hazards, while matching ThreadLocal throughput even under megamorphic dispatch.
+  // like ByteStringOutputStream and ByteArrayOutputStreaml.
   static void writeBigEndianLong(long value, OutputStream out) throws IOException {
     byte[] buf = new byte[8];
     buf[0] = (byte) (value >>> 56);
