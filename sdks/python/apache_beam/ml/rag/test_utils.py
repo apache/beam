@@ -15,18 +15,24 @@
 # limitations under the License.
 #
 
+import ast
 import contextlib
 import logging
 import os
 import socket
 import tempfile
 import unittest
+from collections import defaultdict
 from dataclasses import dataclass
+from typing import Any
 from typing import Callable
 from typing import Optional
 from typing import cast
 
 from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import EmbeddableItem
+from apache_beam.ml.rag.types import Embedding
 from apache_beam.ml.rag.utils import retry_with_backoff
 from apache_beam.testing.test_utils import cleanup_testcontainer_on_retry
 
@@ -47,6 +53,98 @@ except ImportError as e:
   raise unittest.SkipTest(f'RAG test util dependencies not installed: {str(e)}')
 
 _LOGGER = logging.getLogger(__name__)
+
+# The only callables that may appear in the repr() of a Chunk.
+_CHUNK_REPR_CONSTRUCTORS: dict[str, Callable[..., Any]] = {
+    'Chunk': Chunk,
+    'EmbeddableItem': EmbeddableItem,
+    'Content': Content,
+    'Embedding': Embedding,
+    'defaultdict': defaultdict,
+}
+
+
+def _chunk_repr_node_to_value(node: ast.AST) -> Any:
+  """Builds the value described by one node of a parsed Chunk repr().
+
+  The syntax tree is walked instead of being evaluated. Only literals,
+  lists, tuples, dicts and calls to the constructors in
+  _CHUNK_REPR_CONSTRUCTORS are accepted. Everything else (attribute access,
+  subscripts, comprehensions, lambdas, names, other calls) raises ValueError.
+  """
+  if isinstance(node, ast.Call):
+    func = node.func
+    if not (isinstance(func, ast.Name) and func.id in _CHUNK_REPR_CONSTRUCTORS):
+      raise ValueError(f"Unsupported call: {ast.unparse(func)}")
+    arg_nodes = list(node.args)
+    args: list[Any] = []
+    if (func.id == 'defaultdict' and arg_nodes and
+        isinstance(arg_nodes[0], ast.Name) and arg_nodes[0].id == 'list'):
+      # The default factory in "defaultdict(list, {...})". This is the only
+      # place where a name is accepted.
+      args.append(list)
+      arg_nodes = arg_nodes[1:]
+    args.extend(_chunk_repr_node_to_value(arg) for arg in arg_nodes)
+    kwargs = {}
+    for keyword in node.keywords:
+      if keyword.arg is None:
+        raise ValueError("Unsupported '**' in call arguments")
+      kwargs[keyword.arg] = _chunk_repr_node_to_value(keyword.value)
+    return _CHUNK_REPR_CONSTRUCTORS[func.id](*args, **kwargs)
+  if isinstance(node, ast.List):
+    return [_chunk_repr_node_to_value(elt) for elt in node.elts]
+  if isinstance(node, ast.Tuple):
+    return tuple(_chunk_repr_node_to_value(elt) for elt in node.elts)
+  if isinstance(node, ast.Dict):
+    result = {}
+    for key, value in zip(node.keys, node.values):
+      if key is None:
+        raise ValueError("Unsupported '**' in dict display")
+      result[_chunk_repr_node_to_value(key)] = _chunk_repr_node_to_value(value)
+    return result
+  # What is left must be a plain literal: a string, bytes, a number, None,
+  # True, False, or a set of these. ast.literal_eval never calls anything and
+  # raises ValueError for every other kind of node.
+  try:
+    return ast.literal_eval(node)
+  except ValueError:
+    raise ValueError(f"Unsupported expression: {ast.unparse(node)}") from None
+
+
+def parse_chunk_strings(chunk_str_list: list[str]) -> list[Chunk]:
+  """Parses strings produced by repr() of a Chunk back into Chunks.
+
+  For tests that compare printed pipeline output with expected Chunks. The
+  strings are never evaluated as Python code: see _chunk_repr_node_to_value.
+
+  Args:
+    chunk_str_list: Strings such as
+      "Chunk(content=Content(text='a'), id='1', index=0, metadata={}, "
+      "embedding=None)".
+
+  Returns:
+    The parsed Chunks, in the same order.
+
+  Raises:
+    ValueError: If a string is not the repr() of a Chunk.
+  """
+  parsed_chunks = []
+
+  for raw_str in chunk_str_list:
+    try:
+      # repr() prints the default factory of a defaultdict as
+      # "<class 'list'>", which is not a Python expression.
+      cleaned_str = raw_str.replace(
+          "defaultdict(<class 'list'>", "defaultdict(list")
+      tree = ast.parse(cleaned_str.strip(), mode='eval')
+      chunk = _chunk_repr_node_to_value(tree.body)
+      if not isinstance(chunk, Chunk):
+        raise ValueError("Parsed object is not a Chunk instance")
+      parsed_chunks.append(chunk)
+    except Exception as e:
+      raise ValueError(f"Error parsing string:\n{raw_str}\n{e}") from e
+
+  return parsed_chunks
 
 
 @dataclass
