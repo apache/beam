@@ -17,7 +17,6 @@
 // https://github.com/tetratelabs/wazero/blob/v1.0.0-pre.3/examples/allocation/rust/testdata/greet.rs
 extern crate alloc;
 extern crate core;
-extern crate wee_alloc;
 
 use alloc::vec::Vec;
 use std::mem::MaybeUninit;
@@ -74,7 +73,8 @@ pub unsafe extern "C" fn _greet(ptr: u32, len: u32) {
 #[no_mangle]
 pub unsafe extern "C" fn _greeting(ptr: u32, len: u32) -> u64 {
     let name = &ptr_to_string(ptr, len);
-    let g = greeting(name);
+    let mut g = greeting(name);
+    g.shrink_to_fit();
     let (ptr, len) = string_to_ptr(&g);
     // Note: This changes ownership of the pointer to the external caller. If
     // we didn't call forget, the caller would read back a corrupt value. Since
@@ -100,10 +100,6 @@ unsafe fn string_to_ptr(s: &String) -> (u32, u32) {
     return (s.as_ptr() as u32, s.len() as u32);
 }
 
-/// Set the global allocator to the WebAssembly optimized one.
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 /// WebAssembly export that allocates a pointer (linear memory offset) that can
 /// be used for a string.
 ///
@@ -118,7 +114,7 @@ pub extern "C" fn _allocate(size: u32) -> *mut u8 {
 /// Allocates size bytes and leaks the pointer where they start.
 fn allocate(size: usize) -> *mut u8 {
     // Allocate the amount of bytes needed.
-    let vec: Vec<MaybeUninit<u8>> = Vec::with_capacity(size);
+    let vec: Vec<MaybeUninit<u8>> = vec![MaybeUninit::uninit(); size];
 
     // into_raw leaks the memory to the caller.
     Box::into_raw(vec.into_boxed_slice()) as *mut u8

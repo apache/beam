@@ -80,6 +80,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
         keyedStateBackend,
         null,
         null,
+        null,
         null);
   }
 
@@ -94,6 +95,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       SerializablePipelineOptions pipelineOptions,
       @Nullable Supplier<Locker> locker,
       @Nullable Function<InputT, Object> keySelector,
+      @Nullable Supplier<?> timerKeySupplier,
       @Nullable Runnable finishBundleCallback)
       throws Exception {
 
@@ -108,6 +110,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
         keyedStateBackend,
         locker,
         keyedStateBackend != null ? keySelector : null,
+        keyedStateBackend != null ? timerKeySupplier : null,
         finishBundleCallback);
   }
 
@@ -152,6 +155,13 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
   /** Callable to notify about possibility to flush bundle. */
   private final @Nullable Runnable finishBundleCallback;
 
+  /**
+   * If non-null, provides the key of a replayed timer. The buffered state does not contain the key
+   * of a timer, so the supplier is called while the keyed state backend is set to the key the timer
+   * was buffered for.
+   */
+  private final @Nullable Supplier<?> timerKeySupplier;
+
   private BufferingDoFnRunner(
       DoFnRunner<InputT, OutputT> underlying,
       String stateName,
@@ -163,6 +173,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       @Nullable KeyedStateBackend keyedStateBackend,
       @Nullable Supplier<Locker> locker,
       @Nullable Function<InputT, Object> keySelector,
+      @Nullable Supplier<?> timerKeySupplier,
       @Nullable Runnable finishBundleCallback)
       throws Exception {
 
@@ -197,6 +208,7 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
     this.keyedStateBackend = keyedStateBackend;
     this.locker = locker;
     this.keySelector = keySelector;
+    this.timerKeySupplier = timerKeySupplier;
     this.finishBundleCallback = finishBundleCallback;
 
     Preconditions.checkArgument(
@@ -304,14 +316,19 @@ public final class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<In
       BufferingElementsHandler bufferingElementsHandler =
           bufferingElementsHandlerFactory.get(toBeAckedId);
       try (Locker lock = locker != null ? locker.get() : null) {
-        final Iterator<BufferedElement> iterator =
-            bufferingElementsHandler.getElements().iterator();
+        final Iterator<BufferedElement> iterator = bufferingElementsHandler.getElements();
         boolean hasElements = iterator.hasNext();
         if (hasElements) {
           underlying.startBundle();
         }
         while (iterator.hasNext()) {
           BufferedElement bufferedElement = iterator.next();
+          if (timerKeySupplier != null && bufferedElement instanceof BufferedElements.Timer) {
+            // The key of a timer is not stored in the buffer. The handler has set the keyed state
+            // backend to the key the timer was buffered for.
+            bufferedElement =
+                ((BufferedElements.Timer<?>) bufferedElement).withKey(timerKeySupplier.get());
+          }
           bufferedElement.processWith(underlying);
         }
         if (hasElements) {

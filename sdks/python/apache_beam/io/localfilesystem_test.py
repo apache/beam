@@ -21,6 +21,7 @@ import contextlib
 import filecmp
 import logging
 import os
+import platform
 import shutil
 import tempfile
 import unittest
@@ -31,6 +32,8 @@ from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import FileMetadata
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 
 # pytype: skip-file
@@ -228,6 +231,35 @@ class LocalFileSystemTest(unittest.TestCase):
     files = [f.path for f in result.metadata_list]
     self.assertCountEqual(files, [path1, path2])
 
+  def test_match_glob_with_forward_slashes(self):
+    # On Windows, listed paths use '\', but a pattern may use '/'.
+    self.fs.mkdirs(os.path.join(self.tmpdir, 'data'))
+    for name in ['a.txt', 'b.txt', 'c.csv']:
+      open(os.path.join(self.tmpdir, 'data', name), 'a').close()
+
+    pattern = self.tmpdir.replace(os.sep, '/') + '/data/*.txt'
+    result = self.fs.match([pattern])[0]
+    files = [os.path.basename(f.path) for f in result.metadata_list]
+    self.assertCountEqual(files, ['a.txt', 'b.txt'])
+
+    with self.tmpdir_as_cwd():
+      result = self.fs.match(['data/*.txt'])[0]
+      files = [os.path.basename(f.path) for f in result.metadata_list]
+      self.assertCountEqual(files, ['a.txt', 'b.txt'])
+
+  @unittest.skipUnless(
+      platform.system() == 'Windows', 'Windows path separators')
+  def test_match_files_treats_both_separators_alike_on_windows(self):
+    file_metas = [
+        FileMetadata('C:\\data\\a.txt', 0),
+        FileMetadata('C:/data\\b.txt', 0),
+        FileMetadata('C:\\data\\c.csv', 0),
+        FileMetadata('C:\\data\\sub\\d.txt', 0),
+    ]
+    for pattern in ['C:/data/*.txt', 'C:\\data\\*.txt', 'C:\\data/*.txt']:
+      files = [f.path for f in self.fs.match_files(file_metas, pattern)]
+      self.assertEqual(files, ['C:\\data\\a.txt', 'C:/data\\b.txt'], pattern)
+
   def test_match_relative_glob_in_cwd(self):
     with self.tmpdir_as_cwd():
       open('users.json-00000-of-00002', 'a').close()
@@ -273,6 +305,110 @@ class LocalFileSystemTest(unittest.TestCase):
       self.fs.copy([path1], [path2])
     self.assertEqual(
         list(error.exception.exception_details.keys()), [(path1, path2)])
+
+  @parameterized.expand([('file', False), ('directory', True)])
+  def test_copy_same_path_preserves_source(self, unused_name, is_directory):
+    path = os.path.join(self.tmpdir, 'source')
+    if is_directory:
+      os.mkdir(path)
+      data_path = os.path.join(path, 'data')
+    else:
+      data_path = path
+    with open(data_path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([path], [path])
+
+    with open(data_path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  def test_copy_equivalent_path_preserves_source(self):
+    path = os.path.join(self.tmpdir, 'source')
+    alias = os.path.join(self.tmpdir, '.', 'source')
+    with open(path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([path], [alias])
+
+    with open(path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  def test_copy_hard_link_preserves_source(self):
+    path = os.path.join(self.tmpdir, 'source')
+    alias = os.path.join(self.tmpdir, 'alias')
+    with open(path, 'w') as output:
+      output.write('original data')
+    os.link(path, alias)
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([path], [alias])
+
+    self.assertTrue(os.path.samefile(path, alias))
+    with open(path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  def test_filesystems_copy_same_file_preserves_source(self):
+    path = os.path.join(self.tmpdir, 'source')
+    with open(path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      FileSystems.copy([path], [path])
+
+    with open(path) as source:
+      self.assertEqual(source.read(), 'original data')
+
+  @parameterized.expand([('file', False), ('directory', True)])
+  def test_copy_missing_source_preserves_destination(
+      self, unused_name, is_directory):
+    source = os.path.join(self.tmpdir, 'missing')
+    destination = os.path.join(self.tmpdir, 'destination')
+    if is_directory:
+      os.mkdir(destination)
+      data_path = os.path.join(destination, 'data')
+    else:
+      data_path = destination
+    with open(data_path, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError):
+      self.fs.copy([source], [destination])
+
+    with open(data_path) as existing:
+      self.assertEqual(existing.read(), 'original data')
+
+  def test_copy_overwrites_existing_file(self):
+    source = os.path.join(self.tmpdir, 'source')
+    destination = os.path.join(self.tmpdir, 'destination')
+    with open(source, 'w') as output:
+      output.write('new data')
+    with open(destination, 'w') as output:
+      output.write('old data')
+
+    self.fs.copy([source], [destination])
+
+    with open(destination) as copied:
+      self.assertEqual(copied.read(), 'new data')
+    with open(source) as original:
+      self.assertEqual(original.read(), 'new data')
+
+  def test_copy_self_failure_does_not_skip_other_pairs(self):
+    source = os.path.join(self.tmpdir, 'source')
+    destination = os.path.join(self.tmpdir, 'destination')
+    with open(source, 'w') as output:
+      output.write('original data')
+
+    with self.assertRaises(BeamIOError) as error:
+      self.fs.copy([source, source], [source, destination])
+
+    self.assertEqual(
+        list(error.exception.exception_details), [(source, source)])
+    with open(source) as original:
+      self.assertEqual(original.read(), 'original data')
+    with open(destination) as copied:
+      self.assertEqual(copied.read(), 'original data')
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')

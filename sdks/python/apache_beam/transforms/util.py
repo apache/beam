@@ -913,7 +913,6 @@ def _pardo_stateful_batch_elements(
         batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
         window_timer=DoFn.TimerParam(WINDOW_TIMER),
         buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
-      window_timer.set(window.end)
       # Drop the fixed key since we don't care about it
       element_state.add(element[1])
       count_state.add(1)
@@ -926,10 +925,6 @@ def _pardo_stateful_batch_elements(
         batch_size_state.write(target_size)
         batch_estimator_state.write(batch_estimator)
 
-      if count == 1 and max_buffering_duration_secs > 0:
-        # First element in batch, start buffering timer
-        buffering_timer.set(clock() + max_buffering_duration_secs)
-
       if count >= target_size:
         return self.flush_batch(
             element_state,
@@ -937,6 +932,12 @@ def _pardo_stateful_batch_elements(
             batch_size_state,
             batch_estimator_state,
             buffering_timer)
+
+      if count == 1:
+        window_timer.set(window.end)
+        if max_buffering_duration_secs > 0:
+          # First element in batch, start buffering timer
+          buffering_timer.set(clock() + max_buffering_duration_secs)
 
     @on_timer(WINDOW_TIMER)
     def on_window_timer(
@@ -1050,7 +1051,6 @@ def _pardo_stateful_weighted_batch_elements(
         batch_estimator_state=DoFn.StateParam(BATCH_ESTIMATOR_STATE),
         window_timer=DoFn.TimerParam(WINDOW_TIMER),
         buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
-      window_timer.set(window.end)
       # Drop the fixed key since we don't care about it
       value = element[1]
       element_weight = element_size_fn(value)
@@ -1085,10 +1085,6 @@ def _pardo_stateful_weighted_batch_elements(
       weight += element_weight
       weight_state.write(weight)
 
-      if count == 1 and max_buffering_duration_secs > 0:
-        # First element in batch, start buffering timer
-        buffering_timer.set(clock() + max_buffering_duration_secs)
-
       if reaches_limits(count, weight, target_size):
         yield from self.flush_batch(
             element_state,
@@ -1097,6 +1093,11 @@ def _pardo_stateful_weighted_batch_elements(
             batch_size_state,
             batch_estimator_state,
             buffering_timer)
+      elif count == 1:
+        window_timer.set(window.end)
+        if max_buffering_duration_secs > 0:
+          # First element in batch, start buffering timer
+          buffering_timer.set(clock() + max_buffering_duration_secs)
 
     @on_timer(WINDOW_TIMER)
     def on_window_timer(
@@ -2254,17 +2255,18 @@ def _pardo_group_into_batches(
         buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
       # Allowed lateness not supported in Python SDK
       # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
-      window_timer.set(window.end)
       element_state.add(element)
       count_state.add(1)
       count = count_state.read()
-      if count == 1 and max_buffering_duration_secs > 0:
-        # This is the first element in batch. Start counting buffering time if a
-        # limit was set.
-        # pylint: disable=deprecated-method
-        buffering_timer.set(clock() + max_buffering_duration_secs)
       if count >= batch_size:
         return self.flush_batch(element_state, count_state, buffering_timer)
+      if count == 1:
+        window_timer.set(window.end)
+        if max_buffering_duration_secs > 0:
+          # This is the first element in batch. Start counting buffering time if
+          # a limit was set.
+          # pylint: disable=deprecated-method
+          buffering_timer.set(clock() + max_buffering_duration_secs)
 
     @on_timer(WINDOW_TIMER)
     def on_window_timer(

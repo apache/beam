@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import * as uuid from "uuid";
+import { randomUUID } from "crypto";
 
 import * as runnerApi from "../proto/beam_runner_api";
 
@@ -227,7 +227,7 @@ export class RowCoder implements Coder<any> {
       };
     });
     return {
-      id: uuid.v4(),
+      id: randomUUID(),
       fields: fields,
       options: [],
       encodingPositionsSet: false,

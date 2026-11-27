@@ -59,6 +59,7 @@ import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationConte
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.OutputReference;
@@ -1060,7 +1061,11 @@ public class DataflowPipelineTranslator {
                 !windowingStrategy.needsMerge()
                     && windowingStrategy.getWindowFn().assignsToOneWindow();
             if (isStreaming) {
-              allowCombinerLifting &= transform.fewKeys();
+              boolean multiKeyBundleEnabled =
+                  hasExperiment(
+                      context.getPipelineOptions(),
+                      DataflowStreamingPipelineOptions.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
+              allowCombinerLifting &= (transform.fewKeys() || multiKeyBundleEnabled);
               allowCombinerLifting &=
                   windowingStrategy
                       .getTrigger()

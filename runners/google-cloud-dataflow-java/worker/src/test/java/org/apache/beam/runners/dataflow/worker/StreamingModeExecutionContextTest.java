@@ -178,7 +178,6 @@ public class StreamingModeExecutionContextTest {
         /* systemName= */ "systemName",
         StreamingCounters.create(),
         StreamingEngineFailureTracker.create(10, 10),
-        "sourceBytesProcessCounterName",
         MultiKeyBundleOptions.fromOptions(options),
         SideInputStateFetcherFactory.fromOptions(options));
   }
@@ -1029,5 +1028,67 @@ public class StreamingModeExecutionContextTest {
         .invalidate(eq(work.getShardedKey().key()), eq(work.getShardedKey().shardingKey()));
     verify(mockReaderCache)
         .invalidateReader(eq(WindmillComputationKey.create(COMPUTATION_ID, work.getShardedKey())));
+  }
+
+  @Test
+  public void testSourceBytesProcessedTrackedPerKeyAndReset() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Work work1 =
+        createMockWork(
+            Windmill.WorkItem.newBuilder()
+                .setKey(ByteString.copyFromUtf8("key1"))
+                .setShardingKey(1L)
+                .setWorkToken(1L)
+                .setKeyGroup(keyGroup)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+    Work work2 =
+        createMockWork(
+            Windmill.WorkItem.newBuilder()
+                .setKey(ByteString.copyFromUtf8("key2"))
+                .setShardingKey(2L)
+                .setWorkToken(2L)
+                .setKeyGroup(keyGroup)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    ExecutableWork executableWork2 = ExecutableWork.create(work2, (w, h) -> {});
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any()))
+        .thenReturn(executableWork2)
+        .thenReturn(null);
+    when(mockHandle.getWorkBatch()).thenReturn(ImmutableList.of(work1, work2));
+
+    executionContext.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        FAILING_FAILED_WORK_HANDLER);
+
+    executionContext.addSourceBytesProcessed(42L);
+    assertEquals(42L, executionContext.getSourceBytesProcessed());
+    executionContext.finishKey();
+
+    assertTrue(executionContext.advance());
+    assertEquals(0L, executionContext.getSourceBytesProcessed());
+
+    executionContext.addSourceBytesProcessed(99L);
+    executionContext.finishKey();
+
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
+    assertEquals(0L, executionContext.getSourceBytesProcessed());
+    assertEquals(2, result.workItemCommits().size());
+    assertEquals(42L, result.workItemCommits().get(0).getSourceBytesProcessed());
+    assertEquals(99L, result.workItemCommits().get(1).getSourceBytesProcessed());
+
+    executionContext.addSourceBytesProcessed(15L);
+    executionContext.reset();
+    assertEquals(0L, executionContext.getSourceBytesProcessed());
   }
 }

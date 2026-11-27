@@ -34,6 +34,12 @@ import org.joda.time.Duration;
 })
 public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
+  /**
+   * Don't use. Experiment guarding multi key bundles. The feature is work in progress and
+   * incomplete.
+   */
+  String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE = "unstable_enable_multi_key_bundle";
+
   /** Custom windmill_main binary to use with the streaming runner. */
   @Description("Custom windmill_main binary to use with the streaming runner")
   String getOverrideWindmillBinary();
