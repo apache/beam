@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.naming.SizeLimitExceededException;
@@ -1912,12 +1913,11 @@ public class PubsubIO {
       public void startBundle(StartBundleContext c) throws IOException {
         this.output = Maps.newHashMap();
 
-        // NOTE: idAttribute is ignored.
         this.pubsubClient =
             getPubsubClientFactory()
                 .newClient(
                     getTimestampAttribute(),
-                    null,
+                    getIdAttribute(),
                     c.getPipelineOptions().as(PubsubOptions.class),
                     Write.this.getPubsubRootUrl());
       }
@@ -1930,9 +1930,18 @@ public class PubsubIO {
         // - Size validation makes no distinction between JSON and Protobuf encoding
         // - Accounting for HTTP to gRPC transcoding is non-trivial
         PreparePubsubWriteDoFn.validatePubsubMessage(message, maxPublishBatchByteSize);
-        // NOTE: The record id is always null since it will be assigned by Pub/Sub.
+        // If an id attribute is configured, use the id the message already
+        // carries, or generate a fresh random id for this element.
+        @Nullable String recordId = null;
+        @Nullable String idAttribute = getIdAttribute();
+        if (idAttribute != null) {
+          recordId = message.getAttribute(idAttribute);
+          if (recordId == null || recordId.isEmpty()) {
+            recordId = UUID.randomUUID().toString();
+          }
+        }
         final OutgoingMessage msg =
-            OutgoingMessage.of(message, timestamp.getMillis(), null, message.getTopic());
+            OutgoingMessage.of(message, timestamp.getMillis(), recordId, message.getTopic());
         // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         // - Size validation makes no distinction between JSON and Protobuf encoding
         // - Accounting for HTTP to gRPC transcoding is non-trivial

@@ -1204,4 +1204,83 @@ public class PubsubIOTest {
     Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.PRODUCER);
     Mockito.verify(mockSpan).end();
   }
+/** Records every published message instead of sending it. */
+private static class CapturingPubsubClient extends PubsubTestClient {
+  private static final List<OutgoingMessage> PUBLISHED_MESSAGES = new ArrayList<>();
+
+    @Override
+    public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) {
+      PUBLISHED_MESSAGES.addAll(outgoingMessages);
+      return outgoingMessages.size();
+    }
+  static List<OutgoingMessage> published() {
+      return PUBLISHED_MESSAGES;
+      }
+            static void clear() {
+            PUBLISHED_MESSAGES.clear();
+          }
+    }
+
+    /** A {@link PubsubClient.PubsubClientFactory} that returns a {@link CapturingPubsubClient}. */
+    private static class CapturingPubsubClientFactory implements PubsubClient.PubsubClientFactory {
+
+          @Override
+          public PubsubClient newClient(
+                    @Nullable String timestampAttribute,
+                    @Nullable String idAttribute,
+                    PubsubOptions options,
+                    @Nullable String rootUrlOverride) {
+                  return new CapturingPubsubClient();
+          }
+  
+      @Override
+      public PubsubClient newClient(
+                  @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
+        PubsubOptions options) {
+                  return new CapturingPubsubClient();
+      }
+
+          @Override
+          public String getKind() {
+                  return "CapturingTest";
+          }
+    }
+
+    /** Writes messages with an id attribute of "id" and returns what was published. */
+    private List<OutgoingMessage> runBoundedWrite(List<PubsubMessage> messages) {
+          CapturingPubsubClient.clear();
+          pipeline
+                    .apply(Create.of(messages).withCoder(PubsubMessageWithTopicCoder.of()))
+                    .apply(
+                                  PubsubIO.writeMessages()
+                                      .to(TOPIC.getPath())
+                            .withIdAttribute("id")
+                            .withClientFactory(new CapturingPubsubClientFactory()));
+          pipeline.run();
+          return CapturingPubsubClient.published();
+    }
+
+    @Test
+    public void testBoundedWriteGeneratesFreshIdAttribute() {
+          PubsubMessage message =
+                    new PubsubMessage("same-payload".getBytes(StandardCharsets.UTF_8), Collections.emptyMap());
+          List<OutgoingMessage> published =   runBoundedWrite(ImmutableList.of(message, message));
+          assertThat(published.size(), is(2));
+          assertNotNull(published.get(0).recordId());
+          assertNotNull(published.get(1).recordId());
+          assertThat(published.get(0).recordId().isEmpty(), is(false));
+          assertThat(published.get(1).recordId().isEmpty(), is(false));
+          assertThat(published.get(0).recordId(), not(equalTo(published.get(1).recordId())));
+    }
+
+    @Test
+    public void testBoundedWriteKeepsExistingIdAttribute() {
+          PubsubMessage message =
+                    new PubsubMessage(
+                                  "payload".getBytes(StandardCharsets.UTF_8), ImmutableMap.of("id", "existing-id"));
+          List<OutgoingMessage> published = runBoundedWrite(ImmutableList.of(message));
+          assertThat(published.size(), is(1));
+          assertEquals("existing-id", published.get(0).recordId());
+    }
 }
