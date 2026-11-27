@@ -237,6 +237,15 @@ class OperationCountersTest(unittest.TestCase):
               10 * total_runs / i,
               buckets[i] / (10.0 * total_runs / i)))
 
+  def test_restart_sampling_resets_next_sample(self):
+    opcounts = OperationCounters(
+        CounterFactory(), 'some-name', coders.PickleCoder(), 0)
+    for _ in range(100):
+      opcounts.should_sample()
+    opcounts.restart_sampling()
+    for _ in range(10):
+      self.assertTrue(opcounts.should_sample())
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
