@@ -1128,6 +1128,50 @@ public class AvroUtilsTest {
   }
 
   @Test
+  public void testGenericRecordToSqlTime() {
+    java.time.LocalTime localTime = java.time.LocalTime.of(12, 34, 56, 123_456_000);
+    Schema beamSchema =
+        Schema.builder()
+            .addField(Field.of("local_time", FieldType.logicalType(SqlTypes.TIME)))
+            .build();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+    GenericRecord record =
+        new GenericRecordBuilder(avroSchema)
+            .set("local_time", localTime.toNanoOfDay() / 1000)
+            .build();
+
+    Row expected = Row.withSchema(beamSchema).addValue(localTime).build();
+
+    assertEquals(expected, AvroUtils.toBeamRowStrict(record, beamSchema));
+  }
+
+  @Test
+  public void testGenericRecordTimeMicrosToInt64() {
+    long timeMicros = 45_296_123_456L;
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord(
+            "topLevelRecord",
+            null,
+            null,
+            false,
+            ImmutableList.of(
+                new org.apache.avro.Schema.Field(
+                    "local_time",
+                    LogicalTypes.timeMicros()
+                        .addToSchema(
+                            org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG)),
+                    null,
+                    (Object) null)));
+    GenericRecord record =
+        new GenericRecordBuilder(avroSchema).set("local_time", timeMicros).build();
+    Schema beamSchema = Schema.builder().addInt64Field("local_time").build();
+
+    Row expected = Row.withSchema(beamSchema).addValue(timeMicros).build();
+
+    assertEquals(expected, AvroUtils.toBeamRowStrict(record, beamSchema));
+  }
+
+  @Test
   public void testBeamRowToGenericRecord() {
     GenericRecord genericRecord = AvroUtils.toGenericRecord(getBeamRow(), null);
     assertEquals(getAvroSchema(), genericRecord.getSchema());

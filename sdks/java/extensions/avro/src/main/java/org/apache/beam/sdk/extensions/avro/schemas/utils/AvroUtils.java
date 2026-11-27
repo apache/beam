@@ -1502,6 +1502,12 @@ public class AvroUtils {
       case "time-millis":
         return checkRawType(Integer.class, value, logicalType, rawType, conversion, convertedType);
       case "time-micros":
+        long timeMicros =
+            checkRawType(Long.class, value, logicalType, rawType, conversion, convertedType);
+        if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
+          return java.time.LocalTime.ofNanoOfDay(TimeUnit.MICROSECONDS.toNanos(timeMicros));
+        }
+        return timeMicros;
       case "timestamp-micros":
       case "local-timestamp-millis":
       case "local-timestamp-micros":
