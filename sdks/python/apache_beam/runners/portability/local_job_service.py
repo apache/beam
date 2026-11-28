@@ -128,10 +128,13 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     return 'localhost'
 
   def start_grpc_server(self, port=0):
-    options = [("grpc.max_receive_message_length", -1),
-               ("grpc.max_send_message_length", -1),
-               ("grpc.http2.max_pings_without_data", 0),
-               ("grpc.http2.max_ping_strikes", 0)]
+    options = [
+        ("grpc.max_receive_message_length", -1),
+        ("grpc.max_send_message_length", -1),
+        ("grpc.http2.max_pings_without_data", 0),
+        ("grpc.http2.max_ping_strikes", 0),
+        ("grpc.so_reuseport", 0),
+    ]
     self._server = grpc.server(
         thread_pool_executor.shared_unbounded_instance(), options=options)
     port = self._server.add_insecure_port(
@@ -190,8 +193,11 @@ class SubprocessSdkWorker(object):
     self._worker_id = worker_id
 
   def run(self):
-    options = [("grpc.http2.max_pings_without_data", 0),
-               ("grpc.http2.max_ping_strikes", 0)]
+    options = [
+        ("grpc.http2.max_pings_without_data", 0),
+        ("grpc.http2.max_ping_strikes", 0),
+        ("grpc.so_reuseport", 0),
+    ]
     logging_server = grpc.server(
         thread_pool_executor.shared_unbounded_instance(), options=options)
     logging_port = logging_server.add_insecure_port('[::]:0')

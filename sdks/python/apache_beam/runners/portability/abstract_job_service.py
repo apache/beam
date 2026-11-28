@@ -327,8 +327,11 @@ class UberJarBeamJob(AbstractBeamJob):
             for (env_id,
                  env) in self._pipeline_proto.components.environments.items()
         })
-    options = [("grpc.http2.max_pings_without_data", 0),
-               ("grpc.http2.max_ping_strikes", 0)]
+    options = [
+        ("grpc.http2.max_pings_without_data", 0),
+        ("grpc.http2.max_ping_strikes", 0),
+        ("grpc.so_reuseport", 0),
+    ]
     self._artifact_staging_server = grpc.server(
         futures.ThreadPoolExecutor(), options=options)
     port = self._artifact_staging_server.add_insecure_port(
