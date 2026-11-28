@@ -607,11 +607,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentElement = elem;
     causedByDrain = currentElement.causedByDrain();
     try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
+      @Nullable BoundedWindow singleWindow = WindowedValues.singleWindowOrNull(elem);
+      if (singleWindow != null) {
+        currentWindow = singleWindow;
         doFnInvoker.invokeProcessElement(processContext);
+      } else {
+        Iterator<BoundedWindow> windowIterator =
+            (Iterator<BoundedWindow>) elem.getWindows().iterator();
+        while (windowIterator.hasNext()) {
+          currentWindow = windowIterator.next();
+          doFnInvoker.invokeProcessElement(processContext);
+        }
       }
     } finally {
       currentElement = null;
@@ -1568,29 +1574,58 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
-  private void checkTimestamp(Instant timestamp) {
-    Instant lowerBound;
-    try {
-      lowerBound = currentElement.getTimestamp().minus(doFn.getAllowedTimestampSkew());
-    } catch (ArithmeticException e) {
-      lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
-    }
+  private static final long MIN_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+  private static final long MAX_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
 
-    if (timestamp.isBefore(lowerBound) || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                  + "timestamp of the current input (%s) minus the allowed skew (%s) and no later "
-                  + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
-                  + "changing the allowed skew.",
-              timestamp,
-              currentElement.getTimestamp(),
-              doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
-                  ? doFn.getAllowedTimestampSkew()
-                  : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
-              BoundedWindow.TIMESTAMP_MAX_VALUE));
+  private void checkTimestamp(Instant timestamp) {
+    checkOutputTimestamp(currentElement.getTimestamp(), timestamp, false);
+  }
+
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void checkOutputTimestamp(Instant baseTimestamp, Instant timestamp, boolean isTimer) {
+    long inputMillis = baseTimestamp.getMillis();
+    long skewMillis = doFn.getAllowedTimestampSkew().getMillis();
+    long lowerBoundMillis = inputMillis - skewMillis;
+    if (skewMillis == Long.MIN_VALUE
+        || ((inputMillis ^ skewMillis) & (inputMillis ^ lowerBoundMillis)) < 0) {
+      lowerBoundMillis = MIN_TIMESTAMP_MILLIS;
     }
+    long outputMillis = timestamp.getMillis();
+    if (outputMillis < lowerBoundMillis || outputMillis > MAX_TIMESTAMP_MILLIS) {
+      throwInvalidTimestamp(baseTimestamp, timestamp, isTimer);
+    }
+  }
+
+  @SuppressWarnings("deprecation") // Allowed Skew is deprecated for users, but must be respected
+  private void throwInvalidTimestamp(Instant baseTimestamp, Instant timestamp, boolean isTimer) {
+    Duration allowedSkew = doFn.getAllowedTimestampSkew();
+    throw new IllegalArgumentException(
+        String.format(
+            "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
+                + "timestamp of the %s (%s) minus the allowed skew (%s) and no later "
+                + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
+                + "changing the allowed skew.",
+            timestamp,
+            isTimer ? "timer" : "current input",
+            baseTimestamp,
+            allowedSkew.getMillis() >= Integer.MAX_VALUE
+                ? allowedSkew
+                : PeriodFormat.getDefault().print(allowedSkew.toPeriod()),
+            BoundedWindow.TIMESTAMP_MAX_VALUE));
+  }
+
+  private <T> void emitToConsumer(
+      TupleTag<T> tag,
+      @Nullable FnDataReceiver<WindowedValue<T>> consumer,
+      WindowedValue<T> windowedValue) {
+    if (consumer == null) {
+      throw unknownOutputTag(tag);
+    }
+    outputTo(consumer, windowedValue);
+  }
+
+  private static IllegalArgumentException unknownOutputTag(TupleTag<?> tag) {
+    return new IllegalArgumentException(String.format("Unknown output tag %s", tag));
   }
 
   private class StartBundleArgumentProvider extends BaseArgumentProvider<InputT, OutputT> {
@@ -1705,15 +1740,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputBuilder<OutputT> builder(OutputT value) {
-      return WindowedValues.<OutputT>builder()
-          .setValue(value)
-          .setTimestamp(currentElement.getTimestamp())
-          .setPaneInfo(currentElement.getPaneInfo())
-          .setWindows(currentElement.getWindows())
-          .setRecordOffset(currentElement.getRecordOffset())
-          .setRecordId(currentElement.getRecordId())
-          .setCausedByDrain(currentElement.causedByDrain())
-          .setValueKind(currentElement.getValueKind())
+      return WindowedValues.builder(currentElement, value)
           .setReceiver(windowedValue -> outputTo(mainOutputConsumer, windowedValue));
     }
 
@@ -1871,8 +1898,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputBuilder<OutputT> builder(OutputT value) {
-      return WindowedValues.builder(currentElement)
-          .withValue(value)
+      return WindowedValues.builder(currentElement, value)
           .setReceiver(
               windowedValue -> {
                 checkTimestamp(windowedValue.getTimestamp());
@@ -1903,7 +1929,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      builder(output).setValue(output).setTimestamp(timestamp).output();
+      checkTimestamp(timestamp);
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.ofWithCurrentContext(currentElement, output, timestamp));
     }
 
     @Override
@@ -1912,7 +1941,25 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      builder(output).setTimestamp(timestamp).setWindows(windows).setPaneInfo(paneInfo).output();
+      checkTimestamp(timestamp);
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.ofWithCurrentContext(
+              currentElement, output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      checkTimestamp(timestamp);
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.ofWithCurrentContext(
+              currentElement, output, timestamp, windows, paneInfo, valueKind));
     }
 
     @Override
@@ -1923,10 +1970,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
+      @Nullable BoundedWindow singleWindow = WindowedValues.singleWindowOrNull(currentElement);
       outputTo(
           consumer,
-          WindowedValues.of(
-              output, timestamp, currentElement.getWindows(), currentElement.getPaneInfo()));
+          singleWindow != null
+              ? WindowedValues.of(output, timestamp, singleWindow, currentElement.getPaneInfo())
+              : WindowedValues.of(
+                  output, timestamp, currentElement.getWindows(), currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2106,12 +2156,62 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   mainOutputSchemaCoder.getFromRowFunction();
 
               @Override
+              public void output(Row value) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value)));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value), timestamp));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement,
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo,
+                  ValueKind valueKind) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement,
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        valueKind));
+              }
+
+              @Override
               public OutputBuilder<Row> builder(Row value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.builder(currentElement, value)
                     .setReceiver(
                         windowedRow ->
-                            ProcessBundleContextBase.this.outputWindowedValue(
+                            outputTo(
+                                mainOutputConsumer,
                                 windowedRow.withValue(
                                     fromRowFunction.apply(windowedRow.getValue()))));
               }
@@ -2132,6 +2232,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           private final Map<TupleTag<?>, OutputReceiver<?>> taggedOutputReceivers = new HashMap<>();
           private final Map<TupleTag<?>, OutputReceiver<Row>> taggedRowReceivers = new HashMap<>();
 
+          private <T> FnDataReceiver<WindowedValue<T>> resolveConsumer(TupleTag<T> tag) {
+            return (FnDataReceiver) localNameToConsumer.get(tag.getId());
+          }
+
           private <T> OutputReceiver<T> createTaggedOutputReceiver(TupleTag<T> tag) {
             // Note that it is important that we use the non-tag versions here when using the main
             // output tag for performance reasons and we also rely on it for the splittable DoFn
@@ -2139,14 +2243,54 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               return (OutputReceiver<T>) ProcessBundleContextBase.this;
             }
+            // localNameToConsumer is immutable after construction; resolve once per tag.
+            final @Nullable FnDataReceiver<WindowedValue<T>> consumer = resolveConsumer(tag);
             return new OutputReceiver<T>() {
               @Override
+              public void output(T value) {
+                emitToConsumer(
+                    tag, consumer, WindowedValues.ofWithCurrentContext(currentElement, value));
+              }
+
+              @Override
+              public void outputWithTimestamp(T value, Instant timestamp) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(currentElement, value, timestamp));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  T value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, value, timestamp, windows, paneInfo));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  T value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo,
+                  ValueKind valueKind) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, value, timestamp, windows, paneInfo, valueKind));
+              }
+
+              @Override
               public OutputBuilder<T> builder(T value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
-                    .setReceiver(
-                        windowedValue ->
-                            ProcessBundleContextBase.this.outputWindowedValue(tag, windowedValue));
+                return WindowedValues.builder(currentElement, value)
+                    .setReceiver(windowedValue -> emitToConsumer(tag, consumer, windowedValue));
               }
             };
           }
@@ -2169,18 +2313,74 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 outputCoder instanceof SchemaCoder,
                 "Output with tag %s must have a schema in order to call getRowReceiver",
                 tag);
+            // localNameToConsumer is immutable after construction; resolve once per tag.
+            final @Nullable FnDataReceiver<WindowedValue<T>> consumer = resolveConsumer(tag);
             return new OutputReceiver<Row>() {
-              private SerializableFunction<Row, T> fromRowFunction =
-                  ((SchemaCoder) outputCoder).getFromRowFunction();
+              private final SerializableFunction<Row, T> fromRowFunction =
+                  ((SchemaCoder<T>) outputCoder).getFromRowFunction();
+
+              @Override
+              public void output(Row value) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value)));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement, fromRowFunction.apply(value), timestamp));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement,
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo,
+                  ValueKind valueKind) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        currentElement,
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        valueKind));
+              }
 
               @Override
               public OutputBuilder<Row> builder(Row value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.builder(currentElement, value)
                     .setReceiver(
                         windowedRow ->
-                            ProcessBundleContextBase.this.outputWindowedValue(
+                            emitToConsumer(
                                 tag,
+                                consumer,
                                 windowedRow.withValue(
                                     fromRowFunction.apply(windowedRow.getValue()))));
               }
@@ -2189,13 +2389,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
           @Override
           public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-            return (OutputReceiver<T>)
-                taggedOutputReceivers.computeIfAbsent(tag, this::createTaggedOutputReceiver);
+            // Avoid computeIfAbsent(tag, this::create...) capturing-lambda allocation on cache hit.
+            OutputReceiver<?> receiver = taggedOutputReceivers.get(tag);
+            if (receiver == null) {
+              receiver = createTaggedOutputReceiver(tag);
+              taggedOutputReceivers.put(tag, receiver);
+            }
+            return (OutputReceiver<T>) receiver;
           }
 
           @Override
           public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
-            return taggedRowReceivers.computeIfAbsent(tag, this::createTaggedRowReceiver);
+            OutputReceiver<Row> receiver = taggedRowReceivers.get(tag);
+            if (receiver == null) {
+              receiver = createTaggedRowReceiver(tag);
+              taggedRowReceivers.put(tag, receiver);
+            }
+            return receiver;
           }
         };
 
@@ -2317,12 +2527,35 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void output(OutputT output) {
-        OutputReceiver.super.output(output);
+        Instant holdTimestamp = currentTimer.getHoldTimestamp();
+        checkOnWindowExpirationTimestamp(holdTimestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                holdTimestamp,
+                currentWindow,
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                ValueKind.INSERT));
       }
 
       @Override
       public void outputWithTimestamp(OutputT output, Instant timestamp) {
-        OutputReceiver.super.outputWithTimestamp(output, timestamp);
+        checkOnWindowExpirationTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                timestamp,
+                currentWindow,
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                ValueKind.INSERT));
       }
 
       @Override
@@ -2331,7 +2564,39 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
-        OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo);
+        checkOnWindowExpirationTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                timestamp,
+                windows,
+                paneInfo,
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                ValueKind.INSERT));
+      }
+
+      @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ValueKind valueKind) {
+        checkOnWindowExpirationTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                timestamp,
+                windows,
+                paneInfo,
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                valueKind));
       }
 
       @Override
@@ -2424,30 +2689,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(consumer, windowedValue);
       }
 
-      @SuppressWarnings(
-          "deprecation") // Allowed Skew is deprecated for users, but must be respected
       private void checkOnWindowExpirationTimestamp(Instant timestamp) {
-        Instant lowerBound;
-        try {
-          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
-        } catch (ArithmeticException e) {
-          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
-        }
-        if (timestamp.isBefore(lowerBound)
-            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
-                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
-                      + "changing the allowed skew.",
-                  timestamp,
-                  currentTimer.getHoldTimestamp(),
-                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
-                      ? doFn.getAllowedTimestampSkew()
-                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
-                  BoundedWindow.TIMESTAMP_MAX_VALUE));
-        }
+        checkOutputTimestamp(currentTimer.getHoldTimestamp(), timestamp, true);
       }
     }
 
@@ -2563,8 +2806,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 "Output with tag %s must have a schema in order to call getRowReceiver",
                 tag);
             return new OutputReceiver<Row>() {
-              private SerializableFunction<Row, T> fromRowFunction =
-                  ((SchemaCoder) outputCoder).getFromRowFunction();
+              private final SerializableFunction<Row, T> fromRowFunction =
+                  ((SchemaCoder<T>) outputCoder).getFromRowFunction();
 
               @Override
               public OutputBuilder<Row> builder(Row value) {
@@ -2585,13 +2828,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
           @Override
           public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-            return (OutputReceiver<T>)
-                taggedOutputReceivers.computeIfAbsent(tag, this::createTaggedOutputReceiver);
+            OutputReceiver<?> receiver = taggedOutputReceivers.get(tag);
+            if (receiver == null) {
+              receiver = createTaggedOutputReceiver(tag);
+              taggedOutputReceivers.put(tag, receiver);
+            }
+            return (OutputReceiver<T>) receiver;
           }
 
           @Override
           public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
-            return taggedRowReceivers.computeIfAbsent(tag, this::createTaggedRowReceiver);
+            OutputReceiver<Row> receiver = taggedRowReceivers.get(tag);
+            if (receiver == null) {
+              receiver = createTaggedRowReceiver(tag);
+              taggedRowReceivers.put(tag, receiver);
+            }
+            return receiver;
           }
         };
 
@@ -2655,7 +2907,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public CausedByDrain causedByDrain() {
-        return causedByDrain;
+        return currentTimer.causedByDrain();
       }
 
       @Override
@@ -2665,7 +2917,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             .setTimestamp(currentTimer.getHoldTimestamp())
             .setWindow(currentWindow)
             .setPaneInfo(currentTimer.getPaneInfo())
-            .setCausedByDrain(causedByDrain)
+            .setCausedByDrain(currentTimer.causedByDrain())
             .setReceiver(
                 windowedValue -> {
                   checkTimerTimestamp(windowedValue.getTimestamp());
@@ -2675,12 +2927,35 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public void output(OutputT output) {
-        OutputReceiver.super.output(output);
+        Instant holdTimestamp = currentTimer.getHoldTimestamp();
+        checkTimerTimestamp(holdTimestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                holdTimestamp,
+                currentWindow,
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                ValueKind.INSERT));
       }
 
       @Override
       public void outputWithTimestamp(OutputT output, Instant timestamp) {
-        OutputReceiver.super.outputWithTimestamp(output, timestamp);
+        checkTimerTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                timestamp,
+                currentWindow,
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                ValueKind.INSERT));
       }
 
       @Override
@@ -2689,7 +2964,39 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
-        OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo);
+        checkTimerTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                timestamp,
+                windows,
+                paneInfo,
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                ValueKind.INSERT));
+      }
+
+      @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ValueKind valueKind) {
+        checkTimerTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.ofWithCurrentContext(
+                output,
+                timestamp,
+                windows,
+                paneInfo,
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                valueKind));
       }
 
       @Override
@@ -2768,30 +3075,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         return currentTimer.getHoldTimestamp();
       }
 
-      @SuppressWarnings(
-          "deprecation") // Allowed Skew is deprecated for users, but must be respected
       private void checkTimerTimestamp(Instant timestamp) {
-        Instant lowerBound;
-        try {
-          lowerBound = currentTimer.getHoldTimestamp().minus(doFn.getAllowedTimestampSkew());
-        } catch (ArithmeticException e) {
-          lowerBound = BoundedWindow.TIMESTAMP_MIN_VALUE;
-        }
-        if (timestamp.isBefore(lowerBound)
-            || timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Cannot output with timestamp %s. Output timestamps must be no earlier than the "
-                      + "timestamp of the timer (%s) minus the allowed skew (%s) and no later "
-                      + "than %s. See the DoFn#getAllowedTimestampSkew() Javadoc for details on "
-                      + "changing the allowed skew.",
-                  timestamp,
-                  currentTimer.getHoldTimestamp(),
-                  doFn.getAllowedTimestampSkew().getMillis() >= Integer.MAX_VALUE
-                      ? doFn.getAllowedTimestampSkew()
-                      : PeriodFormat.getDefault().print(doFn.getAllowedTimestampSkew().toPeriod()),
-                  BoundedWindow.TIMESTAMP_MAX_VALUE));
-        }
+        checkOutputTimestamp(currentTimer.getHoldTimestamp(), timestamp, true);
       }
     }
 
@@ -2844,6 +3129,75 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                   mainOutputSchemaCoder.getFromRowFunction();
 
               @Override
+              public void output(Row value) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        currentTimer.getHoldTimestamp(),
+                        currentWindow,
+                        currentTimer.getPaneInfo(),
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        currentWindow,
+                        currentTimer.getPaneInfo(),
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo,
+                  ValueKind valueKind) {
+                outputTo(
+                    mainOutputConsumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        valueKind));
+              }
+
+              @Override
               public OutputBuilder<Row> builder(Row value) {
                 return WindowedValues.<Row>builder()
                     .setValue(value)
@@ -2853,7 +3207,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setCausedByDrain(currentTimer.causedByDrain())
                     .setReceiver(
                         windowedValue ->
-                            context.outputWindowedValue(
+                            outputTo(
+                                mainOutputConsumer,
                                 windowedValue.withValue(
                                     fromRowFunction.apply(windowedValue.getValue()))));
               }
@@ -2878,7 +3233,83 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               return (OutputReceiver<T>) context;
             }
+            // localNameToConsumer is immutable after construction; resolve once per tag.
+            final @Nullable FnDataReceiver<WindowedValue<T>> consumer =
+                (FnDataReceiver) localNameToConsumer.get(tag.getId());
             return new OutputReceiver<T>() {
+              @Override
+              public void output(T value) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        value,
+                        currentTimer.getHoldTimestamp(),
+                        currentWindow,
+                        currentTimer.getPaneInfo(),
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWithTimestamp(T value, Instant timestamp) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        value,
+                        timestamp,
+                        currentWindow,
+                        currentTimer.getPaneInfo(),
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  T value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        value,
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  T value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo,
+                  ValueKind valueKind) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        value,
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        valueKind));
+              }
+
               @Override
               public OutputBuilder<T> builder(T value) {
                 return WindowedValues.<T>builder()
@@ -2887,7 +3318,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setWindow(currentWindow)
                     .setCausedByDrain(currentTimer.causedByDrain())
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setReceiver(windowedValue -> context.outputWindowedValue(tag, windowedValue));
+                    .setReceiver(windowedValue -> emitToConsumer(tag, consumer, windowedValue));
               }
             };
           }
@@ -2907,9 +3338,85 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 outputCoder instanceof SchemaCoder,
                 "Output with tag %s must have a schema in order to call getRowReceiver",
                 tag);
+            // localNameToConsumer is immutable after construction; resolve once per tag.
+            final @Nullable FnDataReceiver<WindowedValue<T>> consumer =
+                (FnDataReceiver) localNameToConsumer.get(tag.getId());
             return new OutputReceiver<Row>() {
-              private SerializableFunction<Row, T> fromRowFunction =
-                  ((SchemaCoder) outputCoder).getFromRowFunction();
+              private final SerializableFunction<Row, T> fromRowFunction =
+                  ((SchemaCoder<T>) outputCoder).getFromRowFunction();
+
+              @Override
+              public void output(Row value) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        currentTimer.getHoldTimestamp(),
+                        currentWindow,
+                        currentTimer.getPaneInfo(),
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWithTimestamp(Row value, Instant timestamp) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        currentWindow,
+                        currentTimer.getPaneInfo(),
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        ValueKind.INSERT));
+              }
+
+              @Override
+              public void outputWindowedValue(
+                  Row value,
+                  Instant timestamp,
+                  Collection<? extends BoundedWindow> windows,
+                  PaneInfo paneInfo,
+                  ValueKind valueKind) {
+                emitToConsumer(
+                    tag,
+                    consumer,
+                    WindowedValues.ofWithCurrentContext(
+                        fromRowFunction.apply(value),
+                        timestamp,
+                        windows,
+                        paneInfo,
+                        null,
+                        null,
+                        currentTimer.causedByDrain(),
+                        valueKind));
+              }
 
               @Override
               public OutputBuilder<Row> builder(Row value) {
@@ -2921,8 +3428,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setCausedByDrain(currentTimer.causedByDrain())
                     .setReceiver(
                         windowedValue ->
-                            context.outputWindowedValue(
+                            emitToConsumer(
                                 tag,
+                                consumer,
                                 windowedValue.withValue(
                                     fromRowFunction.apply(windowedValue.getValue()))));
               }
@@ -2931,13 +3439,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
           @Override
           public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-            return (OutputReceiver<T>)
-                taggedOutputReceivers.computeIfAbsent(tag, this::createTaggedOutputReceiver);
+            OutputReceiver<?> receiver = taggedOutputReceivers.get(tag);
+            if (receiver == null) {
+              receiver = createTaggedOutputReceiver(tag);
+              taggedOutputReceivers.put(tag, receiver);
+            }
+            return (OutputReceiver<T>) receiver;
           }
 
           @Override
           public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
-            return taggedRowReceivers.computeIfAbsent(tag, this::createTaggedRowReceiver);
+            OutputReceiver<Row> receiver = taggedRowReceivers.get(tag);
+            if (receiver == null) {
+              receiver = createTaggedRowReceiver(tag);
+              taggedRowReceivers.put(tag, receiver);
+            }
+            return receiver;
           }
         };
 
