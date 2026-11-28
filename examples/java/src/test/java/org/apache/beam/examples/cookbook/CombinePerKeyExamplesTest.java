@@ -17,15 +17,17 @@
  */
 package org.apache.beam.examples.cookbook;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
 import com.google.api.services.bigquery.model.TableRow;
-import java.util.List;
+import java.util.Arrays;
 import org.apache.beam.examples.cookbook.CombinePerKeyExamples.ExtractLargeWordsFn;
 import org.apache.beam.examples.cookbook.CombinePerKeyExamples.FormatShakespeareOutputFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
-import org.hamcrest.CoreMatchers;
+import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,6 +35,7 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link CombinePerKeyExamples}. */
 @RunWith(JUnit4.class)
 public class CombinePerKeyExamplesTest {
+  @Rule public TestPipeline p = TestPipeline.create();
 
   private static final TableRow row1 =
       new TableRow().set("corpus", "king_lear").set("word", "snuffleupaguses");
@@ -66,21 +69,19 @@ public class CombinePerKeyExamplesTest {
           .set("all_plays", "king_lear,macbeth");
 
   @Test
-  public void testExtractLargeWordsFn() throws Exception {
-    DoFnTester<TableRow, KV<String, String>> extractLargeWordsFn =
-        DoFnTester.of(new ExtractLargeWordsFn());
-    List<KV<String, String>> results = extractLargeWordsFn.processBundle(ROWS_ARRAY);
-    assertThat(results, CoreMatchers.hasItem(tuple1));
-    assertThat(results, CoreMatchers.hasItem(tuple2));
-    assertThat(results, CoreMatchers.hasItem(tuple3));
+  public void testExtractLargeWordsFn() {
+    PCollection<KV<String, String>> results =
+        p.apply(Create.of(Arrays.asList(ROWS_ARRAY))).apply(ParDo.of(new ExtractLargeWordsFn()));
+    PAssert.that(results).containsInAnyOrder(tuple1, tuple2, tuple3);
+    p.run().waitUntilFinish();
   }
 
   @Test
-  public void testFormatShakespeareOutputFn() throws Exception {
-    DoFnTester<KV<String, String>, TableRow> formatShakespeareOutputFn =
-        DoFnTester.of(new FormatShakespeareOutputFn());
-    List<TableRow> results = formatShakespeareOutputFn.processBundle(COMBINED_TUPLES_ARRAY);
-    assertThat(results, CoreMatchers.hasItem(resultRow1));
-    assertThat(results, CoreMatchers.hasItem(resultRow2));
+  public void testFormatShakespeareOutputFn() {
+    PCollection<TableRow> results =
+        p.apply(Create.of(Arrays.asList(COMBINED_TUPLES_ARRAY)))
+            .apply(ParDo.of(new FormatShakespeareOutputFn()));
+    PAssert.that(results).containsInAnyOrder(resultRow1, resultRow2);
+    p.run().waitUntilFinish();
   }
 }
