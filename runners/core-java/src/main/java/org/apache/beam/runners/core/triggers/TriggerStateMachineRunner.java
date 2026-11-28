@@ -64,6 +64,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
   private final ExecutableTriggerStateMachine rootTrigger;
   private final TriggerStateMachineContextFactory<W> contextFactory;
   private final boolean useNewWindowOptimization;
+  private final boolean finishedSetNeeded;
 
   public TriggerStateMachineRunner(
       ExecutableTriggerStateMachine rootTrigger,
@@ -73,10 +74,11 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     this.rootTrigger = rootTrigger;
     this.contextFactory = contextFactory;
     this.useNewWindowOptimization = useNewWindowOptimization;
+    this.finishedSetNeeded = useNewWindowOptimization || !canElideFinishedSet(rootTrigger);
   }
 
   private FinishedTriggersBitSet readFinishedBits(ValueState<BitSet> state) {
-    if (!isFinishedSetNeeded()) {
+    if (!finishedSetNeeded) {
       // If no trigger in the tree will ever have finished bits, then we don't need to read them.
       // So that the code can be agnostic to that fact, we create a BitSet that is all 0 (not
       // finished) for each trigger in the tree.
@@ -92,7 +94,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
   }
 
   private void clearFinishedBits(ValueState<BitSet> state) {
-    if (!isFinishedSetNeeded()) {
+    if (!finishedSetNeeded) {
       // Nothing to clear.
       return;
     }
@@ -106,7 +108,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
   /** Return true if the window is new (no trigger state has ever been persisted). */
   public boolean isNew(StateAccessor<?> state) {
-    return isFinishedSetNeeded() && state.access(FINISHED_BITS_TAG).read() == null;
+    return finishedSetNeeded && state.access(FINISHED_BITS_TAG).read() == null;
   }
 
   @VisibleForTesting
@@ -115,7 +117,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
   }
 
   public void prefetchFinishedSet(StateAccessor<?> state) {
-    if (isFinishedSetNeeded()) {
+    if (finishedSetNeeded) {
       state.access(FINISHED_BITS_TAG).readLater();
     }
   }
@@ -143,7 +145,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
   public void prefetchForMerge(
       W window, Collection<W> mergingWindows, MergingStateAccessor<?, W> state) {
-    if (isFinishedSetNeeded()) {
+    if (finishedSetNeeded) {
       for (ValueState<?> value : state.accessInEachMergingWindow(FINISHED_BITS_TAG).values()) {
         value.readLater();
       }
@@ -197,7 +199,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
   @VisibleForTesting
   void persistFinishedSet(StateAccessor<?> state, FinishedTriggersBitSet modifiedFinishedSet) {
-    if (!isFinishedSetNeeded()) {
+    if (!finishedSetNeeded) {
       return;
     }
 
@@ -236,9 +238,49 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     rootTrigger.invokeClear(contextFactory.base(window, timers, rootTrigger, finishedSet));
   }
 
-  private boolean isFinishedSetNeeded() {
-    // TODO: If we know that no trigger in the tree will ever finish, we don't need to do the
-    // lookup. Right now, we special case this for the DefaultTrigger.
-    return !(rootTrigger.getSpec() instanceof DefaultTriggerStateMachine);
+  private static boolean canElideFinishedSet(ExecutableTriggerStateMachine trigger) {
+    TriggerStateMachine spec = trigger.getSpec();
+    if (neverTracksFinishedBits(spec)) {
+      return true;
+    }
+    if (spec instanceof RepeatedlyStateMachine) {
+      return canElideRepeatedSubtree(trigger.subTriggers().get(0));
+    }
+    return false;
+  }
+
+  private static boolean canElideRepeatedSubtree(ExecutableTriggerStateMachine trigger) {
+    if (isOnceStyleTrigger(trigger)) {
+      return true;
+    }
+    if (trigger.getSpec() instanceof RepeatedlyStateMachine) {
+      return canElideRepeatedSubtree(trigger.subTriggers().get(0));
+    }
+    return false;
+  }
+
+  private static boolean isOnceStyleTrigger(ExecutableTriggerStateMachine trigger) {
+    TriggerStateMachine spec = trigger.getSpec();
+    if (spec instanceof AfterPaneStateMachine
+        || spec instanceof AfterDelayFromFirstElementStateMachine
+        || spec instanceof AfterWatermarkStateMachine.FromEndOfWindow
+        || neverTracksFinishedBits(spec)) {
+      return true;
+    }
+    if (spec instanceof AfterFirstStateMachine || spec instanceof AfterAllStateMachine) {
+      for (ExecutableTriggerStateMachine subTrigger : trigger.subTriggers()) {
+        if (!isOnceStyleTrigger(subTrigger)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private static boolean neverTracksFinishedBits(TriggerStateMachine spec) {
+    return spec instanceof DefaultTriggerStateMachine
+        || spec instanceof NeverStateMachine
+        || spec instanceof ReshuffleTriggerStateMachine;
   }
 }
