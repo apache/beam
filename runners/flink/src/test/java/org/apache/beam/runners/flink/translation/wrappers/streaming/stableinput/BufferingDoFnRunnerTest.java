@@ -22,16 +22,23 @@ import static org.hamcrest.Matchers.is;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -146,6 +153,74 @@ public class BufferingDoFnRunnerTest {
         () -> {
           createBufferingDoFnRunner(Short.MAX_VALUE, Collections.emptyList());
         });
+  }
+
+  @Test
+  public void testReplayedTimerGetsKeyFromTimerKeySupplier() throws Exception {
+    DoFnRunner doFnRunner = Mockito.mock(DoFnRunner.class);
+    OperatorStateBackend operatorStateBackend = Mockito.mock(OperatorStateBackend.class);
+    ListState unionListState = Mockito.mock(ListState.class);
+    Mockito.when(operatorStateBackend.getUnionListState(Mockito.any())).thenReturn(unionListState);
+    // The buffer of internal id 0 belongs to the pending checkpoint 1.
+    Mockito.when(unionListState.get())
+        .thenReturn(Collections.singletonList(new BufferingDoFnRunner.CheckpointIdentifier(0, 1)));
+
+    // The buffer does not store the key of a timer, so the timer comes back with a null key.
+    BufferedElements.Timer<Object> bufferedTimer =
+        new BufferedElements.Timer<>(
+            "timer",
+            "",
+            null,
+            GlobalWindow.INSTANCE,
+            new Instant(42),
+            new Instant(42),
+            TimeDomain.EVENT_TIME);
+    ListState bufferState = Mockito.mock(ListState.class);
+    Mockito.when(bufferState.get()).thenReturn(Collections.singletonList(bufferedTimer));
+
+    KeyedStateBackend<Object> keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
+    Mockito.when(
+            keyedStateBackend.getPartitionedState(
+                Mockito.any(), Mockito.any(), Mockito.any(StateDescriptor.class)))
+        .thenReturn(bufferState);
+    Mockito.when(keyedStateBackend.getKeys(Mockito.anyString(), Mockito.any()))
+        .thenAnswer(invocation -> Stream.of("key"));
+    AtomicReference<Object> currentKey = new AtomicReference<>();
+    Mockito.doAnswer(
+            invocation -> {
+              currentKey.set(invocation.getArgument(0));
+              return null;
+            })
+        .when(keyedStateBackend)
+        .setCurrentKey(Mockito.any());
+
+    BufferingDoFnRunner bufferingDoFnRunner =
+        BufferingDoFnRunner.create(
+            doFnRunner,
+            "stable-input",
+            StringUtf8Coder.of(),
+            WindowedValues.getFullCoder(VarIntCoder.of(), GlobalWindow.Coder.INSTANCE),
+            operatorStateBackend,
+            keyedStateBackend,
+            1,
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()),
+            null,
+            null,
+            () -> "restored-" + currentKey.get(),
+            null);
+
+    bufferingDoFnRunner.checkpointCompleted(1);
+
+    Mockito.verify(doFnRunner)
+        .onTimer(
+            "timer",
+            "",
+            "restored-key",
+            GlobalWindow.INSTANCE,
+            new Instant(42),
+            new Instant(42),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
   }
 
   private static BufferingDoFnRunner createBufferingDoFnRunner(

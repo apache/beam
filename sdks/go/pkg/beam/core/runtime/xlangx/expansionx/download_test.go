@@ -259,10 +259,15 @@ func TestValidatePath(t *testing.T) {
 	}{
 		{"valid simple file", "Foo.class", false},
 		{"valid nested file", "org/apache/beam/Foo.class", false},
+		{"valid directory entry", "META-INF/", false},
+		{"valid current directory entry", "./", false},
+		{"valid double dots in filename", "Foo..Bar.class", false},
 		{"traversal attack", "../../etc/passwd", true},
 		{"partial directory prefix attack", "../cache_evil/evil.sh", true},
 		{"parent directory traversal", "..", true},
 		{"nested traversal attack", "foo/bar/../../../etc/passwd", true},
+		{"absolute path attack", "/etc/passwd", true},
+		{"empty path", "", true},
 	}
 
 	for _, tc := range tests {

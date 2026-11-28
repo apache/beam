@@ -26,11 +26,11 @@ toolchain go1.26.10
 
 require (
 	cloud.google.com/go/bigquery v1.86.3
-	cloud.google.com/go/bigtable v1.58.0
+	cloud.google.com/go/bigtable v1.58.1
 	cloud.google.com/go/datastore v1.28.1
 	cloud.google.com/go/profiler v0.7.1
 	cloud.google.com/go/pubsub v1.52.0
-	cloud.google.com/go/spanner v1.96.1
+	cloud.google.com/go/spanner v1.96.2
 	cloud.google.com/go/storage v1.71.0
 	github.com/aws/aws-sdk-go-v2 v1.48.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.21
@@ -43,11 +43,11 @@ require (
 	github.com/go-sql-driver/mysql v1.10.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/johannesboyne/gofakes3 v1.2.0
+	github.com/johannesboyne/gofakes3 v1.3.0
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/nats-io/nats-server/v2 v2.15.2
-	github.com/nats-io/nats.go v1.55.0
+	github.com/nats-io/nats.go v1.56.0
 	github.com/proullon/ramsql v0.1.5
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go v0.45.0

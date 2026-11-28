@@ -26,6 +26,7 @@ import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Value;
 import java.math.BigDecimal;
+import java.util.UUID;
 
 /** Estimates the logical size of {@link com.google.cloud.spanner.Mutation}. */
 class MutationSizeEstimator {
@@ -88,6 +89,8 @@ class MutationSizeEstimator {
         result += 12;
       } else if (part instanceof Date) {
         result += 12;
+      } else if (part instanceof UUID) {
+        result += 16;
       }
     }
     return result;
@@ -115,6 +118,8 @@ class MutationSizeEstimator {
       case DATE:
       case TIMESTAMP:
         return 12;
+      case UUID:
+        return 16;
       case STRING:
       case PG_NUMERIC:
         return v.isNull() ? 0 : v.getString().length();
@@ -175,6 +180,8 @@ class MutationSizeEstimator {
         return 12L * v.getDateArray().size();
       case TIMESTAMP:
         return 12L * v.getTimestampArray().size();
+      case UUID:
+        return 16L * v.getUuidArray().size();
       case NUMERIC:
         totalLength = 0;
         for (BigDecimal n : v.getNumericArray()) {

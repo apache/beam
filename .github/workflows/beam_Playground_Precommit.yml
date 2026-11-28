@@ -27,6 +27,9 @@ on:
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
+permissions:
+  contents: read
+
 jobs:
   beam_Playground_PreCommit:
     if: |

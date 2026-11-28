@@ -36,6 +36,9 @@ concurrency:
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
+permissions:
+  contents: read
+
 jobs:
   tour_of_beam_test:
     name: Tour of Beam Frontend Test

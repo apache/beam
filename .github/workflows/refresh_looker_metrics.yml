@@ -19,13 +19,25 @@ name: Refresh Looker Performance Metrics
 
 on:
   workflow_dispatch:
+    inputs:
+      LOOKERSDK_CLIENT_ID:
+        description: Your Looker Client ID.
+        required: false
+      LOOKERSDK_CLIENT_SECRET:
+        description: Your Looker Client Secret.
+        required: false
+  schedule:
+    - cron: "0 6 * * 0"
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LOOKERSDK_BASE_URL: ${{ secrets.LOOKERSDK_BASE_URL }}
-  LOOKERSDK_CLIENT_ID: ${{ secrets.LOOKERSDK_CLIENT_ID }}
-  LOOKERSDK_CLIENT_SECRET: ${{ secrets.LOOKERSDK_CLIENT_SECRET }}
+  LOOKERSDK_BASE_URL: 'https://28cd0c7f-7a84-428c-bfa7-6e8316f6931b.looker.app'
+  LOOKERSDK_CLIENT_ID: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.LOOKERSDK_CLIENT_ID || secrets.LOOKERSDK_CLIENT_ID }}
+  LOOKERSDK_CLIENT_SECRET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.LOOKERSDK_CLIENT_SECRET || secrets.LOOKERSDK_CLIENT_SECRET }}
   GCS_BUCKET: 'public_looker_explores_us_a3853f40'
+
+permissions:
+  contents: read
 
 jobs:
   refresh_looker_metrics:

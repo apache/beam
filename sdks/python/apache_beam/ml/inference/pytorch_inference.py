@@ -112,12 +112,16 @@ def _load_model(
     if not torch_script_model_path:
       file = FileSystems.open(state_dict_path, 'rb')
       model = model_class(**model_params)  # type: ignore[arg-type,misc]
-      state_dict = torch.load(file, map_location=device, **load_model_args)
+      state_dict = torch.load(
+          file, map_location=device,
+          **load_model_args)  # pyrefly:ignore[bad-unpacking]
       model.load_state_dict(state_dict)
       model.requires_grad_(False)
     else:
       file = FileSystems.open(torch_script_model_path, 'rb')
-      model = torch.jit.load(file, map_location=device, **load_model_args)
+      model = torch.jit.load(
+          file, map_location=device,
+          **load_model_args)  # pyrefly:ignore[bad-unpacking]
   except RuntimeError as e:
     if device == torch.device('cuda'):
       message = "Loading the model onto a GPU device failed due to an " \
@@ -360,7 +364,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     Returns:
       The number of bytes of data for a batch of Tensors.
     """
-    return sum((el.element_size() for tensor in batch for el in tensor))
+    return sum(tensor.element_size() * tensor.nelement() for tensor in batch)
 
   def get_metrics_namespace(self) -> str:
     """

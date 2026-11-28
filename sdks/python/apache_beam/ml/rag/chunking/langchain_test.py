@@ -28,10 +28,15 @@ from apache_beam.testing.util import is_not_empty
 
 # pylint: disable=ungrouped-imports
 try:
-  from langchain.text_splitter import CharacterTextSplitter
-  from langchain.text_splitter import RecursiveCharacterTextSplitter
+  try:
+    from langchain_text_splitters import CharacterTextSplitter
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+  except ImportError:
+    from langchain.text_splitter import CharacterTextSplitter
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 
   from apache_beam.ml.rag.chunking.langchain import LangChainChunker
+  from apache_beam.ml.rag.chunking.langchain import _LangChainTextSplitter
   LANGCHAIN_AVAILABLE = True
 except ImportError:
   LANGCHAIN_AVAILABLE = False
@@ -226,6 +231,27 @@ class LangChainChunkingTest(unittest.TestCase):
           | provider.get_ptransform_for_processing())
 
       assert_that(chunks, equal_to([]))
+
+  def test_chunks_have_independent_metadata(self):
+    """Test that each chunk receives an independent copy of metadata."""
+    doc = {**self.simple_text, 'tags': ['a']}
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=30, chunk_overlap=0, separators=[".", " "])
+    dofn = _LangChainTextSplitter(
+        text_splitter=splitter,
+        document_field='content',
+        metadata_fields=['source', 'language', 'tags'])
+
+    chunks = list(dofn.process(doc))
+    self.assertGreaterEqual(len(chunks), 2)
+
+    chunks[0].metadata['source'] = 'mutated.txt'
+    chunks[0].metadata['tags'].append('b')
+
+    for chunk in chunks[1:]:
+      self.assertEqual(chunk.metadata['source'], 'simple.txt')
+      self.assertEqual(chunk.metadata['tags'], ['a'])
+    self.assertEqual(doc['tags'], ['a'])
 
 
 if __name__ == '__main__':

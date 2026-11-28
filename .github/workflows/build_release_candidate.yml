@@ -55,6 +55,9 @@ on:
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
+permissions:
+  contents: read
+
 jobs:
   publish_java_artifacts:
     if:  ${{ fromJson(github.event.inputs.STAGE).java_artifacts == 'yes'}}
@@ -177,6 +180,9 @@ jobs:
           GITHUB_EVENT_INPUTS_APACHE_PASSWORD: ${{ github.event.inputs.APACHE_PASSWORD }}
 
   stage_python_artifacts:
+    permissions:
+      contents: read
+      actions: read
     if:  ${{ fromJson(github.event.inputs.STAGE).python_artifacts == 'yes'}}
     needs: [stage_java_source, build_and_stage_prism] # Enforce ordering to avoid svn conflicts
     runs-on: ubuntu-22.04

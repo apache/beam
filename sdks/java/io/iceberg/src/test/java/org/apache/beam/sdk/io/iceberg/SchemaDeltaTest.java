@@ -485,6 +485,31 @@ public class SchemaDeltaTest {
   }
 
   /**
+   * Iceberg's format-version check runs on the union: a v2 table cannot take a v3-only column, and
+   * AddFiles never upgrades it. A v3 table takes the same column as a plain addition.
+   */
+  @Test
+  public void testColumnTheFormatVersionCannotHoldIsConflict() {
+    Schema file =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(2, "ts_ns", Types.TimestampNanoType.withoutZone()));
+    SchemaDelta delta = classify(file);
+    assertEquals(delta.toString(), EnumSet.of(Kind.CONFLICT), delta.kinds());
+    String reason = delta.disallowedReason(ALL);
+    assertTrue(reason, reason.contains("format-version 2"));
+    assertTrue(reason, reason.contains("ts_ns"));
+
+    Table v3 =
+        warehouse.createTable(
+            TableIdentifier.of("default", testName.getMethodName() + "_v3"),
+            TABLE,
+            null,
+            Collections.singletonMap("format-version", "3"));
+    assertEquals(EnumSet.of(Kind.FIELD_ADDITION), SchemaDelta.classify(v3, file).kinds());
+  }
+
+  /**
    * Unreachable through AddFiles today (Parquet conversion never sets docs), pinned as deliberate:
    * the union would silently rewrite the table's doc, so a doc-bearing file schema must conflict.
    */

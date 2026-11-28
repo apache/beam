@@ -20,6 +20,10 @@ on:
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.BEAM_DEVELOCITY_ACCESS_KEY }}
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   deploy_release_candidate_pypi:
     runs-on: [self-hosted, ubuntu-24.04, main]

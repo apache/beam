@@ -34,7 +34,6 @@ try:
   from apache_beam.ml.inference import RunInference
   from apache_beam.ml.inference.base import KeyedModelHandler
   from apache_beam.ml.inference.base import PredictionResult
-  from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerDatatable
   from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerNumpy
   from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerPandas
   from apache_beam.ml.inference.xgboost_inference import XGBoostModelHandlerSciPy
@@ -134,6 +133,26 @@ class XGBoostRunInferenceTest(unittest.TestCase):
     ]
     _ = inference_runner.run_inference(batched_examples, model)
     self.assertEqual(model.inference_calls, 5)
+
+  def test_update_model_path(self):
+    model = build_monkeypatched_xgboost_classifier()
+    model_state = self.tmpdir + os.sep + 'model.json'
+    model.save_model(model_state)
+    missing_model_state = self.tmpdir + os.sep + 'missing_model.json'
+
+    model_handler = XGBoostModelHandlerNumpy(
+        xgboost.XGBClassifier, missing_model_state)
+    model_handler.update_model_path(model_state)
+    loaded_model = model_handler.load_model()
+
+    self.assertIsInstance(loaded_model, xgboost.XGBClassifier)
+    self.assertEqual(loaded_model.get_booster().num_features(), 2)
+
+  def test_update_model_path_without_path_keeps_model(self):
+    model_handler = XGBoostModelHandlerNumpy(
+        xgboost.XGBClassifier, 'model.json')
+    model_handler.update_model_path(None)
+    self.assertEqual(model_handler._model_state, 'model.json')
 
   def test_num_bytes_numpy(self):
     inference_runner = XGBoostModelHandlerNumpy(

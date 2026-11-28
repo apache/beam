@@ -115,9 +115,6 @@ vendorJava(
                 // Optional kotlin code
                 "kotlin/**",
 
-                // maven poms
-                "META-INF/maven/**",
-
                 "**/module-info.class",
         ],
         groupId: group,

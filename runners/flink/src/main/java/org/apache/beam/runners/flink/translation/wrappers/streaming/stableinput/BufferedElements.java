@@ -102,6 +102,12 @@ class BufferedElements {
       this.timerFamilyId = timerFamilyId;
     }
 
+    /** Returns this timer with the given key. */
+    <NewKeyT> Timer<NewKeyT> withKey(NewKeyT key) {
+      return new Timer<>(
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+    }
+
     @Override
     public void processWith(DoFnRunner doFnRunner) {
       doFnRunner.onTimer(

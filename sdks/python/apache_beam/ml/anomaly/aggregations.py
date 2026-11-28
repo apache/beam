@@ -210,12 +210,12 @@ class MajorityVote(LabelAggregation):
     normal_label (int): The integer label for normal predictions. Defaults to 0.
     outlier_label (int): The integer label for outlier predictions. Defaults to
       1.
-    tie_breaker (int): The label to return if there is a tie in votes.
-      Defaults to 0 (normal_label).
+    tie_breaker (Optional[int]): The label to return if there is a tie in
+      votes. Defaults to None, meaning `normal_label`.
     **kwargs: Additional keyword arguments to pass to the base
       `LabelAggregation` class.
   """
-  def __init__(self, tie_breaker=DEFAULT_NORMAL_LABEL, **kwargs):
+  def __init__(self, tie_breaker: Optional[int] = None, **kwargs):
     self._tie_breaker = tie_breaker
 
     def inner(predictions: Iterable[int]) -> int:
@@ -229,6 +229,8 @@ class MajorityVote(LabelAggregation):
       return vote
 
     super().__init__(agg_func=inner, **kwargs)
+    if self._tie_breaker is None:
+      self._tie_breaker = self._normal_label
 
 
 # And scheme

@@ -21,6 +21,7 @@ import contextlib
 import filecmp
 import logging
 import os
+import platform
 import shutil
 import tempfile
 import unittest
@@ -31,6 +32,7 @@ from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -228,6 +230,35 @@ class LocalFileSystemTest(unittest.TestCase):
     result = self.fs.match([os.path.join(self.tmpdir, '*')])[0]
     files = [f.path for f in result.metadata_list]
     self.assertCountEqual(files, [path1, path2])
+
+  def test_match_glob_with_forward_slashes(self):
+    # On Windows, listed paths use '\', but a pattern may use '/'.
+    self.fs.mkdirs(os.path.join(self.tmpdir, 'data'))
+    for name in ['a.txt', 'b.txt', 'c.csv']:
+      open(os.path.join(self.tmpdir, 'data', name), 'a').close()
+
+    pattern = self.tmpdir.replace(os.sep, '/') + '/data/*.txt'
+    result = self.fs.match([pattern])[0]
+    files = [os.path.basename(f.path) for f in result.metadata_list]
+    self.assertCountEqual(files, ['a.txt', 'b.txt'])
+
+    with self.tmpdir_as_cwd():
+      result = self.fs.match(['data/*.txt'])[0]
+      files = [os.path.basename(f.path) for f in result.metadata_list]
+      self.assertCountEqual(files, ['a.txt', 'b.txt'])
+
+  @unittest.skipUnless(
+      platform.system() == 'Windows', 'Windows path separators')
+  def test_match_files_treats_both_separators_alike_on_windows(self):
+    file_metas = [
+        FileMetadata('C:\\data\\a.txt', 0),
+        FileMetadata('C:/data\\b.txt', 0),
+        FileMetadata('C:\\data\\c.csv', 0),
+        FileMetadata('C:\\data\\sub\\d.txt', 0),
+    ]
+    for pattern in ['C:/data/*.txt', 'C:\\data\\*.txt', 'C:\\data/*.txt']:
+      files = [f.path for f in self.fs.match_files(file_metas, pattern)]
+      self.assertEqual(files, ['C:\\data\\a.txt', 'C:/data\\b.txt'], pattern)
 
   def test_match_relative_glob_in_cwd(self):
     with self.tmpdir_as_cwd():

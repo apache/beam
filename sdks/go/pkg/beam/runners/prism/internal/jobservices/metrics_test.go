@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math"
+	"sync"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -190,4 +191,254 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_metricsStore_UnresolvedCommittedPayloads(t *testing.T) {
+	ms := metricsStore{}
+
+	for i := range 2 {
+		unknown := ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"c1": {8}},
+		})
+		if diff := cmp.Diff([]string{"c1"}, unknown); diff != "" {
+			t.Fatalf("call %d unknownIDs diff (-want,+got):\n%s", i, diff)
+		}
+	}
+
+	ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+		MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+			"c1": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+		},
+	})
+
+	want := []*pipepb.MonitoringInfo{
+		makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{16}),
+	}
+	if diff := cmp.Diff(want, ms.Results(committed), protocmp.Transform()); diff != "" {
+		t.Fatalf("Results(committed) diff (-want,+got):\n%s", diff)
+	}
+}
+
+func Test_metricsStore_UnresolvedTentativePayloads(t *testing.T) {
+	ms := metricsStore{}
+
+	for i, val := range []byte{5, 12} {
+		_, unknown := ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+			MonitoringData: map[string][]byte{"t1": {val}},
+		})
+		if diff := cmp.Diff([]string{"t1"}, unknown); diff != "" {
+			t.Fatalf("call %d unknownIDs diff (-want,+got):\n%s", i, diff)
+		}
+	}
+
+	ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+		MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+			"t1": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+		},
+	})
+
+	want := []*pipepb.MonitoringInfo{
+		makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{12}),
+	}
+	if diff := cmp.Diff(want, ms.Results(tentative), protocmp.Transform()); diff != "" {
+		t.Fatalf("Results(tentative) diff (-want,+got):\n%s", diff)
+	}
+}
+
+func Test_metricsStore_DuplicateAddShortIDs(t *testing.T) {
+	t.Run("sameShortID", func(t *testing.T) {
+		ms := metricsStore{}
+		md := &fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"c1": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+			},
+		}
+
+		// Bundles 1 and 2 finish before short ID metadata arrives.
+		if unknown := ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"c1": {8}},
+		}); len(unknown) != 1 || unknown[0] != "c1" {
+			t.Fatalf("bundle 1 unknown = %v, want [c1]", unknown)
+		}
+		if unknown := ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"c1": {8}},
+		}); len(unknown) != 1 || unknown[0] != "c1" {
+			t.Fatalf("bundle 2 unknown = %v, want [c1]", unknown)
+		}
+
+		// Bundle 1 registers metadata first.
+		ms.AddShortIDs(md)
+
+		// Bundle 3 contributes against the resolved short ID.
+		if unknown := ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"c1": {8}},
+		}); len(unknown) != 0 {
+			t.Fatalf("bundle 3 unknown = %v, want empty", unknown)
+		}
+
+		// Bundle 2 delivers duplicate metadata after bundle 3 updated the accumulator.
+		ms.AddShortIDs(md)
+
+		want := []*pipepb.MonitoringInfo{
+			makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{24}),
+		}
+		if diff := cmp.Diff(want, ms.Results(committed), protocmp.Transform()); diff != "" {
+			t.Fatalf("Results(committed) diff (-want,+got):\n%s", diff)
+		}
+	})
+
+	t.Run("secondShortIDSameMetricKey", func(t *testing.T) {
+		ms := metricsStore{}
+
+		ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"c1": {8}},
+		})
+		ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"c1": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+			},
+		})
+
+		ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"c2": {5}},
+		})
+		ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"c2": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+			},
+		})
+
+		want := []*pipepb.MonitoringInfo{
+			makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{13}),
+		}
+		if diff := cmp.Diff(want, ms.Results(committed), protocmp.Transform()); diff != "" {
+			t.Fatalf("Results(committed) diff (-want,+got):\n%s", diff)
+		}
+	})
+}
+
+func Test_metricsStore_ConcurrentShortIDResolution(t *testing.T) {
+	ms := metricsStore{}
+	md := &fnpb.MonitoringInfosMetadataResponse{
+		MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+			"c1": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+		},
+	}
+
+	const bundles = 16
+	var wg sync.WaitGroup
+	wg.Add(bundles)
+	for range bundles {
+		go func() {
+			defer wg.Done()
+			ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+				MonitoringData: map[string][]byte{"c1": {3}},
+			})
+			unknown := ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+				MonitoringData: map[string][]byte{"c1": {2}},
+			})
+			if len(unknown) > 0 {
+				ms.AddShortIDs(md)
+			}
+			_ = ms.Results(committed)
+			_ = ms.Results(tentative)
+		}()
+	}
+	wg.Wait()
+
+	want := []*pipepb.MonitoringInfo{
+		makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{2 * bundles}),
+	}
+	if diff := cmp.Diff(want, ms.Results(committed), protocmp.Transform()); diff != "" {
+		t.Fatalf("Results(committed) diff (-want,+got):\n%s", diff)
+	}
+}
+
+func Test_metricsStore_PartialAndUnknownShortIDs(t *testing.T) {
+	t.Run("partialResolutionKeepsOtherBufferedShortIDs", func(t *testing.T) {
+		ms := metricsStore{}
+		ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{
+				"c1": {4},
+				"c2": {7},
+			},
+		})
+
+		// Resolve only c1 first; c2 must stay buffered for a later metadata response.
+		ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"c1": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+			},
+		})
+		wantFirst := []*pipepb.MonitoringInfo{
+			makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{4}),
+		}
+		if diff := cmp.Diff(wantFirst, ms.Results(committed), protocmp.Transform()); diff != "" {
+			t.Fatalf("after first AddShortIDs diff (-want,+got):\n%s", diff)
+		}
+
+		ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"c2": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+			},
+		})
+		wantBoth := []*pipepb.MonitoringInfo{
+			makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SUM_INT64, []byte{11}),
+		}
+		if diff := cmp.Diff(wantBoth, ms.Results(committed), protocmp.Transform()); diff != "" {
+			t.Fatalf("after second AddShortIDs diff (-want,+got):\n%s", diff)
+		}
+	})
+
+	t.Run("unknownUrnDropsBufferedPayloadsAndSkipsAccumulation", func(t *testing.T) {
+		ms := metricsStore{}
+		ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+			MonitoringData: map[string][]byte{"u1": {1}},
+		})
+		ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"u1": {2}},
+		})
+
+		ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"u1": {
+					Urn:  "beam:metric:unknown_test_urn:v1",
+					Type: "beam:metrics:sum_int64:v1",
+				},
+			},
+		})
+		if len(ms.unprocessedPayloads[tentative]) != 0 || len(ms.unprocessedPayloads[committed]) != 0 {
+			t.Fatalf("expected unknown short ID payloads to be dropped, got %+v", ms.unprocessedPayloads)
+		}
+
+		// Also exercise accumulatePayload/contributeMetrics when shortIDsToKeys holds an unknown URN.
+		ms.shortIDsToKeys = map[string]metricKey{
+			"u2": ptransformKey{urn: "beam:metric:unknown_test_urn:v1", ptransform: "s1"},
+		}
+		if unknown := ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"u2": {3}},
+		}); len(unknown) != 0 {
+			t.Fatalf("unexpected unknown IDs: %v", unknown)
+		}
+		if got := ms.Results(committed); len(got) != 0 {
+			t.Fatalf("expected no committed results, got %v", got)
+		}
+	})
+
+	t.Run("malformedPayloadPanics", func(t *testing.T) {
+		ms := metricsStore{}
+		ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+			MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+				"bad": makeInfo(pipepb.MonitoringInfoSpecs_USER_SUM_INT64),
+			},
+		})
+		defer func() {
+			if recover() == nil {
+				t.Fatal("expected panic on truncated varint payload")
+			}
+		}()
+		ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+			MonitoringData: map[string][]byte{"bad": {0x80}},
+		})
+	})
 }
