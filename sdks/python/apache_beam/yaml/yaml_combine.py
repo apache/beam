@@ -62,15 +62,22 @@ def normalize_combine(spec):
           type: fn_type
   """
   from apache_beam.yaml.yaml_transform import SafeLineLoader
-  if spec['type'] == 'Combine':
+  if spec['type'] == 'Combine' or spec['type'].startswith('Combine-'):
     config = spec.get('config')
     if isinstance(config.get('group_by'), str):
       config['group_by'] = [config['group_by']]
 
+    is_sql = (
+        config.get('language') in ('sql', 'calcite') or
+        spec['type'] in ('Combine-sql', 'Combine-calcite'))
+
     def normalize_agg(dest, agg):
       if isinstance(agg, str):
         agg = {'fn': agg}
-      if 'value' not in agg and config.get('language') != 'sql':
+      fn_str = (
+          agg.get('fn') if isinstance(agg.get('fn'), str) else agg.get(
+              'fn', {}).get('type', ''))
+      if 'value' not in agg and not (is_sql and '(' in fn_str):
         agg['value'] = dest
       if isinstance(agg['fn'], str):
         agg['fn'] = {'type': agg['fn']}
@@ -189,13 +196,18 @@ def _SqlCombineTransform(
     raise ValueError(f'Unknown grouping columns: {list(unknown_keys)}')
 
   def combine_col(dest, fn_spec):
+    fn_type = fn_spec['fn']['type']
     if 'value' in fn_spec or 'config' in fn_spec['fn']:
-      expr = '%s(%s)' % (
-          fn_spec['fn']['type'],
-          ', '.join([fn_spec['value']] +
-                    list(fn_spec['fn'].get('config', {}).values())))
+      if '(' in fn_type:
+        expr = fn_type
+      else:
+        args = [fn_spec.get('value', dest)
+                ] + [str(v) for v in fn_spec['fn'].get('config', {}).values()]
+        expr = '%s(%s)' % (fn_type, ', '.join(args))
+    elif '(' not in fn_type:
+      expr = f'{fn_type}({dest})'
     else:
-      expr = fn_spec['fn']['type']
+      expr = fn_type
     return f'{expr} as {dest}'
 
   return pcoll | sql_transform_constructor(
