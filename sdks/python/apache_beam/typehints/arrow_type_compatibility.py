@@ -21,7 +21,10 @@ For internal use only, no backward compatibility guarantees.
 """
 
 # ruff: noqa: UP006
+import dataclasses
 from functools import partial
+from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -295,6 +298,64 @@ def _arrow_type_from_beam_fieldtype(
   return output_arrow_type
 
 
+def _to_arrow_value_fn(
+    arrow_type: pa.DataType) -> Optional[Callable[[Any], Any]]:
+  """Build a converter; pa.array rejects row objects for struct fields."""
+  if isinstance(arrow_type, pa.StructType):
+    fields = [(arrow_type[i].name, _to_arrow_value_fn(arrow_type[i].type))
+              for i in range(len(arrow_type))]
+    return _row_to_dict_fn(fields)
+
+  if isinstance(arrow_type, (pa.ListType, pa.LargeListType)):
+    convert_element = _to_arrow_value_fn(arrow_type.value_type)
+    if convert_element is None:
+      return None
+    return lambda value: None if value is None else [
+        convert_element(element) for element in value
+    ]
+
+  if isinstance(arrow_type, pa.MapType):
+    convert_item = _to_arrow_value_fn(arrow_type.item_type)
+    if convert_item is None:
+      return None
+
+    def convert_map(value):
+      if value is None:
+        return None
+      return {key: convert_item(item) for key, item in value.items()}
+
+    return convert_map
+
+  return None
+
+
+def _row_to_dict_fn(fields):
+  def convert(value):
+    if value is None:
+      return None
+    if isinstance(value, dict):
+      values = value
+    elif hasattr(value, '_asdict'):
+      values = value._asdict()
+    elif hasattr(value, 'as_dict'):
+      values = value.as_dict()
+    elif dataclasses.is_dataclass(value) and not isinstance(value, type):
+      values = {
+          field.name: getattr(value, field.name)
+          for field in dataclasses.fields(value)
+      }
+    else:
+      # Let pyarrow report the unsupported value with its own error.
+      return value
+    return {
+        name: convert_field(values.get(name))
+        if convert_field is not None else values.get(name)
+        for name, convert_field in fields
+    }
+
+  return convert
+
+
 class PyarrowBatchConverter(BatchConverter):
   def __init__(self, element_type: RowTypeConstraint):
     super().__init__(pa.Table, element_type)
@@ -302,6 +363,10 @@ class PyarrowBatchConverter(BatchConverter):
     arrow_schema = arrow_schema_from_beam_schema(self._beam_schema)
 
     self._arrow_schema = arrow_schema
+    self._write_converters = [
+        (name, _to_arrow_value_fn(self._arrow_schema.field(name).type))
+        for name, _ in self._element_type._fields
+    ]
 
   @staticmethod
   def from_typehints(element_type,
@@ -319,11 +384,12 @@ class PyarrowBatchConverter(BatchConverter):
     return PyarrowBatchConverter(element_type)
 
   def produce_batch(self, elements):
-    arrays = [
-        pa.array([getattr(el, name) for el in elements],
-                 type=self._arrow_schema.field(name).type)
-        for name, _ in self._element_type._fields
-    ]
+    arrays = []
+    for name, convert in self._write_converters:
+      values = [getattr(el, name) for el in elements]
+      if convert is not None:
+        values = [convert(value) for value in values]
+      arrays.append(pa.array(values, type=self._arrow_schema.field(name).type))
     return pa.Table.from_arrays(arrays, schema=self._arrow_schema)
 
   def explode_batch(self, batch: pa.Table):
