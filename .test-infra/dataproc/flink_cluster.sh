@@ -60,7 +60,8 @@ MASTER_NAME="$CLUSTER_NAME-m"
 
 # GCS properties
 INIT_ACTIONS_FOLDER_NAME="init-actions"
-BEAM_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/beam.sh"
+INIT_ACTIONS_GCS_DIR="${GCS_BUCKET%/}/${INIT_ACTIONS_FOLDER_NAME}/${CLUSTER_NAME}"
+BEAM_INIT="${INIT_ACTIONS_GCS_DIR}/beam.sh"
 
 # Flink properties
 FLINK_LOCAL_PORT=8081
@@ -90,8 +91,8 @@ FLINK_PROPS+=",flink:taskmanager.numberOfTaskSlots=${FLINK_TASKMANAGER_SLOTS}"
 YARN_APPLICATION_MASTER=""
 
 function upload_init_actions() {
-  echo "Uploading initialization actions to GCS bucket: $GCS_BUCKET"
-  gcloud storage cp -r $INIT_ACTIONS_FOLDER_NAME/* $GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME
+  echo "Uploading initialization actions to GCS path: ${INIT_ACTIONS_GCS_DIR}"
+  gcloud storage cp -r "$INIT_ACTIONS_FOLDER_NAME"/* "${INIT_ACTIONS_GCS_DIR}/"
 }
 
 function get_leader() {
@@ -207,7 +208,12 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
+  local rc=0
+  gcloud dataproc clusters delete "$CLUSTER_NAME" --region="$GCLOUD_REGION" --quiet || rc=$?
+  if [[ -n "${CLUSTER_NAME}" ]]; then
+    gcloud storage rm -r "${INIT_ACTIONS_GCS_DIR}" || true
+  fi
+  return "$rc"
 }
 
 "$@"
