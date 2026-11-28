@@ -27,6 +27,7 @@ import pytest
 from parameterized import parameterized
 from parameterized import parameterized_class
 
+from apache_beam import Row
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.arrow_type_compatibility import arrow_schema_from_beam_schema
@@ -190,6 +191,91 @@ class ArrowBatchConverterTest(unittest.TestCase):
 
   def test_hash(self):
     self.assertEqual(hash(self.create_batch_converter()), hash(self.converter))
+
+
+@pytest.mark.uses_pyarrow
+class ArrowBatchConverterNestedRowWriteTest(unittest.TestCase):
+  def _address_type(self):
+    return row_type.RowTypeConstraint.from_fields([
+        ('city', Optional[str]),
+        ('zip', Optional[str]),
+    ])
+
+  def test_produce_batch_with_nested_rows(self):
+    address_type = self._address_type()
+    element_type = row_type.RowTypeConstraint.from_fields([
+        ('id', Optional[int]),
+        ('address', Optional[address_type]),
+    ])
+    converter = BatchConverter.from_typehints(
+        element_type=element_type, batch_type=pa.Table)
+    elements = [
+        Row(id=1, address=Row(city='NYC', zip='10001')),
+        Row(id=2, address=None),
+    ]
+
+    batch = converter.produce_batch(elements)
+
+    self.assertEqual(batch.column('id').to_pylist(), [1, 2])
+    self.assertEqual(
+        batch.column('address').to_pylist(),
+        [{
+            'city': 'NYC', 'zip': '10001'
+        }, None])
+
+  def test_produce_batch_with_rows_in_lists(self):
+    address_type = self._address_type()
+    element_type = row_type.RowTypeConstraint.from_fields([
+        ('id', Optional[int]),
+        ('addresses', Optional[list[Optional[address_type]]]),
+    ])
+    converter = BatchConverter.from_typehints(
+        element_type=element_type, batch_type=pa.Table)
+    elements = [
+        Row(
+            id=1,
+            addresses=[
+                Row(city='NYC', zip='10001'), None, Row(city='SF', zip='94105')
+            ]),
+        Row(id=2, addresses=None),
+    ]
+
+    batch = converter.produce_batch(elements)
+
+    self.assertEqual(
+        batch.column('addresses').to_pylist(),
+        [[{
+            'city': 'NYC', 'zip': '10001'
+        }, None, {
+            'city': 'SF', 'zip': '94105'
+        }],
+         None])
+
+  def test_produce_batch_with_rows_in_maps(self):
+    address_type = self._address_type()
+    element_type = row_type.RowTypeConstraint.from_fields([
+        ('id', Optional[int]),
+        ('addresses', Optional[dict[str, Optional[address_type]]]),
+    ])
+    converter = BatchConverter.from_typehints(
+        element_type=element_type, batch_type=pa.Table)
+    elements = [
+        Row(
+            id=1,
+            addresses={
+                'home': Row(city='NYC', zip='10001'),
+                'work': None,
+            }),
+        Row(id=2, addresses=None),
+    ]
+
+    batch = converter.produce_batch(elements)
+
+    self.assertEqual(
+        batch.column('addresses').to_pylist(),
+        [[('home', {
+            'city': 'NYC', 'zip': '10001'
+        }), ('work', None)], None])
 
 
 class ArrowBatchConverterErrorsTest(unittest.TestCase):
