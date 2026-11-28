@@ -40,36 +40,50 @@ runs:
   steps:
   - name: Check if inputs were provided
     shell: bash
-    run: | 
-      if [ -z "${{ inputs.k8s_namespace }}" ]; then
+    env:
+      K8S_NAMESPACE: ${{ inputs.k8s_namespace }}
+    run: |
+      if [ -z "${K8S_NAMESPACE}" ]; then
         echo "Kubernetes namespace not provided"
         exit 1
       fi
   - name: replace '_' with '-' in namespace
     shell: bash
     id: replace_namespace
+    env:
+      K8S_NAMESPACE: ${{ inputs.k8s_namespace }}
     run: |
-      TEST_NAMESPACE=$(echo "${{ inputs.k8s_namespace }}" | tr '_' '-' | tr '[:upper:]' '[:lower:]')
-      echo TEST_NAMESPACE=$TEST_NAMESPACE >> $GITHUB_OUTPUT
+      TEST_NAMESPACE=$(printf '%s' "${K8S_NAMESPACE}" | tr -d '\r\n' | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+      echo "TEST_NAMESPACE=${TEST_NAMESPACE}" >> "$GITHUB_OUTPUT"
   - name: Get the kubeconfig using gcloud
     shell: bash
+    env:
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      CLUSTER_ZONE: ${{ inputs.cluster_zone }}
     run: |
-      gcloud container clusters get-credentials ${{ inputs.cluster_name }} --zone ${{ inputs.cluster_zone }} --project apache-beam-testing
+      gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}" --project apache-beam-testing
   - name: Create namespace
     shell: bash
-    run: | 
-      kubectl create namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
+    env:
+      TEST_NAMESPACE: ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
+    run: |
+      kubectl create namespace "${TEST_NAMESPACE}"
   - name: Set default namespace
     shell: bash
+    env:
+      TEST_NAMESPACE: ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
     run: |
-      kubectl config set-context --current --namespace=${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
+      kubectl config set-context --current --namespace="${TEST_NAMESPACE}"
   - name: Post cleanup
     uses: pytooling/actions/with-post-step@42e17fae05f224e5ac3d79d021a4e3577878efe5 # v4.2.2
+    env:
+      REMOVE_FINALIZER: ${{ inputs.remove_finalizer }}
+      TEST_NAMESPACE: ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
     with:
       main: echo "Post Cleanup"
       post: |
         echo "Post Cleanup"
-        if [ -n "${{ inputs.remove_finalizer }}" ]; then
-          kubectl patch ${{ inputs.remove_finalizer }} -p '[{"op": "remove", "path": "/metadata/finalizers"}]' --type=json
+        if [ -n "${REMOVE_FINALIZER}" ]; then
+          kubectl patch "${REMOVE_FINALIZER}" -p '[{"op": "remove", "path": "/metadata/finalizers"}]' --type=json
         fi
-        kubectl delete namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
+        kubectl delete namespace "${TEST_NAMESPACE}"
