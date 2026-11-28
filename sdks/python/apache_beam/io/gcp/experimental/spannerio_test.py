@@ -564,7 +564,7 @@ class SpannerWriteTest(unittest.TestCase):
       # if we want to make two batches, so batch size should be 1450 (2900 / 2)
       # and each bach should contains 25 mutations.
       res = (
-          p | beam.Create(mutation_group)
+          p | beam.Create(mutation_group, reshuffle=False)
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1450,
@@ -615,7 +615,7 @@ class SpannerWriteTest(unittest.TestCase):
       # If each batch contains 10 rows max then batch count should be 10
       # (contains 5 mutation groups each).
       res = (
-          p | beam.Create(mutation_group)
+          p | beam.Create(mutation_group, reshuffle=False)
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1048576,
@@ -647,7 +647,7 @@ class SpannerWriteTest(unittest.TestCase):
       # No. of mutations groups per batch = Max Cells / Cells per mutation group
       # total_batches = Total Number of Cells / Max Cells
       res = (
-          p | beam.Create(mutation_group)
+          p | beam.Create(mutation_group, reshuffle=False)
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1048576,
