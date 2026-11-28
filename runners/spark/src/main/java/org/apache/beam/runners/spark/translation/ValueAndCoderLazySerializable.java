@@ -105,7 +105,12 @@ public final class ValueAndCoderLazySerializable<T> implements Serializable {
         try {
           ByteSizeObserver observer = new ByteSizeObserver();
           coder.registerByteSizeObserver(value, observer);
-          bufferSize = (int) observer.observedSize;
+          if (!observer.getIsLazy()) {
+            observer.advance();
+            if (observer.observedSize > 0) {
+              bufferSize = (int) Math.min(observer.observedSize, Integer.MAX_VALUE - 8);
+            }
+          }
         } catch (Exception e) {
           Throwables.throwIfUnchecked(e);
           throw new RuntimeException(e);
