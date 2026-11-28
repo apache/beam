@@ -21,9 +21,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.dataflow.worker.NameContextsForTests;
+import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CommitState;
+import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -386,11 +393,20 @@ public class CounterTest {
   public void testDirtyBit() {
     verifyDirtyBit(counters.longSum(CounterName.named("long-sum")), 1L);
     verifyDirtyBit(counters.longMean(CounterName.named("long-mean")), 1L);
+    verifyDirtyBit(counters.longMin(CounterName.named("long-min")), 1L);
+    verifyDirtyBit(counters.longMax(CounterName.named("long-max")), 1L);
     verifyDirtyBit(counters.doubleSum(CounterName.named("double-sum")), 1.0);
     verifyDirtyBit(counters.doubleMean(CounterName.named("double-mean")), 1.0);
+    verifyDirtyBit(counters.doubleMin(CounterName.named("double-min")), 1.0);
+    verifyDirtyBit(counters.doubleMax(CounterName.named("double-max")), 1.0);
     verifyDirtyBit(counters.intSum(CounterName.named("int-sum")), 1);
     verifyDirtyBit(counters.intMean(CounterName.named("int-mean")), 1);
+    verifyDirtyBit(counters.intMin(CounterName.named("int-min")), 1);
+    verifyDirtyBit(counters.intMax(CounterName.named("int-max")), 1);
     verifyDirtyBit(counters.booleanAnd(CounterName.named("and")), true);
+    verifyDirtyBit(counters.booleanAnd(CounterName.named("and-false")), false);
+    verifyDirtyBit(counters.booleanOr(CounterName.named("or")), true);
+    verifyDirtyBit(counters.distribution(CounterName.named("dist")), 1L);
   }
 
   /** Verify dirty bit is set correctly through various Counter state transitions */
@@ -405,7 +421,8 @@ public class CounterTest {
         CommitState.COMMITTED,
         counter.commitState.get());
 
-    // Test counters are dirty after mutating.
+    // Test counters are dirty after mutating, and remain DIRTY across consecutive updates.
+    counter.addValue(sampleValue);
     counter.addValue(sampleValue);
     assertTrue(String.format("%s should be dirty after mutating.", name), counter.isDirty());
     assertEquals(
@@ -448,6 +465,149 @@ public class CounterTest {
         String.format("%s should have COMMITTED state after marking committed.", name),
         CommitState.COMMITTED,
         counter.commitState.get());
+  }
+
+  /**
+   * Minimal {@link AtomicCounterValue} performing release-only writes via {@link
+   * VarHandle#weakCompareAndSetRelease} (matching OpenJDK {@code LongAdder} / {@code Striped64}
+   * memory ordering) and atomic seq-cst {@code getAndSet(0L)} on reset.
+   */
+  private static final class ReleaseOnlyLongSum implements AtomicCounterValue<Long, Long> {
+    private static final VarHandle VALUE_HANDLE;
+
+    static {
+      try {
+        VALUE_HANDLE =
+            MethodHandles.lookup().findVarHandle(ReleaseOnlyLongSum.class, "value", long.class);
+      } catch (ReflectiveOperationException e) {
+        throw new ExceptionInInitializerError(e);
+      }
+    }
+
+    @SuppressWarnings("unused")
+    private volatile long value;
+
+    @Override
+    public void addValue(Long delta) {
+      long d = delta;
+      while (true) {
+        long cur = (long) VALUE_HANDLE.getOpaque(this);
+        if (VALUE_HANDLE.weakCompareAndSetRelease(this, cur, cur + d)) {
+          return;
+        }
+      }
+    }
+
+    @Override
+    public Long getAggregate() {
+      return (long) VALUE_HANDLE.getVolatile(this);
+    }
+
+    @Override
+    public Long getAndReset() {
+      return (long) VALUE_HANDLE.getAndSet(this, 0L);
+    }
+
+    @Override
+    public <UpdateT> UpdateT extractUpdate(
+        CounterName name, boolean delta, CounterUpdateExtractor<UpdateT> updateExtractor) {
+      return updateExtractor.longSum(name, delta, delta ? getAndReset() : getAggregate());
+    }
+  }
+
+  private static <T extends Number> long runConcurrentDeltaCommitStress(
+      Counter<T, T> counter, T increment, int numWriters, int addsPerWriter) throws Exception {
+    final CountDownLatch start = new CountDownLatch(1);
+    final AtomicBoolean done = new AtomicBoolean(false);
+    final List<Thread> writers = new ArrayList<>();
+    for (int i = 0; i < numWriters; i++) {
+      Thread t =
+          new Thread(
+              () -> {
+                try {
+                  start.await();
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  return;
+                }
+                for (int j = 0; j < addsPerWriter; j++) {
+                  counter.addValue(increment);
+                }
+              });
+      t.start();
+      writers.add(t);
+    }
+
+    final long[] extractedSum = new long[1];
+    Thread reporter =
+        new Thread(
+            () -> {
+              try {
+                start.await();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+              }
+              while (!done.get()) {
+                if (counter.isDirty()) {
+                  counter.committing();
+                  extractedSum[0] += counter.getAndReset().longValue();
+                  counter.committed();
+                }
+              }
+            });
+    reporter.start();
+
+    start.countDown();
+    for (Thread w : writers) {
+      w.join();
+    }
+    done.set(true);
+    reporter.join();
+
+    // Drain any final dirty cycle exactly as StreamingWorkerStatusReporter does on quiescence.
+    while (counter.isDirty()) {
+      counter.committing();
+      extractedSum[0] += counter.getAndReset().longValue();
+      counter.committed();
+    }
+    return extractedSum[0];
+  }
+
+  @Test
+  public void testConcurrentLongSumDeltaCommitNoStrandedDirtyState() throws Exception {
+    // LongAdder.sumThenReset() is not guaranteed by the Java SE spec to be atomic against
+    // concurrent adds (e.g. non-atomic read-then-zero in older JDK 11 builds), so assert that no
+    // non-zero update is ever stranded behind COMMITTED after the final dirty drain.
+    Counter<Long, Long> counter = counters.longSum(CounterName.named("concurrent-long-sum"));
+    long extracted = runConcurrentDeltaCommitStress(counter, 1L, 4, 50_000);
+    assertFalse(counter.isDirty());
+    assertEquals(0L, counter.getAggregate().longValue());
+    assertTrue("expected positive extracted delta sum, got " + extracted, extracted > 0);
+    assertTrue(
+        "extracted delta sum exceeded total writes: " + extracted, extracted <= 4L * 50_000L);
+  }
+
+  @Test
+  public void testConcurrentIntSumDeltaCommitNoLostUpdates() throws Exception {
+    // intSum uses AtomicInteger.getAndSet(0), which is strictly atomic across all JDK versions.
+    Counter<Integer, Integer> counter = counters.intSum(CounterName.named("concurrent-int-sum"));
+    long extracted = runConcurrentDeltaCommitStress(counter, 1, 4, 50_000);
+    assertFalse(counter.isDirty());
+    assertEquals(0, counter.getAggregate().intValue());
+    assertEquals(4L * 50_000L, extracted);
+  }
+
+  @Test
+  public void testConcurrentReleaseOnlyCounterDeltaCommitNoLostUpdates() throws Exception {
+    // Directly exercises VarHandle.fullFence() in Counter.setDirty() against a release-only CAS
+    // counter so StoreLoad reordering cannot strand updates behind COMMITTED on any JVM.
+    Counter<Long, Long> counter =
+        new Counter<>(CounterName.named("concurrent-release-only"), new ReleaseOnlyLongSum());
+    long extracted = runConcurrentDeltaCommitStress(counter, 1L, 4, 50_000);
+    assertFalse(counter.isDirty());
+    assertEquals(0L, counter.getAggregate().longValue());
+    assertEquals(4L * 50_000L, extracted);
   }
 
   @Test

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
+import java.lang.invoke.VarHandle;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
@@ -44,7 +45,9 @@ public class Counter<InputT, AccumT> {
 
   /**
    * An instance of {@link AtomicCounterValue} specifies how a counter is aggregated and stored
-   * internally. It should ensure that all operations are atomic when used in multiple threads.
+   * internally. Implementations must be thread-safe and ensure cross-thread visibility of updates
+   * returned by {@link #getAggregate}, {@link #getAndReset}, and {@link #extractUpdate} without
+   * relying on a volatile write to {@link Counter}'s dirty bit.
    */
   public interface AtomicCounterValue<InputT, AccumT> {
     void addValue(InputT value);
@@ -205,7 +208,15 @@ public class Counter<InputT, AccumT> {
    * add any new values to the counter (just returns the current values).
    */
   protected void setDirty() {
-    commitState.set(CommitState.DIRTY);
+    // Full fence ensures prior updates to `internal` (e.g. OpenJDK LongAdder's
+    // weakCompareAndSetRelease on base/Cell, or any AtomicCounterValue using release/opaque writes)
+    // are visible before reading commitState. This avoids cross-core write-invalidation traffic on
+    // commitState when already DIRTY while preventing StoreLoad reordering from stranding an update
+    // behind a concurrent committing() -> getAndReset() -> committed() cycle.
+    VarHandle.fullFence();
+    if (commitState.get() != CommitState.DIRTY) {
+      commitState.set(CommitState.DIRTY);
+    }
   }
 
   /**
