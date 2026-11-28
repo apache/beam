@@ -82,6 +82,19 @@ public interface BigQueryServices extends Serializable {
         AbstractInputStreamContent streamContent)
         throws InterruptedException, IOException;
 
+    /** Start a BigQuery load job with a reservation. */
+    void startLoadJob(
+        JobReference jobRef, JobConfigurationLoad loadConfig, @Nullable String reservation)
+        throws InterruptedException, IOException;
+
+    /** Start a BigQuery load job with stream content and a reservation. */
+    void startLoadJob(
+        JobReference jobRef,
+        JobConfigurationLoad loadConfig,
+        AbstractInputStreamContent streamContent,
+        @Nullable String reservation)
+        throws InterruptedException, IOException;
+
     /** Start a BigQuery extract job. */
     void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException;

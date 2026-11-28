@@ -681,6 +681,12 @@ public class BigQueryIOWriteTest implements Serializable {
 
   public void runStreamingFileLoads(String tableRef, boolean useTempTables, boolean useTempDataset)
       throws Exception {
+    runStreamingFileLoads(tableRef, useTempTables, useTempDataset, null);
+  }
+
+  private void runStreamingFileLoads(
+      String tableRef, boolean useTempTables, boolean useTempDataset, String reservation)
+      throws Exception {
     assumeTrue(!useStorageApi);
     assumeTrue(useStreaming);
     List<TableRow> elements = Lists.newArrayList();
@@ -721,6 +727,9 @@ public class BigQueryIOWriteTest implements Serializable {
     if (useTempDataset) {
       writeTransform = writeTransform.withWriteTempDataset("temp-dataset-id");
     }
+    if (reservation != null) {
+      writeTransform = writeTransform.withLoadJobReservation(reservation);
+    }
 
     p.apply(testStream).apply(writeTransform);
     PipelineResult pipelineResult = p.run();
@@ -735,6 +744,14 @@ public class BigQueryIOWriteTest implements Serializable {
 
     checkLineageSinkMetric(
         pipelineResult, tableRef.contains(projectId) ? tableRef : projectId + ":" + tableRef);
+    List<Job> loads =
+        fakeJobService.getAllJobs().stream()
+            .filter(job -> job.getConfiguration().getLoad() != null)
+            .collect(Collectors.toList());
+    assertFalse(loads.isEmpty());
+    for (Job job : loads) {
+      assertEquals(reservation, job.getConfiguration().getReservation());
+    }
   }
 
   public void runStreamingFileLoads(String tableRef) throws Exception {
@@ -749,6 +766,15 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testStreamingFileLoadsWithTempTables() throws Exception {
     runStreamingFileLoads("project-id:dataset-id.table-id");
+  }
+
+  @Test
+  public void testStreamingFileLoadsWithReservation() throws Exception {
+    runStreamingFileLoads(
+        "project-id:dataset-id.table-id",
+        true,
+        false,
+        "projects/reservation-project/locations/us/reservations/load");
   }
 
   @Test
@@ -899,6 +925,180 @@ public class BigQueryIOWriteTest implements Serializable {
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
     checkLineageSinkMetric(pipelineResult, "project-id.dataset-id.table-id");
+    for (Job job : fakeJobService.getAllJobs()) {
+      if (job.getConfiguration().getLoad() != null) {
+        assertNull(job.getConfiguration().getReservation());
+      }
+    }
+  }
+
+  @Test
+  public void testBatchFileLoadsWithReservation() throws Exception {
+    testFileLoadReservation(false);
+  }
+
+  @Test
+  public void testBatchFileLoadsWithTempTablesAndReservation() throws Exception {
+    testFileLoadReservation(true);
+  }
+
+  @Test
+  public void testBatchFileLoadsWithRuntimeReservation() throws Exception {
+    testFileLoadReservation(false, true);
+  }
+
+  @Test
+  public void testBatchFileLoadsWithUnsetRuntimeReservation() throws Exception {
+    testFileLoadReservation(false, true, null);
+  }
+
+  @Test
+  public void testBatchFileLoadsWithEmptyRuntimeReservation() throws Exception {
+    assumeTrue(!useStreaming && !useStorageApi);
+    thrown.expectMessage("loadJobReservation cannot be empty");
+    testFileLoadReservation(false, true, "");
+  }
+
+  private void testFileLoadReservation(boolean tempTables) throws Exception {
+    testFileLoadReservation(tempTables, false);
+  }
+
+  private void testFileLoadReservation(boolean tempTables, boolean runtimeReservation)
+      throws Exception {
+    testFileLoadReservation(
+        tempTables,
+        runtimeReservation,
+        "projects/reservation-project/locations/us/reservations/load");
+  }
+
+  private void testFileLoadReservation(
+      boolean tempTables, boolean runtimeReservation, String reservation) throws Exception {
+    assumeTrue(!useStreaming && !useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (runtimeReservation) {
+      ValueProvider<String> provider = p.newProvider(reservation);
+      assertFalse(provider.isAccessible());
+      write = write.withLoadJobReservation(provider);
+    } else {
+      write = write.withLoadJobReservation(reservation);
+    }
+    if (tempTables) {
+      write = write.withMaxFileSize(1).withMaxBytesPerPartition(1).withMaxFilesPerPartition(1);
+    }
+    List<TableRow> rows = Lists.newArrayList();
+    for (int i = 0; i < 30; i++) {
+      rows.add(new TableRow().set("number", i));
+    }
+    p.apply(Create.of(rows).withCoder(TableRowJsonCoder.of())).apply(write);
+    p.run();
+    List<Job> loads =
+        fakeJobService.getAllJobs().stream()
+            .filter(job -> job.getConfiguration().getLoad() != null)
+            .collect(Collectors.toList());
+    assertFalse(loads.isEmpty());
+    for (Job job : loads) {
+      assertEquals(reservation, job.getConfiguration().getReservation());
+      assertEquals(
+          tempTables,
+          !job.getConfiguration().getLoad().getDestinationTable().getTableId().equals("table-id"));
+    }
+  }
+
+  @Test
+  public void testSchemaUpdateLoadJobWithReservation() throws Exception {
+    testSchemaUpdateLoadJobWithReservation(false);
+  }
+
+  @Test
+  public void testSchemaUpdateLoadJobWithUnsetRuntimeReservation() throws Exception {
+    testSchemaUpdateLoadJobWithReservation(true);
+  }
+
+  private void testSchemaUpdateLoadJobWithReservation(boolean unsetRuntimeReservation)
+      throws Exception {
+    assumeTrue(!useStreaming && !useStorageApi);
+    String reservation =
+        unsetRuntimeReservation
+            ? null
+            : "projects/reservation-project/locations/us/reservations/load";
+    ValueProvider<String> provider =
+        unsetRuntimeReservation
+            ? p.newProvider(null)
+            : ValueProvider.StaticValueProvider.of(reservation);
+    if (unsetRuntimeReservation) {
+      assertFalse(provider.isAccessible());
+    }
+    TableReference ref =
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId("table-id");
+    fakeDatasetService.createTable(
+        new Table()
+            .setTableReference(ref)
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER")))));
+    TableSchema updatedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("extra").setType("STRING")));
+    List<TableRow> rows = Lists.newArrayList();
+    for (int i = 0; i < 30; i++) {
+      rows.add(new TableRow().set("number", i).set("extra", "value"));
+    }
+    p.apply(Create.of(rows).withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withMethod(Method.FILE_LOADS)
+                .withSchema(updatedSchema)
+                .withWriteDisposition(Write.WriteDisposition.WRITE_APPEND)
+                .withSchemaUpdateOptions(EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION))
+                .withLoadJobReservation(provider)
+                .withMaxFileSize(1)
+                .withMaxFilesPerPartition(1)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+    List<Job> zeroLoads =
+        fakeJobService.getAllJobs().stream()
+            .filter(job -> job.getConfiguration().getLoad() != null)
+            .filter(job -> job.getConfiguration().getLoad().getSourceUris() == null)
+            .collect(Collectors.toList());
+    assertFalse(zeroLoads.isEmpty());
+    for (Job job : zeroLoads) {
+      assertEquals(reservation, job.getConfiguration().getReservation());
+    }
+    assertEquals(updatedSchema, fakeDatasetService.getTable(ref).getSchema());
+  }
+
+  @Test
+  public void testReservationRejectedForStreamingInserts() {
+    assumeTrue(!useStorageApi && !useStreaming);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("withLoadJobReservation is only supported when using FILE_LOADS");
+    p.apply(Create.<TableRow>of(new TableRow().set("number", 1)))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withMethod(Method.STREAMING_INSERTS)
+                .withLoadJobReservation("projects/p/locations/us/reservations/r")
+                .withoutValidation());
   }
 
   @Test
@@ -3388,6 +3588,7 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
             sideInputs,
             dynamicDestinations,
+            null,
             null,
             4,
             false,

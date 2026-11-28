@@ -483,6 +483,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("bad_record_error_handler")
             .addNullableByteArrayField("bad_record_router")
             .addNullableInt64Field("auto_schema_update_strict_timeout_ms")
+            .addNullableByteArrayField("load_job_reservation")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -611,6 +612,10 @@ public class BigQueryIOTranslation {
       ValueProvider<String> loadJobProjectId = transform.getLoadJobProjectId();
       if (loadJobProjectId != null) {
         fieldValues.put("load_job_project_id", loadJobProjectId);
+      }
+      ValueProvider<String> loadJobReservation = transform.getLoadJobReservation();
+      if (loadJobReservation != null) {
+        fieldValues.put("load_job_reservation", toByteArray(loadJobReservation));
       }
       InsertRetryPolicy failedInsertRetryPolicy = transform.getFailedInsertRetryPolicy();
       if (failedInsertRetryPolicy != null) {
@@ -873,6 +878,13 @@ public class BigQueryIOTranslation {
         String loadJobProjectId = configRow.getString("load_job_project_id");
         if (loadJobProjectId != null) {
           builder = builder.setLoadJobProjectId(StaticValueProvider.of(loadJobProjectId));
+        }
+        if (configRow.getSchema().hasField("load_job_reservation")) {
+          byte[] reservation = configRow.getBytes("load_job_reservation");
+          if (reservation != null) {
+            builder =
+                builder.setLoadJobReservation((ValueProvider<String>) fromByteArray(reservation));
+          }
         }
         byte[] failedInsertRetryPolicyBytes = configRow.getBytes("failed_insert_retry_policy");
         if (failedInsertRetryPolicyBytes != null) {
