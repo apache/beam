@@ -187,6 +187,15 @@ class TransformTest(unittest.TestCase):
     self.run_scenario(df, lambda df: df[df.x > 5].idxmin())
     self.run_scenario(df, lambda df: df[df.x > 5].idxmax())
 
+  def test_min_max_skipna_false_with_empty_partition(self):
+    # run_scenario splits the input into two batches, and the filter leaves
+    # the second one empty.
+    df = pd.DataFrame({'x': [10.0, 1.0, 30.0, 2.0, 20.0]})
+    self.run_scenario(df, lambda df: df[df.x > 5].x.min(skipna=False))
+    self.run_scenario(df, lambda df: df[df.x > 5].x.max(skipna=False))
+    self.run_scenario(df, lambda df: df[df.x > 5].min(skipna=False))
+    self.run_scenario(df, lambda df: df[df.x > 5].max(skipna=False))
+
   def test_getitem_projection(self):
     df = pd.DataFrame({
         'Animal': ['Aardvark', 'Ant', 'Elephant', 'Zebra'],

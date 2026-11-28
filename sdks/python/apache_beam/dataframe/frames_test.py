@@ -2320,6 +2320,32 @@ class AggregationTest(_AbstractFrameTest):
     df = pd.DataFrame({'A': [1.0, None, 3.0, 4.0], 'B': [2, 3, 5, 7]})
     self._run_test(lambda df: df.agg(['count', 'mean']), df)
 
+  def test_min_max_all_na_partition(self):
+    # Each test partition holds a single row here, so the NA rows make
+    # partitions with only missing values.
+    df = pd.DataFrame({
+        'td': pd.to_timedelta([None, 5, None, 2], unit='s'),
+        'tz': pd.to_datetime([None, '2024-01-05', None,
+                              '2024-01-02']).tz_localize('UTC'),
+        'int': pd.array([None, 5, None, 2], dtype='Int64'),
+        'str': pd.array([None, 'b', None, 'a'], dtype='string'),
+    })
+    # TODO(https://github.com/apache/beam/issues/20926): max and min produce
+    # the wrong proxy
+    for column in df.columns:
+      with self.subTest(column=column):
+        s = df[column]
+        self._run_test(lambda s: s.min(), s, check_proxy=False)
+        self._run_test(lambda s: s.max(), s, check_proxy=False)
+        self._run_test(lambda s: s.agg(['min', 'max']), s, check_proxy=False)
+        self._run_test(
+            lambda s: s.agg(['min', 'max'], skipna=False), s, check_proxy=False)
+    self._run_test(lambda df: df.min(numeric_only=False), df, check_proxy=False)
+    self._run_test(
+        lambda df: df.max(skipna=False, numeric_only=False),
+        df,
+        check_proxy=False)
+
   @unittest.skipIf(PD_VERSION >= (2, 0), "level argument removed in Pandas 2")
   def test_series_agg_level(self):
     self._run_test(

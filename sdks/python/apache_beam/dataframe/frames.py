@@ -2091,12 +2091,42 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       agg_kwargs = kwargs.copy()
       if ((_is_associative(base_func) or _is_liftable_with_sum(base_func)) and
           singleton_reason is None):
+
+        def to_series(s):
+          # Coerce to a Series, if the result is scalar we still want a
+          # Series so we can combine and do the final aggregation next.
+          return pd.Series(s.agg(func, *args, **kwargs))
+
+        if _check_str_or_np_builtin(base_func, ['min', 'max']):
+
+          def pre_aggregate(s):
+            # An empty partition has no min or max (pandas gives NaN, even
+            # with skipna=False), so it adds nothing to the final step.
+            if len(s) == 0:
+              return s
+            # Keep the dtype of the input. pd.Series() would turn the NaT or
+            # NA of an all-NA partition into datetime64 or object, which
+            # can't be combined with the other partitions.
+            result = s.agg(func, *args, **kwargs)
+            if isinstance(result, pd.Series):
+              return pd.Series(
+                  result.tolist(),
+                  index=result.index,
+                  name=result.name,
+                  dtype=s.dtype)
+            return pd.Series([result], dtype=s.dtype)
+
+          # pre_aggregate gives an empty Series for the (empty) proxy, keep
+          # the proxy that to_series gives instead.
+          intermediate_proxy = to_series(self._expr.proxy())
+        else:
+          pre_aggregate = to_series
+          intermediate_proxy = None
+
         intermediate = expressions.ComputedExpression(
             f'pre_aggregate_{base_func}',
-            # Coerce to a Series, if the result is scalar we still want a Series
-            # so we can combine and do the final aggregation next.
-            lambda s: pd.Series(s.agg(func, *args, **kwargs)),
-            [self._expr],
+            pre_aggregate, [self._expr],
+            proxy=intermediate_proxy,
             requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton())
         allow_nonparallel_final = True
