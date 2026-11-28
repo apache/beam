@@ -28,6 +28,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.junit.Rule;
 import org.junit.Test;
@@ -321,5 +322,35 @@ public class YamlUtilsTest {
     Row row = YamlUtils.toBeamRow(map, schema, true);
     assertEquals("{\"key\":\"value\"}", row.getString("mapField"));
     assertEquals("[\"a\",\"b\"]", row.getString("listField"));
+  }
+
+  @Test
+  public void testMapValuesAreConvertedToSchemaType() {
+    Schema schema =
+        Schema.builder()
+            .addMapField("string_map", Schema.FieldType.STRING, Schema.FieldType.STRING)
+            .addMapField("int64_map", Schema.FieldType.STRING, Schema.FieldType.INT64)
+            .build();
+
+    String yaml =
+        "string_map:\n"
+            + "  type: hadoop\n"
+            + "  cache-enabled: false\n"
+            + "  cache.expiration-interval-ms: 60000\n"
+            + "int64_map:\n"
+            + "  a: 1\n";
+
+    Row expectedRow =
+        Row.withSchema(schema)
+            .withFieldValue(
+                "string_map",
+                ImmutableMap.of(
+                    "type", "hadoop",
+                    "cache-enabled", "false",
+                    "cache.expiration-interval-ms", "60000"))
+            .withFieldValue("int64_map", ImmutableMap.of("a", 1L))
+            .build();
+
+    assertEquals(expectedRow, YamlUtils.toBeamRow(yaml, schema));
   }
 }
