@@ -46,6 +46,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.SqsClientBuilder;
+import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 
 /** Tests on {@link SqsUnboundedReader}. */
 @RunWith(MockitoJUnitRunner.StrictStubs.class)
@@ -235,5 +236,72 @@ public class SqsUnboundedReaderTest {
     UnboundedSource.CheckpointMark checkpoint = reader.getCheckpointMark();
     reader.close();
     checkpoint.finalizeCheckpoint();
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+  }
+
+  @Test
+  public void testRestoredCheckpointDeletesMessagesAndCatchesUpEarlierCheckpoints()
+      throws Exception {
+    setupMessages("msg_0", "msg_1", "msg_2");
+    SqsUnboundedReader reader = new SqsUnboundedReader(mockSource, null, options);
+    SerializableCoder<SqsCheckpointMark> coder = SerializableCoder.of(SqsCheckpointMark.class);
+
+    assertTrue(reader.start());
+    assertEquals("msg_0", reader.getCurrent().getBody());
+    // Take checkpoint 1 and leave it unfinalized.
+    SqsCheckpointMark cp1 = (SqsCheckpointMark) reader.getCheckpointMark();
+
+    assertTrue(reader.advance());
+    assertEquals("msg_1", reader.getCurrent().getBody());
+    SqsCheckpointMark cp2 = (SqsCheckpointMark) reader.getCheckpointMark();
+
+    assertEquals(2, reader.numInFlightCheckpoints.get());
+
+    // Finalize a restored copy of cp2 without finalizing cp1.
+    SqsCheckpointMark restoredCp2 = CoderUtils.clone(coder, cp2);
+    restoredCp2.finalizeCheckpoint();
+
+    // Both cp1 and cp2 should be accounted for; only msg_2 remains in flight (not visible).
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+    assertEquals(
+        "1",
+        testCase
+            .getClient()
+            .getQueueAttributes(
+                b ->
+                    b.queueUrl(testCase.getQueueUrl())
+                        .attributeNames(
+                            QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE))
+            .attributes()
+            .get(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE));
+
+    // Read msg_2 and resume from a restored checkpoint via SqsUnboundedSource.createReader.
+    assertTrue(reader.advance());
+    assertEquals("msg_2", reader.getCurrent().getBody());
+    SqsCheckpointMark cp3 = (SqsCheckpointMark) reader.getCheckpointMark();
+    SqsCheckpointMark restoredCp3 = CoderUtils.clone(coder, cp3);
+
+    SqsUnboundedSource source = new SqsUnboundedSource(mockSource.getRead());
+    UnboundedSource.UnboundedReader<SqsMessage> resumed = source.createReader(options, restoredCp3);
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+
+    // Subsequent finalize on already-caught-up cp1 is a no-op.
+    cp1.finalizeCheckpoint();
+    assertEquals(0, reader.numInFlightCheckpoints.get());
+
+    assertEquals(
+        "0",
+        testCase
+            .getClient()
+            .getQueueAttributes(
+                b ->
+                    b.queueUrl(testCase.getQueueUrl())
+                        .attributeNames(
+                            QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE))
+            .attributes()
+            .get(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES_NOT_VISIBLE));
+
+    resumed.close();
+    reader.close();
   }
 }
