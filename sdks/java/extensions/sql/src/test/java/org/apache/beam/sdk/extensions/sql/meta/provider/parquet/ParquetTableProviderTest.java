@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.PipelineResult;
@@ -149,6 +150,67 @@ public class ParquetTableProviderTest {
             });
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
+    assertEquals(State.DONE, state);
+  }
+
+  @Test
+  public void testTimeLogicalTypeRoundTrip() {
+    File destinationDir = new File(tempFolder.getRoot(), "time-logical-type");
+    String locationPath = destinationDir.getAbsolutePath() + File.separator;
+
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE TimeTable (c TIME) TYPE parquet LOCATION '%s'", locationPath));
+
+    BeamSqlRelUtils.toPCollection(
+        writePipeline, env.parseQuery("INSERT INTO TimeTable VALUES (TIME '12:34:56')"));
+
+    PipelineResult.State state = writePipeline.run().waitUntilFinish();
+    assertEquals(State.DONE, state);
+
+    PCollection<Row> timeRows =
+        BeamSqlRelUtils.toPCollection(readPipeline, env.parseQuery("SELECT c FROM TimeTable"));
+    PAssert.thatSingleton(timeRows)
+        .satisfies(
+            row -> {
+              assertEquals(LocalTime.of(12, 34, 56), row.getLogicalTypeValue("c", LocalTime.class));
+              return null;
+            });
+
+    state = readPipeline.run().waitUntilFinish();
+    assertEquals(State.DONE, state);
+  }
+
+  @Test
+  public void testTimeLogicalTypeProjectedRoundTrip() {
+    File destinationDir = new File(tempFolder.getRoot(), "time-logical-type-projected");
+    String locationPath = destinationDir.getAbsolutePath() + File.separator;
+
+    env.executeDdl(
+        String.format(
+            "CREATE EXTERNAL TABLE TimeProjectionTable (id INT, c TIME, payload VARCHAR) "
+                + "TYPE parquet LOCATION '%s'",
+            locationPath));
+
+    BeamSqlRelUtils.toPCollection(
+        writePipeline,
+        env.parseQuery("INSERT INTO TimeProjectionTable VALUES (1, TIME '12:34:56', 'payload')"));
+
+    PipelineResult.State state = writePipeline.run().waitUntilFinish();
+    assertEquals(State.DONE, state);
+
+    PCollection<Row> projectedRows =
+        BeamSqlRelUtils.toPCollection(
+            readPipeline, env.parseQuery("SELECT c, id FROM TimeProjectionTable"));
+    PAssert.thatSingleton(projectedRows)
+        .satisfies(
+            row -> {
+              assertEquals(LocalTime.of(12, 34, 56), row.getLogicalTypeValue("c", LocalTime.class));
+              assertEquals(1, row.getInt32("id").intValue());
+              return null;
+            });
+
+    state = readPipeline.run().waitUntilFinish();
     assertEquals(State.DONE, state);
   }
 }
