@@ -77,3 +77,42 @@ pipelines:
               - {produce: 'Corn', season: 'spring'}
               - {produce: 'Corn', season: 'summer'}
 
+  # Explode with null and empty collections (cross_product=True)
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {id: 1, produce: ['Strawberry', 'Corn']}
+              - {id: 2, produce: null}
+              - {id: 3, produce: []}
+        - type: Explode
+          config:
+            fields: [produce]
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, produce: 'Strawberry'}
+              - {id: 1, produce: 'Corn'}
+
+  # Explode with null and unequal length collections (cross_product=False)
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {id: 1, produce: ['Strawberry', 'Corn'], season: null}
+              - {id: 2, produce: null, season: ['spring']}
+              - {id: 3, produce: null, season: null}
+        - type: Explode
+          config:
+            fields: [produce, season]
+            cross_product: false
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, produce: 'Strawberry', season: null}
+              - {id: 1, produce: 'Corn', season: null}
+              - {id: 2, produce: null, season: 'spring'}

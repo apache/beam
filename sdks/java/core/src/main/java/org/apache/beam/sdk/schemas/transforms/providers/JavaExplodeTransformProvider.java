@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Booleans;
 
 /**
@@ -115,19 +115,23 @@ public class JavaExplodeTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      List<String> fields = configuration.getFields();
+      boolean crossProduct = resolveCrossProduct(fields, configuration.getCrossProduct());
       Schema inputSchema = input.get(INPUT_ROWS_TAG).getSchema();
       Schema.Builder outputSchemaBuilder = new Schema.Builder();
       for (Schema.Field field : inputSchema.getFields()) {
-        if (configuration.getFields().contains(field.getName())) {
-          if (field.getType().getCollectionElementType() == null) {
+        if (fields.contains(field.getName())) {
+          Schema.FieldType elementType = field.getType().getCollectionElementType();
+          if (elementType == null) {
             throw new IllegalArgumentException(
                 String.format(
                     "Exploded field %s must be an iterable type, got %s.",
                     field.getName(), field.getType()));
           } else {
-            outputSchemaBuilder =
-                outputSchemaBuilder.addField(
-                    field.getName(), field.getType().getCollectionElementType());
+            if (!crossProduct && fields.size() > 1) {
+              elementType = elementType.withNullable(true);
+            }
+            outputSchemaBuilder = outputSchemaBuilder.addField(field.getName(), elementType);
           }
         } else {
           outputSchemaBuilder = outputSchemaBuilder.addField(field);
@@ -138,30 +142,26 @@ public class JavaExplodeTransformProvider
       PCollection<Row> result =
           input
               .get(INPUT_ROWS_TAG)
-              .apply(
-                  "Explode",
-                  ParDo.of(
-                      createDoFn(
-                          configuration.getFields(),
-                          configuration.getCrossProduct(),
-                          outputSchema)));
+              .apply("Explode", ParDo.of(createDoFn(fields, crossProduct, outputSchema)));
       result.setRowSchema(outputSchema);
 
       return PCollectionRowTuple.of(OUTPUT_ROWS_TAG, result);
     }
 
-    private static DoFn<Row, Row> createDoFn(
-        List<String> fields, Boolean crossProductObj, Schema outputSchema) {
-      boolean crossProduct;
+    private static boolean resolveCrossProduct(
+        List<String> fields, @Nullable Boolean crossProductObj) {
       if (crossProductObj == null) {
         if (fields.size() > 1) {
           throw new IllegalArgumentException(
               "boolean cross product parameter required to explode more than one field");
         }
-        crossProduct = false;
-      } else {
-        crossProduct = crossProductObj;
+        return false;
       }
+      return crossProductObj;
+    }
+
+    private static DoFn<Row, Row> createDoFn(
+        List<String> fields, boolean crossProduct, Schema outputSchema) {
       int numFields = outputSchema.getFields().size();
       boolean[] toExplode =
           Booleans.toArray(
@@ -178,11 +178,14 @@ public class JavaExplodeTransformProvider
           private void emitCrossProduct(
               Row inputRow, int index, Object[] current, OutputReceiver<Row> out) {
             if (index == numFields) {
-              out.output(Row.withSchema(outputSchema).attachValues(ImmutableList.copyOf(current)));
+              out.output(Row.withSchema(outputSchema).addValues(Arrays.asList(current)).build());
             } else if (toExplode[index]) {
-              for (Object value : inputRow.getIterable(index)) {
-                current[index] = value;
-                emitCrossProduct(inputRow, index + 1, current, out);
+              Iterable<Object> values = inputRow.getIterable(index);
+              if (values != null) {
+                for (Object value : values) {
+                  current[index] = value;
+                  emitCrossProduct(inputRow, index + 1, current, out);
+                }
               }
             } else {
               current[index] = inputRow.getValue(index);
@@ -198,7 +201,8 @@ public class JavaExplodeTransformProvider
             Iterator[] iterators = new Iterator[numFields];
             for (int i = 0; i < numFields; i++) {
               if (toExplode[i]) {
-                iterators[i] = inputRow.getIterable(i).iterator();
+                Iterable<Object> values = inputRow.getIterable(i);
+                iterators[i] = values == null ? Collections.emptyIterator() : values.iterator();
               }
             }
             while (IntStream.range(0, numFields)
