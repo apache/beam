@@ -540,6 +540,185 @@ class RuntimeStateCommitTest(unittest.TestCase):
       state.commit()
     self.assertEqual(len(futures), 2)
 
+  def test_combining_value_state_per_bundle_accumulator_and_read(self):
+    state_handler = mock.Mock(spec=sdk_worker.CachingStateHandler)
+    state_handler.blocking_get.return_value = [10]
+    state_handler.clear.side_effect = (
+        lambda *args: sdk_worker._Future().set(beam_fn_api_pb2.StateResponse()))
+    state_handler.extend.side_effect = (
+        lambda *args: sdk_worker._Future().set(beam_fn_api_pb2.StateResponse()))
+
+    state_key = beam_fn_api_pb2.StateKey(
+        bag_user_state=beam_fn_api_pb2.StateKey.BagUserState())
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+
+    for i in range(1, 101):
+      combining_state.add(1)
+      self.assertEqual(combining_state.read(), 10 + i)
+
+    self.assertEqual(state_handler.blocking_get.call_count, 1)
+    self.assertEqual(state_handler.clear.call_count, 0)
+    self.assertEqual(state_handler.extend.call_count, 0)
+
+    combining_state.commit()
+    self.assertEqual(state_handler.blocking_get.call_count, 1)
+    self.assertEqual(state_handler.clear.call_count, 1)
+    self.assertEqual(state_handler.extend.call_count, 1)
+    self.assertEqual(state_handler.extend.call_args[0][2], [110])
+
+  def test_combining_value_state_blind_write_and_clear(self):
+    state_handler = mock.Mock(spec=sdk_worker.CachingStateHandler)
+    state_handler.blocking_get.return_value = [10, 20]
+    state_handler.clear.side_effect = (
+        lambda *args: sdk_worker._Future().set(beam_fn_api_pb2.StateResponse()))
+    state_handler.extend.side_effect = (
+        lambda *args: sdk_worker._Future().set(beam_fn_api_pb2.StateResponse()))
+
+    state_key = beam_fn_api_pb2.StateKey(
+        bag_user_state=beam_fn_api_pb2.StateKey.BagUserState())
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+
+    with mock.patch.object(random, 'random', return_value=0.5):
+      for _ in range(100):
+        combining_state.add(1)
+      combining_state.commit()
+
+    self.assertEqual(state_handler.blocking_get.call_count, 0)
+    self.assertEqual(state_handler.clear.call_count, 0)
+    self.assertEqual(state_handler.extend.call_count, 1)
+    self.assertEqual(state_handler.extend.call_args[0][2], [100])
+
+    # Blind write when random.random() < _BLIND_WRITE_COMPACT_PROBABILITY
+    # (setUp defaults random.random to 0) folds persisted [10, 20], clears the
+    # underlying bag, and writes the merged accumulator [130].
+    state_handler.clear.reset_mock()
+    state_handler.extend.reset_mock()
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+    for _ in range(100):
+      combining_state.add(1)
+    combining_state.commit()
+    self.assertEqual(state_handler.blocking_get.call_count, 1)
+    self.assertEqual(state_handler.clear.call_count, 1)
+    self.assertEqual(state_handler.extend.call_count, 1)
+    self.assertEqual(state_handler.extend.call_args[0][2], [130])
+
+    # Clear followed by read returns empty accumulator output without reading
+    # underlying state.
+    state_handler.blocking_get.reset_mock()
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+    combining_state.add(1)
+    combining_state.clear()
+    self.assertEqual(combining_state.read(), 0)
+    self.assertEqual(state_handler.blocking_get.call_count, 0)
+
+  def test_combining_value_state_read_only_and_mutating_extract_output(self):
+    state_handler = mock.Mock(spec=sdk_worker.CachingStateHandler)
+    state_handler.clear.side_effect = (
+        lambda *args: sdk_worker._Future().set(beam_fn_api_pb2.StateResponse()))
+    state_handler.extend.side_effect = (
+        lambda *args: sdk_worker._Future().set(beam_fn_api_pb2.StateResponse()))
+    state_key = beam_fn_api_pb2.StateKey(
+        bag_user_state=beam_fn_api_pb2.StateKey.BagUserState())
+
+    # 1. Read-only on empty state sends no clear or extend on commit.
+    state_handler.blocking_get.return_value = []
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+    self.assertEqual(combining_state.read(), 0)
+    combining_state.commit()
+    self.assertEqual(state_handler.clear.call_count, 0)
+    self.assertEqual(state_handler.extend.call_count, 0)
+
+    # 2. Read-only on single compacted accumulator sends no clear or extend.
+    state_handler.blocking_get.return_value = [10]
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+    self.assertEqual(combining_state.read(), 10)
+    combining_state.commit()
+    self.assertEqual(state_handler.clear.call_count, 0)
+    self.assertEqual(state_handler.extend.call_count, 0)
+
+    # 3. add() + read() on empty persisted state sends extend without clear.
+    state_handler.blocking_get.return_value = []
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, beam.coders.VarIntCoder())
+    combining_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.CountCombineFn())
+    combining_state.add(1)
+    self.assertEqual(combining_state.read(), 1)
+    combining_state.commit()
+    self.assertEqual(state_handler.clear.call_count, 0)
+    self.assertEqual(state_handler.extend.call_count, 1)
+    self.assertEqual(state_handler.extend.call_args[0][2], [1])
+
+    # 4. CombineFn with in-place mutating extract_output (TopCombineFn).
+    state_handler.clear.reset_mock()
+    state_handler.extend.reset_mock()
+    state_handler.blocking_get.return_value = []
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, FastPrimitivesCoder())
+    top_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.TopCombineFn(3))
+    for v in [10, 30, 20]:
+      top_state.add(v)
+    self.assertEqual(top_state.read(), [30, 20, 10])
+    top_state.add(25)
+    self.assertEqual(top_state.read(), [30, 25, 20])
+    top_state.add(5)
+    self.assertEqual(top_state.read(), [30, 25, 20])
+    top_state.commit()
+    self.assertEqual(state_handler.clear.call_count, 0)
+    self.assertEqual(state_handler.extend.call_count, 1)
+    persisted_acc, = state_handler.extend.call_args[0][2]
+    self.assertEqual(
+        beam.transforms.combiners.TopCombineFn(3).extract_output(persisted_acc),
+        [30, 25, 20])
+
+    # 5. CombineFns relying on compact() (SmallestComparableValue unwrapping and
+    # CallableWrapperCombineFn buffer reduction).
+    state_handler.clear.reset_mock()
+    state_handler.extend.reset_mock()
+    state_handler.blocking_get.return_value = []
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, FastPrimitivesCoder())
+    smallest_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.transforms.combiners.Smallest(2))
+    for v in [30, 10, 20]:
+      smallest_state.add(v)
+    self.assertEqual(smallest_state.read(), [10, 20])
+    smallest_state.add(5)
+    self.assertEqual(smallest_state.read(), [5, 10])
+    smallest_state.commit()
+    persisted_smallest, = state_handler.extend.call_args[0][2]
+    self.assertEqual(persisted_smallest[0], False)
+    self.assertCountEqual(persisted_smallest[1], [5, 10])
+
+    state_handler.extend.reset_mock()
+    bag_state = bundle_processor.SynchronousBagRuntimeState(
+        state_handler, state_key, FastPrimitivesCoder())
+    callable_state = bundle_processor.CombiningValueRuntimeState(
+        bag_state, beam.CombineFn.from_callable(sum))
+    for v in [1, 2, 3]:
+      callable_state.add(v)
+    callable_state.commit()
+    self.assertEqual(state_handler.extend.call_args[0][2], [[6]])
+
 
 class OrderedListStateTest(unittest.TestCase):
   class NoStateCache(StateCache):

@@ -560,6 +560,9 @@ class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
 
 
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
+  # Probability of compacting persisted bag accumulators on blind-write commits.
+  _BLIND_WRITE_COMPACT_PROBABILITY = 0.1
+
   def __init__(
       self,
       underlying_bag_state: userstate.AccumulatingRuntimeState,
@@ -568,34 +571,74 @@ class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
     self._combinefn.setup()
     self._underlying_bag_state = underlying_bag_state
     self._finalized = False
+    self._pending_accumulator: Any = None
+    self._has_pending_accumulator = False
+    self._underlying_read = False
+    self._needs_clear = False
+    self._dirty = False
 
-  def _read_accumulator(self, rewrite=True):
-    merged_accumulator = self._combinefn.merge_accumulators(
-        self._underlying_bag_state.read())
-    if rewrite:
-      self._underlying_bag_state.clear()
-      self._underlying_bag_state.add(merged_accumulator)
-    return merged_accumulator
+  def _fold_underlying_into_pending(self) -> None:
+    if not self._underlying_read:
+      underlying_accumulators = list(self._underlying_bag_state.read())
+      self._underlying_read = True
+      if underlying_accumulators:
+        self._needs_clear = True
+        if len(underlying_accumulators) > 1:
+          self._dirty = True
+        # Copy the first persisted accumulator so merge_accumulators or
+        # subsequent add_input calls cannot mutate a cached StateCache entry in
+        # place.
+        accumulators = [
+            copy.deepcopy(underlying_accumulators[0]),
+            *underlying_accumulators[1:]
+        ]
+        if self._has_pending_accumulator:
+          accumulators.append(self._pending_accumulator)
+        self._pending_accumulator = self._combinefn.merge_accumulators(
+            accumulators)
+        self._has_pending_accumulator = True
 
   def read(self) -> Iterable[Any]:
-    return self._combinefn.extract_output(self._read_accumulator())
+    self._fold_underlying_into_pending()
+    if not self._has_pending_accumulator:
+      return self._combinefn.extract_output(
+          self._combinefn.create_accumulator())
+    self._pending_accumulator = self._combinefn.compact(
+        self._pending_accumulator)
+    return self._combinefn.extract_output(
+        copy.deepcopy(self._pending_accumulator))
 
   def add(self, value: Any) -> None:
-    # Prefer blind writes, but don't let them grow unboundedly.
-    # This should be tuned to be much lower, but for now exercise
-    # both paths well.
-    if random.random() < 0.5:
-      accumulator = self._read_accumulator(False)
-      self._underlying_bag_state.clear()
-    else:
-      accumulator = self._combinefn.create_accumulator()
-    self._underlying_bag_state.add(
-        self._combinefn.add_input(accumulator, value))
+    if not self._has_pending_accumulator:
+      self._pending_accumulator = self._combinefn.create_accumulator()
+      self._has_pending_accumulator = True
+    self._pending_accumulator = self._combinefn.add_input(
+        self._pending_accumulator, value)
+    self._dirty = True
 
   def clear(self) -> None:
     self._underlying_bag_state.clear()
+    self._pending_accumulator = None
+    self._has_pending_accumulator = False
+    self._underlying_read = True
+    self._needs_clear = True
+    self._dirty = True
 
-  def commit(self):
+  def commit(self) -> None:
+    if self._dirty:
+      if self._has_pending_accumulator and not self._underlying_read:
+        if random.random() < self._BLIND_WRITE_COMPACT_PROBABILITY:
+          self._fold_underlying_into_pending()
+      if self._needs_clear:
+        self._underlying_bag_state.clear()
+      if self._has_pending_accumulator:
+        self._underlying_bag_state.add(
+            self._combinefn.compact(self._pending_accumulator))
+    self._pending_accumulator = None
+    self._has_pending_accumulator = False
+    self._underlying_read = False
+    self._needs_clear = False
+    self._dirty = False
     self._underlying_bag_state.commit()
 
   def finalize(self):
