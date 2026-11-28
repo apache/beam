@@ -903,14 +903,16 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableUrn)
                     .inc(numRowsRetried);
 
-                // Since we removed rows, we need to update the insert offsets for all remaining
-                // rows.
-                long newOffset = failedContext.offset;
-                for (AppendRowsContext context : contexts) {
-                  context.offset = newOffset;
-                  newOffset += context.protoRows.getSerializedRowsCount();
+                if (!this.useDefaultStream) {
+                  // Since we removed rows, we need to update the insert offsets for all remaining
+                  // rows.
+                  long newOffset = failedContext.offset;
+                  for (AppendRowsContext context : contexts) {
+                    context.offset = newOffset;
+                    newOffset += context.protoRows.getSerializedRowsCount();
+                  }
+                  this.currentOffset = newOffset;
                 }
-                this.currentOffset = newOffset;
                 return RetryType.RETRY_ALL_OPERATIONS;
               }
 
@@ -1004,14 +1006,26 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               // The following errors are known to be persistent, so always fail the work item in
               // this case.
-              if (statusCode.equals(Status.Code.OUT_OF_RANGE)
-                  || statusCode.equals(Status.Code.ALREADY_EXISTS)) {
+              boolean isOffsetError =
+                  storageException instanceof Exceptions.OffsetOutOfRange
+                      || storageException instanceof Exceptions.OffsetAlreadyExists;
+              if (isOffsetError
+                  || statusCode == Status.Code.OUT_OF_RANGE
+                  || statusCode == Status.Code.ALREADY_EXISTS) {
+                if (isOffsetError && !this.useDefaultStream && failedContext.offset >= 0) {
+                  throw new RuntimeException(
+                      String.format(
+                          "Append to stream %s failed with invalid offset of %d. Error: %s",
+                          this.streamName,
+                          failedContext.offset,
+                          error != null ? error.toString() : "unknown"),
+                      error);
+                }
                 throw new RuntimeException(
-                    "Append to stream "
-                        + this.streamName
-                        + " failed with invalid "
-                        + "offset of "
-                        + failedContext.offset);
+                    String.format(
+                        "Append to stream %s failed with Status Code %s. Error: %s",
+                        this.streamName, statusCode, error != null ? error.toString() : "unknown"),
+                    error);
               }
 
               boolean hasPersistentErrors =
