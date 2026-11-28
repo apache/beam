@@ -39,6 +39,8 @@ import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.BucketInfo.LifecycleRule;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -81,6 +83,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
@@ -509,6 +512,64 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
+  }
+
+  @VisibleForTesting
+  static void warnIfStagingBucketHasTtl(DataflowPipelineOptions options) {
+    String stagingLocation = options.getStagingLocation();
+    if (isNullOrEmpty(stagingLocation) || !stagingLocation.startsWith("gs://")) {
+      return;
+    }
+    String bucketName = stagingLocation.substring("gs://".length()).split("/", 2)[0];
+    String stagingPrefix = stagingPrefix(stagingLocation, bucketName);
+    try {
+      Bucket bucket =
+          options.getGcsUtil().getBucketWithOptions(GcsPath.fromComponents(bucketName, ""));
+      for (LifecycleRule rule : bucket.getLifecycleRules()) {
+        LifecycleRule.LifecycleAction action = rule.getAction();
+        LifecycleRule.LifecycleCondition condition = rule.getCondition();
+        if (action == null
+            || condition == null
+            || !"Delete".equals(action.getActionType())
+            || condition.getAge() == null
+            || !matchesStagingPrefix(condition.getMatchesPrefix(), stagingPrefix)) {
+          continue;
+        }
+        LOG.warn(
+            "The staging location {} is in bucket {}, which has a lifecycle rule that deletes "
+                + "objects after {} days. Long-running and streaming pipelines may fail because "
+                + "staged files can be deleted while they are still needed.",
+            stagingLocation,
+            bucketName,
+            condition.getAge());
+        return;
+      }
+    } catch (IOException | RuntimeException e) {
+      LOG.debug("Unable to check lifecycle rules of staging bucket {}", bucketName, e);
+    }
+  }
+
+  private static String stagingPrefix(String stagingLocation, String bucketName) {
+    String prefix = stagingLocation.substring(("gs://" + bucketName).length());
+    if (prefix.startsWith("/")) {
+      prefix = prefix.substring(1);
+    }
+    return prefix.isEmpty() || prefix.endsWith("/") ? prefix : prefix + "/";
+  }
+
+  private static boolean matchesStagingPrefix(List<String> rulePrefixes, String stagingPrefix) {
+    if (rulePrefixes == null || rulePrefixes.isEmpty()) {
+      return true;
+    }
+    for (String rulePrefix : rulePrefixes) {
+      if (rulePrefix == null
+          || rulePrefix.isEmpty()
+          || stagingPrefix.startsWith(rulePrefix)
+          || rulePrefix.startsWith(stagingPrefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static boolean isServiceEndpoint(String endpoint) {
@@ -1372,6 +1433,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Note that `stageArtifacts` has to be called before `resolveArtifact` because
     // `resolveArtifact` updates local paths to staged paths in pipeline proto.
     portablePipelineProto = resolveAnyOfEnvironments(portablePipelineProto);
+    warnIfStagingBucketHasTtl(dataflowOptions);
     List<DataflowPackage> packages = stageArtifacts(portablePipelineProto);
     portablePipelineProto = resolveArtifacts(portablePipelineProto);
     portablePipelineProto = applySdkEnvironmentOverrides(portablePipelineProto, options);

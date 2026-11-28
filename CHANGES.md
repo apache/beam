@@ -99,6 +99,7 @@
 ## Improvements
 
 [comment]: # "generic improvements if not covered in following sections."
+* (Java) Dataflow runner now warns when the staging location has an age-based lifecycle deletion rule that applies to staged files ([#18209](https://github.com/apache/beam/issues/18209)).
 
 ### New Feature
 
