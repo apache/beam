@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import os
 import unittest
 from dataclasses import dataclass
 from unittest import mock
@@ -324,7 +325,31 @@ class OutputConfigTest(unittest.TestCase):
     self.assertNotIn('output_config', call_args.kwargs)
 
 
+def _env_var_request_fn(model_name, batch, client, inference_args):
+  """A picklable request function that returns the value of FOO."""
+  return [os.environ.get('FOO') for _ in batch]
+
+
 class AnthropicRunInferencePipelineTest(unittest.TestCase):
+  def test_pipeline_sets_env_vars(self):
+    handler = AnthropicModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=_env_var_request_fn,
+        api_key='fake-key',
+        env_vars={'FOO': 'bar'},
+        num_retries=2)
+    self.assertEqual(handler.num_retries, 2)
+
+    with mock.patch.dict(os.environ):
+      os.environ.pop('FOO', None)
+      with TestPipeline() as p:
+        results = (
+            p
+            | beam.Create(['What is Beam?'])
+            | RunInference(handler)
+            | beam.Map(lambda r: r.inference))
+        assert_that(results, equal_to(['bar']))
+
   def test_pipeline_e2e(self):
     """Full pipeline test with a fake request function."""
     handler = AnthropicModelHandler(

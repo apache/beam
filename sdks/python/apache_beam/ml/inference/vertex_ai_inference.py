@@ -125,6 +125,9 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
       batch_bucket_boundaries: optional. a sorted list of positive boundary
         values for length-aware batching buckets. Cannot be used together with
         max_batch_weight.
+      **kwargs: 'env_vars' can be used to set environment variables before
+        creating the client. Other arguments are passed to RemoteModelHandler
+        (e.g. num_retries, throttle_delay_secs, rate_limiter).
     """
     _validate_batching_args(
         max_batch_weight=max_batch_weight,
@@ -132,7 +135,7 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
         batch_length_fn=batch_length_fn,
         batch_bucket_boundaries=batch_bucket_boundaries)
     self._batching_kwargs = {}
-    self._env_vars = kwargs.get('env_vars', {})
+    self._env_vars = kwargs.pop('env_vars', {})
     self._invoke_route = invoke_route
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size

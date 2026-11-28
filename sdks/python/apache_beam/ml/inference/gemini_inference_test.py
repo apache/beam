@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import os
 import threading
 import time
 import unittest
@@ -68,6 +69,11 @@ def _echo_contents(**kwargs):
 
 def _fake_request_fn(model_name, batch, model, inference_args):
   return [_make_response(f'answer for: {prompt}') for prompt in batch]
+
+
+def _env_var_request_fn(model_name, batch, model, inference_args):
+  """A picklable request function that returns the value of FOO."""
+  return [os.environ.get('FOO') for _ in batch]
 
 
 class RetryOnClientErrorTest(unittest.TestCase):
@@ -319,6 +325,25 @@ class GeminiModelHandlerPipelineTest(unittest.TestCase):
           | RunInference(handler)
           | beam.Map(lambda r: (r.example, r.inference.text)))
       assert_that(results, equal_to([(x, f'answer for: {x}') for x in prompts]))
+
+  def test_pipeline_sets_env_vars(self):
+    handler = GeminiModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=_env_var_request_fn,
+        api_key='123456789',
+        env_vars={'FOO': 'bar'},
+        num_retries=2)
+    self.assertEqual(handler.num_retries, 2)
+
+    with mock.patch.dict(os.environ):
+      os.environ.pop('FOO', None)
+      with TestPipeline() as p:
+        results = (
+            p
+            | beam.Create(['What is Beam?'])
+            | RunInference(handler)
+            | beam.Map(lambda r: r.inference))
+        assert_that(results, equal_to(['bar']))
 
 
 if __name__ == '__main__':
