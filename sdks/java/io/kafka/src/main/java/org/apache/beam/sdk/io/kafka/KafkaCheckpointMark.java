@@ -28,6 +28,8 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 
 /**
  * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id, and
@@ -37,18 +39,44 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   private static final long OFFSET_DEDUP_PARTITIONS_PER_SPLIT = 1;
 
+  private static final Cache<String, KafkaUnboundedReader<?, ?>> LIVE_READERS =
+      CacheBuilder.newBuilder().weakValues().build();
+
   private List<PartitionMark> partitions;
+  private String readerId = "";
 
   @AvroIgnore
   private Optional<KafkaUnboundedReader<?, ?>> reader; // Present when offsets need to be committed.
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
-  private KafkaCheckpointMark() {} // for Avro
+  private KafkaCheckpointMark() {
+    this.reader = Optional.empty();
+  } // for Avro
 
   public KafkaCheckpointMark(
       List<PartitionMark> partitions, Optional<KafkaUnboundedReader<?, ?>> reader) {
     this.partitions = partitions;
     this.reader = reader;
+    this.readerId = reader.map(KafkaUnboundedReader::getReaderId).orElse("");
+  }
+
+  static void registerLiveReader(String readerId, KafkaUnboundedReader<?, ?> reader) {
+    LIVE_READERS.put(readerId, reader);
+  }
+
+  static void unregisterLiveReader(String readerId) {
+    LIVE_READERS.invalidate(readerId);
+  }
+
+  private Optional<KafkaUnboundedReader<?, ?>> resolveReader() {
+    Optional<KafkaUnboundedReader<?, ?>> resolved = reader;
+    if (resolved != null && resolved.isPresent()) {
+      return resolved;
+    }
+    if (readerId != null && !readerId.isEmpty()) {
+      return Optional.ofNullable(LIVE_READERS.getIfPresent(readerId));
+    }
+    return Optional.empty();
   }
 
   public List<PartitionMark> getPartitions() {
@@ -57,7 +85,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @Override
   public void finalizeCheckpoint() {
-    reader.ifPresent(r -> r.finalizeCheckpointMarkAsync(this));
+    resolveReader().ifPresent(r -> r.finalizeCheckpointMarkAsync(this));
     // Is it ok to commit asynchronously, or should we wait till this (or newer) is committed?
     // Often multiple marks would be finalized at once, since we only need to finalize the latest,
     // it is better to wait a little while. Currently maximum delay is same as KAFKA_POLL_TIMEOUT
@@ -71,11 +99,12 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @Override
   public byte[] getOffsetLimit() {
-    if (!reader.isPresent()) {
+    Optional<KafkaUnboundedReader<?, ?>> resolved = resolveReader();
+    if (!resolved.isPresent()) {
       throw new RuntimeException(
           "KafkaCheckpointMark reader is not present while calling getOffsetLimit().");
     }
-    if (!reader.get().offsetBasedDeduplicationSupported()) {
+    if (!resolved.get().offsetBasedDeduplicationSupported()) {
       throw new RuntimeException(
           "Unexpected getOffsetLimit() called while KafkaUnboundedReader not configured for offset deduplication.");
     }

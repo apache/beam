@@ -216,6 +216,11 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
   @Override
   public KafkaUnboundedReader<K, V> createReader(
       PipelineOptions options, @Nullable KafkaCheckpointMark checkpointMark) {
+    if (checkpointMark != null) {
+      // A runner resumes from a checkpoint only once it is committed, so its offsets can be
+      // committed if the reader that took it lives in this JVM.
+      checkpointMark.finalizeCheckpoint();
+    }
     Preconditions.checkStateNotNull(spec.getTopicPartitions());
     if (spec.getTopicPartitions().isEmpty()) {
       LOG.warn("Looks like generateSplits() is not called. Generate single split.");
