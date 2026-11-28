@@ -1243,14 +1243,17 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected_file_contents = 'Deleted FakeSlowModel'
       with TestPipeline() as pipeline:
         # Start with bad example which gets timed out.
-        # Then provide plenty of time for GC to happen.
-        examples = [20] + [1] * 20
-        expected_good = [1] * 20
-        expected_bad = [20]
+        # Then provide plenty of time (> 2 * timeout grace period) for GC to
+        # happen. The 20s timeout gives sufficient headroom for reloading the
+        # spawned MultiProcessShared child process inside the timeout budget
+        # on loaded CI runners.
+        examples = [35] + [1] * 45
+        expected_good = [1] * 45
+        expected_bad = [35]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         main, other = pcoll | base.RunInference(
             FakeSlowModelHandler(
-              0, True, tmp_path)).with_exception_handling(timeout=9)
+              0, True, tmp_path)).with_exception_handling(timeout=20)
 
         assert_that(main, equal_to(expected_good), label='assert:inferences')
 
