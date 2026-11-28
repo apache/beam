@@ -421,6 +421,33 @@ class TestParquet(unittest.TestCase):
             | Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
 
+  def test_schema_read_write_nested_rows(self):
+    with TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'tmp_filename')
+      rows = [
+          beam.Row(id=1, address=beam.Row(city='NYC', zip='10001')),
+          beam.Row(id=2, address=None),
+      ]
+      with TestPipeline() as p:
+        _ = (
+            p
+            | Create(rows)
+            | WriteToParquet(path, num_shards=1, shard_name_template=''))
+
+      table = pq.read_table(path)
+      self.assertEqual(
+          table.to_pylist(),
+          [
+              {
+                  'id': 1, 'address': {
+                      'city': 'NYC', 'zip': '10001'
+                  }
+              },
+              {
+                  'id': 2, 'address': None
+              },
+          ])
+
   def test_write_with_nullable_fields_missing_data(self):
     """Test WriteToParquet with nullable fields where some fields are missing.
     
