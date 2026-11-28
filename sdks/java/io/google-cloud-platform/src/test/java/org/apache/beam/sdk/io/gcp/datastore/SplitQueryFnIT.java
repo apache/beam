@@ -18,17 +18,21 @@
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import static org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.NUM_QUERY_SPLITS_MIN;
-import static org.junit.Assert.assertEquals;
 
 import com.google.datastore.v1.Query;
-import java.util.List;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,6 +57,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SplitQueryFnIT {
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
   private Instant readTime = Instant.now().minus(Duration.standardSeconds(10));
 
   /** Tests {@link SplitQueryFn} to generate expected number of splits for a large dataset. */
@@ -67,6 +73,7 @@ public class SplitQueryFnIT {
     int expectedNumSplits = 32;
     testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, null);
     testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, readTime);
+    pipeline.run();
   }
 
   /** Tests {@link SplitQueryFn} to fallback to NUM_QUERY_SPLITS_MIN for a small dataset. */
@@ -79,9 +86,13 @@ public class SplitQueryFnIT {
     int expectedNumSplits = NUM_QUERY_SPLITS_MIN;
     testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, null);
     testSplitQueryFn(projectId, databaseId, kind, namespace, expectedNumSplits, readTime);
+    pipeline.run();
   }
 
-  /** A helper method to test {@link SplitQueryFn} to generate the expected number of splits. */
+  /**
+   * Adds a branch to {@link #pipeline} that asserts {@link SplitQueryFn} generates the expected
+   * number of splits.
+   */
   private void testSplitQueryFn(
       String projectId,
       String databaseId,
@@ -98,10 +109,14 @@ public class SplitQueryFnIT {
             V1Options.from(projectId, StaticValueProvider.of(databaseId), namespace, null),
             0,
             readTime);
-    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
+    String suffix = readTime == null ? " without readTime" : " with readTime";
 
-    List<Query> queries = doFnTester.processBundle(query.build());
-    assertEquals(expectedNumSplits, queries.size());
+    PCollection<Long> numSplits =
+        pipeline
+            .apply("Create query" + suffix, Create.of(query.build()))
+            .apply("Split query" + suffix, ParDo.of(splitQueryFn))
+            .apply("Count splits" + suffix, Count.globally());
+    PAssert.thatSingleton("Num splits" + suffix, numSplits).isEqualTo((long) expectedNumSplits);
   }
 
   // TODO (vikasrk): Create datasets under a different namespace and add tests.

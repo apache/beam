@@ -17,19 +17,31 @@
  */
 package org.apache.beam.sdk.io.gcp.datastore;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThrows;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
+import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
@@ -52,8 +64,13 @@ public class RampupThrottlingFnTest {
         mockCounter.inc(millis);
         throw new RampupDelayException();
       };
-  private DoFnTester<String, String> rampupThrottlingFnTester;
+  private DoFnRunner<String, String> rampupThrottlingFnRunner;
 
+  /**
+   * Runs the fn in-process rather than in a {@link TestPipeline}: the test fixes the Joda clock and
+   * injects a non-serializable sleeper and counter, and checks throttling between elements of one
+   * bundle.
+   */
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.openMocks(this);
@@ -62,20 +79,46 @@ public class RampupThrottlingFnTest {
     TestPipeline pipeline = TestPipeline.create();
     PCollectionView<Instant> startTimeView =
         pipeline.apply(Create.of(Instant.now())).apply(View.asSingleton());
-    RampupThrottlingFn<String> rampupThrottlingFn =
-        new RampupThrottlingFn<String>(1, startTimeView) {
-          @Override
-          @Setup
-          public void setup() {
-            super.setup();
-            this.sleeper = mockSleeper;
-          }
-        };
-    rampupThrottlingFnTester = DoFnTester.of(rampupThrottlingFn);
-    rampupThrottlingFnTester.setSideInput(startTimeView, GlobalWindow.INSTANCE, Instant.now());
-    rampupThrottlingFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    rampupThrottlingFnTester.startBundle();
+    Instant startTime = Instant.now();
+    RampupThrottlingFn<String> rampupThrottlingFn = new RampupThrottlingFn<>(1, startTimeView);
+    rampupThrottlingFn.setup();
+    rampupThrottlingFn.sleeper = mockSleeper;
     rampupThrottlingFn.throttlingMsecs = mockCounter;
+
+    rampupThrottlingFnRunner =
+        DoFnRunners.simpleRunner(
+            PipelineOptionsFactory.create(),
+            rampupThrottlingFn,
+            new SideInputReader() {
+              @Override
+              @SuppressWarnings("unchecked")
+              public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+                return (T) startTime;
+              }
+
+              @Override
+              public <T> boolean contains(PCollectionView<T> view) {
+                return view.equals(startTimeView);
+              }
+
+              @Override
+              public boolean isEmpty() {
+                return false;
+              }
+            },
+            new WindowedValueMultiReceiver() {
+              @Override
+              public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {}
+            },
+            new TupleTag<>(),
+            Collections.emptyList(),
+            null,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.globalDefault(),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    rampupThrottlingFnRunner.startBundle();
   }
 
   @After
@@ -101,10 +144,15 @@ public class RampupThrottlingFnTest {
     for (Map.Entry<Duration, Integer> entry : rampupSchedule.entrySet()) {
       DateTimeUtils.setCurrentMillisFixed(entry.getKey().getMillis());
       for (int i = 0; i < entry.getValue(); i++) {
-        rampupThrottlingFnTester.processElement(UUID.randomUUID().toString());
+        processElement(UUID.randomUUID().toString());
       }
-      assertThrows(RampupDelayException.class, () -> rampupThrottlingFnTester.processElement(null));
+      UserCodeException e = assertThrows(UserCodeException.class, () -> processElement(null));
+      assertThat(e.getCause(), instanceOf(RampupDelayException.class));
     }
+  }
+
+  private void processElement(String element) {
+    rampupThrottlingFnRunner.processElement(WindowedValues.valueInGlobalWindow(element));
   }
 
   static class RampupDelayException extends InterruptedException {}
