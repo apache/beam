@@ -38,7 +38,13 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -368,8 +374,49 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    */
   @VisibleForTesting
   static class PubsubReader extends UnboundedSource.UnboundedReader<byte[]> {
+    private static final ExecutorService ASYNC_PULL_EXECUTOR = createAsyncPullExecutor();
+
+    private static ExecutorService createAsyncPullExecutor() {
+      int maxThreads = Math.min(64, Math.max(16, Runtime.getRuntime().availableProcessors() * 2));
+      ThreadPoolExecutor executor =
+          new ThreadPoolExecutor(
+              maxThreads,
+              maxThreads,
+              60L,
+              TimeUnit.SECONDS,
+              new LinkedBlockingQueue<>(),
+              r -> {
+                Thread t = new Thread(r, "pubsub-async-pull");
+                t.setDaemon(true);
+                return t;
+              });
+      executor.allowCoreThreadTimeOut(true);
+      return executor;
+    }
+
+    private static final class PullResult {
+      final long requestTimeMsSinceEpoch;
+      final long deadlineMsSinceEpoch;
+      final Collection<PubsubClient.IncomingMessage> messages;
+
+      PullResult(
+          long requestTimeMsSinceEpoch,
+          long deadlineMsSinceEpoch,
+          Collection<PubsubClient.IncomingMessage> messages) {
+        this.requestTimeMsSinceEpoch = requestTimeMsSinceEpoch;
+        this.deadlineMsSinceEpoch = deadlineMsSinceEpoch;
+        this.messages = messages;
+      }
+    }
+
     /** For access to topic and checkpointCoder. */
     private final PubsubSource outer;
+
+    private final boolean asyncPullEnabled;
+
+    private final AtomicInteger pendingPullInFlight = new AtomicInteger();
+
+    private @Nullable CompletableFuture<PullResult> pendingPull;
 
     @VisibleForTesting final SubscriptionPath subscription;
 
@@ -529,6 +576,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     public PubsubReader(PubsubOptions options, PubsubSource outer, SubscriptionPath subscription)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
+      this.asyncPullEnabled = options.getPubsubAsyncPullEnabled();
       this.subscription = subscription;
       pubsubClient =
           new AtomicReference<>(
@@ -717,8 +765,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       }
     }
 
-    /** BLOCKING Fetch another batch of messages from Pubsub. */
+    /** Fetch another batch of messages from Pubsub (synchronously or asynchronously). */
     private void pull() throws IOException {
+      if (asyncPullEnabled) {
+        pullAsync();
+        return;
+      }
       if (inFlight.size() >= MAX_IN_FLIGHT) {
         // Wait for checkpoint to be finalized before pulling anymore.
         // There may be lag while checkpoints are persisted and the finalizeCheckpoint
@@ -736,12 +788,99 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // BLOCKs until received.
       Collection<PubsubClient.IncomingMessage> receivedMessages =
           getClient().pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
+      recordReceivedMessages(requestTimeMsSinceEpoch, deadlineMsSinceEpoch, receivedMessages);
+    }
+
+    private void pullAsync() throws IOException {
+      if (pendingPull != null) {
+        if (!pendingPull.isDone()) {
+          return;
+        }
+        CompletableFuture<PullResult> completed = pendingPull;
+        pendingPull = null;
+        try {
+          PullResult result = completed.join();
+          recordReceivedMessages(
+              result.requestTimeMsSinceEpoch, result.deadlineMsSinceEpoch, result.messages);
+        } catch (CompletionException e) {
+          Throwable cause = e.getCause();
+          if (cause instanceof IOException) {
+            throw (IOException) cause;
+          }
+          if (cause instanceof RuntimeException) {
+            throw (RuntimeException) cause;
+          }
+          throw new IOException("Async Pub/Sub pull failed", cause);
+        }
+        return;
+      }
+
+      if (inFlight.size() >= MAX_IN_FLIGHT) {
+        return;
+      }
+
+      pendingPullInFlight.incrementAndGet();
+      if (!active.get()) {
+        pendingPullInFlight.decrementAndGet();
+        maybeCloseClient();
+        return;
+      }
+      PubsubClient client = pubsubClient.get();
+      if (client == null) {
+        pendingPullInFlight.decrementAndGet();
+        return;
+      }
+
+      long requestTimeMsSinceEpoch = now();
+      long deadlineMsSinceEpoch = requestTimeMsSinceEpoch + ackTimeoutMs;
+      pendingPull =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  Collection<PubsubClient.IncomingMessage> receivedMessages =
+                      client.pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
+                  if (!active.get() && !receivedMessages.isEmpty()) {
+                    List<String> ackIds = new ArrayList<>(receivedMessages.size());
+                    for (PubsubClient.IncomingMessage msg : receivedMessages) {
+                      ackIds.add(msg.ackId());
+                    }
+                    try {
+                      client.modifyAckDeadline(subscription, ackIds, 0);
+                    } catch (IOException e) {
+                      LOG.warn("Failed to nack messages pulled after close", e);
+                    }
+                    return new PullResult(
+                        requestTimeMsSinceEpoch, deadlineMsSinceEpoch, new ArrayList<>());
+                  }
+                  return new PullResult(
+                      requestTimeMsSinceEpoch, deadlineMsSinceEpoch, receivedMessages);
+                } catch (IOException e) {
+                  throw new CompletionException(e);
+                } finally {
+                  pendingPullInFlight.decrementAndGet();
+                  try {
+                    maybeCloseClient();
+                  } catch (IOException e) {
+                    LOG.warn("Failed to close PubsubClient after async pull", e);
+                  }
+                }
+              },
+              ASYNC_PULL_EXECUTOR);
+    }
+
+    private void recordReceivedMessages(
+        long requestTimeMsSinceEpoch,
+        long deadlineMsSinceEpoch,
+        Collection<PubsubClient.IncomingMessage> receivedMessages) {
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
         return;
       }
 
-      lastReceivedMsSinceEpoch = requestTimeMsSinceEpoch;
+      // Use current reader-thread time for MovingFunction updates so stats()/getWatermark()
+      // ticks that ran while an async pull was in flight never move MovingFunction backwards.
+      long statsTimeMsSinceEpoch = Math.max(requestTimeMsSinceEpoch, now());
+      lastReceivedMsSinceEpoch = statsTimeMsSinceEpoch;
 
       // Capture the received messages.
       for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
@@ -751,11 +890,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
             incomingMessage.ackId(),
             new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
         numReceived++;
-        numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
+        numReceivedRecently.add(statsTimeMsSinceEpoch, 1L);
         minReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
+            statsTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         maxReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
+            statsTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         minUnreadTimestampMsSinceEpoch.add(
             requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
       }
@@ -954,7 +1093,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * are no outstanding checkpoints.
      */
     private void maybeCloseClient() throws IOException {
-      if (!active.get() && numInFlightCheckpoints.get() == 0) {
+      if (!active.get() && numInFlightCheckpoints.get() == 0 && pendingPullInFlight.get() == 0) {
         // The reader has been closed and it has no more outstanding checkpoints. The
         // client
         // must be closed so it doesn't leak

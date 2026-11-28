@@ -470,4 +470,23 @@ public class PubsubUnboundedSourceTest {
     reader.close();
     checkpoint.finalizeCheckpoint();
   }
+
+  @Test
+  public void asyncPullDeliversMessageAndClosesCleanly() throws Exception {
+    setupOneMessage();
+    PubsubOptions options = PipelineOptionsFactory.as(PubsubOptions.class);
+    options.setPubsubAsyncPullEnabled(true);
+    PubsubReader reader = primSource.createReader(options, null);
+    boolean hasData = reader.start();
+    long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+    while (!hasData && System.nanoTime() < deadlineNanos) {
+      Thread.sleep(10);
+      hasData = reader.advance();
+    }
+    assertTrue(hasData);
+    assertEquals(DATA, data(reader.getCurrent(), false));
+    PubsubCheckpoint checkpoint = reader.getCheckpointMark();
+    reader.close();
+    checkpoint.finalizeCheckpoint();
+  }
 }

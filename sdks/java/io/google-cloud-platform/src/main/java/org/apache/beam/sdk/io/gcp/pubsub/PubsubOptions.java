@@ -77,4 +77,16 @@ public interface PubsubOptions
   String getPubsubRootUrl();
 
   void setPubsubRootUrl(String value);
+
+  /**
+   * Whether {@link PubsubUnboundedSource} issues Pub/Sub pull RPCs asynchronously on a background
+   * thread instead of blocking {@code UnboundedReader.advance()}.
+   */
+  @Description(
+      "Whether PubsubUnboundedSource issues Pub/Sub pull RPCs asynchronously on a background "
+          + "thread so runner task threads do not block on network I/O during advance().")
+  @Default.Boolean(false)
+  boolean getPubsubAsyncPullEnabled();
+
+  void setPubsubAsyncPullEnabled(boolean value);
 }
