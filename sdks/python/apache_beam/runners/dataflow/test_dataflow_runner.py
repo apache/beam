@@ -31,9 +31,9 @@ from apache_beam.runners.runner import PipelineState
 
 __all__ = ['TestDataflowRunner']
 
-# Dataflow take up to 10mins for the long tail of starting/stopping worker
-# pool.
-WAIT_IN_STATE_TIMEOUT = 10 * 60
+# Dataflow can take over 10mins for the long tail of starting/stopping worker
+# pools under concurrent load.
+WAIT_IN_STATE_TIMEOUT = 20 * 60
 
 _LOGGER = logging.getLogger(__name__)
 
