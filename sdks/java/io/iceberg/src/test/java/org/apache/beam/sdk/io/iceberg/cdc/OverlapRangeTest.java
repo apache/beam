@@ -115,8 +115,8 @@ public class OverlapRangeTest {
 
     assertTrue(range.contains(compositePkRecord("acct", 7), lower, upper));
 
-    assertEquals("acct", range.recordIdProjection().get(0, String.class));
-    assertEquals(7, (int) range.recordIdProjection().get(1, Integer.class));
+    assertEquals("acct", range.recordId().get(0, String.class));
+    assertEquals(7, (int) range.recordId().get(1, Integer.class));
   }
 
   private OverlapRange overlapRange(org.apache.iceberg.Schema schema) throws IOException {

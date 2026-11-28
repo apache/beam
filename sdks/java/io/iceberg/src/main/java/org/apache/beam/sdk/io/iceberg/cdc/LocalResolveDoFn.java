@@ -160,7 +160,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
         CdcReadUtils.changelogRecordsForTask(task, table, scanConfig, false)) {
       for (Record rec : records) {
         if (ovl.contains(rec, overlapLower, overlapUpper)) { // needs resolution
-          StructLike pk = StructLikeUtil.copy(ovl.recordIdProjection());
+          StructLike pk = StructLikeUtil.copy(ovl.recordId());
           PkGroup group = pkGroups.computeIfAbsent(pk, k -> new PkGroup());
           if (isInsert) {
             group.inserts.add(rec);

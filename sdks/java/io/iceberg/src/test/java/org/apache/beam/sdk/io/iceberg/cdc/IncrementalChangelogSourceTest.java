@@ -25,7 +25,10 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
@@ -93,6 +96,21 @@ public class IncrementalChangelogSourceTest {
               optional(2, "data", Types.StringType.get()),
               required(3, "event_time", Types.TimestampType.withoutZone())),
           ImmutableSet.of(1));
+
+  /**
+   * A key column of each type that Iceberg compares in its internal form, such as a date as days
+   * since epoch.
+   */
+  private static final org.apache.iceberg.Schema INTERNAL_FORM_KEY_SCHEMA =
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              required(1, "day", Types.DateType.get()),
+              required(2, "time", Types.TimeType.get()),
+              required(3, "ts", Types.TimestampType.withoutZone()),
+              required(4, "tstz", Types.TimestampType.withZone()),
+              required(5, "bytes", Types.FixedType.ofLength(2)),
+              optional(6, "data", Types.StringType.get())),
+          ImmutableSet.of(1, 2, 3, 4, 5));
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -422,6 +440,45 @@ public class IncrementalChangelogSourceTest {
             .apply("Format Changes", ParDo.of(new FormatValueKindAndRow()));
 
     PAssert.that(changes).containsInAnyOrder("UPDATE_BEFORE:1:before", "UPDATE_AFTER:1:after");
+
+    // The same update on a key Iceberg compares in its internal form. SPLIT_SIZE=1 resolves it
+    // through the CoGroupByKey, the default resolves it locally.
+    for (String splitSize :
+        ImmutableList.of("1", String.valueOf(TableProperties.SPLIT_SIZE_DEFAULT))) {
+      TableIdentifier keyedId =
+          TableIdentifier.of("default", testName.getMethodName() + "_" + splitSize);
+      Table keyed =
+          warehouse.createTable(
+              keyedId,
+              INTERNAL_FORM_KEY_SCHEMA,
+              null,
+              ImmutableMap.of(
+                  TableProperties.FORMAT_VERSION, "2", TableProperties.SPLIT_SIZE, splitSize));
+      DataFile oldKeyed =
+          commitAppend(
+              keyed,
+              splitSize + "-old.parquet",
+              ImmutableList.of(
+                  internalFormKeyRecord(1, "before"), internalFormKeyRecord(2, "same")));
+      commitOverwrite(
+          keyed,
+          splitSize + "-new.parquet",
+          oldKeyed,
+          internalFormKeyRecord(1, "after"),
+          internalFormKeyRecord(2, "same"));
+      IcebergScanConfig keyedConfig =
+          baseConfigBuilder(keyed, keyedId)
+              .setKeepFields(ImmutableList.of("data"))
+              .setFromSnapshotInclusive(keyed.currentSnapshot().snapshotId())
+              .setToSnapshot(keyed.currentSnapshot().snapshotId())
+              .build();
+      PAssert.that(
+              "split size " + splitSize,
+              pipeline
+                  .apply("Read " + splitSize, new IncrementalChangelogSource(keyedConfig))
+                  .apply("Format " + splitSize, ParDo.of(new FormatValueKindAndValues())))
+          .containsInAnyOrder("UPDATE_BEFORE:[before]", "UPDATE_AFTER:[after]");
+    }
 
     pipeline.run().waitUntilFinish();
   }
@@ -844,6 +901,22 @@ public class IncrementalChangelogSourceTest {
   private static Record eventRecord(long id, String data, LocalDateTime eventTime) {
     return TestFixtures.createRecord(
         EVENT_SCHEMA, ImmutableMap.of("id", id, "data", data, "event_time", eventTime));
+  }
+
+  /**
+   * Every key column grows with {@code n}, so a file's bounds are its first and last keys, and
+   * comparing a key with its own bound reaches every column.
+   */
+  private static Record internalFormKeyRecord(int n, String data) {
+    return TestFixtures.createRecord(
+        INTERNAL_FORM_KEY_SCHEMA,
+        ImmutableMap.of(
+            "day", LocalDate.of(2024, 1, n),
+            "time", LocalTime.of(n, 0),
+            "ts", LocalDateTime.of(2024, 1, n, 0, 0),
+            "tstz", OffsetDateTime.of(2024, 1, n, 0, 0, 0, 0, ZoneOffset.UTC),
+            "bytes", new byte[] {0, (byte) n},
+            "data", data));
   }
 
   private static final class FormatValueKindAndRow extends DoFn<Row, String> {
