@@ -2202,8 +2202,11 @@ class DecimalCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     # type: (decimal.Decimal, create_OutputStream, bool) -> None
-    scale = -value.as_tuple().exponent  # type: ignore[operator]
-    int_value = int(value.scaleb(scale))
+    # Built from the digits rather than with scaleb(), which rounds to the
+    # thread's decimal context (28 significant digits by default).
+    sign, digits, exponent = value.as_tuple()
+    scale = -exponent  # type: ignore[operator]
+    int_value = int(decimal.Decimal((sign, digits, 0)))
     out.write_var_int64(scale)
     self.BIG_INT_CODER_IMPL.encode_to_stream(int_value, out, nested)
 
@@ -2211,5 +2214,5 @@ class DecimalCoderImpl(StreamCoderImpl):
     # type: (create_InputStream, bool) -> decimal.Decimal
     scale = in_stream.read_var_int64()
     int_value = self.BIG_INT_CODER_IMPL.decode_from_stream(in_stream, nested)
-    value = decimal.Decimal(int_value).scaleb(-scale)
-    return value
+    sign, digits, _ = decimal.Decimal(int_value).as_tuple()
+    return decimal.Decimal((sign, digits, -scale))
