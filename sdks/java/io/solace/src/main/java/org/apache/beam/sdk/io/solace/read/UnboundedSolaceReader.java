@@ -38,7 +38,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -80,6 +82,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   private final Duration ackDeadline;
   private final boolean nackOnTimeout;
+  private final AtomicBoolean closed = new AtomicBoolean(false);
+  private final AtomicBoolean resourcesClosed = new AtomicBoolean(false);
+  private @Nullable ScheduledFuture<?> closeTimeoutFuture;
 
   /**
    * Map to track pending checkpoints and their messages. Accessed by both reader
@@ -184,6 +189,38 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public void close() {
+    closed.set(true);
+    boolean hasPending;
+    synchronized (lock) {
+      hasPending = !pendingCheckpoints.isEmpty();
+      if (hasPending && closeTimeoutFuture == null) {
+        closeTimeoutFuture =
+            cleanUpThread.schedule(
+                () -> {
+                  abandonPendingCheckpointsOnCloseTimeout();
+                  closeResources();
+                },
+                ackDeadline.toMillis(),
+                TimeUnit.MILLISECONDS);
+      }
+    }
+    if (!hasPending) {
+      closeResources();
+    }
+  }
+
+  private void closeResources() {
+    if (!resourcesClosed.compareAndSet(false, true)) {
+      return;
+    }
+    ScheduledFuture<?> future;
+    synchronized (lock) {
+      future = closeTimeoutFuture;
+      closeTimeoutFuture = null;
+    }
+    if (future != null) {
+      future.cancel(false);
+    }
     sessionServiceCache.invalidate(readerUuid);
     ActiveReadersRegistry.unregister(readerUuid);
     ackExecutor.shutdown();
@@ -197,8 +234,36 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
   }
 
+  private void abandonPendingCheckpointsOnCloseTimeout() {
+    List<PendingCheckpoint> abandoned;
+    synchronized (lock) {
+      abandoned = new ArrayList<>(pendingCheckpoints.values());
+      pendingCheckpoints.clear();
+    }
+    if (!abandoned.isEmpty()) {
+      int totalMessages = 0;
+      for (PendingCheckpoint cp : abandoned) {
+        totalMessages += cp.messages.size();
+      }
+      LOG.info(
+          "SolaceIO.Read: Reader {} closes with {} checkpoint(s) ({} message(s)) not finalized"
+              + " within ackDeadline {}.",
+          readerUuid,
+          abandoned.size(),
+          totalMessages,
+          ackDeadline);
+    }
+  }
+
   void finalizeCheckpoint(long checkpointId) {
+    if (resourcesClosed.get() || ackExecutor.isShutdown()) {
+      return;
+    }
+    // Keep the cached session alive while acknowledging pending checkpoints.
+    sessionServiceCache.getIfPresent(readerUuid);
+
     List<BytesXMLMessage> messagesToAck = new ArrayList<>();
+    boolean shouldCloseAfterAck;
 
     synchronized (lock) {
       SortedMap<Long, PendingCheckpoint> toAck = pendingCheckpoints.headMap(checkpointId, true);
@@ -206,6 +271,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
         messagesToAck.addAll(cp.messages);
       }
       toAck.clear();
+      shouldCloseAfterAck = closed.get() && pendingCheckpoints.isEmpty();
     }
 
     List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -231,6 +297,10 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
     } catch (Exception e) {
       LOG.warn("SolaceIO.Read: Exception waiting for message acknowledgements", e);
+    } finally {
+      if (shouldCloseAfterAck) {
+        closeResources();
+      }
     }
   }
 
@@ -299,9 +369,11 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     long checkpointId = nextCheckpointId++;
     ImmutableList<BytesXMLMessage> messages = ImmutableList.copyOf(receivedMessages);
     receivedMessages.clear();
-    synchronized (lock) {
-      pendingCheckpoints.put(
-          checkpointId, new PendingCheckpoint(checkpointId, messages, clock.get()));
+    if (!messages.isEmpty()) {
+      synchronized (lock) {
+        pendingCheckpoints.put(
+            checkpointId, new PendingCheckpoint(checkpointId, messages, clock.get()));
+      }
     }
     return new SolaceCheckpointMark(readerUuid, checkpointId);
   }
