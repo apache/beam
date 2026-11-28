@@ -2311,7 +2311,15 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 		// triggers don't hold back the watermark, so no holds are in the triggered bundle.
 		var pendingAdjustment int
 		var elems []element
-		state := ss.state[LinkID{}][e.window][string(e.keyBytes)]
+		wv, ok := ss.state[LinkID{}][e.window]
+		if !ok {
+			// The window's trigger state has already been garbage collected because
+			// the output watermark passed the end of the window (e.g. the final
+			// on-time pane fired). The window is closed, so this stale
+			// AfterProcessingTime timer must not produce another pane.
+			return toProcess, panesInBundle, 0
+		}
+		state := wv[string(e.keyBytes)]
 		endOfWindowReached := e.window.MaxTimestamp() < ss.input
 		ready := ss.strat.IsTriggerReady(triggerInput{
 			newElementCount:    0,
@@ -2326,7 +2334,7 @@ func (*aggregateStageKind) buildProcessingTimeBundle(ss *stageState, em *Element
 			elems, pendingAdjustment = ss.buildTriggeredBundle(em, string(e.keyBytes), e.window)
 			toProcess = append(toProcess, elems...)
 
-			ss.state[LinkID{}][e.window][string(e.keyBytes)] = state
+			wv[string(e.keyBytes)] = state
 
 			panesInBundle = append(panesInBundle, bundlePane{})
 		}
