@@ -109,3 +109,7 @@ repositories {
 3. Migrate all references from the old dependency to the new dependency, including imports if needed.
 
 4. Commit any added or changed files and create a PR to run unit and integration tests on. This can be a draft PR, as you will not merge this PR.
+
+## Vulnerability Tracking
+
+[`.github/workflows/beam_Vendor_Java_Dependency_Submission.yml`](../.github/workflows/beam_Vendor_Java_Dependency_Submission.yml) resolves the `runtimeClasspath` of all `:vendor:*` subprojects via `gradle/actions/dependency-submission` and submits the snapshot to GitHub's Dependency Graph on `master`, enabling GitHub Dependabot Alerts to track vulnerabilities in shaded dependencies.
