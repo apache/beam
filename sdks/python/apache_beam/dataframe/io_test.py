@@ -139,6 +139,22 @@ A     B
           file_naming=fileio.single_file_naming('out.csv'))
     self.assertEqual(glob.glob(output + '*'), [output + 'out.csv'])
 
+  def test_num_shards_with_one_batch(self):
+    data = pd.DataFrame({
+        'label': [str(i) for i in range(10)], 'rank': range(10)
+    })
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      df = convert.to_dataframe(p | beam.Create([data]), proxy=data[:0])
+      df.to_csv(output + 'out', num_shards=3, index=False)
+    files = sorted(glob.glob(output + 'out*'))
+    self.assertEqual([os.path.basename(f) for f in files],
+                     ['out-0000%d-of-00003' % i for i in range(3)])
+    shards = [pd.read_csv(f, dtype={'label': str}) for f in files]
+    self.assertTrue(all(len(shard) for shard in shards))
+    pd.testing.assert_frame_equal(
+        pd.concat(shards).sort_values('rank').reset_index(drop=True), data)
+
   @pytest.mark.uses_pyarrow
   @unittest.skipIf(
       PD_VERSION >= (1, 4) and PYARROW_VERSION < (1, 0),
