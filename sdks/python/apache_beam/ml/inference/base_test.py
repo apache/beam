@@ -160,6 +160,20 @@ class LoadCountingModelHandler(base.ModelHandler[int, int, FakeModel]):
     return [model.predict(x) for x in batch]
 
 
+class DictModelHandler(base.ModelHandler[int, int, dict[str, int]]):
+  """Returns a dict, which can't be weakly referenced, from load_model()."""
+  def __init__(self, key: Optional[str] = None):
+    self._key = key
+
+  def load_model(self):
+    if self._key is not None:
+      _LOAD_COUNTS[self._key] = _LOAD_COUNTS.get(self._key, 0) + 1
+    return {'increment': 1}
+
+  def run_inference(self, batch, model, inference_args=None):
+    return [x + model['increment'] for x in batch]
+
+
 class BlockingLoadModelHandler(base.ModelHandler[int, int, FakeModel]):
   """load_model() waits until finish_load is set, to test in-flight loads."""
   def __init__(self):
@@ -422,6 +436,14 @@ class RunInferenceBaseTest(unittest.TestCase):
       expected = [example + 1 for example in examples]
       pcoll = pipeline | 'start' >> beam.Create(examples)
       actual = pcoll | base.RunInference(FakeModelHandler())
+      assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  def test_run_inference_impl_dict_model(self):
+    with TestPipeline() as pipeline:
+      examples = [1, 5, 3, 10]
+      expected = [example + 1 for example in examples]
+      pcoll = pipeline | 'start' >> beam.Create(examples)
+      actual = pcoll | base.RunInference(DictModelHandler())
       assert_that(actual, equal_to(expected), label='assert:inferences')
 
   def test_run_inference_impl_simple_examples_multi_process_shared(self):
@@ -2490,6 +2512,24 @@ class RunInferenceBaseTest(unittest.TestCase):
     dofn_instance.setup()
 
     self.assertEqual(1, _LOAD_COUNTS[model_tag])
+
+  def test_new_dofn_instances_reuse_previously_loaded_dict_models(self):
+    model_tag = 'tag3' + uuid.uuid4().hex
+    handler = DictModelHandler(model_tag)
+    dofn = base._RunInferenceDoFn(
+        handler, clock=FakeClock(), metrics_namespace=None, model_tag=model_tag)
+    serialized_dofn = pickle.dumps(dofn)
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+    del dofn_instance
+    gc.collect()
+
+    dofn_instance = pickle.loads(serialized_dofn)
+    dofn_instance.setup()
+
+    self.assertEqual(1, _LOAD_COUNTS[model_tag])
+    self.assertEqual({'increment': 1}, dofn_instance._model.next_model())
 
   def test_model_status_provides_valid_garbage_collection(self):
     ms = base._ModelStatus(True)

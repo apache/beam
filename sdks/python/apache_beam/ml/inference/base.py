@@ -35,6 +35,7 @@ import sys
 import threading
 import time
 import uuid
+import weakref
 from abc import ABC
 from abc import abstractmethod
 from collections import OrderedDict
@@ -2089,6 +2090,17 @@ class _ProxyLoader:
     return unique_tag
 
 
+class _WeakRefableModelHolder():
+  """Holds a model that can't be weakly referenced, such as a dict or list.
+
+    shared.Shared caches objects through weak references, which several
+    built-in types don't support, so models of those types are cached inside
+    this holder instead.
+  """
+  def __init__(self, model: Any):
+    self.model = model
+
+
 class _SharedModelWrapper():
   """A router class to map incoming calls to the correct model.
 
@@ -2181,6 +2193,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     """
     self._model_handler = model_handler
     self._shared_model_handle = shared.Shared()
+    # Strong reference to the object cached in _shared_model_handle, which is
+    # a _WeakRefableModelHolder rather than the model itself for models that
+    # can't be weakly referenced.
+    self._shared_model = None
     self._clock = clock
     self._model = None
     self._metrics_namespace = metrics_namespace
@@ -2258,7 +2274,22 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
                 spawn_process=True).acquire())
       model_wrapper = _SharedModelWrapper(models, self._cur_tag)
     else:
-      model = self._shared_model_handle.acquire(load, tag=self._cur_tag)
+
+      def load_weakrefable():
+        model = load()
+        if model is None:
+          return None
+        try:
+          weakref.ref(model)
+        except TypeError:
+          return _WeakRefableModelHolder(model)
+        return model
+
+      self._shared_model = self._shared_model_handle.acquire(
+          load_weakrefable, tag=self._cur_tag)
+      model = self._shared_model
+      if isinstance(model, _WeakRefableModelHolder):
+        model = model.model
       model_wrapper = _SharedModelWrapper([model], self._cur_tag)
     # since shared_model_handle is shared across threads, the model path
     # might not get updated in the model handler
