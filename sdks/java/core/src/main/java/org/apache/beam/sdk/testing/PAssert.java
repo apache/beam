@@ -1325,10 +1325,10 @@ public class PAssert {
       extends PTransform<PCollection<T>, PCollection<Iterable<ValueInSingleWindow<T>>>>
       implements Serializable {
     /**
-     * The single key all elements are grouped under so the assertion sees them together. Its value
-     * has no meaning.
+     * The single key all elements are grouped under so the assertion sees them together. It is a
+     * descriptive string so that it is recognizable when inspecting a running pipeline.
      */
-    private static final int SINGLETON_KEY = 42;
+    private static final String SINGLETON_KEY = "PAssert-global-key";
 
     private final AssertionWindows rewindowingStrategy;
 
@@ -1375,16 +1375,16 @@ public class PAssert {
 
       // Remove the triggering on both
       PTransform<
-              PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
-              PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
+              PCollection<KV<String, Iterable<ValueInSingleWindow<T>>>>,
+              PCollection<KV<String, Iterable<ValueInSingleWindow<T>>>>>
           removeTriggering =
-              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+              Window.<KV<String, Iterable<ValueInSingleWindow<T>>>>configure()
                   .triggering(Never.ever())
                   .discardingFiredPanes()
                   .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
       // Group the contents by key. If it is empty, this PCollection will be empty, too.
       // Then key it again with a dummy key.
-      PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>> groupedContents =
+      PCollection<KV<String, Iterable<ValueInSingleWindow<T>>>> groupedContents =
           // TODO: Split the filtering from the rewindowing, and apply filtering before the Gather
           // if the grouping of extra records
           input
@@ -1395,7 +1395,7 @@ public class PAssert {
               .apply("RemoveActualsTriggering", removeTriggering);
 
       // Create another non-empty PCollection that is keyed with a distinct dummy key
-      PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>> keyedDummy =
+      PCollection<KV<String, Iterable<ValueInSingleWindow<T>>>> keyedDummy =
           input
               .getPipeline()
               .apply(
@@ -1409,13 +1409,13 @@ public class PAssert {
               .apply("RemoveDummyTriggering", removeTriggering);
 
       // Flatten them together and group by the combined key to get a single element
-      PCollection<KV<Integer, Iterable<Iterable<ValueInSingleWindow<T>>>>> dummyAndContents =
+      PCollection<KV<String, Iterable<Iterable<ValueInSingleWindow<T>>>>> dummyAndContents =
           PCollectionList.of(groupedContents)
               .and(keyedDummy)
               .apply("FlattenDummyAndContents", Flatten.pCollections())
               .apply(
                   "NeverTrigger",
-                  Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+                  Window.<KV<String, Iterable<ValueInSingleWindow<T>>>>configure()
                       .triggering(Never.ever())
                       .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                       .discardingFiredPanes())
