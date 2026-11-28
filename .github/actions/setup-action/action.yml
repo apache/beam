@@ -25,4 +25,9 @@ runs:
     - name: expose gcloud path
       shell: bash
       run: |
-        echo KUBELET_GCLOUD_CONFIG_PATH=/var/lib/kubelet/pods/$POD_UID/volumes/kubernetes.io~empty-dir/gcloud >> $GITHUB_ENV
+        delim="BEAM_EOF_${RANDOM}_${RANDOM}_$$"
+        {
+          echo "KUBELET_GCLOUD_CONFIG_PATH<<${delim}"
+          echo "/var/lib/kubelet/pods/${POD_UID:-}/volumes/kubernetes.io~empty-dir/gcloud"
+          echo "${delim}"
+        } >> "${GITHUB_ENV}"
