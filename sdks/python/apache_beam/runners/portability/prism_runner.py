@@ -32,11 +32,14 @@ import re
 import shutil
 import stat
 import subprocess
+import threading
 import typing
 import urllib
 import zipfile
 from urllib.error import URLError
 from urllib.request import urlopen
+
+import fasteners
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options import pipeline_options
@@ -174,6 +177,7 @@ class PrismRunnerLogFilter(logging.Filter):
 
 class PrismJobServer(job_server.SubprocessJobServer):
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
+  _install_lock = threading.Lock()
 
   def __init__(self, options):
     super().__init__()
@@ -392,64 +396,70 @@ class PrismJobServer(job_server.SubprocessJobServer):
     """
     # This is a development version! Assume Go is installed.
     # Set the install directory to the cache location.
+    os.makedirs(PrismJobServer.BIN_CACHE, exist_ok=True)
+    lock_path = os.path.join(PrismJobServer.BIN_CACHE, 'prism.install.lock')
     envdict = {**os.environ, "GOBIN": PrismJobServer.BIN_CACHE}
     PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
 
-    _LOGGER.info(
-        'Installing prism from local source into "%s".',
-        PrismJobServer.BIN_CACHE)
-    process = subprocess.run(["go", "install", PRISMPKG],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT,
-                             env=envdict,
-                             check=False)
-    if process.returncode == 0:
-      # Successfully installed
-      return '%s/prism' % (PrismJobServer.BIN_CACHE)
+    # Serialize concurrent builds across threads and processes (for example,
+    # pytest-xdist workers) so parallel `go install` invocations do not contend
+    # on CPU/Go build cache or race while writing the installed binary.
+    with PrismJobServer._install_lock, fasteners.InterProcessLock(lock_path):
+      _LOGGER.info(
+          'Installing prism from local source into "%s".',
+          PrismJobServer.BIN_CACHE)
+      process = subprocess.run(["go", "install", PRISMPKG],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT,
+                               env=envdict,
+                               check=False)
+      if process.returncode == 0:
+        # Successfully installed
+        return '%s/prism' % (PrismJobServer.BIN_CACHE)
 
-    # We failed to build for some reason.
-    output = process.stdout.decode("utf-8")
-    if ("not in a module" not in output) and ("no required module provides"
-                                              not in output):
-      # This branch handles two classes of failures:
-      # 1. Go isn't installed, so it needs to be installed by the Beam SDK
-      #   developer.
-      # 2. Go is installed, and they are building in a local version of Prism,
-      #    but there was a compile error that the developer should address.
-      # Either way, the @latest fallback either would fail, or hide the error,
-      # so fail now.
-      _LOGGER.info(output)
+      # We failed to build for some reason.
+      output = process.stdout.decode("utf-8")
+      if ("not in a module" not in output) and ("no required module provides"
+                                                not in output):
+        # This branch handles two classes of failures:
+        # 1. Go isn't installed, so it needs to be installed by the Beam SDK
+        #   developer.
+        # 2. Go is installed, and they are building in a local version of Prism,
+        #    but there was a compile error that the developer should address.
+        # Either way, the @latest fallback either would fail, or hide the error,
+        # so fail now.
+        _LOGGER.info(output)
+        raise ValueError(
+            'Unable to install a local of Prism: "%s";\n'
+            'Likely Go is not installed, or a local change to Prism did not '
+            'compile.\nPlease install Go (see https://go.dev/doc/install) to '
+            'enable automatic local builds.\n'
+            'Alternatively provide a binary with the --prism_location flag.'
+            '\nCaptured output:\n %s' % (version, output))
+
+      # Go is installed and claims we're not in a Go module that has access to
+      # the Prism package.
+
+      # Fallback to using the @latest version of prism, which works everywhere.
+      _LOGGER.info(
+          'Installing prism from "%s@latest" into "%s".',
+          PRISMPKG,
+          PrismJobServer.BIN_CACHE)
+      process = subprocess.run(["go", "install", PRISMPKG + "@latest"],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT,
+                               env=envdict,
+                               check=False)
+
+      if process.returncode == 0:
+        return '%s/prism' % (PrismJobServer.BIN_CACHE)
+
+      output = process.stdout.decode("utf-8")
       raise ValueError(
-          'Unable to install a local of Prism: "%s";\n'
-          'Likely Go is not installed, or a local change to Prism did not '
-          'compile.\nPlease install Go (see https://go.dev/doc/install) to '
-          'enable automatic local builds.\n'
-          'Alternatively provide a binary with the --prism_location flag.'
-          '\nCaptured output:\n %s' % (version, output))
-
-    # Go is installed and claims we're not in a Go module that has access to
-    # the Prism package.
-
-    # Fallback to using the @latest version of prism, which works everywhere.
-    _LOGGER.info(
-        'Installing prism from "%s@latest" into "%s".',
-        PRISMPKG,
-        PrismJobServer.BIN_CACHE)
-    process = subprocess.run(["go", "install", PRISMPKG + "@latest"],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT,
-                             env=envdict,
-                             check=False)
-
-    if process.returncode == 0:
-      return '%s/prism' % (PrismJobServer.BIN_CACHE)
-
-    output = process.stdout.decode("utf-8")
-    raise ValueError(
-        'We were unable to execute the subprocess "%s" to automatically '
-        'build prism.\nAlternatively provide an alternate binary with the '
-        '--prism_location flag.'
-        '\nCaptured output:\n %s' % (process.args, output))
+          'We were unable to execute the subprocess "%s" to automatically '
+          'build prism.\nAlternatively provide an alternate binary with the '
+          '--prism_location flag.'
+          '\nCaptured output:\n %s' % (process.args, output))
 
   def _resolve_source_path(self) -> str:
     """Resolves and returns the source for the Prism binary.
