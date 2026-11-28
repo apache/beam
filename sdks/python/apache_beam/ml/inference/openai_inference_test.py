@@ -479,6 +479,66 @@ class OpenAIModelHandlerTest(unittest.TestCase):
     self.assertEqual(kwargs['max_batch_duration_secs'], 5)
     self.assertEqual(kwargs['max_batch_weight'], 100)
 
+  def test_default_max_batch_size(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=chat_completion_from_string,
+        api_key='fake')
+    self.assertEqual(handler.batch_elements_kwargs(), {'max_batch_size': 32})
+
+  def test_default_max_batch_size_for_embeddings(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_EMBEDDING_MODEL,
+        request_fn=embedding_from_string,
+        api_key='fake')
+    self.assertEqual(handler.batch_elements_kwargs(), {'max_batch_size': 2048})
+
+  def test_default_max_batch_size_is_not_below_min_batch_size(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=chat_completion_from_string,
+        api_key='fake',
+        min_batch_size=64)
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 64, 'max_batch_size': 64
+        })
+
+  def test_no_default_max_batch_size_when_size_is_element_size_fn(self):
+    # Without max_batch_weight, max_batch_size is counted in element_size_fn
+    # units, so a default of 32 or 2048 would mean that many characters here.
+    for request_fn in (chat_completion_from_string, embedding_from_string):
+      handler = OpenAIModelHandler(
+          model_name=_TEST_MODEL,
+          request_fn=request_fn,
+          api_key='fake',
+          element_size_fn=len)
+      self.assertEqual(
+          handler.batch_elements_kwargs(), {'element_size_fn': len})
+
+  def test_default_max_batch_size_with_max_batch_weight(self):
+    handler = OpenAIModelHandler(
+        model_name=_TEST_EMBEDDING_MODEL,
+        request_fn=embedding_from_string,
+        api_key='fake',
+        element_size_fn=len,
+        max_batch_weight=1000)
+    self.assertEqual(
+        handler.batch_elements_kwargs(),
+        {
+            'max_batch_size': 2048,
+            'max_batch_weight': 1000,
+            'element_size_fn': len
+        })
+
+  def test_no_default_max_batch_size_with_custom_request_fn(self):
+    # A custom request_fn may send the whole batch in one request.
+    handler = OpenAIModelHandler(
+        model_name=_TEST_MODEL,
+        request_fn=_fake_chat_request_fn,
+        api_key='fake')
+    self.assertEqual(handler.batch_elements_kwargs(), {})
+
   def test_custom_retry_filter(self):
     custom_filter = lambda e: False
     handler = OpenAIModelHandler(

@@ -96,8 +96,13 @@ LOGGER = logging.getLogger("OpenAIModelHandler")
 # Upper bound on the number of in-flight HTTP requests issued concurrently for
 # a single batch by request functions that call per-item endpoints (e.g. chat
 # completions). Bounds thread usage when adaptive batching produces large
-# batches; use max_batch_size to further limit per-batch concurrency.
+# batches; use max_batch_size to further limit per-batch concurrency. Also the
+# default max_batch_size for those functions: a failed request retries the
+# whole batch, so a larger batch only adds work to repeat.
 _MAX_CONCURRENT_REQUESTS_PER_BATCH = 32
+
+# The most inputs the embeddings endpoint accepts in one request.
+_MAX_INPUTS_PER_EMBEDDING_REQUEST = 2048
 
 _InputT = TypeVar('_InputT')
 _OutputT = TypeVar('_OutputT')
@@ -297,7 +302,11 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
       min_batch_size: optional. the minimum batch size to use when
         batching inputs.
       max_batch_size: optional. the maximum batch size to use when
-        batching inputs.
+        batching inputs. Defaults to 2048 with embedding_from_string, the
+        most inputs the API accepts in one request, and to 32 with the other
+        built-in request functions. There is no default when element_size_fn
+        is set without max_batch_weight, or with a custom request_fn: set it
+        to the largest batch the function can send.
       max_batch_duration_secs: optional. the maximum amount of time to
         buffer a batch before emitting; used in streaming contexts.
       max_batch_weight: the maximum total weight of a batch. Cannot be
@@ -320,6 +329,22 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
     self._env_vars = kwargs.get('env_vars', {})
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
+    # With element_size_fn and no max_batch_weight, BatchElements counts
+    # max_batch_size in element_size_fn units (e.g. characters), not prompts,
+    # so the default number of prompts does not apply.
+    sized_by_element_size_fn = (
+        element_size_fn is not None and max_batch_weight is None)
+    # A custom request_fn may send the whole batch in one request.
+    custom_request_fn = request_fn not in (
+        chat_completion_from_string,
+        chat_completion_from_conversation,
+        embedding_from_string)
+    skip_default = sized_by_element_size_fn or custom_request_fn
+    if max_batch_size is None and not skip_default:
+      max_batch_size = max(
+          min_batch_size or 0,
+          _MAX_INPUTS_PER_EMBEDDING_REQUEST if request_fn
+          is embedding_from_string else _MAX_CONCURRENT_REQUESTS_PER_BATCH)
     if max_batch_size is not None:
       self._batching_kwargs["max_batch_size"] = max_batch_size
     if max_batch_duration_secs is not None:

@@ -151,6 +151,56 @@ class ModelHandlerArgConditions(unittest.TestCase):
         request_fn=generate_from_string,
     )
 
+  def test_default_max_batch_size(self):
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=generate_from_string,
+        api_key="123456789")
+    self.assertEqual(handler.batch_elements_kwargs(), {'max_batch_size': 32})
+
+  def test_default_max_batch_size_is_not_below_min_batch_size(self):
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=generate_from_string,
+        api_key="123456789",
+        min_batch_size=64)
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 64, 'max_batch_size': 64
+        })
+
+  def test_no_default_max_batch_size_when_size_is_element_size_fn(self):
+    # Without max_batch_weight, max_batch_size is counted in element_size_fn
+    # units, so a default of 32 would mean 32 characters here.
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=generate_from_string,
+        api_key="123456789",
+        element_size_fn=len)
+    self.assertEqual(handler.batch_elements_kwargs(), {'element_size_fn': len})
+
+  def test_default_max_batch_size_with_max_batch_weight(self):
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=generate_from_string,
+        api_key="123456789",
+        element_size_fn=len,
+        max_batch_weight=1000)
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'max_batch_size': 32,
+            'max_batch_weight': 1000,
+            'element_size_fn': len
+        })
+
+  def test_no_default_max_batch_size_with_custom_request_fn(self):
+    # A custom request_fn may send the whole batch in one request.
+    handler = GeminiModelHandler(
+        model_name="gemini-model-123",
+        request_fn=_fake_request_fn,
+        api_key="123456789")
+    self.assertEqual(handler.batch_elements_kwargs(), {})
+
 
 @mock.patch('apache_beam.ml.inference.gemini_inference.genai.Client')
 @mock.patch('apache_beam.ml.inference.gemini_inference.HttpOptions')
