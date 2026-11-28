@@ -89,6 +89,14 @@ class PipelineTask(str, Enum):
   PipelineTask defines all the tasks supported by the Hugging Face Pipelines
   listed at https://huggingface.co/docs/transformers/main_classes/pipelines.
   Only these tasks can be passed to HuggingFacePipelineModelHandler.
+
+  Note: ``transformers>=5.0`` removed several legacy pipeline tasks (including
+  ``question-answering``, ``summarization``, ``text2text-generation``,
+  ``translation`` / ``translation_XX_to_YY``, and
+  ``visual-question-answering`` / ``vqa``). Those enum members are retained for
+  compatibility with ``transformers<5.0``; on ``transformers>=5.0``, use
+  ``HuggingFaceModelHandlerKeyedTensor`` or ``HuggingFaceModelHandlerTensor``
+  with the corresponding ``AutoModelFor*`` class instead.
   """
   AudioClassification = 'audio-classification'
   AutomaticSpeechRecognition = 'automatic-speech-recognition'

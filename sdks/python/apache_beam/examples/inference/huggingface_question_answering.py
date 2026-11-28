@@ -15,43 +15,71 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform Question Answering using the
+"""A pipeline that uses RunInference to perform Question Answering using a
 model from Hugging Face Models Hub.
 
 This pipeline takes questions and context from a custom text file separated by
-a semicolon. These are converted to SquadExamples by using the utility provided
-by transformers.QuestionAnsweringPipeline and passed to the model handler.
-We just provide the model name here because the model repository specifies the
-task that it will do. The pipeline then writes the prediction to an output
-file in which users can then compare against the original context.
+a semicolon, tokenizes each `(question, context)` pair with `AutoTokenizer`,
+and runs `AutoModelForQuestionAnswering` via
+`HuggingFaceModelHandlerKeyedTensor`. The pipeline then writes the predicted
+answer span to an output file in which users can compare against the original
+context.
 """
 
 import argparse
 import logging
 from collections.abc import Iterable
 
+import torch
+from transformers import AutoModelForQuestionAnswering
+from transformers import AutoTokenizer
+
 import apache_beam as beam
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
-from apache_beam.ml.inference.huggingface_inference import PipelineTask
+from apache_beam.ml.inference.huggingface_inference import HuggingFaceModelHandlerKeyedTensor
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
-from transformers import QuestionAnsweringPipeline
+
+_MAX_ANSWER_TOKENS = 15
 
 
 class PostProcessor(beam.DoFn):
-  """Processes the PredictionResult to get the predicted answer.
+  """Processes the PredictionResult to decode the highest-scoring answer span."""
+  def __init__(self, tokenizer: AutoTokenizer):
+    super().__init__()
+    self.tokenizer = tokenizer
 
-  Hugging Face Pipeline for Question Answering returns a dictionary
-  with score, start and end index of answer and the answer.
-  """
-  def process(self, result: tuple[str, PredictionResult]) -> Iterable[str]:
-    text, prediction = result
-    predicted_answer = prediction.inference['answer']
-    yield text + ';' + predicted_answer
+  def process(
+      self, result: tuple[tuple[str, int, int],
+                          PredictionResult]) -> Iterable[str]:
+    (question, context_start, context_end), prediction = result
+    input_ids = prediction.example['input_ids']
+    if context_end < context_start:
+      yield question + ';'
+      return
+
+    start_logits = prediction.inference['start_logits'][
+        context_start:context_end + 1]
+    end_logits = prediction.inference['end_logits'][context_start:context_end +
+                                                    1]
+    span_scores = start_logits.unsqueeze(1) + end_logits.unsqueeze(0)
+    valid_mask = torch.triu(
+        torch.ones_like(span_scores, dtype=torch.bool),
+        diagonal=0) & torch.tril(
+            torch.ones_like(span_scores, dtype=torch.bool),
+            diagonal=_MAX_ANSWER_TOKENS - 1)
+    span_scores = span_scores.masked_fill(~valid_mask, float('-inf'))
+    best_flat_idx = int(span_scores.argmax().item())
+    context_len = context_end - context_start + 1
+    rel_start, rel_end = divmod(best_flat_idx, context_len)
+    answer_ids = input_ids[context_start + rel_start:context_start + rel_end +
+                           1]
+    predicted_answer = self.tokenizer.decode(
+        answer_ids, skip_special_tokens=True).strip()
+    yield question + ';' + predicted_answer
 
 
 def preprocess(text):
@@ -70,17 +98,21 @@ def preprocess(text):
     yield (question, context)
 
 
-def create_squad_example(text):
-  """Creates SquadExample objects to be fed to QuestionAnsweringPipeline
-  supported by Hugging Face.
-
-  Check out https://huggingface.co/docs/transformers/main_classes/pipelines#transformers.QuestionAnsweringPipeline.__call__.X #pylint: disable=line-too-long
-  to learn about valid input types for QuestionAnswering Pipeline.
-  Args:
-      text (Tuple[str,str]): a tuple of question and context.
-  """
+def tokenize_question_context(
+    text: tuple[str, str], tokenizer: AutoTokenizer
+) -> tuple[tuple[str, int, int], dict[str, torch.Tensor]]:
+  """Tokenizes a `(question, context)` pair and records context token bounds."""
   question, context = text
-  yield question, QuestionAnsweringPipeline.create_sample(question, context)
+  encoded = tokenizer(
+      question, context, truncation='only_second', return_tensors='pt')
+  sequence_ids = encoded.sequence_ids(0)
+  context_indices = [idx for idx, sid in enumerate(sequence_ids) if sid == 1]
+  if context_indices:
+    context_start, context_end = context_indices[0], context_indices[-1]
+  else:
+    context_start, context_end = 0, -1
+  tensors = {k: torch.squeeze(v, dim=0) for k, v in dict(encoded).items()}
+  return (question, context_start, context_end), tensors
 
 
 def parse_known_args(argv):
@@ -125,12 +157,14 @@ def run(
   if not test_pipeline:
     pipeline = beam.Pipeline(options=pipeline_options)
 
-  model_handler = HuggingFacePipelineModelHandler(
-      task=PipelineTask.QuestionAnswering,
-      model=known_args.model_name,
-      load_model_args={
-          'framework': 'pt', 'revision': known_args.revision
-      })
+  load_args = {'revision': known_args.revision} if known_args.revision else {}
+  tokenizer = AutoTokenizer.from_pretrained(known_args.model_name, **load_args)
+  model_handler = HuggingFaceModelHandlerKeyedTensor(
+      model_uri=known_args.model_name,
+      model_class=AutoModelForQuestionAnswering,
+      framework='pt',
+      load_model_args=load_args or None,
+      max_batch_size=1)
   if not known_args.input:
     text = (
         pipeline | 'CreateSentences' >> beam.Create([
@@ -145,11 +179,12 @@ def run(
   processed_text = (
       text
       | 'PreProcess' >> beam.ParDo(preprocess)
-      | 'SquadExample' >> beam.ParDo(create_squad_example))
+      | 'TokenizeQuestionContext' >>
+      beam.Map(lambda x: tokenize_question_context(x, tokenizer)))
   output = (
       processed_text
       | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'ProcessOutput' >> beam.ParDo(PostProcessor()))
+      | 'ProcessOutput' >> beam.ParDo(PostProcessor(tokenizer=tokenizer)))
   _ = output | "WriteOutput" >> beam.io.WriteToText(
       known_args.output, shard_name_template='', append_trailing_newlines=True)
 

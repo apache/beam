@@ -18,6 +18,6 @@
 # torch>=2.12 Linux wheels require triton>=3.7, which aborts with an LLVM
 # option registration collision when imported alongside tensorflow.
 torch>=2.3.0,<2.12.0
-transformers==4.53.0
+transformers==5.20.2
 tensorflow>=2.12.0,<2.22
 tf-keras>=2.16.0; python_version >= '3.12'

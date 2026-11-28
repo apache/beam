@@ -23,8 +23,14 @@ import uuid
 
 import pytest
 
+import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
+from apache_beam.ml.inference.huggingface_inference import PipelineTask
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 try:
   from apache_beam.examples.inference import huggingface_language_modeling
@@ -141,6 +147,34 @@ class HuggingFaceInference(unittest.TestCase):
       text, actual_predicted_text = actual.split(';')
       predicted_predicted_text = predictions_dict[text]
       self.assertEqual(actual_predicted_text, predicted_predicted_text)
+
+  def test_hf_fill_mask_pipeline(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    model_handler = HuggingFacePipelineModelHandler(
+        task=PipelineTask.FillMask,
+        model='FacebookAI/roberta-base',
+    )
+    with test_pipeline as pipeline:
+      predictions = (
+          pipeline
+          | 'CreateMaskedSentences' >> beam.Create([
+              'The capital of France is <mask> .',
+              'It is raining cats and <mask> .',
+          ])
+          | 'RunFillMask' >> RunInference(
+              model_handler, inference_args={'top_k': 1})
+          | 'ExtractTopToken' >> beam.Map(
+              lambda r: (
+                  r.example, (
+                      r.inference[0]['token_str']
+                      if isinstance(r.inference, list) else r.inference[
+                          'token_str']).strip().lower())))
+      assert_that(
+          predictions,
+          equal_to([
+              ('The capital of France is <mask> .', 'paris'),
+              ('It is raining cats and <mask> .', 'dogs'),
+          ]))
 
 
 if __name__ == '__main__':
