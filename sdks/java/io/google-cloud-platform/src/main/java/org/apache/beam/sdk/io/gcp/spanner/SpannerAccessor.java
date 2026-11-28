@@ -45,10 +45,12 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +73,8 @@ public class SpannerAccessor implements AutoCloseable {
 
   /** Instance ID to use when connecting to an experimental host. */
   public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";
+
+  @VisibleForTesting static final String SPANNER_EMULATOR_HOST_ENV_VAR = "SPANNER_EMULATOR_HOST";
 
   // Only create one SpannerAccessor for each different SpannerConfig.
   private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
@@ -128,6 +132,14 @@ public class SpannerAccessor implements AutoCloseable {
 
   @VisibleForTesting
   static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig, OpenTelemetry otel) {
+    return buildSpannerOptions(spannerConfig, otel, System::getenv);
+  }
+
+  @VisibleForTesting
+  static SpannerOptions buildSpannerOptions(
+      SpannerConfig spannerConfig,
+      OpenTelemetry otel,
+      Function<String, @Nullable String> envSupplier) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
     if (otel != null) {
       builder.setOpenTelemetry(otel);
@@ -259,14 +271,18 @@ public class SpannerAccessor implements AutoCloseable {
     if (serviceFactory != null) {
       builder.setServiceFactory(serviceFactory);
     }
-    builder.setHost(spannerConfig.getHostValue());
+    String hostValue = spannerConfig.getHostValue();
+    builder.setHost(hostValue);
 
     ValueProvider<String> experimentalHost = spannerConfig.getExperimentalHost();
-    if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
+    boolean hasExperimentalHost =
+        experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get());
+    if (hasExperimentalHost) {
       builder.setExperimentalHost(experimentalHost.get());
       ValueProvider<Boolean> plainText = spannerConfig.getPlainText();
       ValueProvider<String> instanceId = spannerConfig.getInstanceId();
-      if (Strings.isNullOrEmpty(instanceId.get())
+      if (instanceId == null
+          || Strings.isNullOrEmpty(instanceId.get())
           || !instanceId.get().equals(EXPERIMENTAL_HOST_INSTANCE_ID)) {
         throw new IllegalArgumentException(
             "Experimental host can only be used with instance id: "
@@ -288,13 +304,21 @@ public class SpannerAccessor implements AutoCloseable {
     }
 
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
-    if (emulatorHost != null) {
-      builder.setEmulatorHost(emulatorHost.get());
-      if (spannerConfig.getIsLocalChannelProvider() != null
-          && spannerConfig.getIsLocalChannelProvider().get()) {
-        builder.setChannelProvider(LocalChannelProvider.create(emulatorHost.get()));
+    String resolvedEmulatorHost = null;
+    if (emulatorHost != null && !Strings.isNullOrEmpty(emulatorHost.get())) {
+      resolvedEmulatorHost = emulatorHost.get();
+    } else if (!hasExperimentalHost && SpannerConfig.DEFAULT_HOST.equals(hostValue)) {
+      String envEmulatorHost = envSupplier.apply(SPANNER_EMULATOR_HOST_ENV_VAR);
+      if (!Strings.isNullOrEmpty(envEmulatorHost)) {
+        resolvedEmulatorHost = envEmulatorHost;
       }
-      builder.setCredentials(NoCredentials.getInstance());
+    }
+    if (resolvedEmulatorHost != null) {
+      builder.setEmulatorHost(resolvedEmulatorHost);
+      if (spannerConfig.getIsLocalChannelProvider() != null
+          && Boolean.TRUE.equals(spannerConfig.getIsLocalChannelProvider().get())) {
+        builder.setChannelProvider(LocalChannelProvider.create(resolvedEmulatorHost));
+      }
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
     SpannerIOMetadata spannerIOMetadata = SpannerIOMetadata.create();
@@ -311,9 +335,11 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setDirectedReadOptions(directedReadOptions.get());
     }
     ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
-    if (credentials != null && credentials.get() != null) {
+    if (resolvedEmulatorHost != null) {
+      builder.setCredentials(NoCredentials.getInstance());
+    } else if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
-    } else if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
+    } else if (hasExperimentalHost) {
       builder.setCredentials(NoCredentials.getInstance());
     }
 
