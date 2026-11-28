@@ -64,6 +64,9 @@ import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
 public class SchemaUtil {
+  private static final String DECIMAL_PRECISION_OPTION = "beam:option:jdbc:decimal_precision:v1";
+  private static final String DECIMAL_SCALE_OPTION = "beam:option:jdbc:decimal_scale:v1";
+
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
    * ResultSet.
@@ -123,7 +126,7 @@ public class SchemaUtil {
       case DATE:
         return beamFieldOfType(LogicalTypes.JDBC_DATE_TYPE);
       case DECIMAL:
-        return beamFieldOfType(Schema.FieldType.DECIMAL);
+        return beamDecimalField();
       case DOUBLE:
         return beamFieldOfType(Schema.FieldType.DOUBLE);
       case FLOAT:
@@ -206,6 +209,22 @@ public class SchemaUtil {
       Schema.FieldType fieldType =
           Schema.FieldType.logicalType(constructor.apply(identifier, size));
       return beamFieldOfType(fieldType).create(index, md);
+    };
+  }
+
+  /** Preserves JDBC DECIMAL precision and scale as field options. */
+  private static BeamFieldConverter beamDecimalField() {
+    BeamFieldConverter decimalField = beamFieldOfType(FieldType.DECIMAL);
+    return (index, md) -> {
+      Schema.Field field = decimalField.create(index, md);
+      int precision = md.getPrecision(index);
+      if (precision <= 0 || precision == Integer.MAX_VALUE) {
+        return field;
+      }
+      return field.withOptions(
+          Schema.Options.builder()
+              .setOption(DECIMAL_PRECISION_OPTION, FieldType.INT32, precision)
+              .setOption(DECIMAL_SCALE_OPTION, FieldType.INT32, md.getScale(index)));
     };
   }
 
