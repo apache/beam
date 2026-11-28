@@ -30,9 +30,9 @@ import (
 // correct windows for a given timestamp.
 func TestAssignWindow(t *testing.T) {
 	tests := []struct {
-		fn  *window.Fn
-		in  typex.EventTime
-		out []typex.Window
+		fn   *window.Fn
+		in   typex.EventTime
+		want []typex.Window
 	}{
 		{
 			window.NewGlobalWindows(),
@@ -113,22 +113,44 @@ func TestAssignWindow(t *testing.T) {
 				window.IntervalWindow{Start: 60000, End: 120000},
 			},
 		},
+		{
+			// Custom window that mimics 3-second fixed windows.
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			0,
+			[]typex.Window{
+				window.IntervalWindow{Start: 0, End: 3000},
+			},
+		},
+		{
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			2999,
+			[]typex.Window{
+				window.IntervalWindow{Start: 0, End: 3000},
+			},
+		},
+		{
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			3000,
+			[]typex.Window{
+				window.IntervalWindow{Start: 3000, End: 6000},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		out := assignWindows(test.fn, test.in)
-		if !window.IsEqualList(out, test.out) {
-			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.out)
+		out := assignWindows(test.fn, mustInvokerFor(t, test.fn), test.in, nil, nil)
+		if !window.IsEqualList(out, test.want) {
+			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.want)
 		}
 	}
 }
 
 func TestMapWindow(t *testing.T) {
 	tests := []struct {
-		name     string
-		wfn      *window.Fn
-		in       typex.Window
-		expected typex.Window
+		name string
+		wfn  *window.Fn
+		in   typex.Window
+		want typex.Window
 	}{
 		{
 			"interval to global",
@@ -162,23 +184,23 @@ func TestMapWindow(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		mapper := &windowMapper{wfn: test.wfn}
+		mapper := mustWindowMapper(t, test.wfn)
 		outputWin, err := mapper.MapWindow(test.in)
 		if err != nil {
 			t.Fatalf("MapWindow for test %v failed, got %v", test.name, err)
 		}
-		if !outputWin.Equals(test.expected) {
-			t.Errorf("test %v failed: expected window %v, got %v", test.name, test.expected, outputWin)
+		if !outputWin.Equals(test.want) {
+			t.Errorf("test %v failed: got window %v, want %v", test.name, outputWin, test.want)
 		}
 	}
 }
 
 func TestMapWindows(t *testing.T) {
 	tests := []struct {
-		name   string
-		wFn    *window.Fn
-		in     []typex.Window
-		expect []typex.Window
+		name string
+		wFn  *window.Fn
+		in   []typex.Window
+		want []typex.Window
 	}{
 		{
 			"fixed2fixed",
@@ -195,10 +217,10 @@ func TestMapWindows(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			inV, expected := makeNoncedWindowValues(tc.in, tc.expect)
+			inV, wantFVs := makeNoncedWindowValues(tc.in, tc.want)
 
 			out := &CaptureNode{UID: 1}
-			unit := &MapWindows{UID: 2, Fn: &windowMapper{wfn: tc.wFn}, Out: out}
+			unit := &MapWindows{UID: 2, Fn: mustWindowMapper(t, tc.wFn), Out: out}
 			a := &FixedRoot{UID: 3, Elements: inV, Out: unit}
 
 			p, err := NewPlan(tc.name, []Unit{a, unit, out})
@@ -212,11 +234,205 @@ func TestMapWindows(t *testing.T) {
 			if err := p.Down(ctx); err != nil {
 				t.Fatalf("down failed: %s", err)
 			}
-			if !equalList(out.Elements, expected) {
-				t.Errorf("map_windows returned %v, want %v", extractValues(out.Elements...), extractValues(expected...))
+			if !equalList(out.Elements, wantFVs) {
+				t.Errorf("map_windows returned %v, want %v", extractValues(out.Elements...), extractValues(wantFVs...))
 			}
 		})
 	}
+}
+
+func init() {
+	window.RegisterWindowFn[*fixedCustomWindowFn]()
+	window.RegisterWindowFn[*elemSizedWindowFn]()
+	window.RegisterWindowFn[*multiWindowFn]()
+	window.RegisterWindowFn[*kvSizedWindowFn]()
+}
+
+// kvSizedWindowFn derives the window size from a KV element's value.
+type kvSizedWindowFn struct{}
+
+func (f *kvSizedWindowFn) AssignWindows(ts typex.EventTime, k string, v int64) []typex.Window {
+	size := typex.EventTime(v)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
+}
+
+// TestWindowIntoKV checks that a KV element reaches AssignWindows as a
+// separate key and value rather than the key alone.
+func TestWindowIntoKV(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   typex.EventTime
+		key  string
+		val  int64
+		want typex.Window
+	}{
+		{"value sets 3s size", 1500, "a", 3000, window.IntervalWindow{Start: 0, End: 3000}},
+		{"value sets 6s size", 1500, "b", 6000, window.IntervalWindow{Start: 0, End: 6000}},
+		{"value selects later window", 4500, "c", 3000, window.IntervalWindow{Start: 3000, End: 6000}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			out := &CaptureNode{UID: 1}
+			wi := &WindowInto{UID: 2, Fn: window.NewCustom(&kvSizedWindowFn{}), Out: out}
+			root := &FixedRoot{UID: 3, Elements: []MainInput{{Key: FullValue{
+				Windows:   window.SingleGlobalWindow,
+				Timestamp: test.ts,
+				Elm:       test.key,
+				Elm2:      test.val,
+			}}}, Out: wi}
+
+			p, err := NewPlan("a", []Unit{root, wi, out})
+			if err != nil {
+				t.Fatalf("failed to construct plan: %v", err)
+			}
+			if err := p.Execute(ctx, "1", DataContext{}); err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if err := p.Down(ctx); err != nil {
+				t.Fatalf("down failed: %v", err)
+			}
+
+			if len(out.Elements) != 1 {
+				t.Fatalf("got %v elements, want 1", len(out.Elements))
+			}
+			if got := out.Elements[0].Windows; !window.IsEqualList(got, []typex.Window{test.want}) {
+				t.Errorf("WindowInto assigned %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+// multiWindowFn assigns every timestamp to two windows, earliest first.
+type multiWindowFn struct{}
+
+func (f *multiWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	return []typex.Window{
+		window.IntervalWindow{Start: 0, End: 1000},
+		window.IntervalWindow{Start: 1000, End: 2000},
+	}
+}
+
+// TestMapWindowCustom checks that side input mapping accepts a custom
+// WindowFn only when it assigns to exactly one window. Picking among several
+// candidates relies on an ordering only the built-in kinds guarantee.
+func TestMapWindowCustom(t *testing.T) {
+	tests := []struct {
+		name    string
+		wfn     *window.Fn
+		in      typex.Window
+		want    typex.Window
+		wantErr bool
+	}{
+		{
+			name: "single window",
+			wfn:  window.NewCustom(&fixedCustomWindowFn{SizeMs: 1000}),
+			in:   window.IntervalWindow{Start: 100, End: 200},
+			want: window.IntervalWindow{Start: 0, End: 1000},
+		},
+		{
+			name:    "multiple windows rejected",
+			wfn:     window.NewCustom(&multiWindowFn{}),
+			in:      window.IntervalWindow{Start: 100, End: 200},
+			wantErr: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := mustWindowMapper(t, tc.wfn).MapWindow(tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("MapWindow(%v) = %v, want error", tc.in, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("MapWindow(%v) failed: %v", tc.in, err)
+			}
+			if !got.Equals(tc.want) {
+				t.Errorf("MapWindow(%v) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+// elemSizedWindowFn derives the window size from the element value.
+type elemSizedWindowFn struct{}
+
+func (f *elemSizedWindowFn) AssignWindows(ts typex.EventTime, elem int64) []typex.Window {
+	size := typex.EventTime(elem)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
+}
+
+func BenchmarkAssignWindowsCustom(b *testing.B) {
+	fn := window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000})
+	inv, err := invokerFor(fn)
+	if err != nil {
+		b.Fatalf("invokerFor(%v) failed: %v", fn, err)
+	}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		assignWindows(fn, inv, 1500, nil, nil)
+	}
+}
+
+// TestWindowIntoElementAware checks that an element-aware custom WindowFn
+// receives the element value rather than the enclosing FullValue.
+func TestWindowIntoElementAware(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   typex.EventTime
+		elm  int64
+		want typex.Window
+	}{
+		{"element sets 3s size", 1500, 3000, window.IntervalWindow{Start: 0, End: 3000}},
+		{"element sets 6s size", 1500, 6000, window.IntervalWindow{Start: 0, End: 6000}},
+		{"element selects later window", 4500, 3000, window.IntervalWindow{Start: 3000, End: 6000}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			out := &CaptureNode{UID: 1}
+			wi := &WindowInto{UID: 2, Fn: window.NewCustom(&elemSizedWindowFn{}), Out: out}
+			root := &FixedRoot{UID: 3, Elements: []MainInput{{Key: FullValue{
+				Windows:   window.SingleGlobalWindow,
+				Timestamp: test.ts,
+				Elm:       test.elm,
+			}}}, Out: wi}
+
+			p, err := NewPlan("a", []Unit{root, wi, out})
+			if err != nil {
+				t.Fatalf("failed to construct plan: %v", err)
+			}
+			if err := p.Execute(ctx, "1", DataContext{}); err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if err := p.Down(ctx); err != nil {
+				t.Fatalf("down failed: %v", err)
+			}
+
+			if len(out.Elements) != 1 {
+				t.Fatalf("got %v elements, want 1", len(out.Elements))
+			}
+			if got := out.Elements[0].Windows; !window.IsEqualList(got, []typex.Window{test.want}) {
+				t.Errorf("WindowInto assigned %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+// fixedCustomWindowFn is a test custom WindowFn that mimics fixed windows.
+type fixedCustomWindowFn struct {
+	SizeMs int64
+}
+
+func (f *fixedCustomWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	size := typex.EventTime(f.SizeMs)
+	// Euclidean remainder; correct floor for negative ts.
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
 }
 
 func makeNoncedWindowValues(in []typex.Window, expect []typex.Window) ([]MainInput, []FullValue) {
@@ -232,4 +448,22 @@ func makeNoncedWindowValues(in []typex.Window, expect []typex.Window) ([]MainInp
 		expectV[i] = makeKV(nonce, expect[i])[0]
 	}
 	return inV, expectV
+}
+
+func mustInvokerFor(t *testing.T, wfn *window.Fn) *window.WindowFnInvoker {
+	t.Helper()
+	inv, err := invokerFor(wfn)
+	if err != nil {
+		t.Fatalf("invokerFor(%v) failed: %v", wfn, err)
+	}
+	return inv
+}
+
+func mustWindowMapper(t *testing.T, wfn *window.Fn) *windowMapper {
+	t.Helper()
+	m, err := newWindowMapper(wfn)
+	if err != nil {
+		t.Fatalf("newWindowMapper(%v) failed: %v", wfn, err)
+	}
+	return m
 }

@@ -345,3 +345,33 @@ func TestPaneCoder(t *testing.T) {
 		t.Errorf("got pane non-speculative index %v, want %v", got, want)
 	}
 }
+
+// TestIntervalWindowEncoderRejectsOtherWindows checks that a window the
+// interval coder cannot represent, which a custom WindowFn is able to return,
+// reports an error instead of panicking or truncating the stream.
+func TestIntervalWindowEncoderRejectsOtherWindows(t *testing.T) {
+	enc := MakeWindowEncoder(coder.NewIntervalWindow())
+
+	tests := []struct {
+		name    string
+		windows []typex.Window
+		wantErr bool
+	}{
+		{"interval", []typex.Window{window.IntervalWindow{Start: 0, End: 1000}}, false},
+		{"global", []typex.Window{window.GlobalWindow{}}, true},
+		{
+			"bad window after a good one",
+			[]typex.Window{window.IntervalWindow{Start: 0, End: 1000}, window.GlobalWindow{}},
+			true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			err := enc.Encode(tc.windows, &buf)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("Encode(%v) error = %v, want error presence %v", tc.windows, err, tc.wantErr)
+			}
+		})
+	}
+}
