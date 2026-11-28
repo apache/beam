@@ -1665,6 +1665,64 @@ class UtilTest(unittest.TestCase):
             }))
     self.assertEqual(pipeline, pipeline_expected)
 
+  def _client_with_staging_bucket(self, lifecycle_rules):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://test-location/temp',
+        '--staging_location',
+        'gs://test-location/staging',
+        '--no_auth'
+    ])
+    client = apiclient.DataflowApplicationClient(pipeline_options)
+    bucket = mock.Mock()
+    bucket.lifecycle_rules = lifecycle_rules
+    client._storage_client = mock.Mock()
+    client._storage_client.get_bucket.return_value = bucket
+    return client
+
+  def test_warns_when_staging_bucket_deletes_objects_by_age(self):
+    rule = {'action': {'type': 'Delete'}, 'condition': {'age': 7}}
+    client = self._client_with_staging_bucket([rule])
+
+    with self.assertLogs(apiclient._LOGGER, level='WARNING') as logs:
+      client._warn_if_staging_bucket_has_ttl('gs://test-location/staging')
+
+    self.assertIn('test-location', logs.output[0])
+    self.assertIn('7 days', logs.output[0])
+
+  def test_no_warning_when_staging_bucket_deletes_by_other_conditions(self):
+    rule = {'action': {'type': 'Delete'}, 'condition': {'numNewerVersions': 3}}
+    client = self._client_with_staging_bucket([rule])
+
+    with mock.patch.object(apiclient._LOGGER, 'warning') as warning:
+      client._warn_if_staging_bucket_has_ttl('gs://test-location/staging')
+
+    warning.assert_not_called()
+
+  def test_no_warning_when_staging_bucket_has_no_lifecycle_rules(self):
+    client = self._client_with_staging_bucket([])
+
+    with mock.patch.object(apiclient._LOGGER, 'warning') as warning:
+      client._warn_if_staging_bucket_has_ttl('gs://test-location/staging')
+
+    warning.assert_not_called()
+
+  def test_no_warning_for_local_staging_location(self):
+    client = self._client_with_staging_bucket([])
+
+    client._warn_if_staging_bucket_has_ttl('/tmp/staging')
+
+    client._storage_client.get_bucket.assert_not_called()
+
+  def test_staging_bucket_check_does_not_fail_job_submission(self):
+    client = self._client_with_staging_bucket([])
+    client._storage_client.get_bucket.side_effect = Exception('no access')
+
+    with mock.patch.object(apiclient._LOGGER, 'warning') as warning:
+      client._warn_if_staging_bucket_has_ttl('gs://test-location/staging')
+
+    warning.assert_not_called()
+
   def _stage_resources_for(self, environments):
     pipeline_options = PipelineOptions([
         '--temp_location',
