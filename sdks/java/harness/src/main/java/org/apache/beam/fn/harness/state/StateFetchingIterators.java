@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -310,11 +311,18 @@ public class StateFetchingIterators {
 
         void addAndWeighAll(List<T> addedValues) {
           values.addAll(addedValues);
+          weight =
+              LongMath.saturatedAdd(
+                  weight, LongMath.saturatedMultiply(addedValues.size(), Caches.REFERENCE_SIZE));
           for (@Nullable T v : addedValues) {
             weight = LongMath.saturatedAdd(weight, Caches.weigh(v));
           }
         }
 
+        /**
+         * Adds {@code addedValues} with a pre-computed weight that already includes {@code
+         * addedValues.size() * Caches.REFERENCE_SIZE}.
+         */
         void addAllWithWeight(List<T> addedValues, long addedWeight) {
           values.addAll(addedValues);
           weight = LongMath.saturatedAdd(weight, addedWeight);
@@ -322,7 +330,14 @@ public class StateFetchingIterators {
 
         void addBlock(Block<T> b) {
           values.addAll(b.getValues());
-          weight = LongMath.saturatedAdd(weight, b.getWeight());
+          long blockWeight = b.getWeight();
+          // Non-empty blocks already include ARRAY_LIST_OVERHEAD and per-element REFERENCE_SIZE.
+          if (!b.getValues().isEmpty()
+              && blockWeight != Long.MAX_VALUE
+              && blockWeight >= ARRAY_LIST_OVERHEAD) {
+            blockWeight -= ARRAY_LIST_OVERHEAD;
+          }
+          weight = LongMath.saturatedAdd(weight, blockWeight);
         }
 
         // The builder should not be used after this method.
@@ -330,7 +345,6 @@ public class StateFetchingIterators {
           if (values.isEmpty()) {
             return emptyBlock();
           }
-          weight = LongMath.saturatedAdd(values.size() * Caches.REFERENCE_SIZE, weight);
           return new Block<>(values, null, weight);
         }
 
@@ -355,8 +369,12 @@ public class StateFetchingIterators {
         return fromValues(values, null);
       }
 
+      static <T> Block<T> mutatedBlock(List<T> values, long valuesWeight) {
+        return copyValues(values, valuesWeight, null);
+      }
+
       public static <T> Block<T> fromValues(List<T> values, @Nullable ByteString nextToken) {
-        long listWeight = values.size() * Caches.REFERENCE_SIZE;
+        long listWeight = LongMath.saturatedMultiply(values.size(), Caches.REFERENCE_SIZE);
         for (@Nullable T value : values) {
           listWeight = LongMath.saturatedAdd(listWeight, Caches.weigh(value));
         }
@@ -499,10 +517,21 @@ public class StateFetchingIterators {
      * requesting data from the state cache.
      */
     public void clearAndAppend(WeightedList<T> values) {
+      clearAndAppend(values.getBacking(), values.getWeight());
+    }
+
+    /**
+     * Clears the cached iterable and appends {@code values} with a pre-computed weight (including
+     * {@code values.size() * Caches.REFERENCE_SIZE}), avoiding a {@link WeightedList} wrapper.
+     */
+    void clearAndAppend(List<T> values, long valuesWeight) {
+      checkArgument(valuesWeight >= 0, "valuesWeight must be non-negative, got %s", valuesWeight);
       if (values.isEmpty()) {
         cache.put(IterableCacheKey.INSTANCE, new EmptyBlocks<>());
       } else {
-        cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(values)));
+        cache.put(
+            IterableCacheKey.INSTANCE,
+            new MutatedBlocks<>(Block.mutatedBlock(values, valuesWeight)));
       }
     }
 
@@ -532,7 +561,16 @@ public class StateFetchingIterators {
      * cache.
      */
     public void append(WeightedList<T> values) {
-      appendHelper(values.getBacking(), values.getWeight());
+      append(values.getBacking(), values.getWeight());
+    }
+
+    /**
+     * Appends {@code values} to the cached iterable with a pre-computed weight (including {@code
+     * values.size() * Caches.REFERENCE_SIZE}), avoiding a {@link WeightedList} wrapper.
+     */
+    void append(List<T> values, long valuesWeight) {
+      checkArgument(valuesWeight >= 0, "valuesWeight must be non-negative, got %s", valuesWeight);
+      appendHelper(values, valuesWeight);
     }
 
     /**

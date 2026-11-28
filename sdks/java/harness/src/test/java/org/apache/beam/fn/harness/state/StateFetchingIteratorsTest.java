@@ -305,6 +305,33 @@ public class StateFetchingIteratorsTest {
       assertEquals(Long.MAX_VALUE, blocksOverflow.getWeight());
     }
 
+    @Test
+    public void testBlockBuilderWeightNoDoubleCount() {
+      Block<String> initial = Block.mutatedBlock(WeightedList.of(Arrays.asList("A", "B"), 100L));
+      // 100L values weight + ARRAY_LIST_OVERHEAD (3 * 8 = 24L).
+      assertEquals(124L, initial.getWeight());
+
+      Block.Builder<String> builder = Block.builder(4);
+      builder.addBlock(initial);
+      builder.addAllWithWeight(Arrays.asList("C", "D"), 200L);
+      Block<String> merged = builder.build();
+      // Expected: ARRAY_LIST_OVERHEAD (24) + initial values (100) + appended values (200) = 324.
+      // Must NOT re-add values.size() * REFERENCE_SIZE or a second ARRAY_LIST_OVERHEAD.
+      assertEquals(324L, merged.getWeight());
+
+      // Adding the merged block into another builder should stay 324L with no +8B/elem drift.
+      Block.Builder<String> again = Block.builder(4);
+      again.addBlock(merged);
+      assertEquals(324L, again.build().getWeight());
+
+      // Unweighted addAndWeighAll includes REFERENCE_SIZE once per element.
+      Block.Builder<String> weighedBuilder = Block.builder(1);
+      weighedBuilder.addAndWeighAll(Arrays.asList("beam"));
+      assertEquals(
+          3 * Caches.REFERENCE_SIZE + Caches.REFERENCE_SIZE + Caches.weigh("beam"),
+          weighedBuilder.build().getWeight());
+    }
+
     // Regression test: ensure null values are supported
     @Test
     public void testNullableValues() throws Exception {
