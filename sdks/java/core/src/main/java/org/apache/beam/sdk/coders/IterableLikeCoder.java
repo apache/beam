@@ -27,11 +27,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Observable;
-import java.util.Observer;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.common.PrimitiveByteSizeObserver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An abstract base class with functionality for assembling a {@link Coder} for a class that
@@ -233,14 +234,20 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
    * An observer that gets notified when an observable iterator returns a new value. This observer
    * just notifies an outerObserver about this event. Additionally, the outerObserver is notified
    * about additional separators that are transparently added by this coder.
+   *
+   * <p>Extends {@link PrimitiveByteSizeObserver} directly (instead of {@link
+   * ElementByteSizeObserver}) to avoid per-element {@link Long} boxing in {@link
+   * org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator}, avoid inheriting unused
+   * mutable fields, keep {@link ElementByteSizeObserver#update(long)} un-overridden for JIT
+   * devirtualization, and participate in primary supertype checks.
    */
-  private static class IteratorObserver implements Observer {
+  private static final class IteratorObserver extends PrimitiveByteSizeObserver {
     private final ElementByteSizeObserver outerObserver;
-    private final boolean countable;
+    private final int perElementOverhead;
 
-    public IteratorObserver(ElementByteSizeObserver outerObserver, boolean countable) {
+    IteratorObserver(ElementByteSizeObserver outerObserver, boolean countable) {
       this.outerObserver = outerObserver;
-      this.countable = countable;
+      this.perElementOverhead = countable ? 0 : 1;
 
       if (countable) {
         // Additional 4 bytes are due to size.
@@ -253,16 +260,21 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     }
 
     @Override
-    public void update(Observable obs, Object obj) {
+    public void update(long byteSize) {
+      outerObserver.update(byteSize + perElementOverhead);
+    }
+
+    @Override
+    public void update(@Nullable Observable obs, @Nullable Object obj) {
       if (!(obj instanceof Long)) {
         throw new AssertionError("unexpected parameter object");
       }
 
-      if (countable) {
+      if (perElementOverhead == 0) {
         outerObserver.update(obs, obj);
       } else {
         // Additional 1 byte is due to hasNext = true flag.
-        outerObserver.update(obs, 1 + (long) obj);
+        outerObserver.update(obs, 1L + ((Long) obj).longValue());
       }
     }
   }
