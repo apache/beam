@@ -23,8 +23,12 @@ Note that in the case that they overlap with other (likely Java)
 implementations of the same transforms, the configs must be kept in sync.
 """
 
+import csv
+import functools
 import io
+import itertools
 import json
+import traceback
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -33,11 +37,13 @@ from typing import Optional
 from typing import Union
 
 import fastavro
+import pandas as pd
 
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
 from apache_beam.coders.row_coder import RowCoder
+from apache_beam.dataframe.schemas import UnbatchPandas
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
@@ -97,6 +103,335 @@ def write_to_text(pcoll, path: str):
   sole_field_name, = field_names
   return pcoll | beam.Map(
       lambda x: str(getattr(x, sole_field_name))) | beam.io.WriteToText(path)
+
+
+def read_from_csv(
+    path: str,
+    *,
+    sep: str = ',',
+    comment: Optional[str] = None,
+    filename_column: Optional[str] = None,
+    error_handling: Optional[Mapping[str, Any]] = None,
+    **kwargs):
+  """Reads comma-separated values (csv) files into a PCollection of rows.
+
+  Without ``error_handling``, this is ``apache_beam.io.ReadFromCsv``.
+
+  With ``error_handling``, each record is parsed on its own, and records
+  that fail to parse go to the error output instead of failing the pipeline.
+  Each error row has the source file path and the raw record text.
+  The column types come from the first 100 records of the first file.
+
+  Args:
+    path (str): The file path to read from.  The path can contain glob
+      characters such as ``*`` and ``?``.
+    sep (str): The field delimiter.
+    comment (str): Lines that start with this character are skipped.
+    filename_column (str): If set, the name of a column to add to each
+      record, containing the path of the source file.
+    error_handling: If specified, should be a mapping giving an output into
+      which to emit records that failed to parse, as described at
+      https://beam.apache.org/documentation/sdks/yaml-errors/
+  """
+  if not error_handling:
+    return beam_io.ReadFromCsv(
+        path,
+        sep=sep,
+        comment=comment,
+        filename_column=filename_column,
+        **kwargs)
+  if kwargs:
+    raise ValueError(
+        f'ReadFromCsv does not support {sorted(kwargs)} with error_handling.')
+  if len(sep) != 1:
+    raise ValueError(
+        'ReadFromCsv only supports a one-character sep with error_handling.')
+
+  def is_valid(record):
+    try:
+      pd.read_csv(io.StringIO(record), header=None, sep=sep, comment=comment)
+      return True
+    except Exception:  # pylint: disable=broad-except
+      return False
+
+  def sample(handle):
+    # Use the same records as parse_file, so that a bad record in the
+    # sample, such as one with an unclosed quote, is skipped here and
+    # sent to the error output later.
+    lines = (line.decode('utf-8', 'replace') for line in _read_lines(handle))
+    records = (
+        record for record in _split_csv_records(lines, sep, comment)
+        if record.strip())
+    header = next(records, '')
+    good = itertools.islice(filter(is_valid, records), _SAMPLE_SIZE)
+    return pd.read_csv(
+        io.StringIO(header + ''.join(good)),
+        sep=sep,
+        comment=comment,
+        on_bad_lines='skip')
+
+  def parse_record(header, record, dtypes):
+    columns = list(dtypes)
+    fields = pd.read_csv(
+        io.StringIO(record), header=None, sep=sep, comment=comment, dtype=str)
+    if len(fields.columns) != len(columns):
+      raise ValueError(
+          f'Expected {len(columns)} fields, got {len(fields.columns)}.')
+    df = pd.read_csv(
+        io.StringIO(header + record), sep=sep, comment=comment, dtype=dtypes)
+    if list(df.columns) != columns:
+      raise ValueError(
+          f'The file header {list(df.columns)} does not match {columns}.')
+    return df
+
+  def parse_file(lines, proxy):
+    dtypes = proxy.dtypes.to_dict()
+    dtypes.pop(filename_column, None)
+    header = None
+    for record in _split_csv_records(lines, sep, comment):
+      if not record.strip():
+        continue
+      if header is None:
+        header = record
+      else:
+        yield record, functools.partial(parse_record, header, record, dtypes)
+
+  return _ReadFilesWithErrors(
+      path, sample, parse_file, filename_column, error_handling)
+
+
+def read_from_json(
+    path: str, *, error_handling: Optional[Mapping[str, Any]] = None, **kwargs):
+  """Reads newline-delimited JSON files into a PCollection of rows.
+
+  Without ``error_handling``, this is ``apache_beam.io.ReadFromJson``.
+
+  With ``error_handling``, each line is parsed on its own, and lines
+  that fail to parse go to the error output instead of failing the pipeline.
+  Each error row has the source file path and the raw line.
+  The column types come from the first 100 records of the first file.
+
+  Args:
+    path (str): The file path to read from.  The path can contain glob
+      characters such as ``*`` and ``?``.
+    error_handling: If specified, should be a mapping giving an output into
+      which to emit lines that failed to parse, as described at
+      https://beam.apache.org/documentation/sdks/yaml-errors/
+  """
+  if not error_handling:
+    return beam_io.ReadFromJson(path, **kwargs)
+  if kwargs:
+    raise ValueError(
+        f'ReadFromJson does not support {sorted(kwargs)} with error_handling.')
+
+  def read_json(text):
+    return pd.read_json(
+        io.StringIO(text), orient='records', lines=True, dtype=False)
+
+  def sample(handle):
+    good_lines = []
+    for line in itertools.islice(_read_lines(handle), _SAMPLE_SIZE):
+      line = line.decode('utf-8', 'replace')
+      try:
+        if isinstance(json.loads(line), dict):
+          good_lines.append(line)
+      except ValueError:
+        pass
+    if not good_lines:
+      raise ValueError(
+          f'Found no JSON objects in the first {_SAMPLE_SIZE} lines '
+          'of the first file, so the column types are unknown.')
+    return read_json(''.join(good_lines))
+
+  def parse_record(line, proxy):
+    value = json.loads(line)
+    if not isinstance(value, dict):
+      raise ValueError('Expected a JSON object.')
+    unknown_fields = set(value) - set(proxy.columns)
+    if unknown_fields:
+      raise ValueError(f'Unknown fields {sorted(unknown_fields)}.')
+    _check_json_types(value, proxy.dtypes)
+    return read_json(line).reindex(columns=proxy.columns)
+
+  def parse_file(lines, proxy):
+    for line in lines:
+      if line.strip():
+        yield line, functools.partial(parse_record, line, proxy)
+
+  return _ReadFilesWithErrors(path, sample, parse_file, None, error_handling)
+
+
+def _check_json_types(record, dtypes):
+  """Raises ValueError if a JSON value does not have its column's type.
+
+  Values are checked rather than converted, so that a value such as 3.7
+  in an integer column, or "false" in a boolean column, is an error
+  instead of becoming 3 or True.
+  """
+  for column, dtype in dtypes.items():
+    value = record.get(column)
+    if pd.api.types.is_bool_dtype(dtype):
+      ok = isinstance(value, bool)
+    elif pd.api.types.is_integer_dtype(dtype):
+      ok = isinstance(value, int) and not isinstance(value, bool)
+    elif pd.api.types.is_float_dtype(dtype):
+      ok = value is None or (
+          isinstance(value, (int, float)) and not isinstance(value, bool))
+    elif pd.api.types.is_string_dtype(dtype):
+      ok = value is None or isinstance(value, str)
+    else:
+      ok = True
+    if not ok:
+      raise ValueError(
+          f'Expected a {dtype} value for {column!r}, got {value!r}.')
+
+
+def _read_lines(handle):
+  """Yields the lines of a binary file handle.
+
+  Compressed file handles are not iterable, but they do have readline().
+  """
+  return iter(handle.readline, b'')
+
+
+# The number of records used to infer column types when error_handling is set.
+_SAMPLE_SIZE = 100
+
+
+def _split_csv_records(lines, sep=',', comment=None):
+  """Splits csv lines into records, so a quoted field with newlines stays
+  in one record. Yields the raw text of each record.
+
+  The csv module finds where each record ends, using the same quote rules
+  as pandas: a quote only starts a quoted field at the start of a field.
+  Comment lines between records are skipped.
+
+  If a quoted field is never closed, or the csv module rejects a record,
+  only the first line of that record is yielded as a record of its own,
+  and reading starts again from the next line. So one bad quote does not
+  take the rest of the file with it.
+  """
+  def feed(source, pending, at_end):
+    for line in source:
+      if not pending and comment and line.startswith(comment):
+        continue
+      pending.append(line)
+      yield line
+    at_end.append(True)
+
+  lines = iter(lines)
+  while True:
+    pending = []
+    at_end = []
+    try:
+      for _ in csv.reader(feed(lines, pending, at_end), delimiter=sep):
+        if at_end and pending:
+          # The file ended inside a quoted field.
+          break
+        yield ''.join(pending)
+        pending.clear()
+      else:
+        return
+    except csv.Error:
+      pass
+    yield pending[0]
+    lines = itertools.chain(pending[1:], lines)
+
+
+# The type of the error rows from _ReadFilesWithErrors.
+_FILE_ERROR_TYPE = RowTypeConstraint.from_fields([
+    (
+        'element',
+        RowTypeConstraint.from_fields([('path', str), ('record', str)])),
+    ('msg', str),
+    ('stack', str),
+])
+
+
+class _ReadFilesWithErrors(beam.PTransform):
+  """Reads files record by record, and sends bad records to an error output.
+
+  Args:
+    path: The file pattern to read.
+    sample: A function that takes a binary file handle and returns a
+      pandas DataFrame. Its column types are the output column types.
+    parse_file: A function that takes the lines of one file and the sample.
+      It yields (record, parse) pairs. Calling parse() returns a DataFrame
+      with zero or one rows, or raises an exception for a bad record.
+    filename_column: If set, a column to add with the source file path.
+    error_handling: The error_handling config.
+  """
+  def __init__(self, path, sample, parse_file, filename_column, error_handling):
+    self._path = path
+    self._sample = sample
+    self._parse_file = parse_file
+    self._filename_column = filename_column
+    self._error_output = yaml_utils.SafeLineLoader.strip_metadata(
+        error_handling)['output']
+
+  def expand(self, root):
+    match = beam_io.filesystems.FileSystems.match([self._path], limits=[1])[0]
+    if not match.metadata_list:
+      raise FileNotFoundError(f'Found no files that match {self._path!r}')
+    with beam_io.filesystems.FileSystems.open(
+        match.metadata_list[0].path) as handle:
+      proxy = self._sample(handle)[:0]
+    if self._filename_column:
+      proxy[self._filename_column] = ''
+    # Use the string dtype for text columns, as ReadFromCsv and ReadFromJson
+    # do, so that they get a str type in the output schema.
+    for column, dtype in proxy.dtypes.items():
+      if dtype == object:
+        proxy[column] = proxy[column].astype(pd.StringDtype())
+
+    results = (
+        root
+        | beam_io.fileio.MatchFiles(self._path)
+        | beam.Reshuffle()
+        | beam_io.fileio.ReadMatches()
+        | beam.ParDo(self._read_file, proxy).with_outputs(
+            'errors', main='good'))
+    return {
+        'good': results.good | UnbatchPandas(proxy),
+        # This Map only sets the schema of the error rows.
+        self._error_output: results.errors
+        | beam.Map(lambda error: error).with_output_types(_FILE_ERROR_TYPE),
+    }
+
+  def _read_file(self, readable_file, proxy):
+    path = readable_file.metadata.path
+    decode_errors = []
+
+    def error(record, exn):
+      return beam.pvalue.TaggedOutput(
+          'errors',
+          beam.Row(
+              element=beam.Row(path=path, record=record),
+              msg=str(exn),
+              stack=''.join(
+                  traceback.format_exception(type(exn), exn,
+                                             exn.__traceback__))))
+
+    def decoded_lines():
+      # Lines that are not valid UTF-8 are skipped and reported as errors.
+      with readable_file.open() as handle:
+        for line in _read_lines(handle):
+          try:
+            yield line.decode('utf-8')
+          except UnicodeDecodeError as exn:
+            decode_errors.append(error(line.decode('utf-8', 'replace'), exn))
+
+    for record, parse in self._parse_file(decoded_lines(), proxy):
+      try:
+        df = parse()
+        if self._filename_column:
+          df[self._filename_column] = path
+        df = df.astype(proxy.dtypes)
+      except Exception as exn:  # pylint: disable=broad-except
+        yield error(record, exn)
+        continue
+      yield df
+    yield from decode_errors
 
 
 def read_from_bigquery(

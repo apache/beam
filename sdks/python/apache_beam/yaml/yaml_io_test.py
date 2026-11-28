@@ -19,9 +19,12 @@ import datetime
 import io
 import json
 import logging
+import gzip
 import os
+import shutil
 import tempfile
 import unittest
+from typing import Optional
 
 import fastavro
 import mock
@@ -35,6 +38,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
 from apache_beam.utils import subprocess_server
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.yaml import yaml_io
 from apache_beam.yaml.yaml_transform import YamlTransform
 from apache_beam.yaml.yaml_transform import expand_pipeline
 
@@ -1058,6 +1062,202 @@ class YamlKafkaTest(unittest.TestCase):
               - name: bool
                 type: boolean
         ''')
+
+
+class YamlFileErrorHandlingTest(unittest.TestCase):
+  def setUp(self):
+    self.temp_dir = tempfile.mkdtemp()
+    self.addCleanup(shutil.rmtree, self.temp_dir)
+
+  def write_file(self, name, content):
+    path = os.path.join(self.temp_dir, name)
+    with open(path, 'wb') as f:
+      f.write(content)
+    return path
+
+  def read_with_errors(self, transform_type, path, extra_config=''):
+    p = beam.Pipeline()
+    result = p | YamlTransform(
+        f'''
+        type: {transform_type}
+        config:
+          path: {path}
+          {extra_config}
+          error_handling:
+            output: errors
+        ''')
+    return p, result
+
+  def test_read_csv_with_error_handling(self):
+    path = self.write_file(
+        'input.csv',
+        b'# a "comment\n'
+        b'name,count\n'
+        b'a,1 # inline, comment\n'
+        b'"b\nwith newline",2\n'
+        b'c,not_a_number\n'
+        b'd,4,extra\n'
+        b'\xff,5\n'
+        b'e,6\n')
+    # Infer the column types from the first record only, so that the
+    # 'not_a_number' record fails type conversion.
+    with mock.patch.object(yaml_io, '_SAMPLE_SIZE', 1):
+      p, result = self.read_with_errors(
+          'ReadFromCsv', path, 'comment: "#"\n          filename_column: source')
+    self.assertEqual(
+        result['good'].element_type.get_type_for('name'), Optional[str])
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(name='a', count=1, source=path),
+              beam.Row(name='b\nwith newline', count=2, source=path),
+              beam.Row(name='e', count=6, source=path),
+          ]),
+          label='CheckGood')
+      assert_that(
+          result['errors']
+          | beam.Map(lambda e: (e.element.path, e.element.record)),
+          equal_to([
+              (path, 'c,not_a_number\n'),
+              (path, 'd,4,extra\n'),
+              (path, '\ufffd,5\n'),
+          ]),
+          label='CheckErrors')
+
+  def test_read_csv_with_error_handling_without_filename_column(self):
+    path = self.write_file('input.csv', b'name,count\na,1\nb,2,extra\n')
+    p, result = self.read_with_errors('ReadFromCsv', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([beam.Row(name='a', count=1)]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['b,2,extra\n']),
+          label='CheckErrors')
+
+  def test_read_csv_with_error_handling_unclosed_quote(self):
+    path = self.write_file(
+        'input.csv',
+        b'name,count\n'
+        b'a,1\n'
+        b'5"ft,3\n'
+        b'"b,2\n'
+        b'c,4,extra\n'
+        b'd,5\n')
+    # The unclosed quote is in the sample, and should not fail the read.
+    p, result = self.read_with_errors('ReadFromCsv', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(name='a', count=1),
+              beam.Row(name='5"ft', count=3),
+              beam.Row(name='d', count=5),
+          ]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['"b,2\n', 'c,4,extra\n']),
+          label='CheckErrors')
+
+  def test_read_compressed_csv_with_error_handling(self):
+    path = self.write_file(
+        'input.csv.gz', gzip.compress(b'name,count\na,1\nb,2,extra\n'))
+    p, result = self.read_with_errors('ReadFromCsv', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([beam.Row(name='a', count=1)]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['b,2,extra\n']),
+          label='CheckErrors')
+
+  def test_read_compressed_json_with_error_handling(self):
+    path = self.write_file(
+        'input.json.gz', gzip.compress(b'{"name": "a"}\n{"name": \n'))
+    p, result = self.read_with_errors('ReadFromJson', path)
+    with p:
+      assert_that(
+          result['good'], equal_to([beam.Row(name='a')]), label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to(['{"name": \n']),
+          label='CheckErrors')
+
+  def test_read_json_with_error_handling(self):
+    path = self.write_file(
+        'input.json',
+        b'{"name": "a", "count": 1}\n'
+        b'{"name": "b", "count": \n'
+        b'[{"name": "c", "count": 3}]\n'
+        b'{"name": "c", "unknown": 3}\n'
+        b'{"name": "d", "count": 4}\n')
+    # Infer the columns from the first line only, so that the 'unknown'
+    # field is not one of the columns.
+    with mock.patch.object(yaml_io, '_SAMPLE_SIZE', 1):
+      p, result = self.read_with_errors('ReadFromJson', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(name='a', count=1),
+              beam.Row(name='d', count=4),
+          ]),
+          label='CheckGood')
+      assert_that(
+          result['errors'] | beam.Map(lambda e: e.element.record),
+          equal_to([
+              '{"name": "b", "count": \n',
+              '[{"name": "c", "count": 3}]\n',
+              '{"name": "c", "unknown": 3}\n',
+          ]),
+          label='CheckErrors')
+
+  def test_read_json_with_error_handling_checks_types(self):
+    path = self.write_file(
+        'input.json',
+        b'{"name": "a", "count": 1, "flag": true, "score": 1.5}\n'
+        b'{"name": "b", "count": 3.7, "flag": true, "score": 1.5}\n'
+        b'{"name": "c", "count": "7", "flag": true, "score": 1.5}\n'
+        b'{"name": "d", "count": true, "flag": true, "score": 1.5}\n'
+        b'{"name": "e", "count": 1, "flag": "false", "score": 1.5}\n'
+        b'{"name": "f", "count": 1, "flag": null, "score": 1.5}\n'
+        b'{"name": "g", "count": 1, "flag": 0, "score": 1.5}\n'
+        b'{"name": "h", "count": 1, "flag": true, "score": "2.5"}\n'
+        b'{"name": 5, "count": 1, "flag": true, "score": 1.5}\n'
+        b'{"name": "i", "count": 2, "flag": false, "score": 2}\n')
+    # Infer the column types from the first line only.
+    with mock.patch.object(yaml_io, '_SAMPLE_SIZE', 1):
+      p, result = self.read_with_errors('ReadFromJson', path)
+    with p:
+      assert_that(
+          result['good'],
+          equal_to([
+              beam.Row(name='a', count=1, flag=True, score=1.5),
+              beam.Row(name='i', count=2, flag=False, score=2.0),
+          ]),
+          label='CheckGood')
+      assert_that(
+          result['errors']
+          | beam.Map(lambda e: json.loads(e.element.record)['name']),
+          equal_to(['b', 'c', 'd', 'e', 'f', 'g', 'h', 5]),
+          label='CheckErrors')
+
+  def test_read_csv_without_error_handling_fails(self):
+    path = self.write_file('input.csv', b'name,count\na,1\nb,2,extra\n')
+    with self.assertRaises(Exception):
+      with beam.Pipeline() as p:
+        _ = p | YamlTransform(
+            f'''
+            type: ReadFromCsv
+            config:
+              path: {path}
+            ''')
 
 
 if __name__ == '__main__':
