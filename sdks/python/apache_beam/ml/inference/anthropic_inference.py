@@ -70,8 +70,10 @@ import logging
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Optional
+from typing import TypeVar
 from typing import Union
 
 from anthropic import Anthropic
@@ -84,6 +86,16 @@ from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import _validate_batching_args
 
 LOGGER = logging.getLogger("AnthropicModelHandler")
+
+# Upper bound on the number of in-flight HTTP requests issued concurrently for
+# a single batch. The Messages API takes one conversation per request, so the
+# request functions send one request per element. Bounds thread usage when
+# adaptive batching produces large batches; use max_batch_size to further
+# limit per-batch concurrency.
+_MAX_CONCURRENT_REQUESTS_PER_BATCH = 32
+
+_InputT = TypeVar('_InputT')
+_OutputT = TypeVar('_OutputT')
 
 
 def _retry_on_appropriate_error(exception: Exception) -> bool:
@@ -104,6 +116,28 @@ def _retry_on_appropriate_error(exception: Exception) -> bool:
   return exception.status_code == 429 or exception.status_code >= 500
 
 
+def _fan_out(fn: Callable[[_InputT], _OutputT],
+             items: Sequence[_InputT]) -> list[_OutputT]:
+  """Applies fn to each item concurrently and returns results in input order.
+
+  The synchronous Anthropic client is safe to share across threads (its
+  underlying httpx connection pool is guarded by thread locks), so per-item
+  requests are dispatched on a bounded thread pool while reusing the client's
+  pooled connections. If any request raises, pending requests are cancelled
+  and the first exception (in input order) is propagated so Beam's retry logic
+  can handle the batch.
+  """
+  if len(items) <= 1:
+    return [fn(item) for item in items]
+  executor = ThreadPoolExecutor(
+      max_workers=min(len(items), _MAX_CONCURRENT_REQUESTS_PER_BATCH),
+      thread_name_prefix='AnthropicModelHandler')
+  try:
+    return list(executor.map(fn, items))
+  finally:
+    executor.shutdown(wait=True, cancel_futures=True)
+
+
 def message_from_string(
     model_name: str,
     batch: Sequence[str],
@@ -111,8 +145,9 @@ def message_from_string(
     inference_args: dict[str, Any]):
   """Request function that sends string prompts to Claude as user messages.
 
-  Each string in the batch is sent as a separate request. The results are
-  returned as a list of response objects.
+  Each string in the batch is sent as a separate request, dispatched
+  concurrently. The results are returned as a list of response objects in
+  the batch order.
 
   Args:
     model_name: the Claude model to use (e.g. 'claude-haiku-4-5').
@@ -122,17 +157,17 @@ def message_from_string(
       Common args include 'max_tokens', 'system', 'temperature', 'top_p'.
   """
   max_tokens = inference_args.pop('max_tokens', 1024)
-  responses = []
-  for prompt in batch:
-    response = client.messages.create(
+
+  def _request(prompt: str) -> Any:
+    return client.messages.create(
         model=model_name,
         max_tokens=max_tokens,
         messages=[{
             "role": "user", "content": prompt
         }],
         **inference_args)
-    responses.append(response)
-  return responses
+
+  return _fan_out(_request, batch)
 
 
 def message_from_conversation(
@@ -143,7 +178,8 @@ def message_from_conversation(
   """Request function that sends multi-turn conversations to Claude.
 
   Each element in the batch is a list of message dicts with 'role' and
-  'content' keys, representing a multi-turn conversation.
+  'content' keys, representing a multi-turn conversation. Conversations are
+  sent as separate requests, dispatched concurrently.
 
   Args:
     model_name: the Claude model to use.
@@ -152,15 +188,15 @@ def message_from_conversation(
     inference_args: additional arguments passed to the messages.create call.
   """
   max_tokens = inference_args.pop('max_tokens', 1024)
-  responses = []
-  for messages in batch:
-    response = client.messages.create(
+
+  def _request(messages: list[dict[str, str]]) -> Any:
+    return client.messages.create(
         model=model_name,
         max_tokens=max_tokens,
         messages=messages,
         **inference_args)
-    responses.append(response)
-  return responses
+
+  return _fan_out(_request, batch)
 
 
 class AnthropicModelHandler(RemoteModelHandler[Any, PredictionResult,
