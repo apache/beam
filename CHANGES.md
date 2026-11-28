@@ -155,6 +155,9 @@
 
 ## Bugfixes
 
+* (Python) Fixed `BigTableEnrichmentHandler` coercing `None` lookup keys to literal `b'None'` and reporting a blank field name in the missing `row_key` `KeyError` ([#41346](https://github.com/apache/beam/issues/41346)).
+
+
 * (Python) Fixed `WriteToBigQuery` rejecting string schemas that include spaces around field names or types, for example `name: STRING` ([#25704](https://github.com/apache/beam/issues/25704)).
 * (Java) Fixed `Combine.perKey` failing on the Spark 4 runner in batch with `Couldn't find method fromByteArray` for keys without a native Spark encoder, for example a `KV` or `Void` key ([#41466](https://github.com/apache/beam/issues/41466)).
 * (Python) Fixed `WatchFilePattern` comparing model files only against their own path, so an older model could be chosen and a poll that saw several models could crash `RunInference` (`AsSingleton` requires one value). Workers compare file times with the pipeline construction time sent with the job, so a model uploaded after submission is not treated as a file that already existed ([#40638](https://github.com/apache/beam/issues/40638)).
