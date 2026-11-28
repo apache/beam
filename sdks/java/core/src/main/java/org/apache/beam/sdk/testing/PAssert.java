@@ -1324,6 +1324,12 @@ public class PAssert {
   private static class GroupGlobally<T>
       extends PTransform<PCollection<T>, PCollection<Iterable<ValueInSingleWindow<T>>>>
       implements Serializable {
+    /**
+     * The single key all elements are grouped under so the assertion sees them together. Its value
+     * has no meaning.
+     */
+    private static final int SINGLETON_KEY = 42;
+
     private final AssertionWindows rewindowingStrategy;
 
     public GroupGlobally(AssertionWindows rewindowingStrategy) {
@@ -1332,8 +1338,6 @@ public class PAssert {
 
     @Override
     public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input) {
-      final int combinedKey = 42;
-
       if (input.getWindowingStrategy().equals(WindowingStrategy.globalDefault())
           && rewindowingStrategy instanceof IntoGlobalWindow) {
         // If we don't have to worry about complicated triggering semantics we can generate
@@ -1363,7 +1367,7 @@ public class PAssert {
                         .triggering(Never.ever())
                         .discardingFiredPanes()
                     : Window.<Iterable<ValueInSingleWindow<T>>>configure())
-            .apply(WithKeys.of(combinedKey))
+            .apply(WithKeys.of(SINGLETON_KEY))
             .apply(GroupByKey.create())
             .apply(Values.create())
             .apply(ParDo.of(new ConcatFn<>()));
@@ -1387,7 +1391,7 @@ public class PAssert {
               .apply(rewindowingStrategy.prepareActuals())
               .apply("GatherAllOutputs", GatherAllPanes.globally())
               .apply("RewindowActuals", rewindowingStrategy.windowActuals())
-              .apply("KeyForDummy", WithKeys.of(combinedKey))
+              .apply("KeyForDummy", WithKeys.of(SINGLETON_KEY))
               .apply("RemoveActualsTriggering", removeTriggering);
 
       // Create another non-empty PCollection that is keyed with a distinct dummy key
@@ -1397,7 +1401,7 @@ public class PAssert {
               .apply(
                   Create.of(
                           KV.of(
-                              combinedKey,
+                              SINGLETON_KEY,
                               (Iterable<ValueInSingleWindow<T>>)
                                   Collections.<ValueInSingleWindow<T>>emptyList()))
                       .withCoder(groupedContents.getCoder()))
