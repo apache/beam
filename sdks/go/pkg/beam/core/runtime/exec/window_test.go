@@ -80,6 +80,21 @@ func TestAssignWindow(t *testing.T) {
 			[]typex.Window{window.IntervalWindow{Start: 0, End: 120000}},
 		},
 		{
+			window.NewFixedWindows(time.Minute),
+			-60000,
+			[]typex.Window{window.IntervalWindow{Start: -60000, End: 0}},
+		},
+		{
+			window.NewFixedWindows(time.Minute),
+			-60001,
+			[]typex.Window{window.IntervalWindow{Start: -120000, End: -60000}},
+		},
+		{
+			window.NewFixedWindows(time.Minute),
+			-150000,
+			[]typex.Window{window.IntervalWindow{Start: -180000, End: -120000}},
+		},
+		{
 			window.NewSlidingWindows(time.Minute, 3*time.Minute),
 			0,
 			[]typex.Window{
@@ -104,6 +119,24 @@ func TestAssignWindow(t *testing.T) {
 				window.IntervalWindow{Start: 60000, End: 240000},
 				window.IntervalWindow{Start: 0, End: 180000},
 				window.IntervalWindow{Start: -60000, End: 120000},
+			},
+		},
+		{
+			window.NewSlidingWindows(time.Minute, 3*time.Minute),
+			-60000,
+			[]typex.Window{
+				window.IntervalWindow{Start: -60000, End: 120000},
+				window.IntervalWindow{Start: -120000, End: 60000},
+				window.IntervalWindow{Start: -180000, End: 0},
+			},
+		},
+		{
+			window.NewSlidingWindows(time.Minute, 3*time.Minute),
+			-123,
+			[]typex.Window{
+				window.IntervalWindow{Start: -60000, End: 120000},
+				window.IntervalWindow{Start: -120000, End: 60000},
+				window.IntervalWindow{Start: -180000, End: 0},
 			},
 		},
 		{
@@ -147,6 +180,12 @@ func TestMapWindow(t *testing.T) {
 			window.NewFixedWindows(1000 * time.Millisecond),
 			window.IntervalWindow{Start: 0, End: 100},
 			window.IntervalWindow{Start: 0, End: 1000},
+		},
+		{
+			"interval to interval before epoch",
+			window.NewFixedWindows(1000 * time.Millisecond),
+			window.IntervalWindow{Start: -2000, End: -1500},
+			window.IntervalWindow{Start: -2000, End: -1000},
 		},
 		{
 			"interval to sliding within first",

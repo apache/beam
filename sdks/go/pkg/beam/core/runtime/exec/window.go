@@ -63,7 +63,7 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 		return window.SingleGlobalWindow
 
 	case window.FixedWindows:
-		start := ts - (ts.Add(wfn.Size) % mtime.FromDuration(wfn.Size))
+		start := ts - floorMod(ts, mtime.FromDuration(wfn.Size))
 		end := mtime.Min(start.Add(wfn.Size), mtime.EndOfGlobalWindowTime.Add(time.Millisecond))
 		return []typex.Window{window.IntervalWindow{Start: start, End: end}}
 
@@ -71,7 +71,7 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 		var ret []typex.Window
 
 		period := mtime.FromDuration(wfn.Period)
-		lastStart := ts - (ts % period)
+		lastStart := ts - floorMod(ts, period)
 		for start := lastStart; start > ts.Subtract(wfn.Size); start -= period {
 			ret = append(ret, window.IntervalWindow{Start: start, End: start.Add(wfn.Size)})
 		}
@@ -85,6 +85,16 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))
 	}
+}
+
+// floorMod returns t modulo n in [0, n), also for a t before the epoch. Go's % operator rounds
+// toward zero and gives a negative result there, which would start the window after t.
+func floorMod(t, n mtime.Time) mtime.Time {
+	m := t % n
+	if m < 0 {
+		m += n
+	}
+	return m
 }
 
 func (w *WindowInto) FinishBundle(ctx context.Context) error {
