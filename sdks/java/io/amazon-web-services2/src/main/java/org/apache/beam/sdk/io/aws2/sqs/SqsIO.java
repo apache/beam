@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -660,16 +661,24 @@ public class SqsIO {
       }
 
       public void finishBundle() throws Throwable {
-        if (expirationCheck != null) {
+        if (scheduler != null && expirationCheck != null) {
           expirationCheck.cancel(false);
+          // ScheduledFuture.get() throws CancellationException immediately even if an execution is
+          // still running on the single-threaded scheduler. Wait on a barrier task so any in-flight
+          // submitExpired() completes before submitAll() accesses batches.
+          Future<?> barrier = scheduler.submit(() -> {});
           while (true) {
             try {
-              expirationCheck.get(EXPIRATION_CHECK_TIMEOUT_SECS, TimeUnit.SECONDS);
+              barrier.get(EXPIRATION_CHECK_TIMEOUT_SECS, TimeUnit.SECONDS);
+              break;
             } catch (TimeoutException e) {
               LOG.warn("Waiting for timeout check to complete");
-            } catch (CancellationException e) {
-              break; // scheduled checks completed after cancellation
             }
+          }
+          try {
+            expirationCheck.get();
+          } catch (CancellationException e) {
+            // scheduled checks completed after cancellation
           }
         }
         // safe to write remaining batches without risking to encounter locked ones
