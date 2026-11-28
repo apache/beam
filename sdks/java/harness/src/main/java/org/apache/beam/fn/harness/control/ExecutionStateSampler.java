@@ -20,12 +20,12 @@ package org.apache.beam.fn.harness.control;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -93,7 +93,6 @@ public class ExecutionStateSampler {
   private final long userSpecifiedLullTimeMsForRestart;
   private final boolean userSpecifiedTimeoutForRestart;
 
-  @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
 
   private final Future<Void> stateSamplingThread;
@@ -112,7 +111,7 @@ public class ExecutionStateSampler {
             ? DEFAULT_SAMPLING_PERIOD_MS
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
-    this.activeStateTrackers = new HashSet<>();
+    this.activeStateTrackers = ConcurrentHashMap.newKeySet();
 
     int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeoutMinutes();
     if (timeoutOption <= 0) {
@@ -215,11 +214,9 @@ public class ExecutionStateSampler {
       } else {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
         Optional<String> timeoutMsg = Optional.empty();
-        synchronized (activeStateTrackers) {
-          for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            if (!timeoutMsg.isPresent()) {
-              timeoutMsg = activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
-            }
+        for (ExecutionStateTracker activeTracker : activeStateTrackers) {
+          if (!timeoutMsg.isPresent()) {
+            timeoutMsg = activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
           }
         }
         if (timeoutMsg.isPresent() && this.onTimeoutExceededCallback != null) {
@@ -337,8 +334,13 @@ public class ExecutionStateSampler {
     private final AtomicReference<@Nullable ExecutionStateImpl> currentStateLazy;
     // If an exception occurs, this will be to state at the time of exception.
     private boolean inErrorState = false;
-    // Read and written by the ExecutionStateSampler thread
+
+    // Read and written by the ExecutionStateSampler thread and reset() under this tracker's monitor
+    @GuardedBy("this")
     private long transitionsAtLastSample;
+
+    // Whether this tracker is currently actively tracking a bundle.
+    private volatile boolean active;
 
     // Ignore the @UnderInitialization for ExecutionStateTracker since it will be initialized by the
     // time this method returns and no references are leaked to other threads during construction.
@@ -397,7 +399,11 @@ public class ExecutionStateSampler {
      * @param millisSinceLastSample the time since the last sample was reported. As an
      *     approximation, all of that time should be associated with this state.
      */
-    private Optional<String> takeSample(long currentTimeMillis, long millisSinceLastSample) {
+    private synchronized Optional<String> takeSample(
+        long currentTimeMillis, long millisSinceLastSample) {
+      if (!active) {
+        return Optional.empty();
+      }
       ExecutionStateImpl currentExecutionState = currentStateLazy.get();
       if (currentExecutionState != null) {
         currentExecutionState.takeSample(millisSinceLastSample);
@@ -533,8 +539,7 @@ public class ExecutionStateSampler {
       // Read by the ExecutionStateSampler, written by the bundle processing thread frequently.
       private final AtomicLong lazyMsecs;
 
-      @GuardedBy("this")
-      private boolean hasReportedValue;
+      private volatile boolean hasReportedValue;
 
       @GuardedBy("this")
       private long lastReportedValue;
@@ -582,11 +587,13 @@ public class ExecutionStateSampler {
         hasReportedValue = true;
       }
 
-      public synchronized void reset() {
+      public void reset() {
         if (hasReportedValue) {
-          msecs = 0;
-          lazyMsecs.set(0);
-          lastReportedValue = 0;
+          synchronized (this) {
+            msecs = 0;
+            lazyMsecs.set(0);
+            lastReportedValue = 0;
+          }
         }
       }
 
@@ -637,22 +644,21 @@ public class ExecutionStateSampler {
       this.startTimeMillis.lazySet(nowMillis);
       this.lastTransitionTimeMillis.lazySet(nowMillis);
       this.trackedThread.lazySet(Thread.currentThread());
-      synchronized (activeStateTrackers) {
-        activeStateTrackers.add(this);
-      }
+      this.active = true;
+      activeStateTrackers.add(this);
     }
 
     @Override
     public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
-      for (ExecutionStateImpl executionState : executionStates) {
-        executionState.updateMonitoringData(monitoringData);
+      for (int i = 0, size = executionStates.size(); i < size; i++) {
+        executionStates.get(i).updateMonitoringData(monitoringData);
       }
     }
 
     @Override
     public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
-      for (ExecutionStateImpl executionState : executionStates) {
-        executionState.updateMonitoringData(monitoringData);
+      for (int i = 0, size = executionStates.size(); i < size; i++) {
+        executionStates.get(i).updateMonitoringData(monitoringData);
       }
     }
 
@@ -662,10 +668,11 @@ public class ExecutionStateSampler {
      */
     @Override
     public void reset() {
-      synchronized (activeStateTrackers) {
-        activeStateTrackers.remove(this);
-        for (ExecutionStateImpl executionState : executionStates) {
-          executionState.reset();
+      activeStateTrackers.remove(this);
+      synchronized (this) {
+        this.active = false;
+        for (int i = 0, size = executionStates.size(); i < size; i++) {
+          executionStates.get(i).reset();
         }
         this.transitionsAtLastSample = 0;
       }

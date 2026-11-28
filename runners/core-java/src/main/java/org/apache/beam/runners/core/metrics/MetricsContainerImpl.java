@@ -39,6 +39,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -523,64 +524,85 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   }
 
   public Map<String, ByteString> getMonitoringData(ShortIdMap shortIds) {
+    if (counters.isEmpty()
+        && distributions.isEmpty()
+        && gauges.isEmpty()
+        && stringSets.isEmpty()
+        && boundedTries.isEmpty()
+        && histograms.isEmpty()) {
+      return Collections.emptyMap();
+    }
     ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
-    counters.forEach(
-        (metricName, counterCell) -> {
-          if (counterCell.getDirty().beforeCommit()) {
-            String shortId = getShortId(metricName, this::counterToMonitoringMetadata, shortIds);
-            if (shortId != null) {
-              builder.put(shortId, encodeInt64Counter(counterCell.getCumulative()));
+    if (!counters.isEmpty()) {
+      counters.forEach(
+          (metricName, counterCell) -> {
+            if (counterCell.getDirty().beforeCommit()) {
+              String shortId = getShortId(metricName, this::counterToMonitoringMetadata, shortIds);
+              if (shortId != null) {
+                builder.put(shortId, encodeInt64Counter(counterCell.getCumulative()));
+              }
             }
-          }
-        });
-    distributions.forEach(
-        (metricName, distributionCell) -> {
-          if (distributionCell.getDirty().beforeCommit()) {
-            String shortId =
-                getShortId(metricName, this::distributionToMonitoringMetadata, shortIds);
-            if (shortId != null) {
-              builder.put(shortId, encodeInt64Distribution(distributionCell.getCumulative()));
+          });
+    }
+    if (!distributions.isEmpty()) {
+      distributions.forEach(
+          (metricName, distributionCell) -> {
+            if (distributionCell.getDirty().beforeCommit()) {
+              String shortId =
+                  getShortId(metricName, this::distributionToMonitoringMetadata, shortIds);
+              if (shortId != null) {
+                builder.put(shortId, encodeInt64Distribution(distributionCell.getCumulative()));
+              }
             }
-          }
-        });
-    gauges.forEach(
-        (metricName, gaugeCell) -> {
-          if (gaugeCell.getDirty().beforeCommit()) {
-            String shortId = getShortId(metricName, this::gaugeToMonitoringMetadata, shortIds);
-            if (shortId != null) {
-              builder.put(shortId, encodeInt64Gauge(gaugeCell.getCumulative()));
+          });
+    }
+    if (!gauges.isEmpty()) {
+      gauges.forEach(
+          (metricName, gaugeCell) -> {
+            if (gaugeCell.getDirty().beforeCommit()) {
+              String shortId = getShortId(metricName, this::gaugeToMonitoringMetadata, shortIds);
+              if (shortId != null) {
+                builder.put(shortId, encodeInt64Gauge(gaugeCell.getCumulative()));
+              }
             }
-          }
-        });
-    stringSets.forEach(
-        (metricName, stringSetCell) -> {
-          if (stringSetCell.getDirty().beforeCommit()) {
-            String shortId = getShortId(metricName, this::stringSetToMonitoringMetadata, shortIds);
-            if (shortId != null) {
-              builder.put(shortId, encodeStringSet(stringSetCell.getCumulative()));
+          });
+    }
+    if (!stringSets.isEmpty()) {
+      stringSets.forEach(
+          (metricName, stringSetCell) -> {
+            if (stringSetCell.getDirty().beforeCommit()) {
+              String shortId =
+                  getShortId(metricName, this::stringSetToMonitoringMetadata, shortIds);
+              if (shortId != null) {
+                builder.put(shortId, encodeStringSet(stringSetCell.getCumulative()));
+              }
             }
-          }
-        });
-    boundedTries.forEach(
-        (metricName, boundedTrieCell) -> {
-          if (boundedTrieCell.getDirty().beforeCommit()) {
-            String shortId =
-                getShortId(metricName, this::boundedTrieToMonitoringMetadata, shortIds);
-            if (shortId != null) {
-              builder.put(shortId, encodeBoundedTrie(boundedTrieCell.getCumulative()));
+          });
+    }
+    if (!boundedTries.isEmpty()) {
+      boundedTries.forEach(
+          (metricName, boundedTrieCell) -> {
+            if (boundedTrieCell.getDirty().beforeCommit()) {
+              String shortId =
+                  getShortId(metricName, this::boundedTrieToMonitoringMetadata, shortIds);
+              if (shortId != null) {
+                builder.put(shortId, encodeBoundedTrie(boundedTrieCell.getCumulative()));
+              }
             }
-          }
-        });
-    histograms.forEach(
-        (metricName, histogramCell) -> {
-          if (histogramCell.getDirty().beforeCommit()) {
-            String shortId =
-                getShortId(metricName.getKey(), this::histogramToMonitoringMetadata, shortIds);
-            if (shortId != null) {
-              builder.put(shortId, encodeInt64Histogram(histogramCell.getCumulative()));
+          });
+    }
+    if (!histograms.isEmpty()) {
+      histograms.forEach(
+          (metricName, histogramCell) -> {
+            if (histogramCell.getDirty().beforeCommit()) {
+              String shortId =
+                  getShortId(metricName.getKey(), this::histogramToMonitoringMetadata, shortIds);
+              if (shortId != null) {
+                builder.put(shortId, encodeInt64Histogram(histogramCell.getCumulative()));
+              }
             }
-          }
-        });
+          });
+    }
     return builder.build();
   }
 

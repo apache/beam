@@ -19,9 +19,12 @@ package org.apache.beam.runners.core.metrics;
 
 import static java.util.stream.Collectors.toList;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,8 +51,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class MetricsContainerStepMap implements Serializable {
 
-  private Map<String, MetricsContainerImpl> metricsContainers;
+  private final Map<String, MetricsContainerImpl> metricsContainers;
   private MetricsContainerImpl unboundContainer = new MetricsContainerImpl(null);
+
+  @SuppressFBWarnings(
+      value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
+      justification = "Lazily repopulated on demand in getContainersSnapshot()")
+  private transient volatile @Nullable List<MetricsContainerImpl> cachedContainers =
+      Collections.emptyList();
 
   public MetricsContainerStepMap() {
     this.metricsContainers = new ConcurrentHashMap<>();
@@ -67,8 +76,36 @@ public class MetricsContainerStepMap implements Serializable {
       // rely on an empty step name today.
       return getUnboundContainer();
     }
-    return metricsContainers.computeIfAbsent(
-        stepName, (String name) -> new MetricsContainerImpl(name));
+    MetricsContainerImpl container = metricsContainers.get(stepName);
+    if (container == null) {
+      synchronized (this) {
+        container = metricsContainers.get(stepName);
+        if (container == null) {
+          container = new MetricsContainerImpl(stepName);
+          metricsContainers.put(stepName, container);
+          cachedContainers = null;
+        }
+      }
+    }
+    return container;
+  }
+
+  private List<MetricsContainerImpl> getContainersSnapshot() {
+    List<MetricsContainerImpl> snapshot = cachedContainers;
+    if (snapshot != null) {
+      return snapshot;
+    }
+    synchronized (this) {
+      snapshot = cachedContainers;
+      if (snapshot == null) {
+        snapshot =
+            metricsContainers.isEmpty()
+                ? Collections.emptyList()
+                : new ArrayList<>(metricsContainers.values());
+        cachedContainers = snapshot;
+      }
+      return snapshot;
+    }
   }
 
   /**
@@ -92,7 +129,10 @@ public class MetricsContainerStepMap implements Serializable {
 
   /** Reset the metric containers. */
   public void reset() {
-    metricsContainers.forEach((key, value) -> value.reset());
+    List<MetricsContainerImpl> containers = getContainersSnapshot();
+    for (int i = 0, size = containers.size(); i < size; i++) {
+      containers.get(i).reset();
+    }
     unboundContainer.reset();
   }
 
@@ -201,9 +241,28 @@ public class MetricsContainerStepMap implements Serializable {
   /** Return the cumulative values for any metrics in this container as MonitoringInfo data. */
   public Map<String, ByteString> getMonitoringData(ShortIdMap shortIds) {
     // Extract user metrics and store as MonitoringInfos.
-    ImmutableMap.Builder<String, ByteString> builder = ImmutableMap.builder();
-    forEachMetricContainer((container) -> builder.putAll(container.getMonitoringData(shortIds)));
-    return builder.build();
+    Map<String, ByteString> unboundData = unboundContainer.getMonitoringData(shortIds);
+    List<MetricsContainerImpl> containers = getContainersSnapshot();
+    if (containers.isEmpty()) {
+      return unboundData;
+    }
+    ImmutableMap.Builder<String, ByteString> builder = null;
+    for (int i = 0, size = containers.size(); i < size; i++) {
+      Map<String, ByteString> data = containers.get(i).getMonitoringData(shortIds);
+      if (!data.isEmpty()) {
+        if (builder == null) {
+          builder = ImmutableMap.builder();
+        }
+        builder.putAll(data);
+      }
+    }
+    if (!unboundData.isEmpty()) {
+      if (builder == null) {
+        return unboundData;
+      }
+      builder.putAll(unboundData);
+    }
+    return builder == null ? Collections.emptyMap() : builder.build();
   }
 
   @Override
