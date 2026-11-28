@@ -374,7 +374,7 @@ func TriggerAfterSynchronizedProcessingTime(s beam.Scope) {
 	con.AddElements(12000, 5.0, 8.0)
 
 	col := teststream.Create(s, con)
-	trigger := trigger.Repeat(trigger.AfterSynchronizedProcessingTime())
+	trigger := trigger.AfterSynchronizedProcessingTime()
 	windowSize := 10 * time.Second
 	validateCount(s.Scope("Global"), window.NewFixedWindows(windowSize), col,
 		[]beam.WindowIntoOption{
