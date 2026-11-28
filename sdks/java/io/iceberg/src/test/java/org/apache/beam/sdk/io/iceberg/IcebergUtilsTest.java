@@ -320,6 +320,67 @@ public class IcebergUtilsTest {
           "2024-10-08 09:51:20.053Z",
           Types.TimestampType.withZone(),
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
+      // Schema.FieldType.STRING, with a zone ID or an offset after a space
+      for (String zoned :
+          Arrays.asList(
+              "2024-10-08 09:51:20.053 UTC",
+              "2024-10-08T09:51:20.053 UTC",
+              "2024-10-08 05:51:20.053 America/New_York",
+              "2024-10-08 13:18:20.053 +03:27",
+              "2024-10-08 09:51:20.053 Z")) {
+        checkRowValueToRecordValue(
+            Schema.FieldType.STRING,
+            zoned,
+            Types.TimestampType.withZone(),
+            offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+      }
+    }
+
+    @Test
+    public void testTimestampWithZoneStringWithoutExactlyOneOffsetOrZoneId() {
+      for (String val :
+          Arrays.asList(
+              "2024-10-08T09:51:20.053",
+              "2024-10-08 09:51:20.053",
+              "2024-10-08 09:51:20.053Z UTC",
+              "2024-10-08 13:18:20.053+03:27 America/New_York",
+              "2024-10-08T13:18:20.053+03:27 UTC")) {
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val));
+      }
+    }
+
+    @Test
+    public void testTimestampWithZoneStringAtDaylightSavingTransition() {
+      // 02:30 does not exist in New York on 2024-03-10 and is shifted forward to 03:30 EDT.
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-03-10 02:30:00 America/New_York",
+          Types.TimestampType.withZone(),
+          OffsetDateTime.of(2024, 3, 10, 7, 30, 0, 0, ZoneOffset.UTC));
+      // 01:30 occurs twice in New York on 2024-11-03 and resolves to the earlier offset, EDT.
+      checkRowValueToRecordValue(
+          Schema.FieldType.STRING,
+          "2024-11-03 01:30:00 America/New_York",
+          Types.TimestampType.withZone(),
+          OffsetDateTime.of(2024, 11, 3, 5, 30, 0, 0, ZoneOffset.UTC));
+    }
+
+    @Test
+    public void testTimestampWithZoneStringWithInvalidZone() {
+      for (String val :
+          Arrays.asList(
+              "2024-10-08 09:51:20.053 ",
+              "2024-10-08 09:51:20.053UTC",
+              "2024-10-08 09:51:20.053 utc",
+              "2024-10-08 09:51:20.053 Mars/Olympus",
+              "2024-10-08 09:51:20.053[UTC]")) {
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val));
+      }
     }
 
     @Test
@@ -333,6 +394,9 @@ public class IcebergUtilsTest {
         assertThrows(
             DateTimeParseException.class,
             () -> toIcebergRecord(Types.TimestampType.withZone(), val + "Z"));
+        assertThrows(
+            DateTimeParseException.class,
+            () -> toIcebergRecord(Types.TimestampType.withZone(), val + " UTC"));
       }
     }
 
