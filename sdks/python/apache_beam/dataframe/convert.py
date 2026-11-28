@@ -40,17 +40,29 @@ def to_dataframe(
     proxy: Optional[pd.core.generic.NDFrame] = None,
     label: Optional[str] = None,
 ) -> frame_base.DeferredFrame:
-  """Converts a PCollection to a deferred dataframe-like object, which can
-  manipulated with pandas methods like `filter` and `groupby`.
+  """Convert a schema-aware ``PCollection`` to a deferred pandas-like object.
+  When you omit ``proxy``, Beam infers an empty pandas proxy from the
+  collection's ``element_type`` and batches the schema-aware rows. This
+  conversion does not assign a schema to raw tuples.
 
-  For example, one might write::
+  For example, sum the amounts for each key::
 
-    pcoll = ...
-    df = to_dataframe(pcoll, proxy=...)
-    result = df.groupby('col').sum()
-    pcoll_result = to_pcollection(result)
+      import apache_beam as beam
+      from apache_beam.dataframe import convert
 
-  A proxy object must be given if the schema for the PCollection is not known.
+      with beam.Pipeline() as pipeline:
+          rows = pipeline | beam.Create([
+              beam.Row(key='a', amount=1),
+              beam.Row(key='a', amount=2),
+              beam.Row(key='b', amount=3),
+          ])
+          df = convert.to_dataframe(rows)
+          result = df.groupby('key').sum()
+          output = convert.to_pcollection(result, include_indexes=True)
+
+  If you pass ``proxy``, Beam does not batch the input. The ``PCollection``
+  must already contain pandas ``DataFrame`` or ``Series`` batches, and the
+  empty pandas proxy must match their structure and dtypes.
   """
   if proxy is None:
     if pcoll.element_type is None:
