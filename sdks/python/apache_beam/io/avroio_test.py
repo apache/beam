@@ -16,6 +16,7 @@
 #
 # pytype: skip-file
 
+import decimal
 import glob
 import json
 import logging
@@ -27,6 +28,7 @@ import re
 import shutil
 import tempfile
 import unittest
+import uuid
 from typing import Any
 
 import fastavro
@@ -62,6 +64,8 @@ from apache_beam.transforms.util import LogElements
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.typehints import schemas
 from datetime import datetime
+from datetime import time
+from datetime import timezone
 
 # Import snappy optionally; some tests will be skipped when import fails.
 try:
@@ -176,6 +180,105 @@ class AvroBase(object):
             | avroio.ReadFromAvro(path + '*', as_rows=True)
             | beam.Map(stable_repr))
         assert_that(readback, equal_to([stable_repr(r) for r in rows]))
+
+  def test_read_as_rows_with_logical_types(self):
+    ts = datetime(2024, 1, 2, 3, 4, 5, 678000, tzinfo=timezone.utc)
+    uid = uuid.UUID('12345678-1234-5678-1234-567812345678')
+    avro_schema = {
+        'type': 'record',
+        'name': 'T',
+        'fields': [
+            {
+                'name': 'ts_millis',
+                'type': {
+                    'type': 'long', 'logicalType': 'timestamp-millis'
+                }
+            },
+            {
+                'name': 'ts_micros',
+                'type': [
+                    'null', {
+                        'type': 'long', 'logicalType': 'timestamp-micros'
+                    }
+                ]
+            },
+            {
+                'name': 'day', 'type': {
+                    'type': 'int', 'logicalType': 'date'
+                }
+            },
+            {
+                'name': 'amount',
+                'type': {
+                    'type': 'bytes',
+                    'logicalType': 'decimal',
+                    'precision': 10,
+                    'scale': 2
+                }
+            },
+            {
+                'name': 'id', 'type': {
+                    'type': 'string', 'logicalType': 'uuid'
+                }
+            },
+            {
+                'name': 'time',
+                'type': {
+                    'type': 'int', 'logicalType': 'time-millis'
+                }
+            },
+        ]
+    }
+    records = [
+        {
+            'ts_millis': ts,
+            'ts_micros': ts,
+            'day': ts.date(),
+            'amount': decimal.Decimal('12.34'),
+            'id': uid,
+            'time': time(1, 2, 3)
+        },
+        {
+            'ts_millis': ts,
+            'ts_micros': None,
+            'day': ts.date(),
+            'amount': decimal.Decimal('-0.50'),
+            'id': uid,
+            'time': time(0, 0)
+        },
+    ]
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'logical.avro')
+      with open(path, 'wb') as f:
+        writer(f, parse_schema(avro_schema), records)
+      expected_ts = Timestamp.from_utc_datetime(ts)
+      with TestPipeline() as p:
+        readback = (
+            p
+            | avroio.ReadFromAvro(path, as_rows=True)
+            # Reshuffle so that the rows go through the RowCoder.
+            | beam.Reshuffle()
+            | beam.Map(
+                lambda r:
+                (r.ts_millis, r.ts_micros, r.day, r.amount, r.id, r.time)))
+        assert_that(
+            readback,
+            equal_to([
+                (
+                    expected_ts,
+                    expected_ts,
+                    ts.date(),
+                    decimal.Decimal('12.34'),
+                    str(uid),
+                    time(1, 2, 3)),
+                (
+                    expected_ts,
+                    None,
+                    ts.date(),
+                    decimal.Decimal('-0.50'),
+                    str(uid),
+                    time(0, 0)),
+            ]))
 
   @pytest.mark.xlang_sql_expansion_service
   @unittest.skipIf(
