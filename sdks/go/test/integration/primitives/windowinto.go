@@ -31,6 +31,7 @@ import (
 func init() {
 	register.Function4x2(sumPerKey)
 	register.Function3x0(sumSideInputs)
+	register.Function4x0(sumGroupWithSideInputs)
 	register.DoFn2x0[[]byte, func(beam.EventTime, string, int)](&createTimestampedData{})
 
 	register.Emitter3[beam.EventTime, string, int]()
@@ -138,6 +139,34 @@ func ValidateWindowedSideInputs(s beam.Scope) {
 	// ([2, 3], 3) = 5, 6
 	// ([3], -) = 3
 	validateSums(s.Scope("Sliding-Fixed"), window.NewSlidingWindows(windowSize, 2*windowSize), window.NewFixedWindows(windowSize), timestampedData, timestampedData, 2, 3, 4, 5, 6, 3)
+}
+
+// ValidateWindowedSideInputsAfterGBK checks that a transform after a GroupByKey reads the
+// side input of the window of each group, when an aggregation also produces the side input.
+func ValidateWindowedSideInputsAfterGBK(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3, 4, 5, 6}}, beam.Impulse(s))
+
+	// Two elements per window: (1, 2), (3, 4) and (5, 6).
+	windowed := beam.WindowInto(s, window.NewFixedWindows(2*time.Second), timestampedData)
+	windowSums := stats.Sum(s, beam.DropKey(s, windowed))
+
+	grouped := beam.GroupByKey(s, windowed)
+	sums := beam.ParDo(s, sumGroupWithSideInputs, grouped, beam.SideInput{Input: windowSums})
+
+	sums = beam.WindowInto(s, window.NewGlobalWindows(), sums)
+	// Each group adds its own sum to the sum of its window from the side input.
+	passert.Equals(s, sums, 6, 14, 22)
+}
+
+func sumGroupWithSideInputs(_ string, values func(*int) bool, side func(*int) bool, emit func(int)) {
+	var v, sum int
+	for values(&v) {
+		sum += v
+	}
+	for side(&v) {
+		sum += v
+	}
+	emit(sum)
 }
 
 func sumSideInputs(input int, iter func(*int) bool, emit func(int)) {

@@ -1940,10 +1940,48 @@ func (ss *stageState) startEventTimeBundle(watermark mtime.Time, genBundID func(
 }
 
 // buildEventTimeBundle for ordinary stages processes all pending elements.
+// A stage with side inputs holds the elements whose side inputs aren't ready.
 func (*ordinaryStageKind) buildEventTimeBundle(ss *stageState, watermark mtime.Time) (toProcess elementHeap, minTs mtime.Time, newKeys set[string], holdsInBundle map[mtime.Time]int, _ []bundlePane, schedulable bool, pendingAdjustment int) {
-	toProcess = ss.pending
-	ss.pending = nil
-	return toProcess, mtime.MaxTimestamp, nil, nil, nil, true, 0
+	if len(ss.sides) == 0 {
+		toProcess = ss.pending
+		ss.pending = nil
+		return toProcess, mtime.MaxTimestamp, nil, nil, nil, true, 0
+	}
+	var held elementHeap
+	for _, e := range ss.pending {
+		if ss.sideInputsReadyLocked(e, watermark) {
+			toProcess = append(toProcess, e)
+		} else {
+			held = append(held, e)
+		}
+	}
+	// A subset of a heap isn't necessarily a heap.
+	heap.Init(&toProcess)
+	heap.Init(&held)
+	ss.pending = held
+	// Held elements need a watermark change, which refreshes this stage. Don't
+	// reschedule for them alone, or the stage keeps building empty bundles.
+	return toProcess, mtime.MaxTimestamp, nil, nil, nil, len(toProcess) > 0 || len(held) == 0, 0
+}
+
+// sideInputsReadyLocked reports whether a data element may be processed at the
+// given watermark, with respect to the side inputs of the stage.
+//
+// A bundle reads the side input windows that the watermark has passed, as
+// provided by GetSideData. An element in a window that ends after the watermark
+// would read an empty side input for its window, so it's held until the
+// watermark passes the end of its window. Elements in the global window are
+// always ready, since global side input data is always provided.
+//
+// Stages without side inputs have nothing to wait for. Callers hold ss.mu.
+func (ss *stageState) sideInputsReadyLocked(e element, watermark mtime.Time) bool {
+	if len(ss.sides) == 0 {
+		return true
+	}
+	if _, ok := e.window.(window.GlobalWindow); ok {
+		return true
+	}
+	return e.window.MaxTimestamp() <= watermark
 }
 
 // buildEventTimeBundle for stateful stages, processes all elements that are before the input watermark time.
@@ -1986,6 +2024,10 @@ keysPerBundle:
 			}
 			if dnt.elements[0].IsData() && !ss.timeSortedDataReadyLocked(dnt.elements[0].timestamp, watermark) {
 				// Hold data, and anything after it, until it can be time sorted.
+				break
+			}
+			if dnt.elements[0].IsData() && !ss.sideInputsReadyLocked(dnt.elements[0], watermark) {
+				// Hold data, and anything after it, until its side inputs are ready.
 				break
 			}
 			e := heap.Pop(&dnt.elements).(element)
@@ -2055,7 +2097,7 @@ func (ss *stageState) hasBuildableDataLocked(watermark mtime.Time) bool {
 			continue
 		}
 		e := dnt.elements[0]
-		if e.IsData() && ss.timeSortedDataReadyLocked(e.timestamp, watermark) {
+		if e.IsData() && ss.timeSortedDataReadyLocked(e.timestamp, watermark) && ss.sideInputsReadyLocked(e, watermark) {
 			return true
 		}
 		if e.IsTimer() && e.timestamp <= watermark {
