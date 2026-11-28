@@ -37,6 +37,7 @@ import zstandard
 from parameterized import param
 from parameterized import parameterized
 
+from apache_beam.io.filesystem import DEFAULT_READ_BUFFER_SIZE
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
@@ -510,6 +511,66 @@ atomized in instants hammered around the
         data = compressed_fd.read()
 
         self.assertEqual(data, self.content)
+
+  @parameterized.expand([
+      CompressionTypes.BZIP2,
+      CompressionTypes.DEFLATE,
+      CompressionTypes.GZIP,
+      CompressionTypes.ZSTD,
+      CompressionTypes.LZMA,
+  ])
+  def test_read_all(self, compression_type):
+    file_name = self._create_compressed_file(compression_type, self.content)
+    for size in (None, -1, -99):
+      for offset in (0, 5):
+        with self.subTest(size=size, offset=offset):
+          with open(file_name, 'rb') as f:
+            readable = CompressedFile(
+                f, compression_type, read_size=self.read_block_size)
+            self.assertEqual(readable.read(0), b'')
+            self.assertEqual(readable.read(offset), self.content[:offset])
+            self.assertEqual(readable.read(size), self.content[offset:])
+            self.assertEqual(readable.tell(), len(self.content))
+            self.assertEqual(readable.read(size), b'')
+            readable.seek(0)
+            self.assertEqual(readable.read(size), self.content)
+
+  @parameterized.expand([
+      CompressionTypes.BZIP2,
+      CompressionTypes.DEFLATE,
+      CompressionTypes.GZIP,
+      CompressionTypes.ZSTD,
+      CompressionTypes.LZMA,
+  ])
+  def test_read_all_empty(self, compression_type):
+    file_name = self._create_compressed_file(compression_type, b'')
+    for size in (None, -1, -99):
+      with self.subTest(size=size):
+        with open(file_name, 'rb') as f:
+          readable = CompressedFile(f, compression_type)
+          self.assertEqual(readable.read(size), b'')
+          self.assertEqual(readable.tell(), 0)
+
+  @parameterized.expand([
+      CompressionTypes.BZIP2,
+      CompressionTypes.DEFLATE,
+      CompressionTypes.GZIP,
+      CompressionTypes.ZSTD,
+      CompressionTypes.LZMA,
+  ])
+  def test_read_all_concatenated_members(self, compression_type):
+    content = b'a' * DEFAULT_READ_BUFFER_SIZE
+    file_name = self._create_compressed_file(compression_type, content)
+    tail = self._create_compressed_file(compression_type, b'last row\n')
+    with open(file_name, 'ab') as destination, open(tail, 'rb') as source:
+      destination.write(source.read())
+
+    with open(file_name, 'rb') as f:
+      readable = CompressedFile(f, compression_type)
+      data = readable.read()
+      self.assertEqual(len(data), len(content) + len(b'last row\n'))
+      self.assertEqual(data, content + b'last row\n')
+      self.assertEqual(readable.read(), b'')
 
   def test_tell(self):
     lines = [b'line%d\n' % i for i in range(10)]
