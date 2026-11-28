@@ -32,7 +32,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Run Gradle Command
+    # Callers pass shell-quoted multi-word flags, line continuations, and $VAR env
+    # references from trusted repo workflows; zizmor.yml cannot scope ignores to a
+    # single composite action subpath (zizmor#1086).
+    - name: Run Gradle Command # zizmor: ignore[template-injection]
       shell: bash
       run: |
         # This step is a workaround to avoid a decryption issue of Beam's
