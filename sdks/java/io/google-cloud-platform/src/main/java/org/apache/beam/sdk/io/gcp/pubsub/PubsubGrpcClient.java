@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auth.Credentials;
+import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.CreateSchemaRequest;
@@ -223,24 +224,38 @@ public class PubsubGrpcClient extends PubsubClient {
     return cachedSchemaServiceStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
+  /**
+   * The message as {@link #publish} sends it, including the timestamp and id attributes that this
+   * client adds to the attributes of the outgoing message.
+   */
+  private PubsubMessage toPublishedMessage(OutgoingMessage outgoingMessage) {
+    PubsubMessage.Builder message =
+        outgoingMessage.getMessage().toBuilder().clearMessageId().clearPublishTime();
+
+    if (timestampAttribute != null) {
+      message.putAttributes(
+          timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
+    }
+
+    String recordId = outgoingMessage.recordId();
+    if (idAttribute != null && recordId != null && !recordId.isEmpty()) {
+      message.putAttributes(idAttribute, recordId);
+    }
+
+    return message.build();
+  }
+
+  @Override
+  public long publishRequestMessageSize(OutgoingMessage outgoingMessage) {
+    return CodedOutputStream.computeMessageSize(
+        PublishRequest.MESSAGES_FIELD_NUMBER, toPublishedMessage(outgoingMessage));
+  }
+
   @Override
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage.Builder message =
-          outgoingMessage.getMessage().toBuilder().clearMessageId().clearPublishTime();
-
-      if (timestampAttribute != null) {
-        message.putAttributes(
-            timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
-      }
-
-      String recordId = outgoingMessage.recordId();
-      if (idAttribute != null && recordId != null && !recordId.isEmpty()) {
-        message.putAttributes(idAttribute, recordId);
-      }
-
-      request.addMessages(message);
+      request.addMessages(toPublishedMessage(outgoingMessage));
     }
 
     PublishResponse response = publisherStub().publish(request.build());
