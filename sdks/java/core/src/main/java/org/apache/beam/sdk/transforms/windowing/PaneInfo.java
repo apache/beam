@@ -334,6 +334,8 @@ public final class PaneInfo {
       // NOTE: Do not reorder fields. The ordinal is used as part of
       // the encoding.
 
+      private static final Encoding[] VALUES = values();
+
       public final byte tag;
 
       Encoding() {
@@ -343,10 +345,10 @@ public final class PaneInfo {
 
       public static Encoding fromTag(byte b) throws CoderException {
         int index = b >> 4;
-        if (index < 0 || index >= values().length) {
+        if (index < 0 || index >= VALUES.length) {
           throw new CoderException("Invalid pane encoding " + index);
         }
-        return Encoding.values()[b >> 4];
+        return VALUES[index];
       }
     }
 
