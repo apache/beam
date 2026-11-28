@@ -277,6 +277,32 @@ class ArrowBatchConverterNestedRowWriteTest(unittest.TestCase):
             'city': 'NYC', 'zip': '10001'
         }), ('work', None)], None])
 
+  def test_produce_batch_with_rows_in_map_pairs(self):
+    address_type = self._address_type()
+    element_type = row_type.RowTypeConstraint.from_fields([
+        ('id', Optional[int]),
+        ('addresses', Optional[dict[str, Optional[address_type]]]),
+    ])
+    converter = BatchConverter.from_typehints(
+        element_type=element_type, batch_type=pa.Table)
+    elements = [
+        Row(
+            id=1,
+            addresses=[
+                ('home', Row(city='NYC', zip='10001')),
+                ('work', None),
+            ]),
+        Row(id=2, addresses=None),
+    ]
+
+    batch = converter.produce_batch(elements)
+
+    self.assertEqual(
+        batch.column('addresses').to_pylist(),
+        [[('home', {
+            'city': 'NYC', 'zip': '10001'
+        }), ('work', None)], None])
+
 
 class ArrowBatchConverterErrorsTest(unittest.TestCase):
   @parameterized.expand([
