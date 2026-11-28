@@ -47,6 +47,7 @@ import os
 from functools import partial
 from typing import Any
 from typing import Callable
+from typing import Optional
 from typing import Union
 
 import fastavro
@@ -689,7 +690,8 @@ def beam_schema_to_avro_schema(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
 
 
-def unnest_primitive_type(beam_type: schema_pb2.FieldType):
+def unnest_primitive_type(
+    beam_type: schema_pb2.FieldType, defined_names: Optional[set] = None):
   """unnests beam types that map to avro primitives or unions.
       
       if mapping to a avro primitive or a union, don't nest the field type
@@ -698,18 +700,28 @@ def unnest_primitive_type(beam_type: schema_pb2.FieldType):
       { 'type': 'array', 'items': 'string' } 
       -> { 'type': 'array', 'items': 'string' }
 
+      Nullable complex types become a union with null.
+
       Args:
         beam_type: the beam type to map to avro.
+        defined_names: names of the records already defined in the schema.
 
       Returns:
         the converted avro type with the primitive or union type unnested.
       """
-  avro_type = beam_type_to_avro_type(beam_type)
-  return avro_type['type'] if beam_type.WhichOneof(
-      "type_info") == "atomic_type" else avro_type
+  avro_type = beam_type_to_avro_type(beam_type, defined_names)
+  if beam_type.WhichOneof("type_info") == "atomic_type":
+    return avro_type['type']
+  if beam_type.nullable:
+    return [avro_type, 'null']
+  return avro_type
 
 
-def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
+def beam_type_to_avro_type(
+    beam_type: schema_pb2.FieldType,
+    defined_names: Optional[set] = None) -> _AvroSchemaType:
+  if defined_names is None:
+    defined_names = set()
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     avro_primitive = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
@@ -720,12 +732,14 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
   elif type_info == "array_type":
     return {
         'type': 'array',
-        'items': unnest_primitive_type(beam_type.array_type.element_type)
+        'items': unnest_primitive_type(
+            beam_type.array_type.element_type, defined_names)
     }
   elif type_info == "iterable_type":
     return {
         'type': 'array',
-        'items': unnest_primitive_type(beam_type.iterable_type.element_type)
+        'items': unnest_primitive_type(
+            beam_type.iterable_type.element_type, defined_names)
     }
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
@@ -734,14 +748,21 @@ def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
           f'found {beam_type}')
     return {
         'type': 'map',
-        'values': unnest_primitive_type(beam_type.map_type.element_type)
+        'values': unnest_primitive_type(
+            beam_type.map_type.value_type, defined_names)
     }
   elif type_info == "row_type":
+    name = beam_type.row_type.schema.id
+    # Avro allows a named type to be defined once; later uses refer to it.
+    if name in defined_names:
+      return name
+    defined_names.add(name)
     return {
         'type': 'record',
-        'name': beam_type.row_type.schema.id,
+        'name': name,
         'fields': [{
-            'name': field.name, 'type': unnest_primitive_type(field.type)
+            'name': field.name,
+            'type': unnest_primitive_type(field.type, defined_names)
         } for field in beam_type.row_type.schema.fields],
     }
   else:
@@ -761,6 +782,14 @@ def beam_row_to_avro_dict(
 
 
 def beam_value_to_avro_value(
+    beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
+  convert = _beam_value_to_avro_value(beam_type)
+  if beam_type.nullable and beam_type.WhichOneof("type_info") != "atomic_type":
+    return lambda value: None if value is None else convert(value)
+  return convert
+
+
+def _beam_value_to_avro_value(
     beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":

@@ -28,6 +28,10 @@ import shutil
 import tempfile
 import unittest
 from typing import Any
+from typing import Mapping
+from typing import NamedTuple
+from typing import Optional
+from typing import Sequence
 
 import fastavro
 import hamcrest as hc
@@ -62,6 +66,20 @@ from apache_beam.transforms.util import LogElements
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.typehints import schemas
 from datetime import datetime
+
+
+class _Point(NamedTuple):
+  x: int
+  y: int
+
+
+class _ComplexRow(NamedTuple):
+  counts: Mapping[str, int]
+  tags: Optional[Sequence[str]]
+  origin: Optional[_Point]
+  start: _Point
+  end: _Point
+
 
 # Import snappy optionally; some tests will be skipped when import fails.
 try:
@@ -268,6 +286,32 @@ class AvroBase(object):
     expected_fields = json.loads(self.SCHEMA_STRING)["fields"]
     hc.assert_that(
         converted_avro_schema["fields"], hc.equal_to(expected_fields))
+
+  def test_schema_write_map_nullable_and_repeated_row_fields(self):
+    rows = [
+        _ComplexRow({'a': 1}, ['x'], _Point(0, 0), _Point(1, 2), _Point(3, 4)),
+        _ComplexRow({}, None, None, _Point(5, 6), _Point(7, 8)),
+    ]
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      path = os.path.join(tmp_dirname, 'tmp_filename')
+      with TestPipeline() as p:
+        _ = (
+            p
+            | Create(rows).with_output_types(_ComplexRow)
+            | avroio.WriteToAvro(path, num_shards=1))
+      records = []
+      for file_name in glob.glob(path + '*'):
+        with open(file_name, 'rb') as f:
+          records.extend(fastavro.reader(f))
+    point = lambda p: {'x': p.x, 'y': p.y}
+    expected = [{
+        'counts': r.counts,
+        'tags': r.tags,
+        'origin': point(r.origin) if r.origin else None,
+        'start': point(r.start),
+        'end': point(r.end),
+    } for r in rows]
+    self.assertCountEqual(expected, records)
 
   def test_read_without_splitting(self):
     file_name = self._write_data()
