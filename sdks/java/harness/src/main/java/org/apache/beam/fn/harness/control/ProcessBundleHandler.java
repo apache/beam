@@ -79,6 +79,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsEnvironment.MetricsEnvironmentState;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -560,12 +561,23 @@ public class ProcessBundleHandler {
                 bundleProcessor.getInboundEndpointApiServiceDescriptors());
           }
 
-          // Need to reverse this since we want to call finish in topological order.
+          // Do not run @FinishBundle after a downstream failure was swallowed during element
+          // processing. Finish functions can flush state or write to external sinks.
+          bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
+
+          // Need to reverse this since we want to call finish in topological order. Check after
+          // each function as well, so a swallowed failure during @FinishBundle prevents later
+          // finish functions from running.
           for (ThrowingRunnable finishFunction :
               Lists.reverse(finishFunctionRegistry.getFunctions())) {
             LOG.debug("Finishing function {}", finishFunction);
             finishFunction.run();
+            bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
           }
+
+          // Surface a failure raised by the final @FinishBundle function before outbound data is
+          // finalized.
+          bundleProcessor.getpCollectionConsumerRegistry().failBundleIfDownstreamFailed();
 
           // If bundleProcessor has not flushed any elements, embed them in response.
           embedOutboundElementsIfApplicable(response, bundleProcessor);
@@ -598,6 +610,9 @@ public class ProcessBundleHandler {
         }
       }
 
+      // A warning is appropriate only once all bundle work has succeeded.
+      bundleProcessor.getpCollectionConsumerRegistry().logWarningIfDownstreamFailed();
+
       // Mark the bundle processor as re-usable.
       bundleProcessorCache.release(
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
@@ -615,7 +630,40 @@ public class ProcessBundleHandler {
       // Ensure that if more data arrives for the instruction it is discarded.
       beamFnDataClient.poisonInstructionId(instructionId);
       throw e;
+    } catch (Error e) {
+      LOG.debug(
+          "Error processing bundle {} with bundleProcessor for {} after error",
+          instructionId,
+          request.getProcessBundle().getProcessBundleDescriptorId(),
+          e);
+      if (bundleProcessor != null) {
+        // Make sure we clean up from the active set of bundle processors.
+        bundleProcessorCache.discard(bundleProcessor);
+      }
+      // Ensure that if more data arrives for the instruction it is discarded.
+      beamFnDataClient.poisonInstructionId(instructionId);
+      throw e;
     }
+  }
+
+  private static PCollectionConsumerRegistry.FusedDoFnExceptionHandling
+      getFusedDoFnExceptionHandling(PipelineOptions options) {
+    String value =
+        ExperimentalOptions.getExperimentValue(
+            options, ExperimentalOptions.FUSED_DOFN_EXCEPTION_HANDLING);
+    if (value == null || value.equalsIgnoreCase("legacy")) {
+      return PCollectionConsumerRegistry.FusedDoFnExceptionHandling.LEGACY;
+    }
+    if (value.equalsIgnoreCase("warn")) {
+      return PCollectionConsumerRegistry.FusedDoFnExceptionHandling.WARN;
+    }
+    if (value.equalsIgnoreCase("fail")) {
+      return PCollectionConsumerRegistry.FusedDoFnExceptionHandling.FAIL;
+    }
+    throw new IllegalArgumentException(
+        String.format(
+            "Unsupported value '%s' for experiment %s. Expected legacy, warn, or fail.",
+            value, ExperimentalOptions.FUSED_DOFN_EXCEPTION_HANDLING));
   }
 
   private void embedOutboundElementsIfApplicable(
@@ -803,13 +851,16 @@ public class ProcessBundleHandler {
         new MetricsEnvironmentStateForBundle();
     ExecutionStateTracker stateTracker = executionStateSampler.create();
     bundleProgressReporterAndRegistrar.register(stateTracker);
+    PCollectionConsumerRegistry.FusedDoFnExceptionHandling fusedDoFnExceptionHandling =
+        getFusedDoFnExceptionHandling(options);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         new PCollectionConsumerRegistry(
             stateTracker,
             shortIds,
             bundleProgressReporterAndRegistrar,
             bundleDescriptor,
-            dataSampler);
+            dataSampler,
+            fusedDoFnExceptionHandling);
     HashSet<String> processedPTransformIds = new HashSet<>();
 
     PTransformFunctionRegistry startFunctionRegistry =
@@ -817,6 +868,7 @@ public class ProcessBundleHandler {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(shortIds, stateTracker, Urns.FINISH_BUNDLE_MSECS);
     List<ThrowingRunnable> resetFunctions = new ArrayList<>();
+    resetFunctions.add(pCollectionConsumerRegistry::reset);
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections

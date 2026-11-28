@@ -123,6 +123,8 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerMap;
@@ -147,6 +149,8 @@ import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -933,6 +937,291 @@ public class ProcessBundleHandlerTest {
     // BundleProcessor is not re-added back to the BundleProcessorCache in case of an exception
     // during bundle processing
     assertThat(handler.bundleProcessorCache.getCachedBundleProcessors().get("1L"), empty());
+  }
+
+  private static final AtomicInteger FUSED_DOWNSTREAM_INVOCATIONS = new AtomicInteger();
+  private static final AtomicInteger FUSED_UPSTREAM_CAUGHT_EXCEPTIONS = new AtomicInteger();
+  private static final AtomicInteger FUSED_DOWNSTREAM_FINISH_INVOCATIONS = new AtomicInteger();
+
+  @Before
+  public void resetFusedExceptionTestCounters() {
+    FUSED_DOWNSTREAM_INVOCATIONS.set(0);
+    FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.set(0);
+    FUSED_DOWNSTREAM_FINISH_INVOCATIONS.set(0);
+  }
+
+  private static final class CatchingFusedDoFn extends DoFn<String, String> {
+    private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<>("mainOutput");
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      try {
+        context.output(context.element());
+      } catch (RuntimeException exception) {
+        FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.incrementAndGet();
+      }
+    }
+  }
+
+  private static final class ThrowingFusedDoFn extends DoFn<String, String> {
+    private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<>("mainOutput");
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      FUSED_DOWNSTREAM_INVOCATIONS.incrementAndGet();
+      throw new IllegalStateException("fused downstream failure");
+    }
+
+    @FinishBundle
+    public void finishBundle() {
+      FUSED_DOWNSTREAM_FINISH_INVOCATIONS.incrementAndGet();
+    }
+  }
+
+  private static PTransform fusedDoFnTransform(
+      String inputPCollection,
+      String outputPCollection,
+      DoFnWithExecutionInformation doFnWithExecutionInformation) {
+    RunnerApi.FunctionSpec doFnSpec =
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
+            .setPayload(
+                ByteString.copyFrom(
+                    SerializableUtils.serializeToByteArray(doFnWithExecutionInformation)))
+            .build();
+    ParDoPayload payload = ParDoPayload.newBuilder().setDoFn(doFnSpec).build();
+    return PTransform.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                .setPayload(payload.toByteString()))
+        .putInputs("input", inputPCollection)
+        .putOutputs("mainOutput", outputPCollection)
+        .build();
+  }
+
+  private ProcessBundleHandler setupHandlerForFusedExceptionTest(String exceptionHandling)
+      throws Exception {
+    TupleTag<String> upstreamTag = CatchingFusedDoFn.MAIN_OUTPUT_TAG;
+    TupleTag<String> downstreamTag = ThrowingFusedDoFn.MAIN_OUTPUT_TAG;
+    DoFnWithExecutionInformation upstream =
+        DoFnWithExecutionInformation.of(
+            new CatchingFusedDoFn(),
+            upstreamTag,
+            Collections.emptyMap(),
+            DoFnSchemaInformation.create());
+    DoFnWithExecutionInformation downstream =
+        DoFnWithExecutionInformation.of(
+            new ThrowingFusedDoFn(),
+            downstreamTag,
+            Collections.emptyMap(),
+            DoFnSchemaInformation.create());
+
+    ProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "source",
+                PTransform.newBuilder()
+                    .setSpec(FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .putOutputs("output", "pc-source")
+                    .build())
+            .putTransforms("upstream", fusedDoFnTransform("pc-source", "pc-upstream", upstream))
+            .putTransforms(
+                "downstream", fusedDoFnTransform("pc-upstream", "pc-downstream", downstream))
+            .putPcollections(
+                "pc-source",
+                PCollection.newBuilder()
+                    .setWindowingStrategyId("window-strategy")
+                    .setCoderId("string-coder")
+                    .setIsBounded(IsBounded.Enum.BOUNDED)
+                    .build())
+            .putPcollections(
+                "pc-upstream",
+                PCollection.newBuilder()
+                    .setWindowingStrategyId("window-strategy")
+                    .setCoderId("string-coder")
+                    .setIsBounded(IsBounded.Enum.BOUNDED)
+                    .build())
+            .putPcollections(
+                "pc-downstream",
+                PCollection.newBuilder()
+                    .setWindowingStrategyId("window-strategy")
+                    .setCoderId("string-coder")
+                    .setIsBounded(IsBounded.Enum.BOUNDED)
+                    .build())
+            .putWindowingStrategies(
+                "window-strategy",
+                WindowingStrategy.newBuilder()
+                    .setWindowCoderId("window-coder")
+                    .setWindowFn(
+                        FunctionSpec.newBuilder().setUrn("beam:window_fn:global_windows:v1"))
+                    .setOutputTime(OutputTime.Enum.END_OF_WINDOW)
+                    .setAccumulationMode(AccumulationMode.Enum.ACCUMULATING)
+                    .setTrigger(Trigger.newBuilder().setAlways(Always.getDefaultInstance()))
+                    .setClosingBehavior(ClosingBehavior.Enum.EMIT_ALWAYS)
+                    .setOnTimeBehavior(OnTimeBehavior.Enum.FIRE_ALWAYS)
+                    .build())
+            .putCoders("string-coder", CoderTranslation.toProto(StringUtf8Coder.of()).getCoder())
+            .putCoders(
+                "window-coder",
+                Coder.newBuilder()
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(ModelCoders.GLOBAL_WINDOW_CODER_URN)
+                            .build())
+                    .build())
+            .build();
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    if (exceptionHandling != null) {
+      options
+          .as(ExperimentalOptions.class)
+          .setExperiments(
+              Collections.singletonList(
+                  ExperimentalOptions.FUSED_DOFN_EXCEPTION_HANDLING + "=" + exceptionHandling));
+    }
+    Map<String, PTransformRunnerFactory> factories = Maps.newHashMap(REGISTERED_RUNNER_FACTORIES);
+    factories.put(
+        DATA_INPUT_URN,
+        context ->
+            context.addIncomingDataEndpoint(
+                ApiServiceDescriptor.getDefaultInstance(),
+                StringUtf8Coder.of(),
+                (String input) ->
+                    context
+                        .<WindowedValue<String>>getPCollectionConsumer("pc-source")
+                        .accept(WindowedValues.valueInGlobalWindow(input))));
+
+    return new ProcessBundleHandler(
+        options,
+        Collections.emptySet(),
+        unused -> descriptor,
+        beamFnDataClient,
+        null /* beamFnStateGrpcClientCache */,
+        null /* finalizeBundleHandler */,
+        new ShortIdMap(),
+        executionStateSampler,
+        factories,
+        Caches.noop(),
+        new BundleProcessorCache(Duration.ZERO),
+        null /* dataSampler */);
+  }
+
+  @Test
+  public void fusedDownstreamExceptionCaughtByUpstreamFailsBundleInFailMode() throws Exception {
+    ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("fail");
+    try {
+      // A single data block represents the complete encoded stream for this input endpoint.
+      // Encode both elements into that stream so the test exercises two distinct processElement
+      // invocations rather than relying on multiple embedded data blocks for one endpoint.
+      ByteStringOutputStream encodedElements = new ByteStringOutputStream();
+      StringUtf8Coder.of().encode("first", encodedElements);
+      StringUtf8Coder.of().encode("second", encodedElements);
+      Elements elements =
+          Elements.newBuilder()
+              .addData(
+                  Data.newBuilder()
+                      .setInstructionId("fused-fail")
+                      .setTransformId("source")
+                      .setData(encodedElements.toByteString())
+                      .setIsLast(true))
+              .build();
+
+      Exception failure =
+          assertThrows(
+              Exception.class,
+              () ->
+                  handler.processBundle(
+                      InstructionRequest.newBuilder()
+                          .setInstructionId("fused-fail")
+                          .setProcessBundle(
+                              ProcessBundleRequest.newBuilder()
+                                  .setProcessBundleDescriptorId("fused-descriptor")
+                                  .setElements(elements))
+                          .build()));
+      assertTrue(failure.toString(), failure.getMessage().contains("fused downstream failure"));
+      assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
+      assertEquals(2, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertEquals(
+          "A downstream failure during @ProcessElement must prevent @FinishBundle.",
+          0,
+          FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
+      assertThat(
+          handler.bundleProcessorCache.getCachedBundleProcessors().get("fused-descriptor"),
+          empty());
+    } finally {
+      handler.shutdown();
+    }
+  }
+
+  @Test
+  public void fusedDownstreamExceptionWarnModeAllowsBundleToComplete() throws Exception {
+    ProcessBundleHandler handler = setupHandlerForFusedExceptionTest("warn");
+    try {
+      ByteStringOutputStream encoded = new ByteStringOutputStream();
+      StringUtf8Coder.of().encode("element", encoded);
+      Elements elements =
+          Elements.newBuilder()
+              .addData(
+                  Data.newBuilder()
+                      .setInstructionId("fused-warn")
+                      .setTransformId("source")
+                      .setData(encoded.toByteString())
+                      .setIsLast(true))
+              .build();
+
+      handler.processBundle(
+          InstructionRequest.newBuilder()
+              .setInstructionId("fused-warn")
+              .setProcessBundle(
+                  ProcessBundleRequest.newBuilder()
+                      .setProcessBundleDescriptorId("fused-descriptor")
+                      .setElements(elements))
+              .build());
+      assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
+      assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertEquals(1, FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
+      assertFalse(
+          handler
+              .bundleProcessorCache
+              .getCachedBundleProcessors()
+              .get("fused-descriptor")
+              .isEmpty());
+    } finally {
+      handler.shutdown();
+    }
+  }
+
+  @Test
+  public void fusedDownstreamExceptionPreservesLegacyBehaviorByDefault() throws Exception {
+    ProcessBundleHandler handler = setupHandlerForFusedExceptionTest(null);
+    try {
+      ByteStringOutputStream encoded = new ByteStringOutputStream();
+      StringUtf8Coder.of().encode("element", encoded);
+      Elements elements =
+          Elements.newBuilder()
+              .addData(
+                  Data.newBuilder()
+                      .setInstructionId("fused-legacy")
+                      .setTransformId("source")
+                      .setData(encoded.toByteString())
+                      .setIsLast(true))
+              .build();
+
+      handler.processBundle(
+          InstructionRequest.newBuilder()
+              .setInstructionId("fused-legacy")
+              .setProcessBundle(
+                  ProcessBundleRequest.newBuilder()
+                      .setProcessBundleDescriptorId("fused-descriptor")
+                      .setElements(elements))
+              .build());
+      assertEquals(1, FUSED_DOWNSTREAM_INVOCATIONS.get());
+      assertEquals(1, FUSED_UPSTREAM_CAUGHT_EXCEPTIONS.get());
+      assertEquals(1, FUSED_DOWNSTREAM_FINISH_INVOCATIONS.get());
+    } finally {
+      handler.shutdown();
+    }
   }
 
   private static final class SimpleDoFn extends DoFn<KV<String, String>, String> {
