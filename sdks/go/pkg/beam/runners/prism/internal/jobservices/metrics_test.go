@@ -167,6 +167,197 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 			want: []*pipepb.MonitoringInfo{
 				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SET_STRING, []byte{0, 0, 0, 1, 1, 63}),
 			},
+		}, {
+			name: "boundedTrieSingleton",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{Singleton: []string{"root", "seg"}})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE, mustMarshal(t, &pipepb.BoundedTrie{
+					Bound:     100,
+					Singleton: []string{"root", "seg"},
+				})),
+			},
+		}, {
+			name: "boundedTrieMergeSingletons",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{Bound: 100, Singleton: []string{"root", "a"}})},
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{Bound: 100, Singleton: []string{"root", "b"}})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE, mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 100,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"root": {
+								Children: map[string]*pipepb.BoundedTrieNode{
+									"a": {},
+									"b": {},
+								},
+							},
+						},
+					},
+				})),
+			},
+		}, {
+			name: "boundedTrieMergeRoots",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 100,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Children: map[string]*pipepb.BoundedTrieNode{"b": {}}},
+							"d": {},
+						},
+					},
+				})},
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 80,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Children: map[string]*pipepb.BoundedTrieNode{"c": {}}},
+							"e": {Children: map[string]*pipepb.BoundedTrieNode{"f": {}}},
+						},
+					},
+				})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE, mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 80,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Children: map[string]*pipepb.BoundedTrieNode{"b": {}, "c": {}}},
+							"d": {},
+							"e": {Children: map[string]*pipepb.BoundedTrieNode{"f": {}}},
+						},
+					},
+				})),
+			},
+		}, {
+			name: "boundedTrieTruncated",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 100,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Truncated: true},
+							"b": {Children: map[string]*pipepb.BoundedTrieNode{"x": {}, "y": {}}},
+						},
+					},
+				})},
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 100,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Children: map[string]*pipepb.BoundedTrieNode{"z": {}}},
+							"b": {Truncated: true},
+							"c": {},
+						},
+					},
+				})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE, mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 100,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Truncated: true},
+							"b": {Truncated: true},
+							"c": {},
+						},
+					},
+				})),
+			},
+		}, {
+			name: "boundedTrieTrim",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 2,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Children: map[string]*pipepb.BoundedTrieNode{"x": {}, "y": {}}},
+						},
+					},
+				})},
+				{"a": mustMarshal(t, &pipepb.BoundedTrie{
+					Bound:     2,
+					Singleton: []string{"b", "z"},
+				})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE, mustMarshal(t, &pipepb.BoundedTrie{
+					Bound: 2,
+					Root: &pipepb.BoundedTrieNode{
+						Children: map[string]*pipepb.BoundedTrieNode{
+							"a": {Truncated: true},
+							"b": {Children: map[string]*pipepb.BoundedTrieNode{"z": {}}},
+						},
+					},
+				})),
+			},
+		}, {
+			name: "histogramLinear",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.HistogramValue{
+					Count:         proto.Int64(3),
+					BucketOptions: linearBuckets(0, 10, 4),
+					BucketCounts:  []int64{1, 2},
+				})},
+				{"a": mustMarshal(t, &pipepb.HistogramValue{
+					Count:         proto.Int64(4),
+					BucketOptions: linearBuckets(0, 10, 4),
+					BucketCounts:  []int64{0, 1, 2, 1},
+				})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_HISTOGRAM),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_HISTOGRAM, mustMarshal(t, &pipepb.HistogramValue{
+					Count:         proto.Int64(7),
+					BucketOptions: linearBuckets(0, 10, 4),
+					BucketCounts:  []int64{1, 3, 2, 1},
+				})),
+			},
+		}, {
+			name: "histogramExponential",
+			input: []map[string][]byte{
+				{"a": mustMarshal(t, &pipepb.HistogramValue{
+					Count:         proto.Int64(2),
+					BucketOptions: exponentialBuckets(1, 3),
+					BucketCounts:  []int64{1, 1, 0},
+				})},
+				{"a": mustMarshal(t, &pipepb.HistogramValue{
+					Count:         proto.Int64(5),
+					BucketOptions: exponentialBuckets(1, 3),
+					BucketCounts:  []int64{2, 0, 3},
+				})},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_API_REQUEST_LATENCIES),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_API_REQUEST_LATENCIES, mustMarshal(t, &pipepb.HistogramValue{
+					Count:         proto.Int64(7),
+					BucketOptions: exponentialBuckets(1, 3),
+					BucketCounts:  []int64{3, 1, 3},
+				})),
+			},
 		},
 	}
 
@@ -441,4 +632,183 @@ func Test_metricsStore_PartialAndUnknownShortIDs(t *testing.T) {
 			MonitoringData: map[string][]byte{"bad": {0x80}},
 		})
 	})
+}
+
+func mustMarshal(t *testing.T, m proto.Message) []byte {
+	t.Helper()
+	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(m)
+	if err != nil {
+		t.Fatalf("proto.Marshal(%v) failed: %v", m, err)
+	}
+	return b
+}
+
+func linearBuckets(start, width float64, numBuckets int32) *pipepb.HistogramValue_BucketOptions {
+	return &pipepb.HistogramValue_BucketOptions{
+		BucketType: &pipepb.HistogramValue_BucketOptions_Linear_{
+			Linear: &pipepb.HistogramValue_BucketOptions_Linear{
+				NumberOfBuckets: proto.Int32(numBuckets),
+				Width:           proto.Float64(width),
+				Start:           proto.Float64(start),
+			},
+		},
+	}
+}
+
+func exponentialBuckets(scale, numBuckets int32) *pipepb.HistogramValue_BucketOptions {
+	return &pipepb.HistogramValue_BucketOptions{
+		BucketType: &pipepb.HistogramValue_BucketOptions_Exponential{
+			Exponential: &pipepb.HistogramValue_BucketOptions_Base2Exponent{
+				NumberOfBuckets: proto.Int32(numBuckets),
+				Scale:           proto.Int32(scale),
+			},
+		},
+	}
+}
+
+func Test_metricsStore_BoundedTrieTentativeVsCommitted(t *testing.T) {
+	ms := metricsStore{}
+	ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+		MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+			"t": makeInfo(pipepb.MonitoringInfoSpecs_USER_BOUNDED_TRIE),
+		},
+	})
+
+	first := mustMarshal(t, &pipepb.BoundedTrie{Bound: 100, Singleton: []string{"ns", "one"}})
+	second := mustMarshal(t, &pipepb.BoundedTrie{Bound: 50, Singleton: []string{"ns", "two"}})
+
+	ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+		MonitoringData: map[string][]byte{"t": first},
+	})
+	ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+		MonitoringData: map[string][]byte{"t": second},
+	})
+
+	gotTentative := ms.Results(tentative)
+	if len(gotTentative) != 1 {
+		t.Fatalf("Results(tentative) len = %d, want 1", len(gotTentative))
+	}
+	var tentativeTrie pipepb.BoundedTrie
+	if err := proto.Unmarshal(gotTentative[0].GetPayload(), &tentativeTrie); err != nil {
+		t.Fatalf("proto.Unmarshal tentative BoundedTrie failed: %v", err)
+	}
+	wantTentative := &pipepb.BoundedTrie{Bound: 50, Singleton: []string{"ns", "two"}}
+	if diff := cmp.Diff(wantTentative, &tentativeTrie, protocmp.Transform()); diff != "" {
+		t.Fatalf("tentative BoundedTrie diff (-want,+got):\n%v", diff)
+	}
+
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"t": first},
+	})
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"t": first},
+	})
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"t": second},
+	})
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"t": mustMarshal(t, &pipepb.BoundedTrie{Bound: 10})},
+	})
+
+	gotCommitted := ms.Results(committed)
+	if len(gotCommitted) != 1 {
+		t.Fatalf("Results(committed) len = %d, want 1", len(gotCommitted))
+	}
+	var committedTrie pipepb.BoundedTrie
+	if err := proto.Unmarshal(gotCommitted[0].GetPayload(), &committedTrie); err != nil {
+		t.Fatalf("proto.Unmarshal committed BoundedTrie failed: %v", err)
+	}
+	wantCommitted := &pipepb.BoundedTrie{
+		Bound: 50,
+		Root: &pipepb.BoundedTrieNode{
+			Children: map[string]*pipepb.BoundedTrieNode{
+				"ns": {
+					Children: map[string]*pipepb.BoundedTrieNode{
+						"one": {},
+						"two": {},
+					},
+				},
+			},
+		},
+	}
+	if diff := cmp.Diff(wantCommitted, &committedTrie, protocmp.Transform()); diff != "" {
+		t.Fatalf("committed BoundedTrie diff (-want,+got):\n%v", diff)
+	}
+}
+
+func Test_metricsStore_HistogramTentativeVsCommitted(t *testing.T) {
+	ms := metricsStore{}
+	ms.AddShortIDs(&fnpb.MonitoringInfosMetadataResponse{
+		MonitoringInfo: map[string]*pipepb.MonitoringInfo{
+			"h": makeInfo(pipepb.MonitoringInfoSpecs_USER_HISTOGRAM),
+		},
+	})
+
+	opts := linearBuckets(0, 10, 4)
+	first := mustMarshal(t, &pipepb.HistogramValue{
+		Count:         proto.Int64(2),
+		BucketOptions: opts,
+		BucketCounts:  []int64{1, 1, 0, 0},
+	})
+	second := mustMarshal(t, &pipepb.HistogramValue{
+		Count:         proto.Int64(5),
+		BucketOptions: opts,
+		BucketCounts:  []int64{0, 2, 3, 0},
+	})
+	mismatched := mustMarshal(t, &pipepb.HistogramValue{
+		Count:         proto.Int64(9),
+		BucketOptions: linearBuckets(0, 20, 4),
+		BucketCounts:  []int64{9, 0, 0, 0},
+	})
+
+	ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+		MonitoringData: map[string][]byte{"h": first},
+	})
+	ms.ContributeTentativeMetrics(&fnpb.ProcessBundleProgressResponse{
+		MonitoringData: map[string][]byte{"h": second},
+	})
+
+	gotTentative := ms.Results(tentative)
+	if len(gotTentative) != 1 {
+		t.Fatalf("Results(tentative) len = %d, want 1", len(gotTentative))
+	}
+	var tentativeHist pipepb.HistogramValue
+	if err := proto.Unmarshal(gotTentative[0].GetPayload(), &tentativeHist); err != nil {
+		t.Fatalf("proto.Unmarshal tentative HistogramValue failed: %v", err)
+	}
+	wantTentative := &pipepb.HistogramValue{
+		Count:         proto.Int64(5),
+		BucketOptions: opts,
+		BucketCounts:  []int64{0, 2, 3, 0},
+	}
+	if diff := cmp.Diff(wantTentative, &tentativeHist, protocmp.Transform()); diff != "" {
+		t.Fatalf("tentative HistogramValue diff (-want,+got):\n%v", diff)
+	}
+
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"h": first},
+	})
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"h": second},
+	})
+	ms.ContributeFinalMetrics(&fnpb.ProcessBundleResponse{
+		MonitoringData: map[string][]byte{"h": mismatched},
+	})
+
+	gotCommitted := ms.Results(committed)
+	if len(gotCommitted) != 1 {
+		t.Fatalf("Results(committed) len = %d, want 1", len(gotCommitted))
+	}
+	var committedHist pipepb.HistogramValue
+	if err := proto.Unmarshal(gotCommitted[0].GetPayload(), &committedHist); err != nil {
+		t.Fatalf("proto.Unmarshal committed HistogramValue failed: %v", err)
+	}
+	wantCommitted := &pipepb.HistogramValue{
+		Count:         proto.Int64(7),
+		BucketOptions: opts,
+		BucketCounts:  []int64{1, 3, 3, 0},
+	}
+	if diff := cmp.Diff(wantCommitted, &committedHist, protocmp.Transform()); diff != "" {
+		t.Fatalf("committed HistogramValue diff (-want,+got):\n%v", diff)
+	}
 }

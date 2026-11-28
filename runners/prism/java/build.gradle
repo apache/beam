@@ -196,9 +196,6 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       // Not supported in Portable Java SDK yet.
       // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
-
-      // Not yet supported in Prism.
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics'
     }
     filter {
       for (String test : sickbayTests) {
