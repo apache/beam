@@ -17,9 +17,11 @@
 package textio
 
 import (
+	"compress/gzip"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
@@ -66,6 +68,30 @@ func TestReadGzip(t *testing.T) {
 	want := []any{"hello", "go"}
 
 	passert.Equals(s, got, want...)
+	ptest.RunAndValidate(t, p)
+}
+
+func TestReadGzipLargeUncompressed(t *testing.T) {
+	f, err := os.CreateTemp(t.TempDir(), "large-*.gz")
+	if err != nil {
+		t.Fatalf("Failed to create temp gzip file: %v", err)
+	}
+	gw := gzip.NewWriter(f)
+	const numLines = 100
+	if _, err := gw.Write([]byte(strings.Repeat("hello world\n", numLines))); err != nil {
+		t.Fatalf("Failed to write gzip data: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("Failed to close gzip writer: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	p, s := beam.NewPipelineWithRoot()
+	lines := Read(s, f.Name())
+	passert.Count(s, lines, "NumLines", numLines)
+
 	ptest.RunAndValidate(t, p)
 }
 
