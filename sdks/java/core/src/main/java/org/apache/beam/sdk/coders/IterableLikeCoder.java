@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Observable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
@@ -58,6 +59,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     extends StructuredCoder<IterableT> {
+  // Explicitly preserve the historical computed default serialVersionUID so internal framing
+  // helpers and static constants do not break Java serialization across worker/pipeline updates.
+  private static final long serialVersionUID = 6727373035450264331L;
+
+  /** Pre-encoded big-endian 4-byte {@code 1} size header for single-element collections. */
+  private static final byte[] SINGLE_ELEMENT_SIZE_BYTES = new byte[] {0, 0, 0, 1};
+
   public Coder<T> getElemCoder() {
     return elementCoder;
   }
@@ -97,6 +105,77 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     this.iterableName = iterableName;
   }
 
+  /**
+   * Encodes a single-element collection containing {@code element} using the exact {@link
+   * IterableLikeCoder} known-size wire format (4-byte big-endian int {@code 1} followed by {@code
+   * element}), without allocating a wrapper {@link Collection}.
+   */
+  @Internal
+  public static <T> void encodeSingleElement(
+      Coder<T> elementCoder, T element, OutputStream outStream) throws IOException, CoderException {
+    outStream.write(SINGLE_ELEMENT_SIZE_BYTES, 0, 4);
+    elementCoder.encode(element, outStream);
+  }
+
+  /**
+   * Registers the byte size of a single-element collection containing {@code element} with {@code
+   * observer}, matching {@link #registerByteSizeObserver} for a 1-element {@link Collection}
+   * without allocating a wrapper collection.
+   */
+  @Internal
+  public static <T> void registerSingleElementByteSize(
+      Coder<T> elementCoder, T element, ElementByteSizeObserver observer) throws Exception {
+    observer.update(4L);
+    elementCoder.registerByteSizeObserver(element, observer);
+  }
+
+  /**
+   * Reads the leading 4-byte big-endian element-count header written by {@link #encode}. Returns a
+   * non-negative count for known-size collections, or a negative value (typically {@code -1}) for
+   * unknown-size chunked streams.
+   */
+  @Internal
+  public static int readSizeHeader(InputStream inStream) throws IOException {
+    return BitConverters.readBigEndianInt(inStream);
+  }
+
+  /**
+   * Decodes the remaining elements after {@link #readSizeHeader(InputStream)} has consumed the
+   * leading 4-byte size header {@code size}, handling both known-size ({@code size >= 0}) and
+   * chunked unknown-size ({@code size < 0}) streams.
+   */
+  @Internal
+  public IterableT decodeAfterSizeHeader(int size, InputStream inStream)
+      throws IOException, CoderException {
+    if (size >= 0) {
+      List<T> elements = new ArrayList<>(size);
+      for (int i = 0; i < size; i++) {
+        elements.add(elementCoder.decode(inStream));
+      }
+      return decodeToIterable(elements);
+    }
+    return decodeUnknownSize(inStream);
+  }
+
+  private IterableT decodeUnknownSize(InputStream inStream) throws IOException, CoderException {
+    List<T> elements = new ArrayList<>();
+    // We don't know the size a priori.  Check if we're done with
+    // each block of elements.
+    long count = VarInt.decodeLong(inStream);
+    while (count > 0L) {
+      elements.add(elementCoder.decode(inStream));
+      --count;
+      if (count == 0L) {
+        count = VarInt.decodeLong(inStream);
+      }
+    }
+    if (count == 0L) {
+      return decodeToIterable(elements);
+    } else {
+      return decodeToIterable(elements, count, inStream);
+    }
+  }
+
   @Override
   public void encode(IterableT iterable, OutputStream outStream)
       throws IOException, CoderException {
@@ -107,7 +186,12 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
       // We can know the size of the Iterable.  Use an encoding with a
       // leading size field, followed by that many elements.
       Collection<T> collection = (Collection<T>) iterable;
-      BitConverters.writeBigEndianInt(collection.size(), outStream);
+      int size = collection.size();
+      if (size == 1) {
+        outStream.write(SINGLE_ELEMENT_SIZE_BYTES, 0, 4);
+      } else {
+        BitConverters.writeBigEndianInt(size, outStream);
+      }
       for (T elem : collection) {
         elementCoder.encode(elem, outStream);
       }
@@ -128,30 +212,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
 
   @Override
   public IterableT decode(InputStream inStream) throws IOException, CoderException {
-    int size = BitConverters.readBigEndianInt(inStream);
-    if (size >= 0) {
-      List<T> elements = new ArrayList<>(size);
-      for (int i = 0; i < size; i++) {
-        elements.add(elementCoder.decode(inStream));
-      }
-      return decodeToIterable(elements);
-    }
-    List<T> elements = new ArrayList<>();
-    // We don't know the size a priori.  Check if we're done with
-    // each block of elements.
-    long count = VarInt.decodeLong(inStream);
-    while (count > 0L) {
-      elements.add(elementCoder.decode(inStream));
-      --count;
-      if (count == 0L) {
-        count = VarInt.decodeLong(inStream);
-      }
-    }
-    if (count == 0) {
-      return decodeToIterable(elements);
-    } else {
-      return decodeToIterable(elements, count, inStream);
-    }
+    return decodeAfterSizeHeader(readSizeHeader(inStream), inStream);
   }
 
   @Override

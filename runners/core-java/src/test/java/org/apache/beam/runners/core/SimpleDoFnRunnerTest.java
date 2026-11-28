@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.verify;
@@ -34,6 +35,7 @@ import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.TraceFlags;
 import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextKey;
 import io.opentelemetry.context.Scope;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -671,6 +673,248 @@ public class SimpleDoFnRunnerTest {
                     PeriodFormat.getDefault().print(Duration.ZERO.toPeriod())))));
   }
 
+  @Test
+  public void testProcessElementIsolatesOpenTelemetryContext() {
+    ContextKey<String> testKey = ContextKey.named("beam-test-key");
+    List<String> observedValues = new ArrayList<>();
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    ListOutputManager outputManager = new ListOutputManager();
+    DoFn<String, String> recordingFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(@Element String elem, OutputReceiver<String> out) {
+            observedValues.add(Context.current().get(testKey));
+            out.output(elem);
+          }
+        };
+
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            recordingFn,
+            NullSideInputReader.empty(),
+            outputManager,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    // Build an untraced element under Context.root() -> normalized openTelemetryContext is null.
+    WindowedValue<String> untraced;
+    try (Scope ignored = Context.root().makeCurrent()) {
+      untraced =
+          WindowedValues.ofWithCurrentContext(WindowedValues.valueInGlobalWindow("in"), "untraced");
+    }
+    assertNull(untraced.getOpenTelemetryContext());
+
+    Context ambientCtx = Context.root().with(testKey, "ambient");
+    Context elemCtx = Context.root().with(testKey, "element");
+    WindowedValue<String> traced =
+        WindowedValues.of(
+            "traced",
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE,
+            PaneInfo.NO_FIRING,
+            null,
+            null,
+            CausedByDrain.NORMAL,
+            elemCtx,
+            ValueKind.INSERT);
+    WindowedValue<String> explicitRoot =
+        WindowedValues.of(
+            "root",
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE,
+            PaneInfo.NO_FIRING,
+            null,
+            null,
+            CausedByDrain.NORMAL,
+            Context.root(),
+            ValueKind.INSERT);
+
+    // Executing an untraced element while ambientCtx is active must NOT leak ambientCtx.
+    try (Scope ignored = ambientCtx.makeCurrent()) {
+      runner.processElement(untraced);
+      assertSame(ambientCtx, Context.current());
+
+      runner.processElement(traced);
+      assertSame(ambientCtx, Context.current());
+
+      runner.processElement(explicitRoot);
+      assertSame(ambientCtx, Context.current());
+    }
+
+    // Running explicit Context.root() with no attached thread context should also work cleanly.
+    runner.processElement(explicitRoot);
+    assertSame(Context.root(), Context.current());
+
+    assertEquals(4, observedValues.size());
+    assertNull(observedValues.get(0));
+    assertEquals("element", observedValues.get(1));
+    assertNull(observedValues.get(2));
+    assertNull(observedValues.get(3));
+
+    List<WindowedValue<?>> emitted = outputManager.outputs.get(mainTag);
+    assertEquals(4, emitted.size());
+    assertNull(emitted.get(0).getOpenTelemetryContext());
+    assertSame(elemCtx, emitted.get(1).getOpenTelemetryContext());
+    assertNull(emitted.get(2).getOpenTelemetryContext());
+    assertNull(emitted.get(3).getOpenTelemetryContext());
+
+    // ProcessContext.output() must capture a span started inside @ProcessElement even when
+    // the input element had null openTelemetryContext (consistent with OutputReceiver.output).
+    Context childCtx = Context.root().with(testKey, "in-dofn-span");
+    ListOutputManager legacyOut = new ListOutputManager();
+    DoFn<String, String> spanCreatingFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            try (Scope ignored = childCtx.makeCurrent()) {
+              c.output("tagged-" + c.element());
+            }
+          }
+        };
+    DoFnRunner<String, String> legacyRunner =
+        new SimpleDoFnRunner<>(
+            null,
+            spanCreatingFn,
+            NullSideInputReader.empty(),
+            legacyOut,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+    legacyRunner.processElement(untraced);
+    assertSame(childCtx, legacyOut.outputs.get(mainTag).get(0).getOpenTelemetryContext());
+  }
+
+  @Test
+  public void testProcessElementOutputPreservesEmptyWindows() throws Exception {
+    TupleTag<String> mainTag = new TupleTag<>("main");
+    ListOutputManager outputManager = new ListOutputManager();
+    DoFn<String, String> doFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            c.output("out:" + c.element());
+          }
+        };
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            doFn,
+            NullSideInputReader.empty(),
+            outputManager,
+            mainTag,
+            Collections.emptyList(),
+            mockStepContext,
+            null,
+            Collections.emptyMap(),
+            WindowingStrategy.of(new GlobalWindows()),
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
+
+    // 1. Custom empty-window WindowedValue (models Dataflow ValueInEmptyWindows).
+    WindowedValue<String> emptyWrapper = new EmptyWindowedValue<>("v1", new Instant(1000L));
+    runner.processElement(emptyWrapper);
+
+    // 2. Legacy zero-window stream decoded via FullWindowedValueCoder.
+    java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+    org.apache.beam.sdk.coders.InstantCoder.of().encode(new Instant(2000L), baos);
+    baos.write(new byte[] {0, 0, 0, 0}); // numWindows == 0
+    org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder.INSTANCE.encode(
+        PaneInfo.NO_FIRING, baos);
+    org.apache.beam.sdk.coders.StringUtf8Coder.of().encode("v2", baos);
+    WindowedValue<String> decodedZero =
+        WindowedValues.getFullCoder(
+                org.apache.beam.sdk.coders.StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
+            .decode(new java.io.ByteArrayInputStream(baos.toByteArray()));
+    Context activeCtx = Context.root().with(ContextKey.named("k"), "active");
+    try (Scope ignored = activeCtx.makeCurrent()) {
+      runner.processElement(decodedZero);
+    }
+
+    List<WindowedValue<?>> emitted = outputManager.outputs.get(mainTag);
+    assertEquals(2, emitted.size());
+    assertEquals("out:v1", emitted.get(0).getValue());
+    assertEquals(0, emitted.get(0).getWindows().size());
+    assertEquals("out:v2", emitted.get(1).getValue());
+    assertEquals(0, emitted.get(1).getWindows().size());
+  }
+
+  private static final class EmptyWindowedValue<T> implements WindowedValue<T> {
+    private final T value;
+    private final Instant timestamp;
+
+    EmptyWindowedValue(T value, Instant timestamp) {
+      this.value = value;
+      this.timestamp = timestamp;
+    }
+
+    @Override
+    public T getValue() {
+      return value;
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      return timestamp;
+    }
+
+    @Override
+    public java.util.Collection<? extends BoundedWindow> getWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public String getRecordId() {
+      return null;
+    }
+
+    @Override
+    public Context getOpenTelemetryContext() {
+      return null;
+    }
+
+    @Override
+    public Long getRecordOffset() {
+      return null;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return CausedByDrain.NORMAL;
+    }
+
+    @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
+    }
+
+    @Override
+    public Iterable<? extends WindowedValue<T>> explodeWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public <OtherT> WindowedValue<OtherT> withValue(OtherT newValue) {
+      return new EmptyWindowedValue<>(newValue, timestamp);
+    }
+  }
+
   static class ThrowingDoFn extends DoFn<String, String> {
     final Exception exceptionToThrow = new UnsupportedOperationException("Expected exception");
 
@@ -823,149 +1067,39 @@ public class SimpleDoFnRunnerTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void testReentrantProcessElementPreservesOuterContextAndMetadata() {
+  public void testReusableProcessContextResetAfterExceptionAndRejectsReentrancy() {
     TupleTag<String> mainTag = new TupleTag<>("main");
-    IntervalWindow outerWin =
-        new IntervalWindow(Instant.ofEpochMilli(100), Instant.ofEpochMilli(200));
-    IntervalWindow innerWin =
-        new IntervalWindow(Instant.ofEpochMilli(500), Instant.ofEpochMilli(600));
-    PaneInfo outerPane = PaneInfo.createPane(true, false, Timing.EARLY, 1, 0);
-    PaneInfo innerPane = PaneInfo.createPane(false, true, Timing.LATE, 2, 1);
-    WindowedValue<String> outerElem =
-        WindowedValues.of(
-            "outer",
-            Instant.ofEpochMilli(150),
-            outerWin,
-            outerPane,
-            "outer-rec",
-            11L,
-            CausedByDrain.NORMAL,
-            null,
-            ValueKind.INSERT);
-    WindowedValue<String> innerElem =
-        WindowedValues.of(
-            "inner",
-            Instant.ofEpochMilli(550),
-            innerWin,
-            innerPane,
-            "inner-rec",
-            22L,
-            CausedByDrain.CAUSED_BY_DRAIN,
-            null,
-            ValueKind.DELETE);
-
-    List<WindowedValue<String>> observed = new ArrayList<>();
     List<DoFn<String, String>.ProcessContext> capturedContexts = new ArrayList<>();
-    DoFn<String, String> echoDoFn =
-        new DoFn<String, String>() {
-          @ProcessElement
-          public void processElement(
-              ProcessContext c, BoundedWindow window, OutputReceiver<String> out) {
-            capturedContexts.add(c);
-            String before = "before:" + c.element() + "@" + c.timestamp().getMillis();
-            out.output(before);
-            // Verify ProcessContext still sees its own element/window/metadata after reentry.
-            assertEquals(c.element().equals("outer") ? outerWin : innerWin, window);
-            String after = "after:" + c.element() + "@" + c.timestamp().getMillis();
-            out.output(after);
-          }
-        };
-
-    final DoFnRunner<String, String>[] runnerRef = new DoFnRunner[1];
-    WindowedValueMultiReceiver reentrantOutputManager =
-        new WindowedValueMultiReceiver() {
-          @Override
-          public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
-            WindowedValue<String> wv = (WindowedValue<String>) output;
-            observed.add(wv);
-            if ("before:outer@150".equals(wv.getValue())) {
-              runnerRef[0].processElement(innerElem);
-            }
-          }
-        };
-
-    runnerRef[0] =
-        new SimpleDoFnRunner<>(
-            null,
-            echoDoFn,
-            NullSideInputReader.empty(),
-            reentrantOutputManager,
-            mainTag,
-            Collections.emptyList(),
-            mockStepContext,
-            null,
-            Collections.emptyMap(),
-            WindowingStrategy.of(FixedWindows.of(Duration.millis(100))),
-            DoFnSchemaInformation.create(),
-            Collections.emptyMap());
-
-    runnerRef[0].startBundle();
-    runnerRef[0].processElement(outerElem);
-    runnerRef[0].finishBundle();
-
-    assertEquals(4, observed.size());
-    assertEquals("before:outer@150", observed.get(0).getValue());
-    assertEquals(Instant.ofEpochMilli(150), observed.get(0).getTimestamp());
-    assertThat(observed.get(0).getWindows(), contains(outerWin));
-    assertEquals(outerPane, observed.get(0).getPaneInfo());
-    assertEquals("outer-rec", observed.get(0).getRecordId());
-    assertEquals(Long.valueOf(11L), observed.get(0).getRecordOffset());
-    assertEquals(CausedByDrain.NORMAL, observed.get(0).causedByDrain());
-    assertEquals(ValueKind.INSERT, observed.get(0).getValueKind());
-
-    assertEquals("before:inner@550", observed.get(1).getValue());
-    assertEquals(Instant.ofEpochMilli(550), observed.get(1).getTimestamp());
-    assertThat(observed.get(1).getWindows(), contains(innerWin));
-    assertEquals(innerPane, observed.get(1).getPaneInfo());
-    assertEquals("inner-rec", observed.get(1).getRecordId());
-    assertEquals(Long.valueOf(22L), observed.get(1).getRecordOffset());
-    assertEquals(CausedByDrain.CAUSED_BY_DRAIN, observed.get(1).causedByDrain());
-    assertEquals(ValueKind.DELETE, observed.get(1).getValueKind());
-
-    assertEquals("after:inner@550", observed.get(2).getValue());
-    assertEquals("after:outer@150", observed.get(3).getValue());
-    assertEquals(Instant.ofEpochMilli(150), observed.get(3).getTimestamp());
-    assertThat(observed.get(3).getWindows(), contains(outerWin));
-    assertEquals(outerPane, observed.get(3).getPaneInfo());
-    assertEquals("outer-rec", observed.get(3).getRecordId());
-    assertEquals(Long.valueOf(11L), observed.get(3).getRecordOffset());
-    assertEquals(CausedByDrain.NORMAL, observed.get(3).causedByDrain());
-    assertEquals(ValueKind.INSERT, observed.get(3).getValueKind());
-
-    // Both primary AND reentrant fallback contexts must fail fast once @ProcessElement exits.
-    assertEquals(2, capturedContexts.size());
-    for (DoFn<String, String>.ProcessContext ctx : capturedContexts) {
-      assertThrows(IllegalStateException.class, ctx::element);
-    }
-
-    // Reentrant inner exception swallowed inside outputManager still leaves outer context intact.
-    DoFn<String, String> throwOnInnerFn =
+    DoFn<String, String> doFn =
         new DoFn<String, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
+            capturedContexts.add(c);
             if ("boom".equals(c.element())) {
-              throw new IllegalStateException("inner boom");
+              throw new IllegalStateException("boom");
             }
-            c.output("pre:" + c.element());
-            c.output("post:" + c.element());
+            c.output("out:" + c.element());
           }
         };
-    List<String> afterThrow = new ArrayList<>();
-    final DoFnRunner<String, String>[] runner2 = new DoFnRunner[1];
-    runner2[0] =
+
+    List<String> outputs = new ArrayList<>();
+    final DoFnRunner<String, String>[] runnerRef = new DoFnRunner[1];
+    runnerRef[0] =
         new SimpleDoFnRunner<>(
             null,
-            throwOnInnerFn,
+            doFn,
             NullSideInputReader.empty(),
             new WindowedValueMultiReceiver() {
               @Override
               public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> out) {
                 String v = (String) out.getValue();
-                afterThrow.add(v);
-                if ("pre:outer".equals(v)) {
+                outputs.add(v);
+                if ("out:reenter".equals(v)) {
                   assertThrows(
-                      UserCodeException.class,
-                      () -> runner2[0].processElement(WindowedValues.valueInGlobalWindow("boom")));
+                      IllegalStateException.class,
+                      () ->
+                          runnerRef[0].processElement(
+                              WindowedValues.valueInGlobalWindow("nested")));
                 }
               }
             },
@@ -977,15 +1111,23 @@ public class SimpleDoFnRunnerTest {
             WindowingStrategy.globalDefault(),
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
-    runner2[0].processElement(WindowedValues.valueInGlobalWindow("outer"));
-    assertThat(afterThrow, contains("pre:outer", "post:outer"));
-    // And after an outer exception, reusable context is cleanly reset for subsequent elements.
+
+    runnerRef[0].startBundle();
+    runnerRef[0].processElement(WindowedValues.valueInGlobalWindow("reenter"));
+    assertThat(outputs, contains("out:reenter"));
+
+    // Retained context must fail fast once @ProcessElement exits.
+    assertEquals(1, capturedContexts.size());
+    assertThrows(IllegalStateException.class, () -> capturedContexts.get(0).element());
+
+    // Exception inside @ProcessElement still clears the reusable context for subsequent elements.
     assertThrows(
         UserCodeException.class,
-        () -> runner2[0].processElement(WindowedValues.valueInGlobalWindow("boom")));
-    afterThrow.clear();
-    runner2[0].processElement(WindowedValues.valueInGlobalWindow("ok"));
-    assertThat(afterThrow, contains("pre:ok", "post:ok"));
+        () -> runnerRef[0].processElement(WindowedValues.valueInGlobalWindow("boom")));
+    outputs.clear();
+    runnerRef[0].processElement(WindowedValues.valueInGlobalWindow("ok"));
+    assertThat(outputs, contains("out:ok"));
+    runnerRef[0].finishBundle();
   }
 
   @Test
@@ -995,7 +1137,7 @@ public class SimpleDoFnRunnerTest {
     TupleTag<String> mainCopy = new TupleTag<>("main");
     TupleTag<String> unknownTag = new TupleTag<>("unknown");
 
-    // Verify 0, 1, 2, 8, and 9 extra tags (crossing MAX_INLINE_EXTRA_TAGS = 8 boundary), plus
+    // Verify 0, 1, 2, 8, and 9 extra tags (single-extra fast slot and multi-extra HashMap), plus
     // duplicate mainTag and duplicate side tag inside additionalOutputTags.
     for (int extraCount : new int[] {0, 1, 2, 8, 9}) {
       List<TupleTag<?>> extraTags = new ArrayList<>();

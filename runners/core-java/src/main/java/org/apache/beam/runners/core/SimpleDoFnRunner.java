@@ -20,10 +20,11 @@ package org.apache.beam.runners.core;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import io.opentelemetry.context.Context;
+import io.opentelemetry.context.ContextStorage;
 import io.opentelemetry.context.Scope;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -96,7 +97,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private static final long MIN_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
   private static final long MAX_TIMESTAMP_MILLIS = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
-  private static final int MAX_INLINE_EXTRA_TAGS = 8;
 
   private final PipelineOptions options;
 
@@ -115,10 +115,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   final Set<TupleTag<?>> outputTags;
 
   /**
-   * Deduplicated non-main output tags in declaration order when {@code 1 <= count <=
-   * MAX_INLINE_EXTRA_TAGS}; {@code null} for single-output or large fan-out {@code DoFn}s.
+   * The sole non-main output tag when there is exactly one additional output; {@code null}
+   * otherwise.
    */
-  final TupleTag<?> @Nullable [] extraOutputTags;
+  final @Nullable TupleTag<?> singleExtraOutputTag;
 
   private final boolean observesWindow;
 
@@ -178,22 +178,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.mainOutputTag = mainOutputTag;
     if (additionalOutputTags.isEmpty()) {
       this.outputTags = Collections.singleton(mainOutputTag);
-      this.extraOutputTags = null;
+      this.singleExtraOutputTag = null;
     } else {
       Set<TupleTag<?>> tags = Sets.newHashSetWithExpectedSize(1 + additionalOutputTags.size());
       tags.add(mainOutputTag);
-      List<TupleTag<?>> orderedExtras = new ArrayList<>(additionalOutputTags.size());
+      @Nullable TupleTag<?> onlyExtra = null;
+      int extraCount = 0;
       for (TupleTag<?> tag : additionalOutputTags) {
         if (tags.add(tag)) {
-          orderedExtras.add(tag);
+          onlyExtra = tag;
+          extraCount++;
         }
       }
       this.outputTags = tags;
-      if (orderedExtras.isEmpty() || orderedExtras.size() > MAX_INLINE_EXTRA_TAGS) {
-        this.extraOutputTags = null;
-      } else {
-        this.extraOutputTags = orderedExtras.toArray(new TupleTag<?>[0]);
-      }
+      this.singleExtraOutputTag = (extraCount == 1) ? onlyExtra : null;
     }
     this.stepContext = stepContext;
 
@@ -228,18 +226,27 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    Context openTelemetryContext = compressedElem.getOpenTelemetryContext();
-    if (openTelemetryContext == null || openTelemetryContext == Context.current()) {
+    @Nullable Context desired = compressedElem.getOpenTelemetryContext();
+    @Nullable Context current = ContextStorage.get().current();
+    if (desired == current) {
+      // Fast path covers both (null, null) and identical active contexts with zero Scope
+      // allocation.
       processElementInternal(compressedElem);
     } else {
-      processElementWithContext(compressedElem, openTelemetryContext);
+      processElementWithContextChange(compressedElem, desired, current);
     }
   }
 
-  private void processElementWithContext(
-      WindowedValue<InputT> compressedElem, Context openTelemetryContext) {
-    try (Scope ignore = openTelemetryContext.makeCurrent()) {
+  private void processElementWithContextChange(
+      WindowedValue<InputT> compressedElem, @Nullable Context desired, @Nullable Context current) {
+    Context root = Context.root();
+    Context target = desired != null ? desired : root;
+    if (current == target || (current == null && target == root)) {
       processElementInternal(compressedElem);
+    } else {
+      try (Scope ignore = target.makeCurrent()) {
+        processElementInternal(compressedElem);
+      }
     }
   }
 
@@ -281,17 +288,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     if (context == null) {
       context = initReusableProcessContext();
     }
-    if (context.elem == null) {
-      context.setElement(elem);
-      try {
-        invoker.invokeProcessElement(context);
-      } catch (Exception e) {
-        throw wrapUserCodeException(e);
-      } finally {
-        context.clearElement();
-      }
-    } else {
-      invokeProcessElementReentrant(elem);
+    checkState(
+        context.elem == null,
+        "SimpleDoFnRunner.processElement cannot be invoked reentrantly or concurrently");
+    context.setElement(elem);
+    try {
+      invoker.invokeProcessElement(context);
+    } catch (Exception e) {
+      throw wrapUserCodeException(e);
+    } finally {
+      context.clearElement();
     }
   }
 
@@ -299,17 +305,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     DoFnProcessContext context = new DoFnProcessContext();
     reusableProcessContext = context;
     return context;
-  }
-
-  private void invokeProcessElementReentrant(WindowedValue<InputT> elem) {
-    DoFnProcessContext reentrantContext = new DoFnProcessContext(elem);
-    try {
-      invoker.invokeProcessElement(reentrantContext);
-    } catch (Exception e) {
-      throw wrapUserCodeException(e);
-    } finally {
-      reentrantContext.clearElement();
-    }
   }
 
   @Override
@@ -344,21 +339,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       throw new IllegalArgumentException("calling sideInput() with unknown view");
     }
     return sideInputReader.get(view, sideInputWindow);
-  }
-
-  void checkSameElementTimestamp(Instant elemTimestamp) {
-    long skewMillis = allowedTimestampSkewMillis;
-    if (skewMillis == 0L) {
-      if (elemTimestamp.getMillis() <= MAX_TIMESTAMP_MILLIS) {
-        return;
-      }
-    } else if (skewMillis > 0L) {
-      long tsMillis = elemTimestamp.getMillis();
-      if (tsMillis >= MIN_TIMESTAMP_MILLIS && tsMillis <= MAX_TIMESTAMP_MILLIS) {
-        return;
-      }
-    }
-    checkTimestampSlowPath(elemTimestamp, elemTimestamp);
   }
 
   void checkTimestamp(Instant elemTimestamp, Instant timestamp) {
@@ -400,23 +380,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @SuppressWarnings("ReferenceEquality")
   <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedElem) {
+    // Since many callers call outputWindowedValue(mainOutputTag, value), the reference-eq check
+    // here
+    // usually shortcircuits the map lookup.
     if (tag != mainOutputTag) {
-      validateSideOutputTag(tag);
+      checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
     }
     outputManager.output(tag, windowedElem);
-  }
-
-  @SuppressWarnings("ReferenceEquality")
-  private void validateSideOutputTag(TupleTag<?> tag) {
-    TupleTag<?> @Nullable [] extraTags = this.extraOutputTags;
-    if (extraTags != null) {
-      for (int i = 0; i < extraTags.length; i++) {
-        if (extraTags[i] == tag) {
-          return;
-        }
-      }
-    }
-    checkArgument(outputTags.contains(tag), "Unknown output tag %s", tag);
   }
 
   /** An {@link DoFnInvoker.ArgumentProvider} for {@link DoFn.StartBundle @StartBundle}. */
@@ -510,9 +480,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   /**
    * A concrete implementation of {@link DoFn.ProcessContext} used for running a {@link DoFn} over a
-   * single element. A single instance is reused across non-reentrant {@code @ProcessElement}
-   * invocations via {@link #setElement(WindowedValue)} / {@link #clearElement()}; callers accessing
-   * a retained context or receiver after {@code @ProcessElement} returns fail fast with {@link
+   * single element. A single instance is reused across {@code @ProcessElement} invocations via
+   * {@link #setElement(WindowedValue)} / {@link #clearElement()}; callers accessing a retained
+   * context or receiver after {@code @ProcessElement} returns fail fast with {@link
    * IllegalStateException}.
    */
   private final class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
@@ -528,11 +498,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     DoFnProcessContext() {
       fn.super();
-    }
-
-    DoFnProcessContext(WindowedValue<InputT> elem) {
-      fn.super();
-      this.elem = elem;
     }
 
     void setElement(WindowedValue<InputT> elem) {
@@ -564,6 +529,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return namespace;
     }
 
+    private <T> WindowedValue<T> outputValueWithCurrentContext(
+        WindowedValue<?> template, T output) {
+      // Preserve ValueInEmptyWindows / legacy zero-window elements (e.g. Dataflow classic batch
+      // side inputs from GroupingShuffleReader) without triggering non-empty window validation.
+      return (WindowedValues.singleWindowOrNull(template) == null
+              && template.getWindows().isEmpty())
+          ? template.withValue(output)
+          : WindowedValues.ofWithCurrentContext(template, output);
+    }
+
     @Override
     public <T> WindowedValues.Builder<T> builder(T value) {
       return WindowedValues.builder(currentElem(), value);
@@ -571,12 +546,33 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public <T> WindowedValue<T> build(T value) {
-      return WindowedValues.ofWithCurrentContext(currentElem(), value);
+      return outputValueWithCurrentContext(currentElem(), value);
     }
 
     @Override
     public <T> WindowedValue<T> buildWithTimestamp(T value, Instant timestamp) {
       return WindowedValues.ofWithCurrentContext(currentElem(), value, timestamp);
+    }
+
+    @Override
+    public <T> WindowedValue<T> buildWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo) {
+      return WindowedValues.ofWithCurrentContext(
+          currentElem(), value, timestamp, windows, paneInfo);
+    }
+
+    @Override
+    public <T> WindowedValue<T> buildWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      return WindowedValues.ofWithCurrentContext(
+          currentElem(), value, timestamp, windows, paneInfo, valueKind);
     }
 
     @Override
@@ -610,7 +606,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public void output(OutputT output) {
       checkNotNull(mainOutputTag, "Tag passed to output cannot be null");
-      outputManager.output(mainOutputTag, currentElem().withValue(output));
+      outputManager.output(mainOutputTag, outputValueWithCurrentContext(currentElem(), output));
     }
 
     @Override
@@ -630,7 +626,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
       checkNotNull(tag, "Tag passed to output cannot be null");
-      SimpleDoFnRunner.this.outputWindowedValue(tag, currentElem().withValue(output));
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, outputValueWithCurrentContext(currentElem(), output));
     }
 
     @Override
@@ -849,8 +846,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       @Override
       public void output(T output) {
         WindowedValue<InputT> current = currentElem();
-        checkSameElementTimestamp(current.getTimestamp());
-        receiverOutputManager.output(tag, WindowedValues.ofWithCurrentContext(current, output));
+        Instant ts = current.getTimestamp();
+        checkTimestamp(ts, ts);
+        receiverOutputManager.output(tag, outputValueWithCurrentContext(current, output));
       }
 
       @Override
@@ -901,123 +899,71 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     private final class CachedMultiOutputReceiver implements MultiOutputReceiver {
-      private final @Nullable TupleTag<OutputT> mainTag;
+      // Note: the tags passed in by the user will probably be different object instances. The point
+      // of cachedMainTag
+      // and cachedSingleExtraTag is to cache the object reference so we can do a quick
+      // reference-equality lookup (for
+      // DoFns with 1 or 2 outputs). We always fall back to Objects.equals if this doesn't match.
+      private @Nullable TupleTag<?> cachedMainTag;
       private final DirectOutputReceiver<OutputT> mainReceiver;
-      private @Nullable TupleTag<?> altMainTag;
-      private final @Nullable TupleTag<?> singleExtraTag;
+      private @Nullable TupleTag<?> cachedSingleExtraTag;
       private final @Nullable DirectOutputReceiver<?> singleExtraReceiver;
-      private @Nullable TupleTag<?> altSingleExtraTag;
-      private final TupleTag<?> @Nullable [] extraTags;
-      private final DirectOutputReceiver<?> @Nullable [] extraReceivers;
-      private TupleTag<?> @Nullable [] extraTagAliases;
-      private final boolean hasLargeFanOut;
-      private @Nullable Map<TupleTag<?>, DirectOutputReceiver<?>> lazyExtraReceivers;
+      private @Nullable Map<TupleTag<?>, DirectOutputReceiver<?>> extraReceivers;
       private @Nullable Map<TupleTag<?>, OutputReceiver<Row>> rowReceivers;
 
-      @SuppressWarnings("unchecked")
       CachedMultiOutputReceiver(
           @Nullable TupleTag<OutputT> mainTag, DirectOutputReceiver<OutputT> mainReceiver) {
-        this.mainTag = mainTag;
+        this.cachedMainTag = mainTag;
         this.mainReceiver = mainReceiver;
-        TupleTag<?> @Nullable [] runnerExtraTags = extraOutputTags;
-        if (runnerExtraTags == null) {
-          this.singleExtraTag = null;
-          this.singleExtraReceiver = null;
-          this.extraTags = null;
-          this.extraReceivers = null;
-          this.hasLargeFanOut = outputTags.size() - 1 > MAX_INLINE_EXTRA_TAGS;
-        } else if (runnerExtraTags.length == 1) {
-          TupleTag<?> onlyExtra = runnerExtraTags[0];
-          this.singleExtraTag = onlyExtra;
-          this.singleExtraReceiver =
-              new DirectOutputReceiver<>((TupleTag<Object>) onlyExtra, outputManager);
-          this.extraTags = null;
-          this.extraReceivers = null;
-          this.hasLargeFanOut = false;
+        TupleTag<?> onlyExtra = singleExtraOutputTag;
+        if (onlyExtra != null) {
+          this.cachedSingleExtraTag = onlyExtra;
+          this.singleExtraReceiver = newDirectReceiver(onlyExtra);
         } else {
-          this.singleExtraTag = null;
+          this.cachedSingleExtraTag = null;
           this.singleExtraReceiver = null;
-          @SuppressWarnings("rawtypes")
-          DirectOutputReceiver<?>[] receivers = new DirectOutputReceiver[runnerExtraTags.length];
-          for (int i = 0; i < runnerExtraTags.length; i++) {
-            receivers[i] =
-                new DirectOutputReceiver<>((TupleTag<Object>) runnerExtraTags[i], outputManager);
-          }
-          this.extraTags = runnerExtraTags;
-          this.extraReceivers = receivers;
-          this.hasLargeFanOut = false;
         }
+      }
+
+      private <T> DirectOutputReceiver<T> newDirectReceiver(TupleTag<T> tag) {
+        return new DirectOutputReceiver<>(tag, outputManager);
       }
 
       @Override
       @SuppressWarnings({"unchecked", "ReferenceEquality"})
       public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-        if (tag == null || tag == mainTag || tag == altMainTag) {
+        if (tag == null || tag == cachedMainTag) {
           return (OutputReceiver<T>) mainReceiver;
         }
         DirectOutputReceiver<?> onlyExtra = this.singleExtraReceiver;
-        if (onlyExtra != null && (tag == singleExtraTag || tag == altSingleExtraTag)) {
+        if (onlyExtra != null && tag == cachedSingleExtraTag) {
           return (OutputReceiver<T>) onlyExtra;
-        }
-        TupleTag<?> @Nullable [] tags = this.extraTags;
-        DirectOutputReceiver<?> @Nullable [] receivers = this.extraReceivers;
-        if (tags != null && receivers != null) {
-          for (int i = 0; i < tags.length; i++) {
-            if (tags[i] == tag) {
-              return (OutputReceiver<T>) receivers[i];
-            }
-          }
-          TupleTag<?> @Nullable [] aliases = this.extraTagAliases;
-          if (aliases != null) {
-            for (int i = 0; i < aliases.length; i++) {
-              if (aliases[i] == tag) {
-                return (OutputReceiver<T>) receivers[i];
-              }
-            }
-          }
         }
         return getSlowPath(tag);
       }
 
       @SuppressWarnings("unchecked")
       private <T> OutputReceiver<T> getSlowPath(TupleTag<T> tag) {
-        if (hasLargeFanOut) {
-          Map<TupleTag<?>, DirectOutputReceiver<?>> map = this.lazyExtraReceivers;
-          if (map != null) {
-            DirectOutputReceiver<?> cached = map.get(tag);
-            if (cached != null) {
-              return (OutputReceiver<T>) cached;
-            }
-          }
-        }
-        if (Objects.equals(mainTag, tag)) {
-          altMainTag = tag;
+        if (Objects.equals(cachedMainTag, tag)) {
+          cachedMainTag = tag;
           return (OutputReceiver<T>) mainReceiver;
         }
         DirectOutputReceiver<?> onlyExtra = this.singleExtraReceiver;
-        if (onlyExtra != null && Objects.equals(singleExtraTag, tag)) {
-          altSingleExtraTag = tag;
+        if (onlyExtra != null && Objects.equals(cachedSingleExtraTag, tag)) {
+          cachedSingleExtraTag = tag;
           return (OutputReceiver<T>) onlyExtra;
         }
-        TupleTag<?> @Nullable [] tags = this.extraTags;
-        DirectOutputReceiver<?> @Nullable [] receivers = this.extraReceivers;
-        if (tags != null && receivers != null) {
-          for (int i = 0; i < tags.length; i++) {
-            if (Objects.equals(tags[i], tag)) {
-              TupleTag<?> @Nullable [] aliases = this.extraTagAliases;
-              if (aliases == null) {
-                aliases = new TupleTag<?>[tags.length];
-                this.extraTagAliases = aliases;
-              }
-              aliases[i] = tag;
-              return (OutputReceiver<T>) receivers[i];
-            }
+        Map<TupleTag<?>, DirectOutputReceiver<?>> map = this.extraReceivers;
+        if (map != null) {
+          DirectOutputReceiver<?> cached = map.get(tag);
+          if (cached != null) {
+            return (OutputReceiver<T>) cached;
           }
-        } else if (hasLargeFanOut && outputTags.contains(tag)) {
-          Map<TupleTag<?>, DirectOutputReceiver<?>> map = this.lazyExtraReceivers;
+        }
+        if (outputTags.contains(tag)) {
           if (map == null) {
-            map = new HashMap<>();
-            this.lazyExtraReceivers = map;
+            map = new HashMap<>(4);
+            this.extraReceivers = map;
           }
           DirectOutputReceiver<T> created = new DirectOutputReceiver<>(tag, outputManager);
           map.put(tag, created);
@@ -1031,7 +977,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       @SuppressWarnings({"unchecked", "ReferenceEquality"})
       public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
         Map<TupleTag<?>, Coder<?>> coders = checkNotNull(outputCoders);
-        if (tag == mainTag && mainOutputSchemaCoder != null) {
+        if (tag == cachedMainTag && mainOutputSchemaCoder != null) {
           return outputRowReceiver(fn);
         }
         Map<TupleTag<?>, OutputReceiver<Row>> cache = this.rowReceivers;
