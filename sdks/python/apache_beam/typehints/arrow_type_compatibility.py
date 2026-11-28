@@ -322,7 +322,8 @@ def _to_arrow_value_fn(
     def convert_map(value):
       if value is None:
         return None
-      return {key: convert_item(item) for key, item in value.items()}
+      items = value.items() if hasattr(value, 'items') else value
+      return {key: convert_item(item) for key, item in items}
 
     return convert_map
 
