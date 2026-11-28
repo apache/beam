@@ -76,5 +76,36 @@ class BigQueryFixtureCleanupTest(unittest.TestCase):
     self.assert_dataset_deleted(bigquery_wrapper, project)
 
 
+class BigtableFixtureZoneFallbackTest(unittest.TestCase):
+  def test_falls_back_to_next_zone_on_stockout(self):
+    stockout_error = RuntimeError(
+        "499 Operation successfully rolled back : Not enough servers to "
+        "allocate the requested nodes. We have temporarily sold out of "
+        "Cloud Bigtable in this zone.")
+    mock_client = Mock()
+    first_instance = Mock()
+    first_op = Mock()
+    first_op.result.side_effect = stockout_error
+    first_instance.create.return_value = first_op
+
+    second_instance = Mock()
+    second_op = Mock()
+    second_instance.create.return_value = second_op
+
+    mock_client.instance.side_effect = [first_instance, second_instance]
+
+    with patch.object(integration_tests.client,
+                      "Client",
+                      return_value=mock_client):
+      with integration_tests.temp_bigtable_table("beam-test-project") as bt_id:
+        self.assertTrue(bt_id.startswith("bt-write-tests-"))
+
+    first_instance.cluster.assert_called_once_with(
+        "test-cluster", "us-central1-a")
+    second_instance.cluster.assert_called_once_with(
+        "test-cluster", "us-central1-b")
+    second_instance.delete.assert_called_once()
+
+
 if __name__ == '__main__':
   unittest.main()

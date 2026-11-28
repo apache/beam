@@ -314,23 +314,47 @@ def instance_prefix(instance):
   return instance_id
 
 
+_BIGTABLE_TEST_ZONES = (
+    'us-central1-a',
+    'us-central1-b',
+    'us-central1-c',
+    'us-central1-f',
+    'us-east1-b',
+)
+
+
 @contextlib.contextmanager
 def temp_bigtable_table(project, prefix='yaml_bt_it_'):
   INSTANCE = "bt-write-tests"
   TABLE_ID = "test-table"
 
-  instance_id = instance_prefix(INSTANCE)
-
   clientT = client.Client(admin=True, project=project)
-  # create cluster and instance
-  instanceT = clientT.instance(
-      instance_id,
-      display_name=INSTANCE,
-      instance_type=instance.Instance.Type.DEVELOPMENT)
-  cluster = instanceT.cluster("test-cluster", "us-central1-a")
-  operation = instanceT.create(clusters=[cluster])
-  operation.result(timeout=500)
-  _LOGGER.info("Created instance [%s] in project [%s]", instance_id, project)
+  # create cluster and instance, falling back across zones on stockout
+  for i, zone in enumerate(_BIGTABLE_TEST_ZONES):
+    instance_id = instance_prefix(INSTANCE)
+    instanceT = clientT.instance(
+        instance_id,
+        display_name=INSTANCE,
+        instance_type=instance.Instance.Type.DEVELOPMENT)
+    cluster = instanceT.cluster("test-cluster", zone)
+    try:
+      operation = instanceT.create(clusters=[cluster])
+      operation.result(timeout=500)
+      _LOGGER.info(
+          "Created instance [%s] in project [%s] (zone %s)",
+          instance_id,
+          project,
+          zone)
+      break
+    except Exception as exn:
+      msg = str(exn).lower()
+      if i < len(_BIGTABLE_TEST_ZONES) - 1 and (
+          'sold out' in msg or 'not enough servers' in msg or
+          'zone_resource_pool_exhausted' in msg):
+        _LOGGER.warning(
+            "Bigtable zone %s unavailable (%s); trying next zone.", zone, exn)
+        continue
+      raise
 
   # create table inside instance
   table = instanceT.table(TABLE_ID)
