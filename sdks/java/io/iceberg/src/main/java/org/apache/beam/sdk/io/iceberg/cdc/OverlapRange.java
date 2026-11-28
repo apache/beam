@@ -65,7 +65,7 @@ final class OverlapRange {
   }
 
   /** The PK of the record last passed to {@link #contains}, in Iceberg's internal form. */
-  StructLike recordIdProjection() {
+  StructLike recordId() {
     return recordId;
   }
 
@@ -85,8 +85,8 @@ final class OverlapRange {
 
   /**
    * Wraps the record to project its Primary Key, then checks if the PK is within the overlap {@code
-   * [lower, upper]} (inclusive). Can be paired with a subsequent {@link #recordIdProjection()} call
-   * to fetch the PK value.
+   * [lower, upper]} (inclusive). Can be paired with a subsequent {@link #recordId()} call to fetch
+   * the PK value.
    *
    * <p>Both ends are inclusive because the bounds are Iceberg file statistics (actual min/max PK
    * values), making the overlap an intersection of two closed ranges. Note the error directions are
