@@ -158,7 +158,8 @@ public final class SparkStreamingPortablePipelineTranslator
             .map(CoderHelpers.fromByteFunction(windowCoder));
 
     final SingleEmitInputDStream<WindowedValue<byte[]>> inputDStream =
-        new SingleEmitInputDStream<>(context.getStreamingContext().ssc(), emptyByteArrayRDD.rdd());
+        new SingleEmitInputDStream<>(
+            context.getStreamingContext().ssc(), emptyByteArrayRDD.rdd(), true);
 
     final JavaDStream<WindowedValue<byte[]>> stream =
         JavaDStream.fromDStream(inputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
@@ -308,7 +309,7 @@ public final class SparkStreamingPortablePipelineTranslator
     if (inputsMap.isEmpty()) {
       final JavaRDD<WindowedValue<T>> emptyRDD = context.getSparkContext().emptyRDD();
       final SingleEmitInputDStream<WindowedValue<T>> singleEmitInputDStream =
-          new SingleEmitInputDStream<>(context.getStreamingContext().ssc(), emptyRDD.rdd());
+          new SingleEmitInputDStream<>(context.getStreamingContext().ssc(), emptyRDD.rdd(), true);
       unifiedStreams =
           JavaDStream.fromDStream(singleEmitInputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
     } else {
@@ -323,7 +324,9 @@ public final class SparkStreamingPortablePipelineTranslator
           // create a single RDD stream.
           final SingleEmitInputDStream<WindowedValue<T>> singleEmitInputDStream =
               new SingleEmitInputDStream<WindowedValue<T>>(
-                  context.getStreamingContext().ssc(), ((BoundedDataset) dataset).getRDD().rdd());
+                  context.getStreamingContext().ssc(),
+                  ((BoundedDataset) dataset).getRDD().rdd(),
+                  true);
           final JavaDStream<WindowedValue<T>> dStream =
               JavaDStream.fromDStream(
                   singleEmitInputDStream, JavaSparkContext$.MODULE$.fakeClassTag());
