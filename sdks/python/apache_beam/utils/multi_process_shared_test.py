@@ -20,7 +20,9 @@ import gc
 import logging
 import multiprocessing
 import multiprocessing.connection
+import multiprocessing.managers
 import os
+import queue
 import tempfile
 import threading
 import time
@@ -397,6 +399,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(shared2.increment(), 1)
 
   def test_process_exits_on_unsafe_hard_delete(self):
+    before_pids = {p.pid for p in multiprocessing.active_children()}
     shared = multi_process_shared.MultiProcessShared(
         Counter, tag='test_process_exit', always_proxy=True, spawn_process=True)
     obj = shared.acquire()
@@ -406,7 +409,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     children = multiprocessing.active_children()
     server_process = None
     for p in children:
-      if p.pid != os.getpid() and p.is_alive():
+      if p.pid != os.getpid() and p.pid not in before_pids and p.is_alive():
         server_process = p
         break
 
@@ -428,6 +431,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       obj.get()
 
   def test_process_exits_on_unsafe_hard_delete_with_manager(self):
+    before_pids = {p.pid for p in multiprocessing.active_children()}
     shared = multi_process_shared.MultiProcessShared(
         Counter, tag='test_process_exit', always_proxy=True, spawn_process=True)
     obj = shared.acquire()
@@ -437,7 +441,7 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     children = multiprocessing.active_children()
     server_process = None
     for p in children:
-      if p.pid != os.getpid() and p.is_alive():
+      if p.pid != os.getpid() and p.pid not in before_pids and p.is_alive():
         server_process = p
         break
 
@@ -459,13 +463,15 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       obj.get()
 
   def test_zombie_reaping_on_acquire(self):
+    before_pids = {p.pid for p in multiprocessing.active_children()}
     shared1 = multi_process_shared.MultiProcessShared(
         Counter, tag='test_zombie_reap', always_proxy=True, spawn_process=True)
     obj = shared1.acquire()
 
     children = multiprocessing.active_children()
     server_pid = next(
-        p.pid for p in children if p.is_alive() and p.pid != os.getpid())
+        p.pid for p in children
+        if p.is_alive() and p.pid != os.getpid() and p.pid not in before_pids)
 
     try:
       obj.singletonProxy_unsafe_hard_delete()
@@ -626,10 +632,12 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
     self.assertEqual(proxy.increment(5), 55)
 
   def test_unsafe_hard_delete_missing_tag_is_noop(self):
+    before_pids = {p.pid for p in multiprocessing.active_children()}
     handle = multi_process_shared.MultiProcessShared(
         Counter, tag='nonexistent_tag', always_proxy=True, spawn_process=True)
     handle.unsafe_hard_delete()
-    self.assertEqual(multiprocessing.active_children(), [])
+    new_pids = {p.pid for p in multiprocessing.active_children()} - before_pids
+    self.assertEqual(new_pids, set())
 
     with tempfile.TemporaryDirectory() as tmp_dir:
       stale_address = os.path.join(tmp_dir, 'stale_tag.address')
@@ -643,12 +651,17 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
           spawn_process=True)
       stale_handle.unsafe_hard_delete()
       self.assertFalse(os.path.exists(stale_address))
-      self.assertEqual(multiprocessing.active_children(), [])
+      new_pids = {
+          p.pid
+          for p in multiprocessing.active_children()
+      } - before_pids
+      self.assertEqual(new_pids, set())
 
   def test_unsafe_hard_delete_terminates_server_during_inflight_blocked_call(
       self):
     with tempfile.TemporaryDirectory() as tmp_dir:
       entered_path = os.path.join(tmp_dir, 'entered')
+      before_pids = {p.pid for p in multiprocessing.active_children()}
       handle = multi_process_shared.MultiProcessShared(
           lambda: SlowBlockingObject(entered_path),
           tag='inflight_hard_delete',
@@ -656,7 +669,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
           spawn_process=True)
       proxy = handle.acquire()
       server_proc = next(
-          p for p in multiprocessing.active_children() if p.is_alive())
+          p for p in multiprocessing.active_children()
+          if p.is_alive() and p.pid not in before_pids)
 
       def call_ignoring_disconnect():
         try:
@@ -676,6 +690,105 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       handle.unsafe_hard_delete()
       server_proc.join(timeout=5)
       self.assertFalse(server_proc.is_alive())
+
+  def test_reused_server_address_resets_stale_proxy_connection(self):
+    """Verifies that connecting to a new server on a recycled (host, port)
+    invalidates any stale per-thread BaseProxy connection left from a dead
+    server, preventing EOFError on long-lived worker threads.
+    """
+    tasks: queue.Queue = queue.Queue()
+
+    def worker_loop():
+      while True:
+        item = tasks.get()
+        if item is None:
+          tasks.task_done()
+          return
+        fn, result_box = item
+        try:
+          result_box.append(('ok', fn()))
+        except BaseException as exc:  # pylint: disable=broad-exception-caught
+          result_box.append(('err', exc))
+        finally:
+          tasks.task_done()
+
+    def run_on_worker(fn):
+      result_box = []
+      tasks.put((fn, result_box))
+      tasks.join()
+      status, value = result_box[0]
+      if status == 'err':
+        raise value
+      return value
+
+    worker = threading.Thread(target=worker_loop, daemon=True)
+    worker.start()
+    try:
+      with tempfile.TemporaryDirectory() as tmp_dir:
+        before_pids = {p.pid for p in multiprocessing.active_children()}
+        handle1 = multi_process_shared.MultiProcessShared(
+            Counter,
+            tag='stale_conn_server_1',
+            path=tmp_dir,
+            always_proxy=True,
+            spawn_process=True)
+        proxy1 = handle1.acquire()
+        server1_proc = next(
+            p for p in multiprocessing.active_children()
+            if p.is_alive() and p.pid not in before_pids)
+        addr1 = proxy1.get_auto_proxy_object()._token.address
+
+        # Populate BaseProxy._address_to_local[addr1] with a live TCP
+        # connection on the persistent worker thread.
+        self.assertEqual(run_on_worker(proxy1.increment), 1)
+
+        # Terminate server 1 externally (simulating test teardown or crash)
+        # so the worker thread retains a stale FIN'd connection for addr1.
+        server1_proc.terminate()
+        server1_proc.join(timeout=5)
+        self.assertFalse(server1_proc.is_alive())
+
+        # Spawn server 2 without connecting yet, then alias server 1's dead
+        # (tls, idset) entry onto server 2's address to deterministically
+        # simulate the OS reassigning addr1's ephemeral port to server 2.
+        handle2 = multi_process_shared.MultiProcessShared(
+            Counter,
+            tag='stale_conn_server_2',
+            path=tmp_dir,
+            always_proxy=True,
+            spawn_process=True)
+        addr2_file = os.path.join(tmp_dir, 'stale_conn_server_2.address')
+        handle2._create_server(addr2_file)
+        with open(addr2_file) as fin:
+          host2, port2 = fin.read().split(':')
+        addr2 = (host2, int(port2))
+
+        with multiprocessing.managers.BaseProxy._mutex:
+          stale_entry = multiprocessing.managers.BaseProxy._address_to_local[
+              addr1]
+          multiprocessing.managers.BaseProxy._address_to_local[
+              addr2] = stale_entry
+        with multi_process_shared._process_local_lock:
+          multi_process_shared._address_to_server_key[
+              addr2] = multi_process_shared._address_to_server_key[addr1]
+
+        proxy2 = handle2.acquire()
+        # Without cache eviction on server identity change, the worker thread
+        # would send on server 1's dead socket and raise EOFError on recv().
+        self.assertEqual(run_on_worker(proxy2.increment), 1)
+
+        # unsafe_hard_delete() should also evict addr2 from the cache.
+        handle2.unsafe_hard_delete()
+        with multiprocessing.managers.BaseProxy._mutex:
+          self.assertNotIn(
+              addr2, multiprocessing.managers.BaseProxy._address_to_local)
+          multiprocessing.managers.BaseProxy._address_to_local.pop(addr1, None)
+        with multi_process_shared._process_local_lock:
+          self.assertNotIn(addr2, multi_process_shared._address_to_server_key)
+          multi_process_shared._address_to_server_key.pop(addr1, None)
+    finally:
+      tasks.put(None)
+      worker.join(timeout=5)
 
 
 if __name__ == '__main__':
