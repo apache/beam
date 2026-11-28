@@ -41,6 +41,7 @@ instances (for example with
 """
 
 import itertools
+import json
 import math
 import re
 from io import BytesIO
@@ -809,6 +810,12 @@ class _WriteToPandasFileSink(fileio.FileSink):
       self.file_handle.flush()
 
 
+def _json_encode_containers(value):
+  if isinstance(value, (dict, list)):
+    return json.dumps(value)
+  return value
+
+
 class ReadViaPandas(beam.PTransform):
   def __init__(
       self,
@@ -820,6 +827,7 @@ class ReadViaPandas(beam.PTransform):
       **kwargs):
     if format == 'csv':
       kwargs['filename_column'] = filename_column
+    self._format = format
     self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._include_indexes = include_indexes
     self._objects_as_strings = objects_as_strings
@@ -831,6 +839,8 @@ class ReadViaPandas(beam.PTransform):
     if self._objects_as_strings:
       for col, t in zip(df.columns, df.dtypes):
         if t == object:
+          if self._format == 'json':
+            df[col] = df[col].map(_json_encode_containers)
           df[col] = df[col].astype(pd.StringDtype())
     return convert.to_pcollection(df, include_indexes=self._include_indexes)
 
